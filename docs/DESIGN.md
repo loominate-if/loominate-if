@@ -39,7 +39,7 @@ These principles settle disputes later in the design; when two options conflict,
 
 The system is a small core runtime with optional layers above it and tooling beside it, so a plain story uses only the core and presentation while richer games add the world model and extensions.
 
-&#91;embedded content: architecture · 5 layers, tooling, 4 build targets\]
+![Loominate architecture](architecture.svg)
 
 Each layer depends only on the layers below it. Extensions can reach into any layer through rulebooks, hooks, and registries, and the inspector reads state from all of them.
 
@@ -447,7 +447,7 @@ Rooms can serve as grid cells for first-person dungeon crawling with the compass
 - The inspector breaks down any roll into base dice, modifiers, and the rules that added them.
 - A simulation command runs an encounter thousands of times across seeds and reports win rates, damage taken, and ability usage, for measurable balancing.
 
-**Open:** the style of the default ruleset (spell slots or spell points, how many core stats).
+**Open:** the style of the default ruleset (spell slots or spell points, how many core stats). Tracked in [#159](https://github.com/torstees/loominate/issues/159).
 
 ## Procedural generation kit
 
@@ -552,7 +552,7 @@ The same source builds to four targets; the static site is the default for web h
 
 Work proceeds in four phases, starting with the core and tooling, and each phase ends only when a small acceptance game passes its walkthrough tests.
 
-&#91;embedded content: roadmap · 4 phases, 3 gates, later packages\]
+![Loominate roadmap](roadmap.svg)
 
 The data model is designed for later phases from the start (group conversations, simulated NPCs, the parser), so nothing built early needs to be rebuilt.
 
@@ -560,13 +560,13 @@ The data model is designed for later phases from the start (group conversations,
 
 These need decisions before or during the phase that depends on them.
 
-- [ ] **Name.** Working name **Loominate** (loom + illuminate, with a nod to Lucasfilm's *Loom*). Before committing, confirm `loominate` is free on npm, as a GitHub organization, and as a domain, and consider a trademark search if the project is ever commercialized. Avoid bare "loom" for the CLI or packages, since that name is crowded in software. Rejected: Xyzzy, which collides with the XYZZY Awards and an existing Lisp-based text editor.
-- [ ] **Object definition syntax.** Prototype two or three styles (factory with object literal, builder chain, class-per-object) and write small scenes in each before committing.
-- [ ] **Passage directive syntax.** Confirm `{ }` delimiters and the escape rule for literal braces in prose; settle link syntax details.
-- [ ] **UI rendering approach.** Vanilla DOM, or a small framework such as Preact or Solid for widgets and layouts.
-- [ ] **Repository layout.** Monorepo packages for core, world library, widgets, compiler, CLI, inspector, and editor extension.
-- [ ] **First acceptance games.** A plain branching story with no world model, and a short world-model piece with a container, a locked door, and an NPC with three topics and an agenda item.
-- [ ] **NPC-to-NPC conversation offstage.** Whether simulated NPCs can exchange facts with each other when the player is absent, and in which phase.
-- [ ] **Twee 3 import.** Whether to support importing existing Twine stories, and when.
-- [ ] **Localization scope.** Whether version one ships only English messages or a second language to prove the message table.
-- [ ] **Non-game uses.** Which, if any, to validate after the first games (tutorials, training simulations, decision aids).
+- [ ] **Name.** ([#3](https://github.com/torstees/loominate/issues/3)) Working name **Loominate** (loom + illuminate, with a nod to Lucasfilm's *Loom*). Before committing, confirm `loominate` is free on npm, as a GitHub organization, and as a domain, and consider a trademark search if the project is ever commercialized. Avoid bare "loom" for the CLI or packages, since that name is crowded in software. Rejected: Xyzzy, which collides with the XYZZY Awards and an existing Lisp-based text editor.
+- [ ] **Object definition syntax.** ([#4](https://github.com/torstees/loominate/issues/4)) Prototype two or three styles (factory with object literal, builder chain, class-per-object) and write small scenes in each before committing.
+- [ ] **Passage directive syntax.** ([#5](https://github.com/torstees/loominate/issues/5)) Confirm `{ }` delimiters and the escape rule for literal braces in prose; settle link syntax details.
+- [ ] **UI rendering approach.** ([#6](https://github.com/torstees/loominate/issues/6)) Vanilla DOM, or a small framework such as Preact or Solid for widgets and layouts.
+- [ ] **Repository layout.** ([#7](https://github.com/torstees/loominate/issues/7)) Monorepo packages for core, world library, widgets, compiler, CLI, inspector, and editor extension.
+- [ ] **First acceptance games.** ([#8](https://github.com/torstees/loominate/issues/8)) A plain branching story with no world model, and a short world-model piece with a container, a locked door, and an NPC with three topics and an agenda item.
+- [ ] **NPC-to-NPC conversation offstage.** ([#135](https://github.com/torstees/loominate/issues/135)) Whether simulated NPCs can exchange facts with each other when the player is absent, and in which phase.
+- [ ] **Twee 3 import.** ([#157](https://github.com/torstees/loominate/issues/157)) Whether to support importing existing Twine stories, and when.
+- [ ] **Localization scope.** ([#60](https://github.com/torstees/loominate/issues/60)) Whether version one ships only English messages or a second language to prove the message table.
+- [ ] **Non-game uses.** ([#158](https://github.com/torstees/loominate/issues/158)) Which, if any, to validate after the first games (tutorials, training simulations, decision aids).

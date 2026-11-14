@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 548" width="1520" height="1096" font-family="Inter, 'Helvetica Neue', Arial, sans-serif" font-size="11.5">
+  <title>Loominate architecture</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#b5b3aa"/>
+    </marker>
+  </defs>
+  <rect width="760" height="548" fill="#ffffff"/>
+  <text x="24" y="32" font-size="15" font-weight="600" fill="#1f1f1f">Optional layers sit on a small core; tooling builds it all into four targets</text>
+
+  <!-- Your game -->
+  <rect x="24" y="52" width="512" height="56" rx="8" fill="none" stroke="#b5b3aa" stroke-width="1.25"/>
+  <text x="40" y="76" font-size="13" font-weight="600" fill="#1f1f1f">Your game</text>
+  <text x="40" y="92" fill="#5c5c5c">Passage files (prose and inline code) plus TypeScript modules</text>
+
+  <!-- Extensions (optional) -->
+  <rect x="24" y="124" width="512" height="56" rx="8" fill="none" stroke="#b5b3aa" stroke-width="1.25" stroke-dasharray="5 4"/>
+  <text x="40" y="148" font-size="13" font-weight="600" fill="#1f1f1f">Extensions</text>
+  <text x="40" y="164" fill="#5c5c5c">npm packages adding rules, classes, widgets, effects, messages</text>
+
+  <!-- World model (optional) -->
+  <rect x="24" y="196" width="248" height="104" rx="8" fill="none" stroke="#b5b3aa" stroke-width="1.25" stroke-dasharray="5 4"/>
+  <text x="40" y="220" font-size="13" font-weight="600" fill="#1f1f1f">World model library</text>
+  <text x="40" y="236" fill="#5c5c5c">Objects, rooms, exits, compass</text>
+  <text x="40" y="252" fill="#5c5c5c">Knowledge and facts, scenes</text>
+  <text x="40" y="268" fill="#5c5c5c">Clock, fuses and daemons</text>
+  <text x="40" y="284" fill="#5c5c5c">NPCs and conversations</text>
+
+  <!-- Presentation -->
+  <rect x="288" y="196" width="248" height="104" rx="8" fill="none" stroke="#b5b3aa" stroke-width="1.25"/>
+  <text x="304" y="220" font-size="13" font-weight="600" fill="#1f1f1f">Presentation</text>
+  <text x="304" y="236" fill="#5c5c5c">Layouts, regions, widgets</text>
+  <text x="304" y="252" fill="#5c5c5c">Themes and effects</text>
+  <text x="304" y="268" fill="#5c5c5c">Cut scenes and beats</text>
+  <text x="304" y="284" fill="#5c5c5c">Audio and accessibility</text>
+
+  <!-- Core runtime -->
+  <rect x="24" y="316" width="512" height="88" rx="8" fill="#2f74d0" fill-opacity="0.12" stroke="#2f74d0" stroke-width="2"/>
+  <text x="40" y="340" font-size="13" font-weight="600" fill="#1f1f1f">Core runtime</text>
+  <text x="40" y="356" fill="#1f1f1f">Passages, links, visit tracking, effect phases</text>
+  <text x="40" y="372" fill="#1f1f1f">State store, save/load, undo, seeded random streams</text>
+  <text x="40" y="388" fill="#1f1f1f">Action pipeline (verify, check, action, report) and event record</text>
+
+  <!-- Tooling -->
+  <rect x="576" y="52" width="160" height="352" rx="8" fill="none" stroke="#b5b3aa" stroke-width="1.25"/>
+  <text x="592" y="76" font-size="13" font-weight="600" fill="#1f1f1f">Tooling</text>
+  <text x="592" y="92" fill="#5c5c5c">Compiler</text>
+  <text x="592" y="108" fill="#5c5c5c">CLI and dev server</text>
+  <text x="592" y="124" fill="#5c5c5c">Inspector</text>
+  <text x="592" y="140" fill="#5c5c5c">Walkthrough tests</text>
+  <text x="592" y="156" fill="#5c5c5c">Coverage reports</text>
+  <text x="592" y="172" fill="#5c5c5c">Editor extension</text>
+  <text x="592" y="188" fill="#5c5c5c">Story map</text>
+
+  <!-- Connectors -->
+  <g fill="none" stroke="#b5b3aa" stroke-width="1.25">
+    <path d="M536 228H576"/>
+    <path d="M656 404V424"/>
+    <path d="M107 424H653"/>
+    <path d="M107 424V450" marker-end="url(#arrow)"/>
+    <path d="M289 424V450" marker-end="url(#arrow)"/>
+    <path d="M471 424V450" marker-end="url(#arrow)"/>
+    <path d="M653 424V450" marker-end="url(#arrow)"/>
+  </g>
+  <text x="666" y="419" fill="#5c5c5c">builds</text>
+
+  <!-- Build targets -->
+  <rect x="24" y="452" width="166" height="40" rx="8" fill="none" stroke="#b5b3aa" stroke-width="1.25"/>
+  <text x="107" y="476" text-anchor="middle" font-size="13" font-weight="600" fill="#1f1f1f">Static site</text>
+  <rect x="206" y="452" width="166" height="40" rx="8" fill="none" stroke="#b5b3aa" stroke-width="1.25"/>
+  <text x="289" y="476" text-anchor="middle" font-size="13" font-weight="600" fill="#1f1f1f">Single file</text>
+  <rect x="388" y="452" width="166" height="40" rx="8" fill="none" stroke="#b5b3aa" stroke-width="1.25"/>
+  <text x="471" y="476" text-anchor="middle" font-size="13" font-weight="600" fill="#1f1f1f">Archive</text>
+  <rect x="570" y="452" width="166" height="40" rx="8" fill="none" stroke="#b5b3aa" stroke-width="1.25"/>
+  <text x="653" y="476" text-anchor="middle" font-size="13" font-weight="600" fill="#1f1f1f">Desktop / mobile</text>
+
+  <!-- Key -->
+  <rect x="24" y="514" width="28" height="14" rx="4" fill="none" stroke="#b5b3aa" stroke-width="1.25" stroke-dasharray="5 4"/>
+  <text x="60" y="525" fill="#5c5c5c">Dashed border: optional layer a game can leave out</text>
+</svg>
