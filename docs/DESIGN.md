@@ -1,10 +1,10 @@
-# Loominate — Design Document
+# Loominate IF — Design Document
 
 Nov 7, 2026 · @eric
 
 ## Overview and goals
 
-Loominate is a programmer-oriented authoring framework for interactive fiction: twee-style passage files plus TypeScript, compiled into games that run in any browser, as a desktop app, or on mobile. It pairs Twine's ease of publishing with the rich, optional world model of TADS 3 and Eric Eve's adv3Lite library.
+Loominate IF is a programmer-oriented authoring framework for interactive fiction: twee-style passage files plus TypeScript, compiled into games that run in any browser, as a desktop app, or on mobile. It pairs Twine's ease of publishing with the rich, optional world model of TADS 3 and Eric Eve's adv3Lite library.
 
 **Who it's for.** Programmers who want a real framework with a real world model. Writers who want no code at all are already well served by Twine, so the system does not try to compete there.
 
@@ -19,7 +19,7 @@ Loominate is a programmer-oriented authoring framework for interactive fiction: 
 
 **Non-goals for version one.** A full natural-language parser (the action layer is parser-ready, but the parser ships later as an optional package), a visual editor, and a no-code authoring experience.
 
-Loominate is the working name, from *loom* and *illuminate*; see Open questions for the checks still to do.
+The name Loominate IF comes from *loom* and *illuminate*, with IF for interactive fiction. The CLI command is `loominate`. See Open questions for how the name was chosen.
 
 ## Design principles
 
@@ -39,7 +39,7 @@ These principles settle disputes later in the design; when two options conflict,
 
 The system is a small core runtime with optional layers above it and tooling beside it, so a plain story uses only the core and presentation while richer games add the world model and extensions.
 
-![Loominate architecture](architecture.svg)
+![Loominate IF architecture](architecture.svg)
 
 Each layer depends only on the layers below it. Extensions can reach into any layer through rulebooks, hooks, and registries, and the inspector reads state from all of them.
 
@@ -552,7 +552,7 @@ The same source builds to four targets; the static site is the default for web h
 
 Work proceeds in four phases, starting with the core and tooling, and each phase ends only when a small acceptance game passes its walkthrough tests.
 
-![Loominate roadmap](roadmap.svg)
+![Loominate IF roadmap](roadmap.svg)
 
 The data model is designed for later phases from the start (group conversations, simulated NPCs, the parser), so nothing built early needs to be rebuilt.
 
@@ -560,7 +560,7 @@ The data model is designed for later phases from the start (group conversations,
 
 These need decisions before or during the phase that depends on them.
 
-- [x] **Name.** ([#3](https://github.com/loominate-if/loominate-if/issues/3)) Decided in [ADR 0002](decisions/0002-project-name-and-package-names.md): the product stays **Loominate**, with the handles `loominate-if` on GitHub and `@loominate-if` on npm, because `loominate` was taken on both. The CLI command is `loominate`. Run a trademark search before any commercial use.
+- [x] **Name.** ([#3](https://github.com/loominate-if/loominate-if/issues/3)) Decided in [ADR 0002](decisions/0002-project-name-and-package-names.md): the product is **Loominate IF**. Its handles are `loominate-if` on GitHub and `@loominate-if` on npm, because `loominate` was taken on both, and the CLI command is `loominate`. Run a trademark search before any commercial use.
 - [ ] **Object definition syntax.** ([#4](https://github.com/loominate-if/loominate-if/issues/4)) Prototype two or three styles (factory with object literal, builder chain, class-per-object) and write small scenes in each before committing.
 - [ ] **Passage directive syntax.** ([#5](https://github.com/loominate-if/loominate-if/issues/5)) Confirm `{ }` delimiters and the escape rule for literal braces in prose; settle link syntax details.
 - [ ] **UI rendering approach.** ([#6](https://github.com/loominate-if/loominate-if/issues/6)) Vanilla DOM, or a small framework such as Preact or Solid for widgets and layouts.

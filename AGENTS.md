@@ -1,10 +1,10 @@
 # AGENTS.md
 
-Guidance for coding agents (Claude Code and others) working on **Loominate**.
+Guidance for coding agents (Claude Code and others) working on **Loominate IF**.
 
 ## What this project is
 
-Loominate is a programmer-oriented authoring system for interactive fiction. Authors write twee-style passage files for prose and TypeScript modules for objects and behavior; the compiler type-checks them together and builds games that run in a browser, as a single HTML file, as a portable `.loom` archive, or as a desktop/mobile app. An optional world model, inspired by TADS 3 and Eric Eve's adv3Lite, provides objects, rooms, knowledge, time, NPCs, and conversations. Genre features (RPG, procedural generation, visual novel, life sim) are optional kits.
+Loominate IF is a programmer-oriented authoring system for interactive fiction. Authors write twee-style passage files for prose and TypeScript modules for objects and behavior; the compiler type-checks them together and builds games that run in a browser, as a single HTML file, as a portable `.loom` archive, or as a desktop/mobile app. An optional world model, inspired by TADS 3 and Eric Eve's adv3Lite, provides objects, rooms, knowledge, time, NPCs, and conversations. Genre features (RPG, procedural generation, visual novel, life sim) are optional kits.
 
 **The design document is the source of truth:** `docs/DESIGN.md`. Read the relevant section before starting any task. If a task conflicts with the design, stop and raise it on the issue instead of improvising.
 

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 548" width="1520" height="1096" font-family="Inter, 'Helvetica Neue', Arial, sans-serif" font-size="11.5">
-  <title>Loominate architecture</title>
+  <title>Loominate IF architecture</title>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
       <path d="M0 0L10 5L0 10z" fill="#b5b3aa"/>
