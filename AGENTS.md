@@ -34,24 +34,35 @@ These shape everything; don't work around them.
 - **Event record.** All output goes into the structured, tagged event record. Never write to the DOM directly from runtime logic.
 - **Undo** stores diffs. Anything that mutates state must go through the store so undo, save, and replay see it.
 
-## Repository layout (proposed)
+## Repository layout
 
-Update this section when Phase 1 scaffolding settles the layout.
+Decided in [ADR 0001](docs/decisions/0001-repository-layout.md); read it for the full rules.
 
 ```
 packages/
-  core/          runtime: state store, passages, effect phases, actions, event record, save/undo, random streams
-  compiler/      passage parser, virtual TS modules, line IDs, diagnostics
-  cli/           scaffold, dev server, test runner, builds
-  inspector/     in-game debugging panel
-  presentation/  layouts, regions, widgets, themes, effects, beats
-  world/         world model library (optional)
-  kits/          rpg, procgen, visual-novel, life-sim (optional, later phases)
-examples/        acceptance games used as end-to-end tests
-docs/            DESIGN.md, decisions/ (ADRs), author docs
+  core/              DOM-free runtime: state store, passages, effect phases, action pipeline, event record, save/undo, random streams
+  presentation/      layouts, regions, widgets, themes, beats, effects, audio, accessibility
+  world/             world model (optional), including clock and scheduling, stats, NPCs, conversations, compass widget
+  compiler/          passage parser, virtual TS modules, line IDs, diagnostics, extension API
+  inspector/         in-game debugging panel with a panel registry
+  testing/           walkthrough test API authors import
+  cli/               dev server, test runner, builds (static, single file, PWA), story map, coverage
+  create-<name>/     scaffold for `npm create <name>` (name pending #3)
+  language-server/   editor-agnostic LSP on the compiler (Volar.js)
+  vscode/            VS Code client: grammar + LSP client
+  archive/           .loom format, manifest, service worker
+  player/            generic sandboxed player
+  target-tauri/      desktop wrapper
+  target-capacitor/  mobile wrapper
+  parser/            natural-language parser (later)
+  kits/rpg/  kits/procgen/  kits/vn/  kits/life-sim/   one package per kit (later)
+examples/            acceptance games, each a workspace package
+docs/                DESIGN.md, decisions/ (ADRs), author docs
 ```
 
-Dependencies flow downward only: `world` may depend on `core`, never the reverse. Kits depend on `core` and `world`, never on each other unless the design says so.
+- Runtime dependencies flow downward only: `core` ← `presentation` ← `world` ← kits, never the reverse. Kits never depend on each other unless the design says so. Runtime packages never depend on tooling.
+- `world`, kits, and other optional packages extend the compiler and inspector through their extension APIs and registries. The compiler and inspector never import them.
+- `core` never touches the DOM. Nothing from `compiler` or `inspector` may reach a production game bundle.
 
 ## Tooling and commands
 
