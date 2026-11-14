@@ -36,7 +36,7 @@ These shape everything; don't work around them.
 
 ## Repository layout
 
-Decided in [ADR 0001](docs/decisions/0001-repository-layout.md); read it for the full rules.
+Decided in [ADR 0001](docs/decisions/0001-repository-layout.md); read it for the full rules. Packages are published as `@loominate-if/<package>` and the CLI command is `loominate` ([ADR 0002](docs/decisions/0002-project-name-and-package-names.md)).
 
 ```
 packages/
@@ -47,7 +47,7 @@ packages/
   inspector/         in-game debugging panel with a panel registry
   testing/           walkthrough test API authors import
   cli/               dev server, test runner, builds (static, single file, PWA), story map, coverage
-  create-<name>/     scaffold for `npm create <name>` (name pending #3)
+  create/            scaffold: `@loominate-if/create`, run as `npm create @loominate-if`
   language-server/   editor-agnostic LSP on the compiler (Volar.js)
   vscode/            VS Code client: grammar + LSP client
   archive/           .loom format, manifest, service worker
