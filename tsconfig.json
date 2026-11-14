@@ -1,0 +1,26 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/presentation"
+    },
+    {
+      "path": "packages/compiler"
+    },
+    {
+      "path": "packages/inspector"
+    },
+    {
+      "path": "packages/testing"
+    },
+    {
+      "path": "packages/cli"
+    },
+    {
+      "path": "packages/create"
+    }
+  ]
+}

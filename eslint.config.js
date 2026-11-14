@@ -1,0 +1,77 @@
+// @ts-check
+import js from "@eslint/js";
+import globals from "globals";
+import tseslint from "typescript-eslint";
+
+/** Runtime packages ship inside games, so determinism rules apply to them (AGENTS.md, principle 4). */
+const RUNTIME = [
+  "packages/core/**",
+  "packages/presentation/**",
+  "packages/world/**",
+  "packages/parser/**",
+  "packages/kits/**",
+];
+
+/** @type {import("eslint").Linter.RulesRecord} */
+const determinism = {
+  "no-restricted-properties": [
+    "error",
+    {
+      object: "Math",
+      property: "random",
+      message: "Use a named random stream; Math.random() breaks replay determinism.",
+    },
+    {
+      object: "Date",
+      property: "now",
+      message:
+        "Use the game clock. Wall-clock time is only for presentation timing and save metadata (disable with a reason).",
+    },
+    {
+      object: "crypto",
+      property: "randomUUID",
+      message: "IDs must be deterministic and derived from origin; never random UUIDs.",
+    },
+    {
+      object: "crypto",
+      property: "getRandomValues",
+      message: "Use a named random stream; crypto randomness breaks replay determinism.",
+    },
+  ],
+  "no-restricted-syntax": [
+    "error",
+    {
+      selector: "NewExpression[callee.name='Date'][arguments.length=0]",
+      message:
+        "Use the game clock. Wall-clock time is only for presentation timing and save metadata (disable with a reason).",
+    },
+    {
+      selector: "CallExpression[callee.name='Date']",
+      message:
+        "Use the game clock. Wall-clock time is only for presentation timing and save metadata (disable with a reason).",
+    },
+  ],
+};
+
+export default tseslint.config(
+  { ignores: ["**/dist/**", "**/coverage/**", "**/node_modules/**"] },
+  js.configs.recommended,
+  ...tseslint.configs.strict,
+  {
+    languageOptions: { globals: { ...globals.es2023 } },
+    linterOptions: { reportUnusedDisableDirectives: "error" },
+  },
+  {
+    files: ["scripts/**", "*.config.*", "packages/{compiler,testing,cli,create}/**"],
+    languageOptions: { globals: { ...globals.node } },
+  },
+  {
+    files: ["packages/{presentation,inspector}/**"],
+    languageOptions: { globals: { ...globals.browser } },
+  },
+  {
+    files: RUNTIME,
+    ignores: ["**/*.test.*"],
+    rules: determinism,
+  },
+);

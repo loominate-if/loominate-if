@@ -1,0 +1,19 @@
+{
+  "name": "@loominate-if/testing",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Walkthrough test API for scripted playthroughs.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ]
+}
