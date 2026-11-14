@@ -107,9 +107,15 @@ Each passage file compiles to a virtual TypeScript module, the technique Svelte,
 - passages tagged as rooms that aren't connected to one
 - type errors inside inline code
 
+### Stable line IDs
+
+The compiler assigns every authored line of prose and dialogue a stable ID that survives edits to surrounding text (Phase 1). Line IDs enable skipping only previously read text across playthroughs, mapping voice files to lines, and line-by-line localization.
+
 ## Core runtime
 
 The core runtime knows only passages, state, choices, the event record, save/load, and undo; everything else builds on it.
+
+**Templates and instances (Phase 1 data-model rule).** Besides objects defined in source, the state store supports instances created at runtime, stored as template plus parameters plus mutable state, with behavior from the template. Instances get deterministic IDs derived from their origin (for example `gen:crypt-3:room-7`), so replays and shared seeds produce identical IDs. The API distinguishes static references, checked by the compiler, from dynamic queries such as `world.find(...)`. This keeps generated content compatible with save, undo, replay, and the inspector, and makes the procedural generation kit possible later.
 
 - **State store.** One serializable store holds all mutable state, keyed by stable, author-visible IDs. Objects never hold mutable state privately.
 - **Undo.** History stores diffs rather than full snapshots, so long sessions stay small. Undo is unlimited by default, with an author-configurable cap.
@@ -202,6 +208,29 @@ A full parser is a later optional package. To keep that possible, actions can op
 
 The world model is an optional library inspired by adv3Lite; a game imports it when it needs objects, places, and knowledge, and pays nothing when it doesn't.
 
+**Minds and bodies (Phase 2 data-model rule).** An actor is two linked objects. A **mind** holds knowledge and memories, personality traits, relationships, agendas and schedules, and conversation abilities. A **body** holds location, inventory and equipment, appearance, physical traits and stats, senses, and health. A mind *inhabits* a body; that link is ordinary state, covered by save, undo, and the inspector. The player character is not special: the player controls one mind, and every action records both the acting mind and the body that performed it.
+
+| Scenario | What changes |
+| --- | --- |
+| Switching the player character | The player controls a different mind |
+| Possession | A mind moves into another body, displacing the original mind or sharing as a passenger |
+| Body swap | Two minds exchange bodies |
+| Empty body | No mind: inert, or driven by an author-defined instinct behavior |
+| Disguise, mask, shapeshifting | Appearance diverges from identity |
+
+- **Perception** goes to the inhabiting mind, and optionally to a passenger mind.
+- **Perceived identity.** NPCs see bodies, not minds; who they think they are addressing is a belief in their knowledge. Relationships are keyed by minds, but NPC responses depend on who they believe is present.
+- **Narration.** "You" follows the player's mind; descriptions come from the body.
+- **Simple by default.** `actor(...)` creates a permanently linked mind and body and routes properties to the right half, so games that never use possession or swaps never see the split.
+
+```ts
+export const mira = actor("Mira", { courage: 3, strength: 2 });
+// courage → mind, strength → body; permanently linked by default
+
+possess(villain.mind, mira.body);  // villain now controls Mira's body
+swapBodies(player.mind, tom.mind); // classic body swap
+```
+
 - **Objects and containment.** Things, containers, surfaces, and locations, with a containment tree and scope (what the player can see, reach, or hear). Mixins provide the multiple-inheritance flavor of TADS classes.
 - **Rooms and regions.** Rooms group into regions for shared rules, descriptions, and ambience. A room can be linked to a passage via the `room:` tag.
 - **Exits and directions.** Rooms declare exits, optionally with distances or travel times and with doors or other obstacles. Directions are a registry, not a fixed eight: up/down/in/out and themed sets such as fore, aft, port, starboard can be added.
@@ -209,6 +238,11 @@ The world model is an optional library inspired by adv3Lite; a game imports it w
 - **Knowledge and facts.** The player and NPCs track what they have seen, what is familiar, and which facts they know. Facts can carry a source ("the gardener told me" versus "I read it in the diary"). Knowledge drives available actions and conversation topics.
 - **Scenes.** Named periods of the story with start and end conditions, able to add rules, actions, and topics while active.
 - **Perception.** A sense layer decides what the player notices: NPC arrivals and departures are narrated automatically, and offstage events are silent unless made perceptible ("You hear a door slam upstairs").
+
+### Storylets and stackable items
+
+- **Storylets.** A pool of events that become eligible as conditions are met (relationship level, weather, place, day). The runtime selects among eligible events by priority, with once-only rules, cooldowns, and recency, in the style of quality-based narrative. Useful across genres: dating and life sims, roguelikes, open worlds.
+- **Stackable quantities.** Countable stacks that split and merge, so ninety-nine turnips are one stack, not ninety-nine objects.
 
 ## Time and scheduling
 
@@ -231,11 +265,14 @@ const collapse = fuse({ after: minutes(30) }, () => {
 - **Wait actions.** "Wait" and "wait until" are ordinary actions.
 - **Game time versus presentation time.** A cut scene's beats take real seconds; whether the scene costs game minutes is a separate, explicit choice.
 
+* **Calendar.** A calendar layer on the clock provides days, weekdays, seasons, years, and holidays, so schedules can say "Tuesdays and Thursdays" and storylets can say "the first day of summer."
+* **Lazy processes.** Large numbers of timed processes (crop growth, item decay) are computed when observed rather than run as individual daemons, generalizing the scheduled-NPC approach so big simulations stay fast.
+
 ## Randomness
 
 All randomness comes from named, seeded streams stored in the game state, so playthroughs replay exactly and players can share seeds that produce the same world.
 
-- **Named streams.** Each system draws from its own stream derived from the master seed (world setup, weather, combat, and so on). A shared seed reliably produces the same world even when players make different choices, and adding a roll to one system in a later version doesn't shift the others.
+- **Named streams.** Each system draws from its own stream derived from the master seed (world setup, weather, combat, and so on). A shared seed reliably produces the same world even when players make different choices, and adding a roll to one system in a later version doesn't shift the others. Streams are hierarchical: a substream keyed by name (the seed plus "level-3") gives the same results whenever it is first used, regardless of what the player did before.
 - **Shareable seeds.** Displayed as memorable words ("amber-lantern-fog") and tied to the game version. Authors can fix the seed or hide seed entry. A "seed of the day" is possible.
 - **Replay.** A seed plus an action list reproduces any playthrough; bug reports can be small replay files that open in the inspector.
 - **Undo behavior.** Undoing and retrying gives the same result, preventing reroll-by-undo. Authors can opt individual streams out.
@@ -333,6 +370,124 @@ She glances at the butler. "I wouldn't know, miss."
 - Locks have an owner (the character or node demanding an answer), and the story log attributes speakers.
 
 A coverage report flags unreachable topics and facts no one can be asked about, and a per-character view lists every topic with its conditions.
+
+## Stats, traits, and relationships
+
+Stats, traits, and relationships are a shared module used by any game or kit, so life sims, dating sims, and the RPG kit build on the same foundation.
+
+- **Traits need no kit.** A trait is a plain typed property on any object or actor (a flag, a value, or a set of tags), defined in ordinary TypeScript. Passages, topics, storylets, and actions can all test traits directly.
+- **Stats and resources.** Numeric stats, skills, and spendable resources (energy, money, hit points), with derived values. Each stat declares whether it is physical (stays with the body) or mental (travels with the mind).
+- **Modifiers.** Buffs, debuffs, and bonuses with sources and durations, visible in the inspector.
+- **Relationships.** A directed store keyed by pairs of minds, covering player-to-NPC and NPC-to-NPC, with multiple dimensions per pair (affection, trust, rivalry) and thresholds that trigger events. Combined with presence and knowledge, this supports jealousy, reputation, and gossip.
+
+## Companions
+
+A game has one player character plus optional companions, who are ordinary NPCs with extra states; this gives most of what a party offers, including splitting up, without a separate party system.
+
+| State | Behavior |
+| --- | --- |
+| Accompanying | Moves with the player; movement is narrated as a group ("You and Mira head down the corridor") |
+| Waiting | Stays put when asked |
+| Independent | Sent off with an agenda (go, explore, return or wait), handled by the scheduled or simulated NPC levels |
+
+- **Following.** The player can follow any NPC who leaves, reusing the same movement machinery, as TADS's follow command did.
+- **Orders are actions.** "Ask Mira to wait here" or "Ask Tom to pick the lock" go through verify and check, so companions can refuse, and their own skills and inventory are used. Giving and taking items between characters are ordinary actions.
+- **Splitting up.** What a companion sees while away becomes their knowledge, sourced to them. On reunion, "What did you find?" becomes a topic that reveals those facts; the story log records the report as dialogue. Offstage danger is a fuse or daemon.
+- **Knowledge sharing.** Knowledge is per-actor with an author-chosen policy: shared while together, shared when reunited (default), or only through conversation.
+- **Combat control.** Each companion is player-controlled or AI-driven in encounters, set per character.
+- **Switching the player character.** A game can change which actor the player controls, for example cutting to Mira's minutes in the library before returning.
+
+## RPG kit
+
+Combat, spells, and skills are an optional package built on the action pipeline, clock, random streams, and layouts, providing rules-agnostic building blocks plus a simple default ruleset in an old-school spirit.
+
+### Building blocks
+
+- **Stats and resources:** hit points, spell points, fatigue, and author-defined stats, provided by the shared stats module.
+- **Modifiers:** buffs, debuffs, and equipment bonuses with sources and durations.
+- **Rulebooks:** damage calculation, initiative, hit resolution, and the like, all replaceable. Authors can model Wizardry-style spell slots, Might and Magic-style spell points, or their own system.
+
+### Spells and skills
+
+Spells and skills are actions, so dynamic menus show only known abilities, disable them with reasons (not enough spell points, silenced), and target like multi-object actions. Learning comes through the knowledge model (a scroll, a teacher).
+
+```ts
+spell("flame-lance", {
+  school: fire,
+  cost: { sp: 4 },
+  target: oneEnemy,
+  when: () => caster.knows(spells.flameLance) && !caster.is(silenced),
+  run: ({ caster, target }) =>
+    target.damage(roll("2d6", combatStream) + caster.stat("intellect")),
+});
+```
+
+Skill checks also work in passages (`{if party.best(lockpicking).check(12)}`) using seeded streams.
+
+### Combat mode
+
+- An encounter switches to a combat layout: party status, enemy groups, a round log, and per-character action menus.
+- Round-based initiative, front and back ranks, enemy behavior through agenda-style rules.
+- Fleeing uses exit control like conversations: free, contested, or impossible.
+- Durations reuse fuses and daemons, counted in rounds during combat and minutes outside it.
+
+### Exploration
+
+Rooms can serve as grid cells for first-person dungeon crawling with the compass and auto-map widgets. Random encounters are a movement-triggered daemon keyed to region, with their own random stream.
+
+### Keeping story first
+
+- Any fight can be optional, scripted, or resolved narratively.
+- Difficulty settings include auto-resolving or skipping combat.
+- The story log records an authored summary line per battle; the full transcript keeps every roll.
+- Undo during combat is an author choice: free, between encounters only, or disabled.
+
+### Tooling
+
+- The inspector breaks down any roll into base dice, modifiers, and the rules that added them.
+- A simulation command runs an encounter thousands of times across seeds and reports win rates, damage taken, and ability usage, for measurable balancing.
+
+**Open:** the style of the default ruleset (spell slots or spell points, how many core stats).
+
+## Procedural generation kit
+
+Roguelike-style generation of rooms, NPCs, and items is an optional package built on templates and instances, hierarchical random streams, and seed-sweep testing.
+
+- **Generators** create instances from templates, either all at once at the start or lazily when an area is first entered. They run in effect phases, never during rendering, and draw from substreams keyed by area so results don't depend on play order.
+- **Saving.** Saves store generated content rather than regenerating it from the seed, so old saves survive generator changes.
+- **Prose.** Generated rooms use authored archetypes with slots, grammar-style text variation (in the spirit of Tracery), and descriptions that react to parameters and state. Handcrafted set pieces can be placed inside generated layouts, like roguelike vaults.
+- **NPCs.** Generated characters take names, traits, and schedules from templates, with generic topic sets whose responses depend on traits.
+- **Story bindings.** Generators register bindings as facts ("the relic is in a room on level 3," "one villager is the cultist"), so quests, conversations, and knowledge treat generated objects like authored ones.
+- **Validation.** Seed sweeps generate thousands of worlds and assert properties: every room reachable, keys placed before their doors, no softlocks, bound objects always present. The inspector shows each generated object's provenance: generator, seed path, and parameters.
+- **Roguelike structure.** Permadeath is an author setting (undo disabled, save on exit only). Meta-progression uses the persistent cross-playthrough store; daily seeds use shareable seeds.
+- **Cleanup.** Instances gone for good are removed so long runs don't grow the state store indefinitely.
+
+## Visual novel kit
+
+An optional presentation kit for visual-novel-style games, built as a layout like conversation mode.
+
+- **Stage.** Backgrounds, character sprites in positions, layered sprites so outfit and expression combine, and transitions such as dissolves.
+- **Textbox.** Nameplate and line-by-line advance, with auto-advance and skip built on beats.
+- **Scripted dialogue passages.** Lines name a speaker and an optional expression:
+
+```
+:: Rooftop [scene]
+@mira (nervous) "I didn't think you'd actually come."
+@player "You asked me to."
+{show mira smiling, dissolve}
+@mira "I did, didn't I?"
+```
+
+- **Reused systems.** Rollback is undo, the backlog is the story log, skip-read-text uses stable line IDs, and galleries, route completion, and endings use the persistent cross-playthrough store. Voice acting maps audio to line IDs.
+
+## Life-sim kit
+
+An optional kit for life and farming sims, built on the calendar, storylets, relationships, stackable items, lazy processes, and the shared stats module.
+
+- **Daily loop.** Activities that consume a time block and change stats ("spend the afternoon at the library: +2 knowledge"), with daily energy.
+- **Economy.** Money, shops, prices, and crafting recipes.
+- **Growth.** Farming and other long-running processes using lazy evaluation.
+- **Planner widgets.** Calendar and schedule screens as reskinnable widgets.
 
 ## Story log and transcripts
 
