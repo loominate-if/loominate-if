@@ -34,6 +34,46 @@ export type LinkNode = {
   readonly target: PassageId;
   /** The authored line the label came from, when it came from one. */
   readonly line?: LineId;
+  /** The link's `{when …}` guard, if it has one. */
+  readonly guard?: LinkGuard;
+};
+
+/**
+ * How a link whose guard is closed is shown:
+ * - `hidden`: not shown at all;
+ * - `disabled`: shown, but can't be followed;
+ * - `disabled-with-reason`: shown, can't be followed, and shows the guard's `reason`.
+ */
+export type GuardMode = "hidden" | "disabled" | "disabled-with-reason";
+
+/** A `{when …}` guard on a link, evaluated when the passage renders. */
+export type LinkGuard = {
+  /** Whether the condition held at render time, so the link can be followed. */
+  readonly open: boolean;
+  /** The condition's source, e.g. `lantern.isLit`, so the inspector can explain a closed link. */
+  readonly condition: string;
+  /** How to show the link while closed. Defaults to the story's {@link StoryOptions.guardMode}. */
+  readonly mode?: GuardMode;
+  /** Shown to the player in `disabled-with-reason` mode, e.g. "It's too dark to see the steps." */
+  readonly reason?: string;
+};
+
+/** A link as rendered: whether it can be followed, and why not. */
+export type RenderedLink = LinkNode & {
+  /** Whether the player can follow the link now. */
+  readonly available: boolean;
+  /** Why the link is disabled, for the player; only in `disabled-with-reason` mode. */
+  readonly reason?: string;
+};
+
+/** A link that can't be followed now, with the explanation the inspector shows. */
+export type UnavailableLink = {
+  /** The link as authored. */
+  readonly link: LinkNode;
+  /** How it's shown: hidden, disabled, or disabled with a reason. */
+  readonly mode: GuardMode;
+  /** The guard condition that didn't hold. */
+  readonly condition: string;
 };
 
 /** A continue point, from `{continue -> Target}`: a single way on, usually after a scene. */
@@ -51,6 +91,9 @@ export type PassageNode = TextNode | LinkNode | ContinueNode;
 
 /** A way out of the current passage: a link or a continue point. */
 export type Choice = LinkNode | ContinueNode;
+
+/** One piece of a rendered passage. Hidden links are left out; disabled ones stay in. */
+export type RenderedNode = TextNode | RenderedLink | ContinueNode;
 
 /** Read-only access to state, which is all a passage body gets. */
 export type StateReader = Pick<StateStore, "get" | "has" | "entity" | "ids">;
@@ -105,16 +148,20 @@ export interface Passage {
 export interface RenderedPassage {
   /** The passage rendered. */
   readonly passage: Passage;
-  /** Its text, links, and continue points, in reading order. */
-  readonly nodes: readonly PassageNode[];
-  /** Its links and continue points, in reading order. */
+  /** What the player sees, in reading order: text, links (hidden ones left out), and continue points. */
+  readonly nodes: readonly RenderedNode[];
+  /** The links and continue points the player can follow now, in reading order. */
   readonly choices: readonly Choice[];
+  /** Links whose guards are closed, hidden or disabled, with their conditions, for the inspector. */
+  readonly unavailable: readonly UnavailableLink[];
 }
 
 /** Options for {@link createStory}. */
 export interface StoryOptions {
   /** The passage the story starts in. */
   readonly start: PassageId;
+  /** How links with closed guards are shown when a link doesn't say. Defaults to `hidden`. */
+  readonly guardMode?: GuardMode;
 }
 
 /** Plays a set of compiled passages over a state store and event record. */
@@ -184,6 +231,7 @@ export function createStory(
     return p;
   };
   lookup(options.start, "start");
+  const defaultMode = options.guardMode ?? "hidden";
 
   const reader: StateReader = {
     get: (id, key) => store.get(id, key),
@@ -222,10 +270,35 @@ export function createStory(
         `passage ${JSON.stringify(passage.id)}: rendering changed state. Rendering must be pure; change state in an effect phase such as {on enter: …} instead.`,
       );
     }
-    const choices = Object.freeze(
-      nodes.filter((n): n is Choice => n.type === "link" || n.type === "continue"),
-    );
-    return Object.freeze({ passage, nodes, choices });
+    const shown: RenderedNode[] = [];
+    const choices: Choice[] = [];
+    const unavailable: UnavailableLink[] = [];
+    for (const node of nodes) {
+      if (node.type !== "link") {
+        shown.push(node);
+        if (node.type === "continue") choices.push(node);
+        continue;
+      }
+      const guard = node.guard;
+      if (!guard || guard.open) {
+        shown.push(Object.freeze({ ...node, available: true }));
+        choices.push(node);
+        continue;
+      }
+      const mode = guard.mode ?? defaultMode;
+      unavailable.push(Object.freeze({ link: node, mode, condition: guard.condition }));
+      if (mode === "hidden") continue;
+      const reason = mode === "disabled-with-reason" ? guard.reason : undefined;
+      shown.push(
+        Object.freeze({ ...node, available: false, ...(reason !== undefined && { reason }) }),
+      );
+    }
+    return Object.freeze({
+      passage,
+      nodes: Object.freeze(shown),
+      choices: Object.freeze(choices),
+      unavailable: Object.freeze(unavailable),
+    });
   };
 
   const contextFor = (passage: PassageId): EffectContext => {
@@ -305,14 +378,17 @@ export function createStory(
       return renderPassage(lookup(id, "render"));
     },
     follow(choice) {
-      const offered = story
-        .render()
-        .choices.some(
-          (c) => c.type === choice.type && c.target === choice.target && c.label === choice.label,
-        );
-      if (!offered) {
+      const page = story.render();
+      const same = (c: Choice): boolean =>
+        c.type === choice.type && c.target === choice.target && c.label === choice.label;
+      if (!page.choices.some(same)) {
+        const closed = page.unavailable.find((u) => same(u.link));
+        const name = JSON.stringify(choice.label ?? choice.target);
+        const where = `passage ${JSON.stringify(current())}`;
         throw new StateError(
-          `follow: ${JSON.stringify(choice.label ?? choice.target)} isn't a choice in passage ${JSON.stringify(current())}.`,
+          closed
+            ? `follow: ${name} in ${where} is unavailable because its condition \`${closed.condition}\` doesn't hold.`
+            : `follow: ${name} isn't a choice in ${where}.`,
         );
       }
       enter(lookup(choice.target, `follow from ${JSON.stringify(current())}`));

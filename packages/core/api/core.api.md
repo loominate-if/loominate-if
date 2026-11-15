@@ -78,6 +78,9 @@ export interface EventRecord {
 }
 
 // @public
+export type GuardMode = "hidden" | "disabled" | "disabled-with-reason";
+
+// @public
 export interface History {
     readonly canRedo: boolean;
     readonly canUndo: boolean;
@@ -127,11 +130,20 @@ export function invertDiff(diff: StateDiff): StateDiff;
 export type LineId = string;
 
 // @public
+export type LinkGuard = {
+    readonly open: boolean;
+    readonly condition: string;
+    readonly mode?: GuardMode;
+    readonly reason?: string;
+};
+
+// @public
 export type LinkNode = {
     readonly type: "link";
     readonly label: string;
     readonly target: PassageId;
     readonly line?: LineId;
+    readonly guard?: LinkGuard;
 };
 
 // @public
@@ -178,10 +190,20 @@ export interface RenderContext {
 }
 
 // @public
+export type RenderedLink = LinkNode & {
+    readonly available: boolean;
+    readonly reason?: string;
+};
+
+// @public
+export type RenderedNode = TextNode | RenderedLink | ContinueNode;
+
+// @public
 export interface RenderedPassage {
     readonly choices: readonly Choice[];
-    readonly nodes: readonly PassageNode[];
+    readonly nodes: readonly RenderedNode[];
     readonly passage: Passage;
+    readonly unavailable: readonly UnavailableLink[];
 }
 
 // @public
@@ -252,6 +274,7 @@ export interface Story {
 
 // @public
 export interface StoryOptions {
+    readonly guardMode?: GuardMode;
     readonly start: PassageId;
 }
 
@@ -271,6 +294,13 @@ export type TextNode = {
     readonly type: "text";
     readonly text: string;
     readonly line?: LineId;
+};
+
+// @public
+export type UnavailableLink = {
+    readonly link: LinkNode;
+    readonly mode: GuardMode;
+    readonly condition: string;
 };
 
 ```
