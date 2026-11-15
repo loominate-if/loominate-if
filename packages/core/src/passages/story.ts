@@ -69,6 +69,26 @@ export interface RenderContext {
   visited(passage: PassageId): boolean;
 }
 
+/** Read and write access to state, which effect phases get. */
+export type StateWriter = StateReader & Pick<StateStore, "set" | "delete">;
+
+/** The effect phases a passage can declare. */
+export type EffectPhase = "firstVisit" | "enter" | "leave";
+
+/** What an effect phase can see and do. */
+export interface EffectContext extends Omit<RenderContext, "state"> {
+  /** The game state. Changes are recorded for undo, save, and replay. */
+  readonly state: StateWriter;
+  /** Records output, such as a message the effect wants to show. */
+  readonly emit: EventRecord["emit"];
+}
+
+/**
+ * A passage's effect phases, from `{on first visit: …}`, `{on enter: …}`, and
+ * `{on leave: …}`. Each runs exactly once per real visit: never on re-render or load.
+ */
+export type PassageEffects = { readonly [P in EffectPhase]?: (context: EffectContext) => void };
+
 /** A compiled passage. The compiler produces these from `:: Name [tags]` blocks. */
 export interface Passage {
   /** The passage's ID, from its name. */
@@ -77,6 +97,8 @@ export interface Passage {
   readonly tags: readonly string[];
   /** Renders the passage. Must be pure: it may read state but never change it. */
   readonly body: (context: RenderContext) => readonly PassageNode[];
+  /** The passage's effect phases, the only place a passage changes state. */
+  readonly effects?: PassageEffects;
 }
 
 /** A rendered passage. */
@@ -116,9 +138,13 @@ export interface Story {
    */
   render(): RenderedPassage;
   /**
-   * Follows one of the current passage's choices: records a navigation event,
-   * moves to the target, and records the target's prose.
-   * @throws {@link StateError} if `choice` isn't one of the current choices.
+   * Follows one of the current passage's choices. In order: runs the current
+   * passage's `leave` effect, records a navigation event, moves to the target and
+   * counts the visit, runs the target's `firstVisit` (on its first visit) and
+   * `enter` effects, then records the target's prose. If an effect throws on a
+   * store with no uncommitted changes, the whole move is rolled back.
+   * @throws {@link StateError} if `choice` isn't one of the current choices, or if an
+   * effect throws or tries to navigate.
    */
   follow(choice: Choice): void;
   /**
@@ -202,11 +228,58 @@ export function createStory(
     return Object.freeze({ passage, nodes, choices });
   };
 
+  const contextFor = (passage: PassageId): EffectContext => {
+    const count = visits(passage);
+    return {
+      state: { ...reader, set: store.set, delete: store.delete },
+      emit: record.emit,
+      passage,
+      visits: count,
+      firstVisit: count === 1,
+      visited: (id) => visits(id) > 0,
+    };
+  };
+
+  const runPhase = (passage: Passage, phase: EffectPhase): void => {
+    const effect = passage.effects?.[phase];
+    if (!effect) return;
+    record.emit("phase", { passage: passage.id, phase });
+    try {
+      effect(contextFor(passage.id));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new StateError(`passage ${JSON.stringify(passage.id)} ${phase} effect: ${message}`, {
+        cause: error,
+      });
+    }
+  };
+
+  let navigating = false;
+
   const enter = (to: Passage): void => {
-    const from = current();
-    record.emit("navigation", { ...(from !== undefined && { from }), to: to.id });
-    store.set(STORY_ID, CURRENT_FIELD, to.id);
-    store.set(VISITS_ID, to.id, visits(to.id) + 1);
+    if (navigating) {
+      throw new StateError(
+        `can't move to ${JSON.stringify(to.id)} while an effect phase is running; effects change state, and links and continue points move between passages.`,
+      );
+    }
+    const wasClean = !store.dirty;
+    navigating = true;
+    try {
+      const from = current();
+      const leaving = from === undefined ? undefined : byId.get(from);
+      if (leaving) runPhase(leaving, "leave");
+      record.emit("navigation", { ...(from !== undefined && { from }), to: to.id });
+      store.set(STORY_ID, CURRENT_FIELD, to.id);
+      store.set(VISITS_ID, to.id, visits(to.id) + 1);
+      if (visits(to.id) === 1) runPhase(to, "firstVisit");
+      runPhase(to, "enter");
+    } catch (error) {
+      // Leave no half-made move behind, when we can tell what the move changed.
+      if (wasClean) store.rollback();
+      throw error;
+    } finally {
+      navigating = false;
+    }
     for (const node of renderPassage(to).nodes) {
       if (node.type !== "text") continue;
       record.emit("narrative", {

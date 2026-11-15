@@ -30,6 +30,15 @@ export function createStore(snapshot?: StateSnapshot): StateStore;
 export function createStory(store: StateStore, record: EventRecord, passages: readonly Passage[], options: StoryOptions): Story;
 
 // @public
+export interface EffectContext extends Omit<RenderContext, "state"> {
+    readonly emit: EventRecord["emit"];
+    readonly state: StateWriter;
+}
+
+// @public
+export type EffectPhase = "firstVisit" | "enter" | "leave";
+
+// @public
 export type EventKind = keyof EventKinds & string;
 
 // @public
@@ -45,6 +54,10 @@ export interface EventKinds {
     navigation: {
         readonly from?: StateId;
         readonly to: StateId;
+    };
+    phase: {
+        readonly passage: StateId;
+        readonly phase: "firstVisit" | "enter" | "leave";
     };
     scene: ProseFields;
     system: ProseFields;
@@ -124,9 +137,15 @@ export type LinkNode = {
 // @public
 export interface Passage {
     readonly body: (context: RenderContext) => readonly PassageNode[];
+    readonly effects?: PassageEffects;
     readonly id: PassageId;
     readonly tags: readonly string[];
 }
+
+// @public
+export type PassageEffects = {
+    readonly [P in EffectPhase]?: (context: EffectContext) => void;
+};
 
 // @public
 export type PassageId = StateId;
@@ -215,6 +234,9 @@ export interface StateStore {
 export type StateValue = null | boolean | number | string | readonly StateValue[] | {
     readonly [key: string]: StateValue;
 };
+
+// @public
+export type StateWriter = StateReader & Pick<StateStore, "set" | "delete">;
 
 // @public
 export interface Story {

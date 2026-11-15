@@ -64,6 +64,13 @@ export interface EventKinds {
   };
   /** A message from the system rather than the story, such as "Game saved." */
   system: ProseFields;
+  /** An effect phase ran, such as `{on enter: …}`. Recorded for the inspector. */
+  phase: {
+    /** The passage whose effect ran. */
+    readonly passage: StateId;
+    /** Which phase ran. */
+    readonly phase: "firstVisit" | "enter" | "leave";
+  };
 }
 
 /** The name of an event kind. */
