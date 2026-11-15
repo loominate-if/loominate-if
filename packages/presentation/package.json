@@ -1,0 +1,22 @@
+{
+  "name": "@loominate-if/presentation",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Presentation: layouts, regions, widgets, themes, beats, effects, audio, accessibility.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ],
+  "dependencies": {
+    "@loominate-if/core": "workspace:*"
+  }
+}

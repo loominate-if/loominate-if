@@ -1,0 +1,19 @@
+{
+  "name": "@loominate-if/compiler",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Compiler: passage parser, virtual TypeScript modules, stable line IDs, diagnostics, extension API.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ]
+}

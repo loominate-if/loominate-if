@@ -1,0 +1,16 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "allowJs": true,
+    "checkJs": true,
+    "lib": ["ES2023"],
+    "types": ["node"]
+  },
+  "include": ["*.ts", "../*.config.ts", "../eslint.config.js"]
+}

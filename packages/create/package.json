@@ -1,0 +1,19 @@
+{
+  "name": "@loominate-if/create",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Scaffold for new games: `npm create @loominate-if`.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ]
+}

@@ -66,15 +66,24 @@ docs/                DESIGN.md, decisions/ (ADRs), author docs
 
 ## Tooling and commands
 
-TypeScript in strict mode, pnpm workspaces, Vitest, ESLint, Prettier. (Update if scaffolding changes these.)
+TypeScript in strict mode, pnpm workspaces, Vitest, ESLint, Prettier. Node ≥ 22.18; pnpm is pinned in `packageManager`.
+
+- **pnpm:** Node 25+ no longer ships corepack. Install the pinned version (`npm i -g pnpm@<version from package.json>`) or prefix commands with `npx pnpm@<version>`.
+- **TypeScript stays on 6.0.x for now.** TypeScript 7's JavaScript API is still marked unstable, and typescript-eslint supports only `<6.1`. The compiler and language server need the stable API. Revisit once both support 7.
 
 ```
 pnpm install
-pnpm typecheck
-pnpm lint
+pnpm typecheck     # tsc -b over all packages, plus scripts/
+pnpm lint          # ESLint, Prettier check, and scripts/check-deps.ts (package layering)
 pnpm test          # unit + walkthrough tests
 pnpm build
+pnpm format        # apply Prettier (Markdown is excluded; format prose by hand)
 ```
+
+- **Package layering** (ADR 0001) is enforced by `scripts/check-deps.ts`. A new package must be classified there before `lint` passes.
+- **Determinism lint rules** ban `Math.random()`, `Date.now()`, `new Date()`, and `crypto.randomUUID()` in runtime packages. Where wall-clock time is legitimately needed (presentation timing, save metadata), use an `eslint-disable-next-line` comment with a reason.
+- **`core` is compiled without DOM types**, so DOM access there is a type error.
+- **Tests import workspace packages from source** through the `source` export condition, so no build is needed first.
 
 Before declaring any task done, run `typecheck`, `lint`, and `test` and make sure they pass. Never disable a failing test or loosen a type to make a check pass; fix the cause or report it on the issue.
 

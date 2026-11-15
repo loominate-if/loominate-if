@@ -1,0 +1,22 @@
+{
+  "name": "@loominate-if/cli",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The `loominate` command: dev server, test runner, builds, story map, coverage.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ],
+  "bin": {
+    "loominate": "./dist/bin.js"
+  }
+}
