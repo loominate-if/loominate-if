@@ -4,4 +4,58 @@
 
 ```ts
 
+// @public
+export function createStore(snapshot?: StateSnapshot): StateStore;
+
+// @public
+export function invertDiff(diff: StateDiff): StateDiff;
+
+// @public
+export interface StateChange {
+    readonly from?: StateValue;
+    readonly id: StateId;
+    readonly key: string;
+    readonly to?: StateValue;
+}
+
+// @public
+export type StateDiff = readonly StateChange[];
+
+// @public
+export class StateError extends Error {
+    readonly name = "StateError";
+}
+
+// @public
+export type StateId = string;
+
+// @public
+export type StateSnapshot = {
+    readonly [id: StateId]: {
+        readonly [key: string]: StateValue;
+    };
+};
+
+// @public
+export interface StateStore {
+    apply(diff: StateDiff): void;
+    commit(): StateDiff;
+    delete(id: StateId, key: string): void;
+    readonly dirty: boolean;
+    entity(id: StateId): {
+        readonly [key: string]: StateValue;
+    } | undefined;
+    get(id: StateId, key: string): StateValue | undefined;
+    has(id: StateId, key: string): boolean;
+    ids(): StateId[];
+    rollback(): void;
+    set(id: StateId, key: string, value: StateValue): void;
+    snapshot(): StateSnapshot;
+}
+
+// @public
+export type StateValue = null | boolean | number | string | readonly StateValue[] | {
+    readonly [key: string]: StateValue;
+};
+
 ```
