@@ -77,15 +77,18 @@ pnpm typecheck     # tsc -b over all packages, plus scripts/
 pnpm lint          # ESLint, Prettier check, and scripts/check-deps.ts (package layering)
 pnpm test          # unit + walkthrough tests
 pnpm build
+pnpm api           # check the public API reports (packages/*/api/*.api.md) are current
+pnpm api:update    # regenerate them after an intended public API change
 pnpm format        # apply Prettier (Markdown is excluded; format prose by hand)
 ```
 
 - **Package layering** (ADR 0001) is enforced by `scripts/check-deps.ts`. A new package must be classified there before `lint` passes.
 - **Determinism lint rules** ban `Math.random()`, `Date.now()`, `new Date()`, and `crypto.randomUUID()` in runtime packages. Where wall-clock time is legitimately needed (presentation timing, save metadata), use an `eslint-disable-next-line` comment with a reason.
 - **`core` is compiled without DOM types**, so DOM access there is a type error.
+- **Public API** (design principle 9). Each package has one public entry, `exports["."]`, pointing at `src/index.ts`; subpath exports are rejected. API Extractor writes each entry's surface to `packages/<pkg>/api/<pkg>.api.md`, and CI fails if a report is out of date, so public API changes show up in the PR diff. When you change public API on purpose, run `pnpm api:update` and commit the report. Every public export needs a TSDoc comment. Types used by public API must be exported too. An export that must exist but isn't public gets `@internal` and a leading underscore (`_debugState`).
 - **Tests import workspace packages from source** through the `source` export condition, so no build is needed first.
 
-CI (`.github/workflows/ci.yml`) runs `typecheck`, `lint`, `test`, and `build` on every PR and on pushes to `main`, on the Node engines floor and the current LTS. Branch protection requires only the summary `CI` check, so the matrix can change freely. Actions are pinned to commit SHAs; update the SHA and its version comment together.
+CI (`.github/workflows/ci.yml`) runs `typecheck`, `lint`, `test`, `build`, and `api` on every PR and on pushes to `main`, on the Node engines floor and the current LTS. Branch protection requires only the summary `CI` check, so the matrix can change freely. Actions are pinned to commit SHAs; update the SHA and its version comment together.
 
 Before declaring any task done, run `typecheck`, `lint`, and `test` and make sure they pass. Never disable a failing test or loosen a type to make a check pass; fix the cause or report it on the issue.
 
