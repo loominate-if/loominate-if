@@ -57,12 +57,14 @@ packages/
   parser/            natural-language parser (later)
   kits/rpg/  kits/procgen/  kits/vn/  kits/life-sim/   one package per kit (later)
 examples/            acceptance games, each a workspace package
+bench/               benchmarks behind decisions (not workspace packages; own lockfiles)
 docs/                DESIGN.md, decisions/ (ADRs), author docs
 ```
 
 - Runtime dependencies flow downward only: `core` ← `presentation` ← `world` ← kits, never the reverse. Kits never depend on each other unless the design says so. Runtime packages never depend on tooling.
 - `world`, kits, and other optional packages extend the compiler and inspector through their extension APIs and registries. The compiler and inspector never import them.
 - `core` never touches the DOM. Nothing from `compiler` or `inspector` may reach a production game bundle.
+- `presentation` uses vanilla DOM and takes no UI framework dependency; widget views stay framework-agnostic ([ADR 0003](docs/decisions/0003-ui-rendering-approach.md)).
 
 ## Tooling and commands
 

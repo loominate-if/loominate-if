@@ -62,11 +62,16 @@ export default tseslint.config(
     linterOptions: { reportUnusedDisableDirectives: "error" },
   },
   {
-    files: ["scripts/**", "*.config.*", "packages/{compiler,testing,cli,create}/**"],
+    files: [
+      "scripts/**",
+      "*.config.*",
+      "bench/**/*.mjs",
+      "packages/{compiler,testing,cli,create}/**",
+    ],
     languageOptions: { globals: { ...globals.node } },
   },
   {
-    files: ["packages/{presentation,inspector}/**"],
+    files: ["packages/{presentation,inspector}/**", "bench/**/src/**"],
     languageOptions: { globals: { ...globals.browser } },
   },
   {

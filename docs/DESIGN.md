@@ -137,7 +137,7 @@ Each passage or action result replaces the main view. A "story so far" drawer gi
 
 - A **layout** defines named regions: header, footer, sidebars, main view.
 - **Widgets** live in regions: compass, inventory, status line, clock, auto-map, conversation topics. Authors and extensions can write their own.
-- Widgets are **headless**: the runtime supplies the logic and state; presentation is separate.
+- Widgets are **headless**: the runtime supplies the logic and state; presentation is separate. Presentation itself uses vanilla DOM, and a widget's view can be written with any UI framework through a small mount/update/unmount contract ([ADR 0003](decisions/0003-ui-rendering-approach.md)).
 - Games can switch layouts at runtime; conversation mode is the first built-in example.
 - Mobile rules collapse sidebars into drawers or tabs on narrow screens.
 
@@ -563,7 +563,7 @@ These need decisions before or during the phase that depends on them.
 - [x] **Name.** ([#3](https://github.com/loominate-if/loominate-if/issues/3)) Decided in [ADR 0002](decisions/0002-project-name-and-package-names.md): the product is **Loominate IF**. Its handles are `loominate-if` on GitHub and `@loominate-if` on npm, because `loominate` was taken on both, and the CLI command is `loominate`. Run a trademark search before any commercial use.
 - [ ] **Object definition syntax.** ([#4](https://github.com/loominate-if/loominate-if/issues/4)) Prototype two or three styles (factory with object literal, builder chain, class-per-object) and write small scenes in each before committing.
 - [ ] **Passage directive syntax.** ([#5](https://github.com/loominate-if/loominate-if/issues/5)) Confirm `{ }` delimiters and the escape rule for literal braces in prose; settle link syntax details.
-- [ ] **UI rendering approach.** ([#6](https://github.com/loominate-if/loominate-if/issues/6)) Vanilla DOM, or a small framework such as Preact or Solid for widgets and layouts.
+- [x] **UI rendering approach.** ([#6](https://github.com/loominate-if/loominate-if/issues/6)) Decided in [ADR 0003](decisions/0003-ui-rendering-approach.md): `presentation` uses vanilla DOM, so a plain story pays about 0.3 KB compressed for its UI, against about 5.4 KB for Preact or Solid. Widget views are framework-agnostic, so authors and kits can write them in any framework and only their games ship it. Revisit at Gate 2 with `bench/ui-rendering/`.
 - [x] **Repository layout.** ([#7](https://github.com/loominate-if/loominate-if/issues/7)) Decided in [ADR 0001](decisions/0001-repository-layout.md): a pnpm monorepo with one package per runtime layer, tool, build target, and kit. The clock and scheduling live in the world model. The compiler and inspector are extended through registries, so they never depend on optional packages.
 - [ ] **First acceptance games.** ([#8](https://github.com/loominate-if/loominate-if/issues/8)) A plain branching story with no world model, and a short world-model piece with a container, a locked door, and an NPC with three topics and an agenda item.
 - [ ] **NPC-to-NPC conversation offstage.** ([#135](https://github.com/loominate-if/loominate-if/issues/135)) Whether simulated NPCs can exchange facts with each other when the player is absent, and in which phase.
