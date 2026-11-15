@@ -64,7 +64,9 @@ describe("createStory", () => {
     expect(story.current).toBeUndefined();
     story.begin();
     expect(story.current).toBe("Arrival");
-    expect(record.events().map((e) => [e.kind, "text" in e ? e.text : e.to])).toEqual([
+    expect(
+      record.events().map((e) => [e.kind, "text" in e ? e.text : "to" in e ? e.to : undefined]),
+    ).toEqual([
       ["navigation", "Arrival"],
       ["narrative", "The train is gone before you've finished stepping down."],
       ["narrative", "You are not, it seems, expected."],
