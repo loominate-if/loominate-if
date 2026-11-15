@@ -8,6 +8,9 @@
 export function createHistory(store: StateStore, options?: HistoryOptions): History;
 
 // @public
+export function createInstances(store: StateStore, templates: readonly Template<never>[]): Instances;
+
+// @public
 export function createStore(snapshot?: StateSnapshot): StateStore;
 
 // @public
@@ -32,6 +35,25 @@ export interface HistoryOptions {
 export interface HistoryStep {
     readonly diff: StateDiff;
     readonly label?: string;
+}
+
+// @public
+export function instanceId(origin: StateId, key: string): StateId;
+
+// @public
+export interface InstanceRef<T extends Template<never> = Template<never>> {
+    readonly id: StateId;
+    readonly params: TemplateParams<T>;
+    readonly template: T;
+}
+
+// @public
+export interface Instances {
+    create<T extends Template<never>>(template: T, origin: StateId, key: string, params: TemplateParams<T>): InstanceRef<T>;
+    find<T extends Template<never>>(template: T): InstanceRef<T>[];
+    find(): InstanceRef[];
+    get(id: StateId): InstanceRef | undefined;
+    remove(id: StateId): void;
 }
 
 // @public
@@ -84,5 +106,16 @@ export interface StateStore {
 export type StateValue = null | boolean | number | string | readonly StateValue[] | {
     readonly [key: string]: StateValue;
 };
+
+// @public
+export interface Template<P extends StateValue = StateValue> {
+    readonly init?: (params: P) => {
+        readonly [key: string]: StateValue;
+    };
+    readonly name: string;
+}
+
+// @public
+export type TemplateParams<T> = T extends Template<infer P> ? P : never;
 
 ```

@@ -18,3 +18,11 @@ export {
   type HistoryOptions,
   type HistoryStep,
 } from "./state/history.js";
+export {
+  createInstances,
+  instanceId,
+  type InstanceRef,
+  type Instances,
+  type Template,
+  type TemplateParams,
+} from "./state/instances.js";
