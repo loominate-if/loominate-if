@@ -8,8 +8,7 @@
 import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
 import { join, relative, resolve, dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-
-export const SCOPE = "@loominate-if/";
+import { listPackages } from "./workspace.ts";
 
 export type Kind =
   | { kind: "runtime"; rank: number }
@@ -98,33 +97,6 @@ export function findEscapingImports(packageDir: string, file: string, source: st
     if (target !== root && !target.startsWith(root + sep)) out.push(spec);
   }
   return out;
-}
-
-interface Pkg {
-  dir: string;
-  name: string;
-  deps: string[];
-}
-
-function listPackages(repo: string): Pkg[] {
-  const dirs: string[] = [];
-  for (const base of ["packages", "packages/kits", "examples"]) {
-    const abs = join(repo, base);
-    if (!existsSync(abs)) continue;
-    for (const entry of readdirSync(abs)) {
-      if (existsSync(join(abs, entry, "package.json"))) dirs.push(`${base}/${entry}`);
-    }
-  }
-  return dirs.map((dir) => {
-    const json = JSON.parse(readFileSync(join(repo, dir, "package.json"), "utf8")) as Record<
-      string,
-      Record<string, string> | string | undefined
-    >;
-    const deps = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"]
-      .flatMap((k) => Object.keys((json[k] as Record<string, string> | undefined) ?? {}))
-      .filter((d) => d.startsWith(SCOPE));
-    return { dir, name: String(json.name), deps };
-  });
 }
 
 function sourceFiles(dir: string): string[] {
