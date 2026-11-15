@@ -26,3 +26,13 @@ export {
   type Template,
   type TemplateParams,
 } from "./state/instances.js";
+export {
+  createEventRecord,
+  type EventKind,
+  type EventKinds,
+  type EventQuery,
+  type EventRecord,
+  type LineId,
+  type ProseFields,
+  type RecordedEvent,
+} from "./events/record.js";

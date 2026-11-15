@@ -5,6 +5,9 @@
 ```ts
 
 // @public
+export function createEventRecord(store: StateStore): EventRecord;
+
+// @public
 export function createHistory(store: StateStore, options?: HistoryOptions): History;
 
 // @public
@@ -12,6 +15,41 @@ export function createInstances(store: StateStore, templates: readonly Template<
 
 // @public
 export function createStore(snapshot?: StateSnapshot): StateStore;
+
+// @public
+export type EventKind = keyof EventKinds & string;
+
+// @public
+export interface EventKinds {
+    "action-result": ProseFields;
+    "room-description": ProseFields & {
+        readonly room: StateId;
+    };
+    dialogue: ProseFields & {
+        readonly speaker?: StateId;
+    };
+    narrative: ProseFields;
+    navigation: {
+        readonly from?: StateId;
+        readonly to: StateId;
+    };
+    scene: ProseFields;
+    system: ProseFields;
+}
+
+// @public
+export type EventQuery<K extends EventKind = EventKind> = {
+    readonly since?: number;
+    readonly kinds?: readonly K[];
+    readonly tags?: readonly string[];
+};
+
+// @public
+export interface EventRecord {
+    emit<K extends EventKind>(kind: K, fields: EventKinds[K], tags?: readonly string[]): RecordedEvent<K>;
+    events<K extends EventKind = EventKind>(query?: EventQuery<K>): RecordedEvent<K>[];
+    readonly length: number;
+}
 
 // @public
 export interface History {
@@ -58,6 +96,24 @@ export interface Instances {
 
 // @public
 export function invertDiff(diff: StateDiff): StateDiff;
+
+// @public
+export type LineId = string;
+
+// @public
+export type ProseFields = {
+    readonly text: string;
+    readonly line?: LineId;
+};
+
+// @public
+export type RecordedEvent<K extends EventKind = EventKind> = {
+    [Kind in K]: EventKinds[Kind] & {
+        readonly seq: number;
+        readonly kind: Kind;
+        readonly tags: readonly string[];
+    };
+}[K];
 
 // @public
 export interface StateChange {

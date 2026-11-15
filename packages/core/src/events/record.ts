@@ -1,0 +1,156 @@
+/**
+ * The event record: every piece of output, as structured, tagged data.
+ *
+ * Runtime logic never writes to the screen. It emits events, and the page, the
+ * story log, and the full transcript are all views of this record. The record
+ * lives in the state store, so undo trims it and saves carry it.
+ */
+import type { StateId, StateStore } from "../state/store.js";
+import { freezeValue, StateError } from "../state/value.js";
+
+/**
+ * A stable ID for an authored line of prose or dialogue, assigned by the
+ * compiler. The scheme is defined in #34.
+ */
+export type LineId = string;
+
+/** Fields shared by events that carry author prose. */
+export type ProseFields = {
+  /** The text as rendered. */
+  readonly text: string;
+  /** The authored line this text came from, when it came from one. */
+  readonly line?: LineId;
+};
+
+/**
+ * The fields of each kind of event, by kind name.
+ *
+ * @remarks
+ * Extend this interface to add event kinds, using declaration merging:
+ *
+ * ```ts
+ * declare module "@loominate-if/core" {
+ *   interface EventKinds {
+ *     "combat-round": { readonly round: number; readonly text: string };
+ *   }
+ * }
+ * ```
+ *
+ * Field types must be {@link StateValue}s, because events live in the state store.
+ */
+export interface EventKinds {
+  /** Passage prose. */
+  narrative: ProseFields;
+  /** Text from a cut scene or beat sequence. */
+  scene: ProseFields;
+  /** A line spoken by a character. */
+  dialogue: ProseFields & {
+    /** Who is speaking, when known. */
+    readonly speaker?: StateId;
+  };
+  /** A room's description. */
+  "room-description": ProseFields & {
+    /** The room described. */
+    readonly room: StateId;
+  };
+  /** What happened as the result of an action. */
+  "action-result": ProseFields;
+  /** Moving between passages or locations. */
+  navigation: {
+    /** Where the move started, if anywhere. */
+    readonly from?: StateId;
+    /** Where the move ended. */
+    readonly to: StateId;
+  };
+  /** A message from the system rather than the story, such as "Game saved." */
+  system: ProseFields;
+}
+
+/** The name of an event kind. */
+export type EventKind = keyof EventKinds & string;
+
+/** An event in the record. */
+export type RecordedEvent<K extends EventKind = EventKind> = {
+  [Kind in K]: EventKinds[Kind] & {
+    /** Position in the record, from 0. When undo trims events, their positions are reused. */
+    readonly seq: number;
+    /** The event's kind. */
+    readonly kind: Kind;
+    /** Author and library tags, for filtering views such as the story log. */
+    readonly tags: readonly string[];
+  };
+}[K];
+
+/** Which events {@link EventRecord.events} returns. All given conditions must match. */
+export type EventQuery<K extends EventKind = EventKind> = {
+  /** Only events at or after this `seq`. */
+  readonly since?: number;
+  /** Only events of these kinds. */
+  readonly kinds?: readonly K[];
+  /** Only events with every one of these tags. */
+  readonly tags?: readonly string[];
+};
+
+/** The record of everything the game has output. */
+export interface EventRecord {
+  /** The `seq` the next event will get, which is also the number of events recorded. */
+  readonly length: number;
+  /**
+   * Records an event and returns it.
+   * @throws {@link StateError} if the fields aren't valid state or a tag is empty.
+   */
+  emit<K extends EventKind>(
+    kind: K,
+    fields: EventKinds[K],
+    tags?: readonly string[],
+  ): RecordedEvent<K>;
+  /** Returns recorded events in order, optionally filtered. */
+  events<K extends EventKind = EventKind>(query?: EventQuery<K>): RecordedEvent<K>[];
+}
+
+/** The state store entity holding the record. IDs starting with `$` are reserved for core. */
+const RECORD_ID = "$events";
+/** Field holding the number of events, so appending and reading recent events stay cheap. */
+const LENGTH_FIELD = "length";
+
+const fieldFor = (seq: number): string => String(seq);
+
+/** Creates the event record over `store`, continuing any events already in it. */
+export function createEventRecord(store: StateStore): EventRecord {
+  const length = (): number => (store.get(RECORD_ID, LENGTH_FIELD) as number | undefined) ?? 0;
+
+  return {
+    get length() {
+      return length();
+    },
+    emit(kind, fields, tags = []) {
+      if (typeof kind !== "string" || kind.length === 0) {
+        throw new StateError("emit: the event kind must be a non-empty string.");
+      }
+      const bad = tags.find((t) => typeof t !== "string" || t.length === 0);
+      if (bad !== undefined) throw new StateError(`emit ${kind}: tags must be non-empty strings.`);
+      if ("seq" in fields || "kind" in fields || "tags" in fields) {
+        throw new StateError(`emit ${kind}: "seq", "kind", and "tags" are set by the record.`);
+      }
+      const seq = length();
+      const event = freezeValue(
+        { ...(fields as Record<string, unknown>), seq, kind, tags: [...new Set(tags)] },
+        `event ${kind}`,
+      );
+      store.set(RECORD_ID, fieldFor(seq), event);
+      store.set(RECORD_ID, LENGTH_FIELD, seq + 1);
+      return event as unknown as RecordedEvent<typeof kind>;
+    },
+    events<K extends EventKind>(query: EventQuery<K> = {}) {
+      const { since = 0, kinds, tags } = query;
+      const out: RecordedEvent<K>[] = [];
+      for (let seq = Math.max(0, since); seq < length(); seq++) {
+        const e = store.get(RECORD_ID, fieldFor(seq)) as unknown as RecordedEvent;
+        if (kinds && !(kinds as readonly string[]).includes(e.kind)) continue;
+        if (tags && !tags.every((t) => e.tags.includes(t))) continue;
+        out.push(e as unknown as RecordedEvent<K>);
+      }
+      return out;
+    },
+  };
+}
