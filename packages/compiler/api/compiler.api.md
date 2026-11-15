@@ -4,4 +4,161 @@
 
 ```ts
 
+// @public
+export type ArgumentSyntax = PositionalArgument | NamedArgument | TargetArgument;
+
+// @public
+export type BreakSyntax = {
+    readonly type: "break";
+    readonly span: Span;
+};
+
+// @public
+export type CodeSyntax = {
+    readonly code: string;
+    readonly span: Span;
+};
+
+// @public
+export type ContentSyntax = TextSyntax | PrintSyntax | EmphasisSyntax | DirectiveSyntax | IfSyntax | LinkSyntax | BreakSyntax;
+
+// @public
+export const coreDirectives: readonly DirectiveSpec[];
+
+// @public
+export type Diagnostic = {
+    readonly severity: "error";
+    readonly message: string;
+    readonly span: Span;
+    readonly line: number;
+    readonly column: number;
+};
+
+// @public
+export type DirectiveSpec = {
+    readonly name: string;
+    readonly code?: boolean;
+};
+
+// @public
+export type DirectiveSyntax = {
+    readonly type: "directive";
+    readonly name: string;
+    readonly nameSpan: Span;
+    readonly args: readonly ArgumentSyntax[];
+    readonly code?: CodeSyntax;
+    readonly span: Span;
+};
+
+// @public
+export type EmphasisSyntax = {
+    readonly type: "emphasis";
+    readonly strong: boolean;
+    readonly content: readonly ContentSyntax[];
+    readonly span: Span;
+};
+
+// @public
+export type IfBranch = {
+    readonly condition?: CodeSyntax;
+    readonly content: readonly ContentSyntax[];
+    readonly span: Span;
+};
+
+// @public
+export type IfSyntax = {
+    readonly type: "if";
+    readonly branches: readonly IfBranch[];
+    readonly span: Span;
+};
+
+// @public
+export type LinkSyntax = {
+    readonly type: "link";
+    readonly label: readonly ContentSyntax[];
+    readonly target: NameSyntax;
+    readonly guard?: DirectiveSyntax;
+    readonly span: Span;
+};
+
+// @public
+export type NamedArgument = {
+    readonly type: "named";
+    readonly key: NameSyntax;
+    readonly value: CodeSyntax;
+    readonly span: Span;
+};
+
+// @public
+export type NameSyntax = {
+    readonly name: string;
+    readonly span: Span;
+};
+
+// @public
+export type ParseOptions = {
+    readonly file?: string;
+    readonly directives?: readonly DirectiveSpec[];
+};
+
+// @public
+export function parsePassageFile(source: string, options?: ParseOptions): PassageFileSyntax;
+
+// @public
+export type PassageFileSyntax = {
+    readonly file: string;
+    readonly passages: readonly PassageSyntax[];
+    readonly diagnostics: readonly Diagnostic[];
+};
+
+// @public
+export type PassageSyntax = {
+    readonly name: NameSyntax;
+    readonly tags: readonly TagSyntax[];
+    readonly content: readonly ContentSyntax[];
+    readonly header: Span;
+    readonly span: Span;
+};
+
+// @public
+export type PositionalArgument = {
+    readonly type: "positional";
+    readonly value: CodeSyntax;
+    readonly span: Span;
+};
+
+// @public
+export type PrintSyntax = {
+    readonly type: "print";
+    readonly expression: CodeSyntax;
+    readonly span: Span;
+};
+
+// @public
+export type Span = {
+    readonly start: number;
+    readonly end: number;
+};
+
+// @public
+export type TagSyntax = {
+    readonly name: string;
+    readonly value?: string;
+    readonly span: Span;
+};
+
+// @public
+export type TargetArgument = {
+    readonly type: "target";
+    readonly target: NameSyntax;
+    readonly span: Span;
+};
+
+// @public
+export type TextSyntax = {
+    readonly type: "text";
+    readonly text: string;
+    readonly span: Span;
+};
+
 ```

@@ -15,5 +15,8 @@
   "files": [
     "dist",
     "!dist/**/*.test.*"
-  ]
+  ],
+  "dependencies": {
+    "typescript": "6.0.3"
+  }
 }
