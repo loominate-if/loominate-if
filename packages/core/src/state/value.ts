@@ -13,6 +13,9 @@
  * (no class instances, `Map`, `Set`, or `Date`), and arrays must not have holes.
  * Values are frozen once stored, so reading one never gives you a way to change
  * state behind the store's back.
+ *
+ * Describe object-shaped state with a `type` alias rather than an `interface`:
+ * TypeScript only treats type aliases as matching the object branch's index signature.
  */
 export type StateValue =
   null | boolean | number | string | readonly StateValue[] | { readonly [key: string]: StateValue };
