@@ -36,3 +36,18 @@ export {
   type ProseFields,
   type RecordedEvent,
 } from "./events/record.js";
+export {
+  createStory,
+  type Choice,
+  type ContinueNode,
+  type LinkNode,
+  type Passage,
+  type PassageId,
+  type PassageNode,
+  type RenderContext,
+  type RenderedPassage,
+  type StateReader,
+  type Story,
+  type StoryOptions,
+  type TextNode,
+} from "./passages/story.js";

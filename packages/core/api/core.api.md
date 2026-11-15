@@ -5,6 +5,16 @@
 ```ts
 
 // @public
+export type Choice = LinkNode | ContinueNode;
+
+// @public
+export type ContinueNode = {
+    readonly type: "continue";
+    readonly target: PassageId;
+    readonly label?: string;
+};
+
+// @public
 export function createEventRecord(store: StateStore): EventRecord;
 
 // @public
@@ -15,6 +25,9 @@ export function createInstances(store: StateStore, templates: readonly Template<
 
 // @public
 export function createStore(snapshot?: StateSnapshot): StateStore;
+
+// @public
+export function createStory(store: StateStore, record: EventRecord, passages: readonly Passage[], options: StoryOptions): Story;
 
 // @public
 export type EventKind = keyof EventKinds & string;
@@ -101,6 +114,27 @@ export function invertDiff(diff: StateDiff): StateDiff;
 export type LineId = string;
 
 // @public
+export type LinkNode = {
+    readonly type: "link";
+    readonly label: string;
+    readonly target: PassageId;
+    readonly line?: LineId;
+};
+
+// @public
+export interface Passage {
+    readonly body: (context: RenderContext) => readonly PassageNode[];
+    readonly id: PassageId;
+    readonly tags: readonly string[];
+}
+
+// @public
+export type PassageId = StateId;
+
+// @public
+export type PassageNode = TextNode | LinkNode | ContinueNode;
+
+// @public
 export type ProseFields = {
     readonly text: string;
     readonly line?: LineId;
@@ -114,6 +148,19 @@ export type RecordedEvent<K extends EventKind = EventKind> = {
         readonly tags: readonly string[];
     };
 }[K];
+
+// @public
+export interface RenderContext {
+    readonly passage: PassageId;
+    readonly state: StateReader;
+}
+
+// @public
+export interface RenderedPassage {
+    readonly choices: readonly Choice[];
+    readonly nodes: readonly PassageNode[];
+    readonly passage: Passage;
+}
 
 // @public
 export interface StateChange {
@@ -133,6 +180,9 @@ export class StateError extends Error {
 
 // @public
 export type StateId = string;
+
+// @public
+export type StateReader = Pick<StateStore, "get" | "has" | "entity" | "ids">;
 
 // @public
 export type StateSnapshot = {
@@ -164,6 +214,21 @@ export type StateValue = null | boolean | number | string | readonly StateValue[
 };
 
 // @public
+export interface Story {
+    begin(): void;
+    readonly current: PassageId | undefined;
+    follow(choice: Choice): void;
+    goTo(id: PassageId): void;
+    passage(id: PassageId): Passage | undefined;
+    render(): RenderedPassage;
+}
+
+// @public
+export interface StoryOptions {
+    readonly start: PassageId;
+}
+
+// @public
 export interface Template<P extends StateValue = StateValue> {
     readonly init?: (params: P) => {
         readonly [key: string]: StateValue;
@@ -173,5 +238,12 @@ export interface Template<P extends StateValue = StateValue> {
 
 // @public
 export type TemplateParams<T> = T extends Template<infer P> ? P : never;
+
+// @public
+export type TextNode = {
+    readonly type: "text";
+    readonly text: string;
+    readonly line?: LineId;
+};
 
 ```
