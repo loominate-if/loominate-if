@@ -151,8 +151,11 @@ export type RecordedEvent<K extends EventKind = EventKind> = {
 
 // @public
 export interface RenderContext {
+    readonly firstVisit: boolean;
     readonly passage: PassageId;
     readonly state: StateReader;
+    visited(passage: PassageId): boolean;
+    readonly visits: number;
 }
 
 // @public
@@ -221,6 +224,8 @@ export interface Story {
     goTo(id: PassageId): void;
     passage(id: PassageId): Passage | undefined;
     render(): RenderedPassage;
+    visited(id: PassageId): boolean;
+    visits(id: PassageId): number;
 }
 
 // @public
