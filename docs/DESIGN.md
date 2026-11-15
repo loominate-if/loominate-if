@@ -49,7 +49,7 @@ A game is written as passage files for prose and TypeScript modules for objects 
 
 ### Passage files
 
-Passages are declared with `:: Name [tags]`. Tags assign roles: `scene`, `room: platform`, `actor: butler`. Prose is the default; expressions and directives sit in `{ }`.
+Passages are declared with `:: Name [tags]`. Tags are comma-separated and assign roles: `scene`, `room: platform`, `actor: butler`. Prose is the default; expressions and directives sit in `{ }`, and `\{` writes a literal brace. The full grammar is in [ADR 0004](decisions/0004-passage-syntax.md).
 
 ```
 :: Arrival [scene]
@@ -82,7 +82,7 @@ The steps go down further than they should.
 ```
 
 - **Phases:** `on first visit`, `on enter`, `on leave`. Each runs exactly once per actual visit and is recorded in the undo history, so loading or re-rendering never repeats an effect.
-- **Link guards:** `{when …}` hides or disables a link. Each link can choose hidden, disabled, or disabled-with-reason, with a game-wide default.
+- **Link guards:** `{when …}` right after a link hides or disables it. Each link can choose hidden, disabled, or disabled-with-reason, with a game-wide default.
 - **Visit tracking** is built into the core: `visited(Cellar)`, `visits`, `firstVisit`.
 
 ### TypeScript modules
@@ -313,15 +313,15 @@ Dialogue lives in passage files, one block per topic entry, using the same effec
 ```
 :: Butler [actor: butler, state: onDuty]
 
-{ask: letter, when: player.knows(facts.missingLetter)}
+{ask letter, when: player.knows(facts.missingLetter)}
 "The letter, sir? I placed it on the desk myself.
 Before supper, it would have been."
 {reveal facts.butlerHandledLetter}
 
-{ask: letter, again}
+{ask letter, again}
 "As I said, sir. On the desk."
 
-{show: photograph}
+{show photograph}
 He studies it a moment too long. "I couldn't say, sir."
 ```
 
@@ -357,10 +357,10 @@ The compiler or test runner verifies every locked node has a reachable way out, 
 ```
 :: Maid [actor: maid]
 
-{ask: letter, when: present(butler)}
+{ask letter, when: present(butler)}
 She glances at the butler. "I wouldn't know, miss."
 
-{ask: letter, when: !present(butler)}
+{ask letter, when: !present(butler)}
 "He took it, miss. I saw him put it in his coat."
 {reveal facts.butlerTookLetter}
 ```
@@ -562,7 +562,7 @@ These need decisions before or during the phase that depends on them.
 
 - [x] **Name.** ([#3](https://github.com/loominate-if/loominate-if/issues/3)) Decided in [ADR 0002](decisions/0002-project-name-and-package-names.md): the product is **Loominate IF**. Its handles are `loominate-if` on GitHub and `@loominate-if` on npm, because `loominate` was taken on both, and the CLI command is `loominate`. Run a trademark search before any commercial use.
 - [ ] **Object definition syntax.** ([#4](https://github.com/loominate-if/loominate-if/issues/4)) Prototype two or three styles (factory with object literal, builder chain, class-per-object) and write small scenes in each before committing.
-- [ ] **Passage directive syntax.** ([#5](https://github.com/loominate-if/loominate-if/issues/5)) Confirm `{ }` delimiters and the escape rule for literal braces in prose; settle link syntax details.
+- [x] **Passage directive syntax.** ([#5](https://github.com/loominate-if/loominate-if/issues/5)) Decided in [ADR 0004](decisions/0004-passage-syntax.md): `{name args}` is a directive when `name` is registered, and anything else in braces is a printed TypeScript expression. A directive name that clashes with a variable is a compile error. Literal braces are `\{` and `\}`. Links are `[[label -> Target]]` or `[[Target]]`, with guards `{when cond, disabled}` or `{when cond, reason: "…"}`. Tags are comma-separated.
 - [x] **UI rendering approach.** ([#6](https://github.com/loominate-if/loominate-if/issues/6)) Decided in [ADR 0003](decisions/0003-ui-rendering-approach.md): `presentation` uses vanilla DOM, so a plain story pays about 0.3 KB compressed for its UI, against about 5.4 KB for Preact or Solid. Widget views are framework-agnostic, so authors and kits can write them in any framework and only their games ship it. Revisit at Gate 2 with `bench/ui-rendering/`.
 - [x] **Repository layout.** ([#7](https://github.com/loominate-if/loominate-if/issues/7)) Decided in [ADR 0001](decisions/0001-repository-layout.md): a pnpm monorepo with one package per runtime layer, tool, build target, and kit. The clock and scheduling live in the world model. The compiler and inspector are extended through registries, so they never depend on optional packages.
 - [ ] **First acceptance games.** ([#8](https://github.com/loominate-if/loominate-if/issues/8)) A plain branching story with no world model, and a short world-model piece with a container, a locked door, and an NPC with three topics and an agenda item.
