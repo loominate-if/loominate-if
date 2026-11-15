@@ -5,7 +5,34 @@
 ```ts
 
 // @public
+export function createHistory(store: StateStore, options?: HistoryOptions): History;
+
+// @public
 export function createStore(snapshot?: StateSnapshot): StateStore;
+
+// @public
+export interface History {
+    readonly canRedo: boolean;
+    readonly canUndo: boolean;
+    checkpoint(label?: string): StateDiff;
+    clear(): void;
+    readonly future: readonly HistoryStep[];
+    readonly limit: number;
+    readonly past: readonly HistoryStep[];
+    redo(): boolean;
+    undo(): boolean;
+}
+
+// @public
+export interface HistoryOptions {
+    readonly limit?: number;
+}
+
+// @public
+export interface HistoryStep {
+    readonly diff: StateDiff;
+    readonly label?: string;
+}
 
 // @public
 export function invertDiff(diff: StateDiff): StateDiff;
