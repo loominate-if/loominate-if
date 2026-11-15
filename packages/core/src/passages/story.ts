@@ -61,6 +61,12 @@ export interface RenderContext {
   readonly state: StateReader;
   /** The passage being rendered. */
   readonly passage: PassageId;
+  /** How many times the player has entered this passage, counting the current visit. */
+  readonly visits: number;
+  /** Whether this is the player's first visit to this passage. */
+  readonly firstVisit: boolean;
+  /** Whether the player has ever entered `passage`. */
+  visited(passage: PassageId): boolean;
 }
 
 /** A compiled passage. The compiler produces these from `:: Name [tags]` blocks. */
@@ -95,6 +101,10 @@ export interface Story {
   readonly current: PassageId | undefined;
   /** Looks up a passage by ID. */
   passage(id: PassageId): Passage | undefined;
+  /** How many times the player has entered a passage. Following a link back to the same passage counts. */
+  visits(id: PassageId): number;
+  /** Whether the player has ever entered a passage. */
+  visited(id: PassageId): boolean;
   /**
    * Enters the start passage, if the story hasn't begun. Does nothing on a story
    * that has already begun, for example one loaded from a save.
@@ -122,6 +132,8 @@ export interface Story {
 /** The state entity holding story progress. IDs starting with `$` are reserved for core. */
 const STORY_ID = "$story";
 const CURRENT_FIELD = "current";
+/** The state entity holding visit counts, one field per visited passage. */
+const VISITS_ID = "$visits";
 
 /**
  * Creates the passage runtime.
@@ -159,11 +171,25 @@ export function createStory(
     return typeof id === "string" ? id : undefined;
   };
 
+  const visits = (id: PassageId): number => {
+    const n = store.get(VISITS_ID, id);
+    return typeof n === "number" ? n : 0;
+  };
+
   const renderPassage = (passage: Passage): RenderedPassage => {
     // A body only gets a read-only view, but it could still reach the store some
     // other way. Catch that when we can: a clean store must stay clean.
     const wasClean = !store.dirty;
-    const nodes = Object.freeze([...passage.body({ state: reader, passage: passage.id })]);
+    const count = visits(passage.id);
+    const nodes = Object.freeze([
+      ...passage.body({
+        state: reader,
+        passage: passage.id,
+        visits: count,
+        firstVisit: count === 1,
+        visited: (id) => visits(id) > 0,
+      }),
+    ]);
     if (wasClean && store.dirty) {
       store.rollback();
       throw new StateError(
@@ -180,6 +206,7 @@ export function createStory(
     const from = current();
     record.emit("navigation", { ...(from !== undefined && { from }), to: to.id });
     store.set(STORY_ID, CURRENT_FIELD, to.id);
+    store.set(VISITS_ID, to.id, visits(to.id) + 1);
     for (const node of renderPassage(to).nodes) {
       if (node.type !== "text") continue;
       record.emit("narrative", {
@@ -194,6 +221,8 @@ export function createStory(
       return current();
     },
     passage: (id) => byId.get(id),
+    visits,
+    visited: (id) => visits(id) > 0,
     begin() {
       if (current() === undefined) enter(lookup(options.start, "begin"));
     },
