@@ -131,7 +131,7 @@ List an epic's tasks with `gh api repos/{owner}/{repo}/issues/<EPIC_NUMBER>/sub_
 2. Read the linked design section and the epic's acceptance criteria.
 3. Branch: `issue-<number>-<short-slug>`.
 4. Implement with tests. Keep the change scoped to the issue.
-5. Commits reference the issue (`#<number>`). The PR body includes `Closes #<number>` and a short summary of what changed and how it was tested.
+5. Commits reference the issue (`#<number>`). The PR body follows `.github/pull_request_template.md`: `Closes #<number>`, what changed, automated testing, and a **Manual testing** checklist with one `- [ ]` item per thing the reviewer should try by hand (what to do and what they should see), or "None needed".
 6. If you discover additional work, **do not expand scope**. Create a new sub-issue under the right epic, label it, and mention it in your PR.
 7. If you hit a design ambiguity or conflict, label the issue `needs-decision`, explain the options in a comment, and stop work on that part.
 8. Close an epic only when all its sub-issues are closed and, for phase epics, the gate passes.
