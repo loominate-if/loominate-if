@@ -85,7 +85,7 @@ pnpm format        # apply Prettier (Markdown is excluded; format prose by hand)
 - **`core` is compiled without DOM types**, so DOM access there is a type error.
 - **Tests import workspace packages from source** through the `source` export condition, so no build is needed first.
 
-CI (`.github/workflows/ci.yml`) runs `typecheck`, `lint`, `test`, and `build` on every PR and on pushes to `main`, on the Node engines floor and the current LTS. Actions are pinned to commit SHAs; update the SHA and its version comment together.
+CI (`.github/workflows/ci.yml`) runs `typecheck`, `lint`, `test`, and `build` on every PR and on pushes to `main`, on the Node engines floor and the current LTS. Branch protection requires only the summary `CI` check, so the matrix can change freely. Actions are pinned to commit SHAs; update the SHA and its version comment together.
 
 Before declaring any task done, run `typecheck`, `lint`, and `test` and make sure they pass. Never disable a failing test or loosen a type to make a check pass; fix the cause or report it on the issue.
 
