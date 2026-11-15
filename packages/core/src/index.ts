@@ -12,3 +12,9 @@ export {
   type StateSnapshot,
   type StateStore,
 } from "./state/store.js";
+export {
+  createHistory,
+  type History,
+  type HistoryOptions,
+  type HistoryStep,
+} from "./state/history.js";
