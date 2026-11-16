@@ -83,7 +83,7 @@ The steps go down further than they should.
 
 - **Phases:** `on first visit`, `on enter`, `on leave`. Each runs exactly once per actual visit and is recorded in the undo history, so loading or re-rendering never repeats an effect.
 - **Link guards:** `{when …}` right after a link hides or disables it. Each link can choose hidden, disabled, or disabled-with-reason, with a game-wide default.
-- **Visit tracking** is built into the core: `visited(Cellar)`, `visits`, `firstVisit`.
+- **Visit tracking** is built into the core: `visited("Cellar")`, `visits`, `firstVisit`.
 
 ### TypeScript modules
 
@@ -100,7 +100,7 @@ Printed text uses tagged templates (`t`) that support adv3Lite-style message par
 
 ### Compilation and checking
 
-Each passage file compiles to a virtual TypeScript module, the technique Svelte, Vue, and MDX tooling use. This gives inline code real type checking, autocomplete, and source maps that point at passage lines. The compiler reports:
+Each passage file (`.weft`) compiles to a virtual TypeScript module, the technique Svelte, Vue, and MDX tooling use. This gives inline code real type checking, autocomplete, and source maps that point at passage lines. The module is the compiled passage code itself. Inline code sees the exports of the game's scope module (`story.ts` by default) without importing them, and refers to passages by name as checked strings, as in `visited("Cellar Stairs")`; see [ADR 0005](decisions/0005-passage-modules.md). The compiler reports:
 
 - links to passages that don't exist, and unreachable passages
 - references to undefined objects, topics, or facts
