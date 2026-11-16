@@ -122,3 +122,26 @@ export function splitTopLevel(source: string, start: number, end: number): [numb
   parts.push([from, end]);
   return parts;
 }
+
+/**
+ * The free-standing identifiers in a piece of code: every identifier that
+ * isn't a property name after `.` or `?.`. Used to decide which scope exports
+ * and context names a passage needs.
+ */
+export function identifiers(code: string): Set<string> {
+  const names = new Set<string>();
+  let previous = ts.SyntaxKind.Unknown;
+  walk(code, 0, code.length, (kind, at) => {
+    if (
+      kind === ts.SyntaxKind.Identifier &&
+      previous !== ts.SyntaxKind.DotToken &&
+      previous !== ts.SyntaxKind.QuestionDotToken
+    ) {
+      const match = /^[\p{ID_Start}$_][\p{ID_Continue}$‌‍]*/u.exec(code.slice(at));
+      if (match) names.add(match[0]);
+    }
+    previous = kind;
+    return false;
+  });
+  return names;
+}

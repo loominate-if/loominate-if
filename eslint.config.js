@@ -54,7 +54,7 @@ const determinism = {
 };
 
 export default tseslint.config(
-  { ignores: ["**/dist/**", "**/coverage/**", "**/node_modules/**"] },
+  { ignores: ["**/dist/**", "**/coverage/**", "**/node_modules/**", "**/__run-*/**"] },
   js.configs.recommended,
   ...tseslint.configs.strict,
   {

@@ -1,0 +1,198 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { createEventRecord, createStore, createStory, type Passage } from "@loominate-if/core";
+import { afterAll, describe, expect, it } from "vitest";
+import { compileProject, type ProjectFile } from "./project.js";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+/** A game root inside the package, so `@loominate-if/core` resolves through its node_modules. */
+const root = path.join(here, "__game__");
+// Resolve core to its TypeScript source, as tests do everywhere in the repo.
+const compilerOptions = { customConditions: ["source"] };
+
+const story = `
+export const lantern = { isLit: false, name: "the lantern" };
+export const player = {
+  fear: 0,
+  carrying: [] as string[],
+  has(thing: { name: string }): boolean {
+    return this.carrying.includes(thing.name);
+  },
+};
+`;
+
+const cellar = `:: Cellar Stairs [room: stairs]
+{on enter: if (!player.has(lantern)) player.fear += 1}
+
+The steps go down *further* than they should.
+{if lantern.isLit}
+  Your lantern throws long shadows against the stone.
+{else}
+  You can't see the bottom.
+{/if}
+
+[[Go down -> Cellar]]{when lantern.isLit, reason: "It's too dark to go down."}
+[[Back up -> Kitchen]]
+`;
+
+const kitchen = `:: Kitchen
+{if visited("Cellar Stairs")}You're back in the kitchen.{else}A warm kitchen.{/if}
+[[Down -> Cellar Stairs]]
+
+:: Cellar
+Damp. You've been scared {player.fear} times.
+`;
+
+function compile(files: ProjectFile[]) {
+  return compileProject({ root, files, compilerOptions });
+}
+
+const show = (r: ReturnType<typeof compile>): string[] =>
+  r.diagnostics.map(
+    (d) =>
+      `${path.relative(root, d.file)}:${String(d.line)}:${String(d.column)} ${d.source}: ${d.message}`,
+  );
+
+describe("compileProject", () => {
+  it("type-checks a valid game with no errors", () => {
+    const result = compile([
+      { path: "story.ts", text: story },
+      { path: "cellar.weft", text: cellar },
+      { path: "kitchen.weft", text: kitchen },
+    ]);
+    expect(show(result)).toEqual([]);
+    expect(result.passageNames.code).toContain(
+      'export type PassageName = "Cellar" | "Cellar Stairs" | "Kitchen";',
+    );
+    expect([...result.modules.keys()].map((f) => path.relative(root, f))).toEqual([
+      "cellar.weft",
+      "kitchen.weft",
+    ]);
+  });
+
+  it("reports type errors in inline code at the passage file's lines", () => {
+    const result = compile([
+      { path: "story.ts", text: story },
+      {
+        path: "scenes/stairs.weft",
+        text: ":: Stairs\nThe lamp {if lantern.isLitt}burns{/if}.\n{on enter: player.fear += 'a lot'}\n",
+      },
+    ]);
+    expect(show(result)).toEqual([
+      "scenes/stairs.weft:2:22 typescript: Property 'isLitt' does not exist on type '{ isLit: boolean; name: string; }'. Did you mean 'isLit'?",
+      "scenes/stairs.weft:3:12 typescript: Type 'string' is not assignable to type 'number'.",
+    ]);
+  });
+
+  it("only lets text and numbers be printed", () => {
+    const result = compile([
+      { path: "story.ts", text: story },
+      { path: "a.weft", text: ":: A\nYou hold {lantern}.\n" },
+    ]);
+    expect(show(result)).toEqual([
+      "a.weft:2:11 typescript: Argument of type '{ isLit: boolean; name: string; }' is not assignable to parameter of type 'string | number'.",
+    ]);
+  });
+
+  it("checks passage names given to visited", () => {
+    const result = compile([{ path: "a.weft", text: ':: A\n{if visited("Nowhere")}x{/if}\n' }]);
+    expect(show(result)).toEqual([
+      `a.weft:2:13 typescript: Argument of type '"Nowhere"' is not assignable to parameter of type '"A"'.`,
+    ]);
+  });
+
+  it("reports unknown names, and works without a scope module", () => {
+    const result = compile([{ path: "a.weft", text: ":: A\n{if lamp.isLit}x{/if}\n" }]);
+    expect(show(result)).toEqual(["a.weft:2:5 typescript: Cannot find name 'lamp'."]);
+  });
+
+  it("reports scope exports that clash with context or reserved names", () => {
+    const result = compile([
+      { path: "story.ts", text: "export const visits = 1;\nexport const $secret = 2;\n" },
+      { path: "a.weft", text: ":: A\nHi.\n" },
+    ]);
+    expect(show(result)).toEqual([
+      "story.ts:1:14 compiler: The scope module exports `visits`, but passages already have `visits` from their context. Rename the export.",
+      "story.ts:2:14 compiler: The scope module exports `$secret`, but names starting with `$` are reserved for generated code. Rename the export.",
+    ]);
+  });
+
+  it("collects parser, compiler, and TypeScript errors together", () => {
+    const result = compile([{ path: "a.weft", text: ":: A\n{beat 1s}\n}\n{if nope}x{/if}\n" }]);
+    expect(show(result)).toEqual([
+      "a.weft:2:1 compiler: `{beat}` isn't supported yet; it arrives with beats and cut scenes (#41).",
+      "a.weft:3:1 parser: This `}` doesn't close anything. Write `\\}` for a literal brace.",
+      "a.weft:4:5 typescript: Cannot find name 'nope'.",
+    ]);
+  });
+});
+
+describe("a compiled game", () => {
+  // Generated modules are written to disk so they run exactly as the build will run them.
+  const out = mkdtempSync(path.join(here, "__run-"));
+  afterAll(() => {
+    rmSync(out, { recursive: true, force: true });
+  });
+
+  it("plays through: prose, formatting, guards, effects, and visits", async () => {
+    const result = compileProject({
+      root: out,
+      compilerOptions,
+      files: [
+        { path: "story.ts", text: story },
+        { path: "cellar.weft", text: cellar },
+        { path: "kitchen.weft", text: kitchen },
+      ],
+    });
+    expect(show(result)).toEqual([]);
+    writeFileSync(path.join(out, "story.ts"), story);
+    writeFileSync(result.passageNames.path, result.passageNames.code);
+    for (const m of result.modules.values()) writeFileSync(m.path, m.code);
+
+    type Module = { passages: readonly Passage[] };
+    const scope = (await import(path.join(out, "story.ts"))) as {
+      lantern: { isLit: boolean };
+      player: { fear: number };
+    };
+    const passages: Passage[] = [];
+    for (const m of result.modules.values()) {
+      passages.push(...((await import(m.path)) as Module).passages);
+    }
+
+    const store = createStore();
+    const record = createEventRecord(store);
+    const game = createStory(store, record, passages, { start: "Kitchen" });
+    game.begin();
+    expect(game.render().nodes.map((n) => ("text" in n ? n.text : n.type))).toEqual([
+      "A warm kitchen.",
+      "link",
+    ]);
+
+    game.follow({ type: "link", label: "Down", target: "Cellar Stairs" });
+    const stairs = game.render();
+    expect(stairs.nodes[0]).toEqual({
+      type: "text",
+      text: "The steps go down further than they should. You can't see the bottom.",
+      styles: [{ start: 18, end: 25, style: "emphasis" }],
+    });
+    expect(stairs.nodes.slice(1)).toEqual([
+      expect.objectContaining({
+        label: "Go down",
+        available: false,
+        reason: "It's too dark to go down.",
+      }),
+      expect.objectContaining({ label: "Back up", available: true }),
+    ]);
+    expect(scope.player.fear).toBe(1);
+
+    scope.lantern.isLit = true;
+    expect(game.render().nodes[0]).toMatchObject({
+      text: "The steps go down further than they should. Your lantern throws long shadows against the stone.",
+    });
+    game.follow({ type: "link", label: "Go down", target: "Cellar" });
+    expect(game.render().nodes).toEqual([
+      { type: "text", text: "Damp. You've been scared 1 times." },
+    ]);
+  });
+});

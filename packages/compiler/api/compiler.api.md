@@ -4,6 +4,8 @@
 
 ```ts
 
+import ts from 'typescript';
+
 // @public
 export type ArgumentSyntax = PositionalArgument | NamedArgument | TargetArgument;
 
@@ -18,6 +20,19 @@ export type CodeSyntax = {
     readonly code: string;
     readonly span: Span;
 };
+
+// @public
+export type CompiledProject = {
+    readonly modules: ReadonlyMap<string, GeneratedModule>;
+    readonly passageNames: {
+        readonly path: string;
+        readonly code: string;
+    };
+    readonly diagnostics: readonly ProjectDiagnostic[];
+};
+
+// @public
+export function compileProject(options: ProjectOptions): CompiledProject;
 
 // @public
 export type ContentSyntax = TextSyntax | PrintSyntax | EmphasisSyntax | DirectiveSyntax | IfSyntax | LinkSyntax | BreakSyntax;
@@ -59,6 +74,27 @@ export type EmphasisSyntax = {
 };
 
 // @public
+export type GeneratedModule = {
+    readonly file: string;
+    readonly path: string;
+    readonly code: string;
+    readonly mappings: readonly Mapping[];
+    readonly diagnostics: readonly Diagnostic[];
+    sourceMap(): SourceMap;
+};
+
+// @public
+export type GenerateOptions = {
+    readonly modulePath: string;
+    readonly scopeExports: ReadonlySet<string>;
+    readonly scopeSpecifier?: string;
+    readonly passageNamesSpecifier: string;
+};
+
+// @public
+export function generatePassageModule(file: PassageFileSyntax, source: string, options: GenerateOptions): GeneratedModule;
+
+// @public
 export type IfBranch = {
     readonly condition?: CodeSyntax;
     readonly content: readonly ContentSyntax[];
@@ -79,6 +115,13 @@ export type LinkSyntax = {
     readonly target: NameSyntax;
     readonly guard?: DirectiveSyntax;
     readonly span: Span;
+};
+
+// @public
+export type Mapping = {
+    readonly generated: number;
+    readonly source: number;
+    readonly length: number;
 };
 
 // @public
@@ -103,6 +146,9 @@ export type ParseOptions = {
 
 // @public
 export function parsePassageFile(source: string, options?: ParseOptions): PassageFileSyntax;
+
+// @public
+export const PASSAGE_EXTENSION = ".weft";
 
 // @public
 export type PassageFileSyntax = {
@@ -135,6 +181,42 @@ export type PrintSyntax = {
 };
 
 // @public
+export type ProjectDiagnostic = {
+    readonly source: "parser" | "compiler" | "typescript";
+    readonly file: string;
+    readonly message: string;
+    readonly span: Span;
+    readonly line: number;
+    readonly column: number;
+    readonly code?: number;
+};
+
+// @public
+export type ProjectFile = {
+    readonly path: string;
+    readonly text: string;
+};
+
+// @public
+export type ProjectOptions = {
+    readonly root: string;
+    readonly files: readonly ProjectFile[];
+    readonly scope?: string;
+    readonly compilerOptions?: ts.CompilerOptions;
+    readonly directives?: readonly DirectiveSpec[];
+};
+
+// @public
+export type SourceMap = {
+    readonly version: 3;
+    readonly file: string;
+    readonly sources: readonly [string];
+    readonly sourcesContent: readonly [string];
+    readonly names: readonly [];
+    readonly mappings: string;
+};
+
+// @public
 export type Span = {
     readonly start: number;
     readonly end: number;
@@ -160,5 +242,8 @@ export type TextSyntax = {
     readonly text: string;
     readonly span: Span;
 };
+
+// @public
+export function toSource(mappings: readonly Mapping[], generated: number): number | undefined;
 
 ```

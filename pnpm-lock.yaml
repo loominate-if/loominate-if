@@ -201,6 +201,10 @@ importers:
       typescript:
         specifier: 6.0.3
         version: 6.0.3
+    devDependencies:
+      '@loominate-if/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/core: {}
 

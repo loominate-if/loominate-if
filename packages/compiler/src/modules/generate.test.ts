@@ -1,0 +1,120 @@
+import { describe, expect, it } from "vitest";
+import { parsePassageFile } from "../passages/parse.js";
+import { generatePassageModule, type GenerateOptions } from "./generate.js";
+import { toSource } from "./source-map.js";
+
+const options: GenerateOptions = {
+  modulePath: "/game/cellar.weft.ts",
+  scopeExports: new Set(["lantern", "player", "wait"]),
+  scopeSpecifier: "./story.js",
+  passageNamesSpecifier: "./$passages.js",
+};
+
+function generate(source: string, overrides: Partial<GenerateOptions> = {}) {
+  const parsed = parsePassageFile(source, { file: "cellar.weft" });
+  expect(parsed.diagnostics).toEqual([]);
+  return generatePassageModule(parsed, source, { ...options, ...overrides });
+}
+
+const errors = (source: string, overrides?: Partial<GenerateOptions>): string[] =>
+  generate(source, overrides).diagnostics.map(
+    (d) => `${String(d.line)}:${String(d.column)} ${d.message}`,
+  );
+
+describe("generatePassageModule", () => {
+  it("exports passages with ids, tags, and a body", () => {
+    const { code } = generate(":: Cellar Stairs [room: stairs, dark]\nThe steps go down.\n");
+    expect(code).toContain('id: "Cellar Stairs",');
+    expect(code).toContain('tags: ["room: stairs", "dark"],');
+    expect(code).toContain('$parts.push("The steps go down.");');
+    expect(code).toContain("export const passages: readonly $Passage[] = [");
+  });
+
+  it("imports only the scope exports and context names the file uses", () => {
+    const { code } = generate(":: A\n{if lantern.isLit}x{/if} {visits}\n");
+    expect(code).toContain('import { lantern } from "./story.js";');
+    expect(code).not.toContain("player");
+    expect(code).toContain("const { visits } = $context;");
+    expect(code).not.toContain("$PassageName");
+  });
+
+  it("types visited by passage name", () => {
+    const { code } = generate(':: A\n{if visited("B")}x{/if}\n');
+    expect(code).toContain('import type { PassageName as $PassageName } from "./$passages.js";');
+    expect(code).toContain("const visited: (passage: $PassageName) => boolean = $context.visited;");
+  });
+
+  it("puts effect phases in effects, in order, each in its own block", () => {
+    const { code } = generate(
+      ":: A\n{on enter: player.fear += 1}\n{on first visit: lantern.isLit = true}\n{on enter: player.fear *= 2}\nText.",
+    );
+    const enter = code.slice(code.indexOf("enter: ($context"));
+    expect(enter.indexOf("player.fear += 1")).toBeLessThan(enter.indexOf("player.fear *= 2"));
+    expect(code.indexOf("firstVisit: ($context")).toBeLessThan(code.indexOf("enter: ($context"));
+  });
+
+  it("generates guards and continue points", () => {
+    const { code } = generate(
+      ':: A\n[[Go down -> Cellar]]{when lantern.isLit, reason: "Too dark."}\n[[Up -> B]]{when player.fear < 3, disabled}\n{continue -> C, label: "On"}',
+    );
+    expect(code).toContain(
+      '$nodes.push({ type: "link", label: "Go down", target: "Cellar", guard: { open: Boolean(lantern.isLit), condition: "lantern.isLit", mode: "disabled-with-reason", reason: "Too dark." } });',
+    );
+    expect(code).toContain('mode: "disabled"');
+    expect(code).toContain('$nodes.push({ type: "continue", target: "C", label: "On" });');
+  });
+
+  it("maps copied code exactly back to the passage file", () => {
+    const source = ":: A\n{if lantern.isLit}\nx\n{/if}\n";
+    const generated = generate(source);
+    const at = generated.code.indexOf("lantern.isLit");
+    const back = toSource(generated.mappings, at + "lantern.".length);
+    expect(back).toBe(source.indexOf("lantern.isLit") + "lantern.".length);
+  });
+
+  it("encodes a version 3 source map", () => {
+    const map = generate(":: A\n{on enter: player.fear += 1}\nText.\n").sourceMap();
+    expect(map).toMatchObject({
+      version: 3,
+      file: "/game/cellar.weft.ts",
+      sources: ["cellar.weft"],
+      names: [],
+    });
+    expect(map.mappings).toMatch(/^[;A-Za-z0-9+/,]+$/);
+  });
+
+  it("reports constructs core can't run yet", () => {
+    expect(errors(":: A\n{beat 1s}\n{wait}", { scopeExports: new Set() })).toEqual([
+      "2:1 `{beat}` isn't supported yet; it arrives with beats and cut scenes (#41).",
+      "3:1 `{wait}` isn't supported yet; it arrives with beats and cut scenes (#41).",
+    ]);
+    expect(errors(":: A\nYou could [[go -> B]] now.")).toEqual([
+      "2:11 Links inside a paragraph aren't supported yet (#207). Put the link on its own line.",
+    ]);
+    expect(errors(":: A\n[[*go* -> B]]")).toEqual([
+      "2:1 Formatting in link labels isn't supported yet. Remove the `*` from this label.",
+    ]);
+  });
+
+  it("reports misplaced effects and malformed guards and continue points", () => {
+    expect(errors(":: A\n{if x}{on enter: y()}{/if}")).toEqual([
+      "2:7 `{on enter: …}` runs when the passage is visited, not when it's shown, so it goes at the top level of the passage, not inside a block.",
+    ]);
+    expect(
+      errors(
+        ":: A\n[[a -> B]]{when x, sideways}\n[[a -> B]]{when x, hidden, reason: 'r'}\n{continue}",
+      ),
+    ).toEqual([
+      '2:20 `{when}` takes a condition, then optionally `hidden`, `disabled`, or `reason: "…"`.',
+      "3:11 `reason:` already shows the link disabled with its reason, so `hidden` can't go with it.",
+      "4:1 `{continue}` needs a passage, like `{continue -> Platform}`.",
+    ]);
+  });
+
+  it("reports a directive that clashes with a scope export (ADR 0004)", () => {
+    expect(errors(":: A\nText.\n{wait}")).toEqual([
+      "3:1 `wait` is a directive and also exported by the scope module. Write `{(wait)}` to print the export, or rename it.",
+      "3:1 `{wait}` isn't supported yet; it arrives with beats and cut scenes (#41).",
+    ]);
+  });
+});

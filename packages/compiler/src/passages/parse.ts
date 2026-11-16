@@ -9,6 +9,7 @@
  * mistake doesn't hide the rest.
  */
 import { matchBrace, splitTopLevel } from "./code-scan.js";
+import { locator } from "./positions.js";
 import {
   coreDirectives,
   directiveMatchers,
@@ -86,24 +87,12 @@ export function parsePassageFile(source: string, options: ParseOptions = {}): Pa
   const matchers = directiveMatchers(options.directives ?? coreDirectives);
   const diagnostics: Diagnostic[] = [];
 
+  const lines = locator(source);
   const lineStarts = [0];
   for (let i = 0; i < source.length; i++) if (source[i] === "\n") lineStarts.push(i + 1);
 
   function error(message: string, start: number, end = start + 1): void {
-    let lo = 0;
-    let hi = lineStarts.length - 1;
-    while (lo < hi) {
-      const mid = (lo + hi + 1) >> 1;
-      if ((lineStarts[mid] ?? 0) <= start) lo = mid;
-      else hi = mid - 1;
-    }
-    diagnostics.push({
-      severity: "error",
-      message,
-      span: { start, end },
-      line: lo + 1,
-      column: start - (lineStarts[lo] ?? 0) + 1,
-    });
+    diagnostics.push(lines.error(message, start, end));
   }
 
   /** End of the line containing `i`, before any `\r\n` or `\n`, but no further than `limit`. */
