@@ -54,7 +54,8 @@ const show = (r: ReturnType<typeof compile>): string[] =>
       `${path.relative(root, d.file)}:${String(d.line)}:${String(d.column)} ${d.source}: ${d.message}`,
   );
 
-describe("compileProject", () => {
+// These tests build real TypeScript programs, which takes seconds, longer under load from parallel test files.
+describe("compileProject", { timeout: 30_000 }, () => {
   it("type-checks a valid game with no errors", () => {
     const result = compile([
       { path: "story.ts", text: story },
@@ -128,7 +129,7 @@ describe("compileProject", () => {
   });
 });
 
-describe("a compiled game", () => {
+describe("a compiled game", { timeout: 30_000 }, () => {
   // Generated modules are written to disk so they run exactly as the build will run them.
   const out = mkdtempSync(path.join(here, "__run-"));
   afterAll(() => {
