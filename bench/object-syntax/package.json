@@ -1,0 +1,14 @@
+{
+  "name": "object-syntax-bench",
+  "private": true,
+  "description": "Object definition syntax prototypes behind issue #4: factory, builder, and class styles over one store-binding mechanism. Not a workspace package.",
+  "type": "module",
+  "scripts": {
+    "check": "node check.ts"
+  },
+  "dependencies": {
+    "@loominate-if/compiler": "file:../../packages/compiler",
+    "@loominate-if/core": "file:../../packages/core",
+    "typescript": "6.0.3"
+  }
+}

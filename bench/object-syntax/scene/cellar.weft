@@ -1,0 +1,47 @@
+/* The same scene for every style. Only story.ts differs. */
+
+:: Kitchen
+A cold kitchen.
+{if !lantern.taken}A {lantern.name} hangs by the door.{/if}
+{if !key.taken}A small key lies on the table.{/if}
+
+[[Take the lantern -> Take Lantern]]{when !lantern.taken}
+[[Take the key -> Take Key]]{when !key.taken}
+[[Strike a match -> Strike]]{when matchbox.count > 0, reason: "The matchbox is empty."}
+[[Go to the cellar stairs -> Cellar Stairs]]
+
+:: Take Lantern
+{on enter: lantern.taken = true}
+You take the {lantern.name}.
+{continue -> Kitchen}
+
+:: Take Key
+{on enter: key.taken = true}
+You pocket the key.
+{continue -> Kitchen}
+
+:: Strike
+{on enter: matchbox.strike()}
+The match flares and dies.
+{if lantern.isLit}The lantern is lit.{/if}
+{continue -> Kitchen}
+
+:: Cellar Stairs
+{on enter: if (!lantern.isLit) player.fear += 1}
+{if lantern.isLit}
+  Your lantern shows a door at the bottom.
+{else}
+  You can't see the bottom.
+{/if}
+
+[[Unlock the door -> Unlock]]{when key.taken && cellarDoor.isLocked, hidden}
+[[Go down -> Cellar]]{when lantern.isLit && !cellarDoor.isLocked, reason: "It's too dark, or the door is locked."}
+[[Back up -> Kitchen]]
+
+:: Unlock
+{on enter: cellarDoor.unlock(key)}
+The key turns.
+{continue -> Cellar Stairs}
+
+:: Cellar
+You made it down. You were scared {player.fear} times, and struck {matchbox.struck} matches.
