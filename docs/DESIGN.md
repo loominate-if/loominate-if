@@ -87,14 +87,28 @@ The steps go down further than they should.
 
 ### TypeScript modules
 
-Objects are defined declaratively with factory functions and inline overrides, aiming for the terseness of a TADS object definition while staying fully typed.
+Objects are defined declaratively with factory functions and object literals, aiming for the terseness of a TADS object definition while staying fully typed. The rules are in [ADR 0006](decisions/0006-object-definitions.md).
 
 ```ts
+export const lantern = object("lantern", {
+  name: "brass lantern",
+  isLit: false,
+  light() {
+    this.isLit = true;
+  },
+});
+
 export const station = place("station house", {
   in: town,
   description: t`Low, grey, and older than the railway.`,
 });
 ```
+
+- The first argument is the object's stable ID. Data properties are state, stored in the state store under that ID, and only values that differ from the definition are stored. Methods are behavior, with `this` typed from the definition. Getters are derived values.
+- Mixins are objects spread into a definition, as in `object("cellar door", { ...lockable, name: "cellar door" })`.
+- Array and object fields can be changed in place (`player.inventory.push(lantern)`), and references to other objects are stored as their IDs.
+- Objects created during play come from templates: `spawn(match, matchbox)` creates `gen:matchbox:match-1`.
+- Core provides `object()`; the world model's `place()`, `thing()`, and `actor()` build on it.
 
 Printed text uses tagged templates (`t`) that support adv3Lite-style message parameters for articles, pronouns, plurals, and verb agreement.
 
@@ -561,7 +575,7 @@ The data model is designed for later phases from the start (group conversations,
 These need decisions before or during the phase that depends on them.
 
 - [x] **Name.** ([#3](https://github.com/loominate-if/loominate-if/issues/3)) Decided in [ADR 0002](decisions/0002-project-name-and-package-names.md): the product is **Loominate IF**. Its handles are `loominate-if` on GitHub and `@loominate-if` on npm, because `loominate` was taken on both, and the CLI command is `loominate`. Run a trademark search before any commercial use.
-- [ ] **Object definition syntax.** ([#4](https://github.com/loominate-if/loominate-if/issues/4)) Prototype two or three styles (factory with object literal, builder chain, class-per-object) and write small scenes in each before committing.
+- [x] **Object definition syntax.** ([#4](https://github.com/loominate-if/loominate-if/issues/4)) Decided in [ADR 0006](decisions/0006-object-definitions.md), after prototyping a factory, a builder chain, and a class per object in `bench/object-syntax/`: objects are defined with `object(id, { … })`. Data properties live in the state store, collections can be changed in place, references are stored as IDs, and objects created during play come from templates with IDs derived from their origin.
 - [x] **Passage directive syntax.** ([#5](https://github.com/loominate-if/loominate-if/issues/5)) Decided in [ADR 0004](decisions/0004-passage-syntax.md): `{name args}` is a directive when `name` is registered, and anything else in braces is a printed TypeScript expression. A directive name that clashes with a variable is a compile error. Literal braces are `\{` and `\}`. Links are `[[label -> Target]]` or `[[Target]]`, with guards `{when cond, disabled}` or `{when cond, reason: "…"}`. Tags are comma-separated.
 - [x] **UI rendering approach.** ([#6](https://github.com/loominate-if/loominate-if/issues/6)) Decided in [ADR 0003](decisions/0003-ui-rendering-approach.md): `presentation` uses vanilla DOM, so a plain story pays about 0.3 KB compressed for its UI, against about 5.4 KB for Preact or Solid. Widget views are framework-agnostic, so authors and kits can write them in any framework and only their games ship it. Revisit at Gate 2 with `bench/ui-rendering/`.
 - [x] **Repository layout.** ([#7](https://github.com/loominate-if/loominate-if/issues/7)) Decided in [ADR 0001](decisions/0001-repository-layout.md): a pnpm monorepo with one package per runtime layer, tool, build target, and kit. The clock and scheduling live in the world model. The compiler and inspector are extended through registries, so they never depend on optional packages.
