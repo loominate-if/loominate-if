@@ -54,7 +54,15 @@ const determinism = {
 };
 
 export default tseslint.config(
-  { ignores: ["**/dist/**", "**/coverage/**", "**/node_modules/**", "**/__run-*/**"] },
+  {
+    ignores: [
+      "**/dist/**",
+      "**/coverage/**",
+      "**/node_modules/**",
+      "**/__run-*/**",
+      "bench/**/out/**",
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.strict,
   {
@@ -66,6 +74,7 @@ export default tseslint.config(
       "scripts/**",
       "*.config.*",
       "bench/**/*.mjs",
+      "bench/object-syntax/**",
       "packages/{compiler,testing,cli,create}/**",
     ],
     languageOptions: { globals: { ...globals.node } },
