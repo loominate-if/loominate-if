@@ -21,7 +21,8 @@ describe("checkEntryPoint", () => {
   });
 });
 
-describe("runExtractor", () => {
+// Each test runs API Extractor, which takes seconds, longer under load from parallel test files.
+describe("runExtractor", { timeout: 30_000 }, () => {
   /** A built package with the given `dist/index.d.ts`. */
   function fixture(dts: string, extra: Record<string, string> = {}): string {
     const dir = mkdtempSync(join(tmpdir(), "api-report-"));
