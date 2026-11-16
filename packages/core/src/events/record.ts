@@ -14,10 +14,30 @@ import { freezeValue, StateError } from "../state/value.js";
  */
 export type LineId = string;
 
+/**
+ * Formatting over part of a piece of prose, from `*emphasis*` or `**strong**`.
+ *
+ * @remarks
+ * Offsets are UTF-16 positions in the prose's `text`: `start` inclusive, `end`
+ * exclusive, never empty. Styles may nest but never partly overlap. Keeping
+ * formatting beside the text, rather than in it, leaves `text` plain for
+ * transcripts, search, and line IDs.
+ */
+export type TextStyle = {
+  /** Offset of the first styled character. */
+  readonly start: number;
+  /** Offset just past the last styled character. */
+  readonly end: number;
+  /** How the range is styled. */
+  readonly style: "emphasis" | "strong";
+};
+
 /** Fields shared by events that carry author prose. */
 export type ProseFields = {
   /** The text as rendered. */
   readonly text: string;
+  /** Formatting over parts of `text`, when it has any. */
+  readonly styles?: readonly TextStyle[];
   /** The authored line this text came from, when it came from one. */
   readonly line?: LineId;
 };

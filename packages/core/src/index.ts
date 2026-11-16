@@ -35,6 +35,7 @@ export {
   type LineId,
   type ProseFields,
   type RecordedEvent,
+  type TextStyle,
 } from "./events/record.js";
 export {
   createStory,
@@ -60,3 +61,11 @@ export {
   type TextNode,
   type UnavailableLink,
 } from "./passages/story.js";
+export {
+  emphasis,
+  prose,
+  strong,
+  type ProseOptions,
+  type ProsePart,
+  type StyledProse,
+} from "./passages/prose.js";

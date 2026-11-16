@@ -7,19 +7,22 @@
  * player follows a link, which moves to the next passage and records it in the
  * event record.
  */
-import type { EventRecord, LineId } from "../events/record.js";
+import type { EventRecord, LineId, TextStyle } from "../events/record.js";
 import type { StateId, StateStore } from "../state/store.js";
 import { StateError } from "../state/value.js";
+import { checkStyles } from "./prose.js";
 
 /** A passage's ID: its name from `:: Name`. */
 export type PassageId = StateId;
 
-/** A run of prose in a rendered passage. */
+/** A paragraph of prose in a rendered passage. Build formatted ones with {@link prose}. */
 export type TextNode = {
   /** Node type. */
   readonly type: "text";
-  /** The prose. */
+  /** The prose, without formatting. */
   readonly text: string;
+  /** Formatting over parts of `text`, when it has any. */
+  readonly styles?: readonly TextStyle[];
   /** The authored line it came from, when it came from one. */
   readonly line?: LineId;
 };
@@ -274,6 +277,7 @@ export function createStory(
     const choices: Choice[] = [];
     const unavailable: UnavailableLink[] = [];
     for (const node of nodes) {
+      if (node.type === "text" && node.styles) checkStyles(passage.id, node);
       if (node.type !== "link") {
         shown.push(node);
         if (node.type === "continue") choices.push(node);
@@ -346,19 +350,20 @@ export function createStory(
       store.set(VISITS_ID, to.id, visits(to.id) + 1);
       if (visits(to.id) === 1) runPhase(to, "firstVisit");
       runPhase(to, "enter");
+      for (const node of renderPassage(to).nodes) {
+        if (node.type !== "text") continue;
+        record.emit("narrative", {
+          text: node.text,
+          ...(node.styles !== undefined && node.styles.length > 0 && { styles: node.styles }),
+          ...(node.line !== undefined && { line: node.line }),
+        });
+      }
     } catch (error) {
       // Leave no half-made move behind, when we can tell what the move changed.
       if (wasClean) store.rollback();
       throw error;
     } finally {
       navigating = false;
-    }
-    for (const node of renderPassage(to).nodes) {
-      if (node.type !== "text") continue;
-      record.emit("narrative", {
-        text: node.text,
-        ...(node.line !== undefined && { line: node.line }),
-      });
     }
   };
 

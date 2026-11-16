@@ -39,6 +39,9 @@ export interface EffectContext extends Omit<RenderContext, "state"> {
 export type EffectPhase = "firstVisit" | "enter" | "leave";
 
 // @public
+export function emphasis(...parts: ProsePart[]): StyledProse;
+
+// @public
 export type EventKind = keyof EventKinds & string;
 
 // @public
@@ -166,10 +169,22 @@ export type PassageId = StateId;
 export type PassageNode = TextNode | LinkNode | ContinueNode;
 
 // @public
+export function prose(parts: readonly ProsePart[], options?: ProseOptions): TextNode;
+
+// @public
 export type ProseFields = {
     readonly text: string;
+    readonly styles?: readonly TextStyle[];
     readonly line?: LineId;
 };
+
+// @public
+export type ProseOptions = {
+    readonly line?: LineId;
+};
+
+// @public
+export type ProsePart = string | number | StyledProse;
 
 // @public
 export type RecordedEvent<K extends EventKind = EventKind> = {
@@ -279,6 +294,15 @@ export interface StoryOptions {
 }
 
 // @public
+export function strong(...parts: ProsePart[]): StyledProse;
+
+// @public
+export type StyledProse = {
+    readonly style: TextStyle["style"];
+    readonly parts: readonly ProsePart[];
+};
+
+// @public
 export interface Template<P extends StateValue = StateValue> {
     readonly init?: (params: P) => {
         readonly [key: string]: StateValue;
@@ -293,7 +317,15 @@ export type TemplateParams<T> = T extends Template<infer P> ? P : never;
 export type TextNode = {
     readonly type: "text";
     readonly text: string;
+    readonly styles?: readonly TextStyle[];
     readonly line?: LineId;
+};
+
+// @public
+export type TextStyle = {
+    readonly start: number;
+    readonly end: number;
+    readonly style: "emphasis" | "strong";
 };
 
 // @public
