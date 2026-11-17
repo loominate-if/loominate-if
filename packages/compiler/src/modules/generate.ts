@@ -17,6 +17,7 @@ import type {
   PassageFileSyntax,
   PassageSyntax,
 } from "../passages/syntax.js";
+import { standaloneLinks } from "./links.js";
 import { LINE_DIRECTIVE, passageLines, type PassageLines } from "./line-ids.js";
 import { renderWriteMessage, renderWrites } from "./render-writes.js";
 import { encodeSourceMap, type Mapping, type SourceMap } from "./source-map.js";
@@ -167,35 +168,10 @@ export function generatePassageModule(
     }
   }
 
-  /** Whether a link sits on its own line, apart from other links and guards. */
-  function onItsOwnLine(link: LinkSyntax, links: readonly LinkSyntax[]): boolean {
-    const lineStart = source.lastIndexOf("\n", link.span.start - 1) + 1;
-    const nl = source.indexOf("\n", link.span.start);
-    const lineEnd = nl < 0 ? source.length : nl;
-    let rest = source.slice(lineStart, lineEnd);
-    for (const l of links) {
-      const end = l.guard?.span.end ?? l.span.end;
-      if (l.span.start >= lineStart && end <= lineEnd) {
-        const a = l.span.start - lineStart;
-        const b = end - lineStart;
-        rest = rest.slice(0, a) + " ".repeat(b - a) + rest.slice(b);
-      }
-    }
-    return rest.trim() === "";
-  }
-
-  function allLinks(nodes: readonly ContentSyntax[], acc: LinkSyntax[] = []): LinkSyntax[] {
-    for (const n of nodes) {
-      if (n.type === "link") acc.push(n);
-      if (n.type === "emphasis") allLinks(n.content, acc);
-      if (n.type === "if") for (const b of n.branches) allLinks(b.content, acc);
-    }
-    return acc;
-  }
-
   // ---- Bodies -------------------------------------------------------------
 
-  let links: LinkSyntax[] = [];
+  /** Links on lines of their own, which stand between paragraphs; others are inline. */
+  let standalone: ReadonlySet<LinkSyntax> = new Set();
   let lineIds: PassageLines | undefined;
   let indent = "";
 
@@ -270,14 +246,6 @@ export function generatePassageModule(
   }
 
   function link(n: LinkSyntax, parts: string): void {
-    if (parts !== "$parts" || !onItsOwnLine(n, links)) {
-      error(
-        "Links inside a paragraph aren't supported yet (#207). Put the link on its own line.",
-        n.span.start,
-        n.span.end,
-      );
-      return;
-    }
     if (n.label.some((l) => l.type === "emphasis")) {
       error(
         "Formatting in link labels isn't supported yet. Remove the `*` from this label.",
@@ -286,9 +254,15 @@ export function generatePassageModule(
       );
       return;
     }
+    const inline = !standalone.has(n);
     mark(n.span.start);
-    write(`${indent}$flush($nodes, $parts, $line);\n`);
-    write(`${indent}$nodes.push({ type: "link", label: `);
+    if (inline) {
+      // The label reads as part of the sentence, and of its line (ADR 0007).
+      write(`${indent}${parts}.push({ type: "link", label: `);
+    } else {
+      write(`${indent}$flush($nodes, $parts, $line);\n`);
+      write(`${indent}$nodes.push({ type: "link", label: `);
+    }
     if (n.label.every((l) => l.type === "text")) {
       write(str(n.label.map((l) => (l.type === "text" ? l.text : "")).join("")));
     } else {
@@ -309,7 +283,7 @@ export function generatePassageModule(
     if (id !== undefined) write(`, line: ${str(id)}`);
     if (n.guard) guard(n.guard);
     write(" });\n");
-    lineChange(parts, n.guard?.span.end ?? n.span.end);
+    if (!inline) lineChange(parts, n.guard?.span.end ?? n.span.end);
   }
 
   function guard(d: DirectiveSyntax): void {
@@ -431,7 +405,7 @@ export function generatePassageModule(
 
   function passage(p: PassageSyntax): void {
     checkClashes(p.content);
-    links = allLinks(p.content);
+    standalone = standaloneLinks(p.content, source);
     lineIds = passageLines(p, source);
     for (const problem of lineIds.problems)
       error(problem.message, problem.span.start, problem.span.end);

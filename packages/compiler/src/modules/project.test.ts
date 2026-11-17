@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createEventRecord, createStore, createStory, type Passage } from "@loominate-if/core";
@@ -354,6 +354,59 @@ describe("a compiled game", { timeout: 30_000 }, () => {
     expect(game.render().nodes).toEqual([
       { type: "text", text: "Damp. You've been scared 1 times.", line: "Cellar:zyah7f" },
     ]);
+  });
+
+  it("plays through a link inside a paragraph", async () => {
+    const scope = "export const clues = { found: false };\n";
+    const source = [
+      ":: Study",
+      "A desk. You could [[read the letter -> Letter]]{when clues.found, hidden} or *[[leave -> Hall]]*.",
+      ":: Letter",
+      "It's unsigned.",
+      ":: Hall",
+      "Cold.",
+    ].join("\n");
+    // Its own directory, since another test already imported a story.ts.
+    const dir = path.join(out, "inline");
+    mkdirSync(dir);
+    const result = compileProject({
+      root: dir,
+      compilerOptions,
+      files: [
+        { path: "story.ts", text: scope },
+        { path: "study.weft", text: source },
+      ],
+    });
+    expect(show(result)).toEqual([]);
+    writeFileSync(path.join(dir, "story.ts"), scope);
+    writeFileSync(result.passageNames.path, result.passageNames.code);
+    const [module] = result.modules.values();
+    if (!module) throw new Error("no module");
+    writeFileSync(module.path, module.code);
+    const { passages } = (await import(module.path)) as { passages: Passage[] };
+    const { clues } = (await import(path.join(dir, "story.ts"))) as { clues: { found: boolean } };
+
+    const store = createStore();
+    const game = createStory(store, createEventRecord(store), passages, { start: "Study" });
+    game.begin();
+    // Hidden, the letter's label stays in the sentence as plain words.
+    const [hidden] = game.render().nodes;
+    expect(hidden).toMatchObject({
+      text: "A desk. You could read the letter or leave.",
+      styles: [{ start: 37, end: 42, style: "emphasis" }],
+      links: [{ label: "leave", target: "Hall", start: 37, end: 42, available: true }],
+    });
+    expect(game.render().choices.map((c) => c.label)).toEqual(["leave"]);
+
+    clues.found = true;
+    expect(game.render().choices.map((c) => c.label)).toEqual(["read the letter", "leave"]);
+    const [shown] = game.render().nodes;
+    if (shown?.type !== "text") throw new Error("expected text");
+    const [letter] = shown.links ?? [];
+    if (!letter) throw new Error("expected a link");
+    expect(shown.text.slice(letter.start, letter.end)).toBe("read the letter");
+    game.follow(letter);
+    expect(game.current).toBe("Letter");
   });
 
   it("gives rendered prose, links, and narrative events stable line IDs", async () => {

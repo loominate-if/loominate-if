@@ -3,7 +3,13 @@
  * arguments must name a passage, and every passage should be reachable.
  */
 import ts from "typescript";
-import type { CodeSyntax, ContentSyntax, NameSyntax, PassageSyntax } from "../passages/syntax.js";
+import type {
+  CodeSyntax,
+  ContentSyntax,
+  LinkSyntax,
+  NameSyntax,
+  PassageSyntax,
+} from "../passages/syntax.js";
 
 /** A passage and the file it's in. */
 export type FilePassage = { readonly file: string; readonly passage: PassageSyntax };
@@ -34,6 +40,47 @@ export function passageTargets(content: readonly ContentSyntax[]): NameSyntax[] 
     }
   };
   visit(content);
+  return out;
+}
+
+/**
+ * The links that sit on lines of their own, apart from other text: these stand
+ * between paragraphs. Any other link, including one inside emphasis, is inline,
+ * part of its paragraph's sentence (#207).
+ */
+export function standaloneLinks(
+  content: readonly ContentSyntax[],
+  source: string,
+): Set<LinkSyntax> {
+  const all: LinkSyntax[] = [];
+  const top: LinkSyntax[] = [];
+  const visit = (nodes: readonly ContentSyntax[], topLevel: boolean): void => {
+    for (const n of nodes) {
+      if (n.type === "link") {
+        all.push(n);
+        if (topLevel) top.push(n);
+      } else if (n.type === "emphasis") visit(n.content, false);
+      else if (n.type === "if") for (const b of n.branches) visit(b.content, topLevel);
+    }
+  };
+  visit(content, true);
+  const out = new Set<LinkSyntax>();
+  for (const link of top) {
+    const lineStart = source.lastIndexOf("\n", link.span.start - 1) + 1;
+    const nl = source.indexOf("\n", link.span.start);
+    const lineEnd = nl < 0 ? source.length : nl;
+    // Blank out every link and guard on the line; anything left is other text.
+    let rest = source.slice(lineStart, lineEnd);
+    for (const l of all) {
+      const end = l.guard?.span.end ?? l.span.end;
+      if (l.span.start >= lineStart && end <= lineEnd) {
+        const a = l.span.start - lineStart;
+        const b = end - lineStart;
+        rest = rest.slice(0, a) + " ".repeat(b - a) + rest.slice(b);
+      }
+    }
+    if (rest.trim() === "") out.add(link);
+  }
   return out;
 }
 

@@ -4,10 +4,13 @@
  */
 import type { LineId, TextStyle } from "../events/record.js";
 import { StateError } from "../state/value.js";
-import type { PassageId, TextNode } from "./story.js";
+import type { InlineLink, LinkNode, PassageId, TextNode } from "./story.js";
 
-/** Part of a piece of prose: text, a printed number, or a styled group of parts. */
-export type ProsePart = string | number | StyledProse;
+/**
+ * Part of a piece of prose: text, a printed number, a styled group of parts, or
+ * a link whose label reads as part of the sentence.
+ */
+export type ProsePart = string | number | StyledProse | LinkNode;
 
 /** Parts shown with one style. Made by {@link emphasis} and {@link strong}. */
 export type StyledProse = {
@@ -35,11 +38,11 @@ export function strong(...parts: ProsePart[]): StyledProse {
 
 /**
  * Builds a paragraph of prose from parts, turning styled parts into
- * {@link TextStyle} ranges.
+ * {@link TextStyle} ranges and links into {@link InlineLink}s.
  *
  * @remarks
  * A styled part that turns out empty, such as emphasis around a printed value
- * that is `""`, gets no range.
+ * that is `""`, gets no range. A link's label is added to the text.
  *
  * @example
  * ```ts
@@ -50,10 +53,15 @@ export function strong(...parts: ProsePart[]): StyledProse {
 export function prose(parts: readonly ProsePart[], options: ProseOptions = {}): TextNode {
   let text = "";
   const styles: TextStyle[] = [];
+  const links: InlineLink[] = [];
   const add = (part: ProsePart): void => {
     if (typeof part === "string") text += part;
     else if (typeof part === "number") text += String(part);
-    else {
+    else if ("type" in part) {
+      const start = text.length;
+      text += part.label;
+      links.push({ ...part, start, end: text.length });
+    } else {
       const start = text.length;
       const at = styles.length;
       for (const p of part.parts) add(p);
@@ -67,7 +75,48 @@ export function prose(parts: readonly ProsePart[], options: ProseOptions = {}): 
     text,
     ...(styles.length > 0 && { styles }),
     ...(options.line !== undefined && { line: options.line }),
+    ...(links.length > 0 && { links }),
   };
+}
+
+/**
+ * Checks a text node's inline links are in bounds, non-empty, in order, match
+ * their labels, and don't cross its styles.
+ * @throws {@link StateError} naming the passage and the bad link.
+ */
+export function checkInlineLinks(passage: PassageId, node: TextNode): void {
+  const where = `passage ${JSON.stringify(passage)}`;
+  let after = 0;
+  for (const l of node.links ?? []) {
+    const name = `link ${JSON.stringify(l.label)} at ${String(l.start)}–${String(l.end)}`;
+    if (
+      !Number.isInteger(l.start) ||
+      !Number.isInteger(l.end) ||
+      l.start < after ||
+      l.end > node.text.length ||
+      l.start >= l.end
+    ) {
+      throw new StateError(
+        `${where}: the ${name} doesn't fit the text ${JSON.stringify(node.text)}. Inline links need 0 ≤ start < end ≤ text length, in order, without overlapping.`,
+      );
+    }
+    if (node.text.slice(l.start, l.end) !== l.label) {
+      throw new StateError(
+        `${where}: the ${name} covers ${JSON.stringify(node.text.slice(l.start, l.end))}, not its label. An inline link's label is the text it covers.`,
+      );
+    }
+    for (const s of node.styles ?? []) {
+      const disjoint = s.end <= l.start || l.end <= s.start;
+      const nested =
+        (s.start <= l.start && l.end <= s.end) || (l.start <= s.start && s.end <= l.end);
+      if (!disjoint && !nested) {
+        throw new StateError(
+          `${where}: the ${name} and the ${s.style} ${String(s.start)}–${String(s.end)} style partly overlap. A style may contain a link or sit inside its label, but not cross it.`,
+        );
+      }
+    }
+    after = l.end;
+  }
 }
 
 /**

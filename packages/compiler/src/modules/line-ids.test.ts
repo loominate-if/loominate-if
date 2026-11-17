@@ -89,6 +89,19 @@ describe("passageLines", () => {
     expect(result.ids).toEqual([at("Before."), link, at("After."), at("Last.")]);
   });
 
+  it("keeps inline links in their paragraph's line", () => {
+    const source = ":: A\nYou could [[ask -> B]] now.\n[[Leave -> C]]";
+    const result = lines(source);
+    const paragraph = result.lineAt(source.indexOf("You"));
+    expect(result.lineAt(source.indexOf("now"))).toBe(paragraph);
+    expect([...result.links.values()]).toHaveLength(1);
+    expect(result.ids).toEqual([paragraph, [...result.links.values()][0]]);
+    // The label is part of the line's text; the target isn't.
+    const id = (s: string) => lines(s).lineAt(s.indexOf("You"));
+    expect(id(":: A\nYou could [[ask -> C]] now.")).toBe(paragraph);
+    expect(id(":: A\nYou could [[enquire -> B]] now.")).not.toBe(paragraph);
+  });
+
   it("keeps a link's ID when its target or guard changes, not its label", () => {
     const link = (s: string) => [...lines(s).links.values()][0];
     expect(link(":: A\n[[Go -> B]]")).toBe(link(":: A\n[[Go -> C]]{when ok}"));
