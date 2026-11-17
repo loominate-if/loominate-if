@@ -100,7 +100,7 @@ describe("compileProject", { timeout: 30_000 }, () => {
       },
     ]);
     expect(show(result)).toEqual([
-      "scenes/stairs.weft:2:22 typescript: Property 'isLitt' does not exist on type 'Handle<{ isLit: boolean; name: string; }>'. Did you mean 'isLit'?",
+      "scenes/stairs.weft:2:22 typescript: `lantern` has no property `isLitt`. Did you mean `isLit`?",
       "scenes/stairs.weft:3:12 typescript: Type 'string' is not assignable to type 'number'.",
     ]);
   });
@@ -111,7 +111,30 @@ describe("compileProject", { timeout: 30_000 }, () => {
       { path: "a.weft", text: ":: A\nYou hold {lantern}.\n" },
     ]);
     expect(show(result)).toEqual([
-      "a.weft:2:11 typescript: Argument of type 'Handle<{ isLit: boolean; name: string; }>' is not assignable to parameter of type 'string | number'.",
+      "a.weft:2:11 typescript: `lantern` is an object, so it can't be printed. Print one of its properties instead, such as `{lantern.name}`.",
+    ]);
+  });
+
+  it("names objects by ID in errors, in modules and passages (#212)", () => {
+    const result = compile([
+      {
+        path: "story.ts",
+        text: `import { object, spawn, template } from "@loominate-if/core";
+export const match = template("match", { isLit: true });
+export const matchbox = object("matchbox", {
+  count: 3,
+  strike() {
+    this.cout -= 1;
+    return spawn(match, this);
+  },
+});
+`,
+      },
+      { path: "a.weft", text: ":: A\n{on enter: matchbox.strike().isLot = false}\n" },
+    ]);
+    expect(show(result)).toEqual([
+      "a.weft:2:30 typescript: Property 'isLot' does not exist on type '{ isLit: boolean; }'. Did you mean 'isLit'?",
+      "story.ts:6:10 typescript: `matchbox` has no property `cout`. Did you mean `count`?",
     ]);
   });
 

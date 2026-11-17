@@ -10,6 +10,7 @@ import { parsePassageFile } from "../passages/parse.js";
 import { locator } from "../passages/positions.js";
 import type { Span } from "../passages/syntax.js";
 import { CONTEXT_NAMES, generatePassageModule, type GeneratedModule } from "./generate.js";
+import { authorMessage } from "./messages.js";
 import { toSource } from "./source-map.js";
 
 /** The extension of passage files. */
@@ -214,8 +215,10 @@ export function compileProject(options: ProjectOptions): CompiledProject {
   for (const d of ts.getPreEmitDiagnostics(program)) {
     if (!d.file || d.start === undefined) continue;
     const fileName = path.resolve(d.file.fileName);
-    const message = ts.flattenDiagnosticMessageText(d.messageText, "\n");
     const generated = byModule.get(fileName);
+    const message = authorMessage(ts.flattenDiagnosticMessageText(d.messageText, "\n"), {
+      printed: generated?.code.slice(0, d.start).endsWith("$print(") ?? false,
+    });
     if (generated) {
       const at = toSource(generated.mappings, d.start) ?? 0;
       const end = toSource(generated.mappings, d.start + (d.length ?? 0)) ?? at;
