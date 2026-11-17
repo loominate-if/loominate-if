@@ -92,6 +92,7 @@ export {
   writeReplay,
   type ChoiceRef,
   type Replay,
+  type ReplayCheck,
   type StoryAction,
 } from "./replay/replay.js";
 export {

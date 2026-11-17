@@ -55,5 +55,5 @@ A save file is one line of JSON:
 - The save format is now versioned. Changing what version 1 means breaks players' saves; additions need version 2 and a reader for version 1.
 - Saves grow with the event record, which is the biggest part of the state. Browser storage should be IndexedDB rather than localStorage (#230). Trimming or compacting the record is a separate decision if saves get too large.
 - Hosts supply the game ID and version. The compiler and CLI will fill them in from the game's package.
-- Replay files should name the game and engine the same way ([#228](https://github.com/loominate-if/loominate-if/issues/228)).
+- Replay files name the game and engine the same way, from version 2 ([#228](https://github.com/loominate-if/loominate-if/issues/228)).
 - Saving an instance of generated content (the procedural generation kit) needs nothing extra, since instances are state.

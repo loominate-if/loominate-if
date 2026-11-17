@@ -6,7 +6,10 @@ import { randomStream } from "../random/random.js";
 import { createHistory } from "../state/history.js";
 import { createStore, type StateSnapshot } from "../state/store.js";
 import { StateError } from "../state/value.js";
+import { ENGINE_VERSION } from "../save/save.js";
 import { readReplay, writeReplay, type Replay } from "./replay.js";
+
+const game = { id: "lantern-road", version: "1.0.0" };
 
 afterEach(() => {
   resetObjects();
@@ -116,11 +119,13 @@ describe("replays", () => {
   });
 
   it("round-trip through a replay file", () => {
-    const replay = playthrough().story.toReplay();
+    const replay = playthrough().story.toReplay(game);
     const text = writeReplay(replay);
     expect(text).toBe(`{
   "format": "loominate-replay",
-  "version": 1,
+  "version": 2,
+  "game": {"id":"lantern-road","version":"1.0.0"},
+  "engine": "${ENGINE_VERSION}",
   "seed": "fog-bound",
   "actions": [
     {"type":"follow","choice":{"type":"link","target":"Road","label":"Walk on"}},
@@ -133,12 +138,64 @@ describe("replays", () => {
 `);
     expect(readReplay(text)).toEqual(replay);
     expect(writeReplay(readReplay(text))).toBe(text);
-    const empty: Replay = { format: "loominate-replay", version: 1, seed: "", actions: [] };
+    const empty: Replay = {
+      format: "loominate-replay",
+      version: 2,
+      engine: "1",
+      seed: "",
+      actions: [],
+    };
     expect(readReplay(writeReplay(empty))).toEqual(empty);
   });
 
+  it("record the engine always, and the game when given", () => {
+    const { story } = playthrough();
+    expect(story.toReplay()).toMatchObject({ version: 2, engine: ENGINE_VERSION });
+    expect(story.toReplay()).not.toHaveProperty("game");
+    expect(story.toReplay(game).game).toEqual(game);
+  });
+
+  it("say whether they came from the same game and engine versions", () => {
+    const replay = playthrough().story.toReplay(game);
+    expect(play().story.playReplay(replay, game)).toEqual({
+      sameGameVersion: true,
+      sameEngineVersion: true,
+    });
+    expect(play().story.playReplay(replay, { ...game, version: "1.1.0" })).toEqual({
+      sameGameVersion: false,
+      sameEngineVersion: true,
+    });
+    expect(play().story.playReplay({ ...replay, engine: "0.0.0-old" })).toEqual({
+      sameEngineVersion: false,
+    });
+    // Nothing to compare: a version 1 file, played without saying which game.
+    const v1: Replay = {
+      format: replay.format,
+      version: 2,
+      seed: replay.seed,
+      actions: replay.actions,
+    };
+    expect(play().story.playReplay(v1)).toEqual({});
+    expect(() => play().story.playReplay(replay, { id: "other", version: "1.0.0" })).toThrow(
+      `playReplay: this replay is from the game "lantern-road", not "other".`,
+    );
+  });
+
+  it("read version 1 files, which don't record the game or engine", () => {
+    const v1 = `{"format":"loominate-replay","version":1,"seed":"s","actions":[{"type":"goTo","passage":"Inn"}]}`;
+    expect(readReplay(v1)).toEqual({
+      format: "loominate-replay",
+      version: 2,
+      seed: "s",
+      actions: [{ type: "goTo", passage: "Inn" }],
+    });
+    expect(() => readReplay(v1.replace(`"seed"`, `"engine":"1","seed"`))).toThrow(
+      `replay: the file has an unknown field "engine"; expected "format", "version", "seed", "actions".`,
+    );
+  });
+
   it("say which action diverged, and stop there", () => {
-    const replay = playthrough().story.toReplay();
+    const replay = playthrough().story.toReplay(game);
     // The game changed: the inn's continue point now leads to the cellar.
     const changed = passages.map((p) =>
       p.id === "Inn" ? { ...p, body: () => [{ type: "continue" as const, target: "Cellar" }] } : p,
@@ -151,6 +208,20 @@ describe("replays", () => {
     );
     expect(story.current).toBe("Inn");
     expect(story.actions).toHaveLength(2);
+    // When the versions differ, the error says so: the likeliest reason it diverged.
+    expect(() => {
+      play({ game: changed }).story.playReplay(replay, { ...game, version: "1.1.0" });
+    }).toThrow(
+      `isn't a choice in passage "Inn". The replay was made with version 1.0.0 of the game; this is 1.1.0.`,
+    );
+    expect(() => {
+      play({ game: changed }).story.playReplay(
+        { ...replay, engine: "0.0.0-old" },
+        { ...game, version: "1.1.0" },
+      );
+    }).toThrow(
+      `The replay was made with version 1.0.0 of the game; this is 1.1.0, and engine 0.0.0-old; this is ${ENGINE_VERSION}.`,
+    );
   });
 
   it("need a fresh story, and a begun one to record", () => {
@@ -165,7 +236,14 @@ describe("replays", () => {
 
 describe("reading replay files", () => {
   const file = (fields: Record<string, unknown>) =>
-    JSON.stringify({ format: "loominate-replay", version: 1, seed: "s", actions: [], ...fields });
+    JSON.stringify({
+      format: "loominate-replay",
+      version: 2,
+      engine: "1",
+      seed: "s",
+      actions: [],
+      ...fields,
+    });
   const action = (a: unknown) => file({ actions: [a] });
 
   it("explains what's wrong with a file it can't read", () => {
@@ -173,14 +251,23 @@ describe("reading replay files", () => {
     expect(() => readReplay("[]")).toThrow(
       `replay: this isn't a replay file; it needs "format": "loominate-replay".`,
     );
-    expect(() => readReplay(file({ version: 2 }))).toThrow(
-      "replay: the file is version 2, made by a newer engine; this one reads version 1.",
+    expect(() => readReplay(file({ version: 3 }))).toThrow(
+      "replay: the file is version 3, made by a newer engine; this one reads versions 1 and 2.",
     );
-    expect(() => readReplay(file({ version: "1" }))).toThrow(`replay: "version" must be 1.`);
+    expect(() => readReplay(file({ version: "2" }))).toThrow(`replay: "version" must be 1 or 2.`);
+    expect(() => readReplay(file({ engine: undefined }))).toThrow(
+      `replay: "engine" must be a version string.`,
+    );
+    expect(() => readReplay(file({ game: { id: "x" } }))).toThrow(
+      `replay: "game" needs a non-empty "id" and "version".`,
+    );
+    expect(() => readReplay(file({ game: { ...game, title: "t" } }))).toThrow(
+      `replay: "game" has an unknown field "title"`,
+    );
     expect(() => readReplay(file({ seed: 7 }))).toThrow(`replay: "seed" must be a string.`);
     expect(() => readReplay(file({ actions: {} }))).toThrow(`replay: "actions" must be a list.`);
     expect(() => readReplay(file({ notes: "hi" }))).toThrow(
-      `replay: the file has an unknown field "notes"; expected "format", "version", "seed", "actions".`,
+      `replay: the file has an unknown field "notes"; expected "format", "version", "game", "engine", "seed", "actions".`,
     );
   });
 
