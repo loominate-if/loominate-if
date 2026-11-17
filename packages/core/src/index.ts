@@ -27,6 +27,18 @@ export {
   type TemplateParams,
 } from "./state/instances.js";
 export {
+  instancesOf,
+  mixin,
+  object,
+  spawn,
+  template,
+  type Handle,
+  type ObjectData,
+  type ObjectDefinition,
+  type ObjectRef,
+  type ObjectTemplate,
+} from "./objects/objects.js";
+export {
   createEventRecord,
   type EventKind,
   type EventKinds,

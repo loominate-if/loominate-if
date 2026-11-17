@@ -12,14 +12,16 @@ const root = path.join(here, "__game__");
 const compilerOptions = { customConditions: ["source"] };
 
 const story = `
-export const lantern = { isLit: false, name: "the lantern" };
-export const player = {
+import { object, type Handle } from "@loominate-if/core";
+
+export const lantern = object("lantern", { isLit: false, name: "the lantern" });
+export const player = object("player", {
   fear: 0,
-  carrying: [] as string[],
-  has(thing: { name: string }): boolean {
-    return this.carrying.includes(thing.name);
+  carrying: [] as Handle<object>[],
+  has(thing: Handle<object>): boolean {
+    return this.carrying.includes(thing);
   },
-};
+});
 `;
 
 const cellar = `:: Cellar Stairs [room: stairs]
@@ -81,7 +83,7 @@ describe("compileProject", { timeout: 30_000 }, () => {
       },
     ]);
     expect(show(result)).toEqual([
-      "scenes/stairs.weft:2:22 typescript: Property 'isLitt' does not exist on type '{ isLit: boolean; name: string; }'. Did you mean 'isLit'?",
+      "scenes/stairs.weft:2:22 typescript: Property 'isLitt' does not exist on type 'Handle<{ isLit: boolean; name: string; }>'. Did you mean 'isLit'?",
       "scenes/stairs.weft:3:12 typescript: Type 'string' is not assignable to type 'number'.",
     ]);
   });
@@ -92,7 +94,7 @@ describe("compileProject", { timeout: 30_000 }, () => {
       { path: "a.weft", text: ":: A\nYou hold {lantern}.\n" },
     ]);
     expect(show(result)).toEqual([
-      "a.weft:2:11 typescript: Argument of type '{ isLit: boolean; name: string; }' is not assignable to parameter of type 'string | number'.",
+      "a.weft:2:11 typescript: Argument of type 'Handle<{ isLit: boolean; name: string; }>' is not assignable to parameter of type 'string | number'.",
     ]);
   });
 
@@ -136,7 +138,7 @@ describe("a compiled game", { timeout: 30_000 }, () => {
     rmSync(out, { recursive: true, force: true });
   });
 
-  it("plays through: prose, formatting, guards, effects, and visits", async () => {
+  it("plays through: prose, formatting, guards, effects on objects, and visits", async () => {
     const result = compileProject({
       root: out,
       compilerOptions,
@@ -186,6 +188,8 @@ describe("a compiled game", { timeout: 30_000 }, () => {
       expect.objectContaining({ label: "Back up", available: true }),
     ]);
     expect(scope.player.fear).toBe(1);
+    // Inline effects write real state, which undo, save, and replay see.
+    expect(store.entity("player")).toEqual({ fear: 1 });
 
     scope.lantern.isLit = true;
     expect(game.render().nodes[0]).toMatchObject({

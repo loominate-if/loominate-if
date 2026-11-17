@@ -9,6 +9,7 @@
  */
 import type { EventRecord, LineId, TextStyle } from "../events/record.js";
 import type { StateId, StateStore } from "../state/store.js";
+import { bindObjects, renderingObjects } from "../objects/objects.js";
 import { StateError } from "../state/value.js";
 import { checkStyles } from "./prose.js";
 
@@ -235,6 +236,8 @@ export function createStory(
   };
   lookup(options.start, "start");
   const defaultMode = options.guardMode ?? "hidden";
+  // Objects defined with object() read and write this story's store (ADR 0006).
+  bindObjects(store);
 
   const reader: StateReader = {
     get: (id, key) => store.get(id, key),
@@ -259,13 +262,15 @@ export function createStory(
     const wasClean = !store.dirty;
     const count = visits(passage.id);
     const nodes = Object.freeze([
-      ...passage.body({
-        state: reader,
-        passage: passage.id,
-        visits: count,
-        firstVisit: count === 1,
-        visited: (id) => visits(id) > 0,
-      }),
+      ...renderingObjects(passage.id, () =>
+        passage.body({
+          state: reader,
+          passage: passage.id,
+          visits: count,
+          firstVisit: count === 1,
+          visited: (id) => visits(id) > 0,
+        }),
+      ),
     ]);
     if (wasClean && store.dirty) {
       store.rollback();
