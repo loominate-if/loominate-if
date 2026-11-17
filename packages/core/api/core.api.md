@@ -339,6 +339,8 @@ export type RenderedText = Omit<TextNode, "links"> & {
 export type Replay = {
     readonly format: typeof REPLAY_FORMAT;
     readonly version: typeof REPLAY_VERSION;
+    readonly game?: GameInfo;
+    readonly engine?: string;
     readonly seed: string;
     readonly actions: readonly StoryAction[];
 };
@@ -347,7 +349,13 @@ export type Replay = {
 export const REPLAY_FORMAT = "loominate-replay";
 
 // @public
-export const REPLAY_VERSION = 1;
+export const REPLAY_VERSION = 2;
+
+// @public
+export type ReplayCheck = {
+    readonly sameGameVersion?: boolean;
+    readonly sameEngineVersion?: boolean;
+};
 
 // @public
 export const SAVE_FORMAT = "loominate-save";
@@ -467,9 +475,9 @@ export interface Story {
     goTo(id: PassageId): void;
     passage(id: PassageId): Passage | undefined;
     perform(action: StoryAction): void;
-    playReplay(replay: Replay): void;
+    playReplay(replay: Replay, game?: GameInfo): ReplayCheck;
     render(): RenderedPassage;
-    toReplay(): Replay;
+    toReplay(game?: GameInfo): Replay;
     visited(id: PassageId): boolean;
     visits(id: PassageId): number;
 }

@@ -12,11 +12,13 @@ import type { StateId, StateStore } from "../state/store.js";
 import { bindObjects, renderingObjects } from "../objects/objects.js";
 import { StateError } from "../state/value.js";
 import { RANDOM_ID, SEED_FIELD } from "../random/random.js";
+import { ENGINE_VERSION, type GameInfo } from "../save/save.js";
 import {
   choiceRef,
   REPLAY_FORMAT,
   REPLAY_VERSION,
   type Replay,
+  type ReplayCheck,
   type StoryAction,
 } from "../replay/replay.js";
 import { checkInlineLinks, checkStyles } from "./prose.js";
@@ -267,19 +269,24 @@ export interface Story {
    */
   perform(action: StoryAction): void;
   /**
-   * The replay file for the story so far: its seed and {@link Story.actions}.
-   * Playing it on a fresh story reproduces the state and event record exactly.
+   * The replay file for the story so far: its seed and {@link Story.actions},
+   * the engine version, and `game` when given. Playing it on a fresh story
+   * reproduces the state and event record exactly.
    * @throws {@link StateError} before {@link Story.begin}.
    */
-  toReplay(): Replay;
+  toReplay(game?: GameInfo): Replay;
   /**
    * Begins the story with a replay's seed and takes its actions in order. If an
    * action fails, for example because the game changed since the replay was
-   * made, the story stays at the last action that worked, so it can be inspected.
-   * @throws {@link StateError} if the story has already begun, or naming the
-   * first action that fails.
+   * made, the story stays at the last action that worked, so it can be
+   * inspected, and the error says if the replay came from another version.
+   *
+   * Pass the running `game` to check the replay belongs to it. The result says
+   * whether the replay came from the same game and engine versions.
+   * @throws {@link StateError} if the story has already begun, if the replay is
+   * from another game, or naming the first action that fails.
    */
-  playReplay(replay: Replay): void;
+  playReplay(replay: Replay, game?: GameInfo): ReplayCheck;
 }
 
 /** The state entity holding story progress. IDs starting with `$` are reserved for core. */
@@ -532,19 +539,46 @@ export function createStory(
       if (action.type === "follow") story.follow(action.choice);
       else story.goTo(action.passage);
     },
-    toReplay() {
+    toReplay(game) {
       const seed = store.get(RANDOM_ID, SEED_FIELD);
       if (current() === undefined || typeof seed !== "string") {
         throw new StateError("toReplay: call begin() first.");
       }
-      return { format: REPLAY_FORMAT, version: REPLAY_VERSION, seed, actions: story.actions };
+      return {
+        format: REPLAY_FORMAT,
+        version: REPLAY_VERSION,
+        ...(game !== undefined && { game: { id: game.id, version: game.version } }),
+        engine: ENGINE_VERSION,
+        seed,
+        actions: story.actions,
+      };
     },
-    playReplay(replay) {
+    playReplay(replay, game) {
       if (current() !== undefined) {
         throw new StateError(
           "playReplay: the story has already begun; play a replay on a fresh store.",
         );
       }
+      const made = replay.game;
+      if (made !== undefined && game !== undefined && made.id !== game.id) {
+        throw new StateError(
+          `playReplay: this replay is from the game ${JSON.stringify(made.id)}, not ${JSON.stringify(game.id)}.`,
+        );
+      }
+      const check: ReplayCheck = {
+        ...(made !== undefined &&
+          game !== undefined && { sameGameVersion: made.version === game.version }),
+        ...(replay.engine !== undefined && { sameEngineVersion: replay.engine === ENGINE_VERSION }),
+      };
+      // When a replay diverges, a version difference is the likeliest reason.
+      const versions = [
+        check.sameGameVersion === false &&
+          `version ${made?.version ?? ""} of the game; this is ${game?.version ?? ""}`,
+        check.sameEngineVersion === false &&
+          `engine ${replay.engine ?? ""}; this is ${ENGINE_VERSION}`,
+      ].filter((v): v is string => v !== false);
+      const note =
+        versions.length === 0 ? "" : ` The replay was made with ${versions.join(", and ")}.`;
       if (!store.has(RANDOM_ID, SEED_FIELD)) store.set(RANDOM_ID, SEED_FIELD, replay.seed);
       story.begin();
       replay.actions.forEach((action, i) => {
@@ -553,11 +587,12 @@ export function createStory(
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           throw new StateError(
-            `replay action ${String(i + 1)} of ${String(replay.actions.length)} (${describe(action)}): ${message}`,
+            `replay action ${String(i + 1)} of ${String(replay.actions.length)} (${describe(action)}): ${message}${note}`,
             { cause: error },
           );
         }
       });
+      return check;
     },
   };
   return story;
