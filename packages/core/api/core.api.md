@@ -84,6 +84,9 @@ export interface EventRecord {
 export type GuardMode = "hidden" | "disabled" | "disabled-with-reason";
 
 // @public
+export type Handle<D> = D & ObjectRef;
+
+// @public
 export interface History {
     readonly canRedo: boolean;
     readonly canUndo: boolean;
@@ -127,6 +130,9 @@ export interface Instances {
 }
 
 // @public
+export function instancesOf<D>(template: ObjectTemplate<D>): Handle<D>[];
+
+// @public
 export function invertDiff(diff: StateDiff): StateDiff;
 
 // @public
@@ -148,6 +154,33 @@ export type LinkNode = {
     readonly line?: LineId;
     readonly guard?: LinkGuard;
 };
+
+// @public
+export function mixin<M extends ObjectDefinition<M>>(definition: M & ThisType<Handle<M>>): M;
+
+// @public
+export function object<D extends ObjectDefinition<D>>(id: StateId, definition: D & ThisType<Handle<D>>): Handle<D>;
+
+// @public
+export type ObjectData = null | boolean | number | string | ObjectRef | readonly ObjectData[] | {
+    readonly [key: string]: ObjectData;
+};
+
+// @public
+export type ObjectDefinition<D> = {
+    [K in keyof D]: D[K] extends (...args: never[]) => unknown ? D[K] : ObjectData;
+};
+
+// @public
+export interface ObjectRef {
+    readonly id: StateId;
+}
+
+// @public
+export interface ObjectTemplate<D> {
+    readonly definition: Readonly<D>;
+    readonly name: string;
+}
 
 // @public
 export interface Passage {
@@ -220,6 +253,9 @@ export interface RenderedPassage {
     readonly passage: Passage;
     readonly unavailable: readonly UnavailableLink[];
 }
+
+// @public
+export function spawn<D>(template: ObjectTemplate<D>, origin: ObjectRef, key?: string): Handle<D>;
 
 // @public
 export interface StateChange {
@@ -309,6 +345,9 @@ export interface Template<P extends StateValue = StateValue> {
     };
     readonly name: string;
 }
+
+// @public
+export function template<D extends ObjectDefinition<D>>(name: string, definition: D & ThisType<Handle<D>>): ObjectTemplate<D>;
 
 // @public
 export type TemplateParams<T> = T extends Template<infer P> ? P : never;
