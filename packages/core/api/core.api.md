@@ -84,7 +84,9 @@ export interface EventRecord {
 export type GuardMode = "hidden" | "disabled" | "disabled-with-reason";
 
 // @public
-export type Handle<D> = D & ObjectRef;
+export type Handle<D, Id extends StateId = StateId> = D & {
+    readonly id: Id;
+};
 
 // @public
 export interface History {
@@ -159,7 +161,7 @@ export type LinkNode = {
 export function mixin<M extends ObjectDefinition<M>>(definition: M & ThisType<Handle<M>>): M;
 
 // @public
-export function object<D extends ObjectDefinition<D>>(id: StateId, definition: D & ThisType<Handle<D>>): Handle<D>;
+export function object<Id extends StateId, D extends ObjectDefinition<D>>(id: Id, definition: D & ThisType<Handle<D, Id>>): Handle<D, Id>;
 
 // @public
 export type ObjectData = null | boolean | number | string | ObjectRef | readonly ObjectData[] | {

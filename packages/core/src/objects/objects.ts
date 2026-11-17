@@ -45,8 +45,14 @@ export type ObjectDefinition<D> = {
   [K in keyof D]: D[K] extends (...args: never[]) => unknown ? D[K] : ObjectData;
 };
 
-/** An object: the definition's type, plus its ID. Data properties read and write the state store. */
-export type Handle<D> = D & ObjectRef;
+/**
+ * An object: the definition's type, plus its ID. Data properties read and write the state store.
+ *
+ * @remarks
+ * For objects defined with {@link object}, `Id` is the ID as a string literal type,
+ * so the compiler can name the object in error messages. Write `Handle<D>` to accept any object.
+ */
+export type Handle<D, Id extends StateId = StateId> = D & { readonly id: Id };
 
 /** A template for objects created during play with {@link spawn}. */
 export interface ObjectTemplate<D> {
@@ -452,10 +458,10 @@ function checkId(id: unknown, where: string): asserts id is StateId {
  * @throws {@link StateError} if the ID is empty, already used, starts with `gen:`
  * or `$`, or a data property isn't valid state.
  */
-export function object<D extends ObjectDefinition<D>>(
-  id: StateId,
-  definition: D & ThisType<Handle<D>>,
-): Handle<D> {
+export function object<Id extends StateId, D extends ObjectDefinition<D>>(
+  id: Id,
+  definition: D & ThisType<Handle<D, Id>>,
+): Handle<D, Id> {
   checkId(id, "object");
   if (id.startsWith(GENERATED) || id.startsWith("$")) {
     throw new StateError(
@@ -469,7 +475,7 @@ export function object<D extends ObjectDefinition<D>>(
   }
   const handle = build(id, definition);
   statics.set(id, handle);
-  return handle as Handle<D>;
+  return handle as Handle<D, Id>;
 }
 
 /**
