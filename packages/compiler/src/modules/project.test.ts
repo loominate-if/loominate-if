@@ -241,6 +241,38 @@ export const again = same();
     ]);
   });
 
+  it("explains common inline-code mistakes at the author's line", () => {
+    const scope = [
+      'import { object } from "@loominate-if/core";',
+      'export const lantern = object("lantern", { isLit: false, oil: 3 });',
+      'export const player = object("player", { nick: null as string | null, mood: "calm" as "calm" | "scared" });',
+    ].join("\n");
+    const passages = [
+      ":: Start",
+      "The lamp is {lantern.isLit}.",
+      "Hi, {player.nick}.",
+      '{if visited("Cellr")}Back.{/if}',
+      '{if lantern.oil == "full"}Full.{/if}',
+      '{on enter: player.mood = "happy"}',
+      "{on enter: lantern = 3}",
+      "[[Down -> Cellar]]",
+      ":: Cellar",
+      "Damp.",
+    ].join("\n");
+    const result = compile([
+      { path: "story.ts", text: scope },
+      { path: "a.weft", text: passages },
+    ]);
+    expect(show(result)).toEqual([
+      "a.weft:2:14 typescript: `lantern.isLit` is true or false, so it can't be printed. To show text that depends on it, use `{if lantern.isLit}…{else}…{/if}`.",
+      'a.weft:3:6 typescript: `player.nick` might be `null`, so it can\'t be printed. Give it a fallback, like `{player.nick ?? "…"}`, or check it first with `{if player.nick !== null}…{/if}`.',
+      "a.weft:4:13 typescript: There's no passage named `Cellr`. Did you mean `Cellar`?",
+      "a.weft:5:5 typescript: This comparison can never match: one side is `number` and the other is `string`. Check the value you're comparing with.",
+      'a.weft:6:12 typescript: `player.mood` holds `"calm" | "scared"`, so it can\'t be set to `"happy"`.',
+      "a.weft:7:12 typescript: `lantern` comes from `story.ts`, and passages can't replace it. Change one of its properties instead.",
+    ]);
+  });
+
   it("collects parser, compiler, and TypeScript errors together", () => {
     const result = compile([{ path: "a.weft", text: ":: A\n{beat 1s}\n}\n{if nope}x{/if}\n" }]);
     expect(show(result)).toEqual([

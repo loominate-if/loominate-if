@@ -6,6 +6,7 @@
  * with `object()` carry their ID as the last type argument, so messages can
  * name them by ID instead (#212).
  */
+import { closestName } from "./links.js";
 
 /** A `'Handle<…>'` type quoted in a message. */
 interface QuotedHandle {
@@ -82,6 +83,14 @@ function quotedHandles(message: string): QuotedHandle[] {
 export interface MessageContext {
   /** Whether the error is on a value printed in prose, as in `{lantern}`. */
   readonly printed?: boolean;
+  /** The code the error is on, as the author wrote it, when it's in a passage. */
+  readonly code?: string;
+  /** Whether that code is being assigned to, as in `player.mood = "happy"`. */
+  readonly assigned?: boolean;
+  /** Every passage name, to suggest one for a misspelled name. */
+  readonly passages?: Iterable<string>;
+  /** The scope module, as the author would write its path. */
+  readonly scope?: string;
 }
 
 /**
@@ -89,10 +98,124 @@ export interface MessageContext {
  * come back unchanged.
  */
 export function authorMessage(message: string, context: MessageContext = {}): string {
+  const whole = rewriteMessage(message, context);
+  if (whole !== undefined) return whole;
   return message
     .split("\n")
     .map((line) => rewriteLine(line, context))
     .join("\n");
+}
+
+/** Splits a printed type at top-level `|`. */
+function unionMembers(type: string): string[] {
+  const members: string[] = [];
+  let depth = 0;
+  let from = 0;
+  for (let i = 0; i < type.length; i++) {
+    const c = type[i];
+    if (c === '"') i = closingQuote(type, i);
+    else if (c === "<" || c === "{" || c === "(" || c === "[") depth++;
+    else if (c === ">" || c === "}" || c === ")" || c === "]") depth--;
+    else if (c === "|" && depth === 0) {
+      members.push(type.slice(from, i).trim());
+      from = i + 1;
+    }
+  }
+  members.push(type.slice(from).trim());
+  return members;
+}
+
+/**
+ * Rules that replace a whole message, including TypeScript's elaboration
+ * lines, since the rewrite explains the problem on its own.
+ */
+function rewriteMessage(message: string, context: MessageContext): string | undefined {
+  const first = message.split("\n")[0] ?? "";
+  const code = context.code;
+
+  // visited("Cellr"): the passage name isn't one of the game's.
+  const passage =
+    /^Argument of type '("(?:[^"\\]|\\.)*")' is not assignable to parameter of type 'PassageName'\.$/.exec(
+      first,
+    );
+  if (passage?.[1] !== undefined && context.passages) {
+    const name = JSON.parse(passage[1]) as string;
+    const guess = closestName(name, context.passages);
+    return `There's no passage named \`${name}\`.${
+      guess === undefined
+        ? " Check the spelling, or add the passage."
+        : ` Did you mean \`${guess}\`?`
+    }`;
+  }
+
+  // {player.nick}, {player.inventory}, …: a value prose can't show.
+  const printed =
+    /^Argument of type '(.+)' is not assignable to parameter of type 'string \| number'\.$/.exec(
+      first,
+    );
+  if (context.printed && code !== undefined && printed?.[1] !== undefined) {
+    const type = printed[1];
+    const members = unionMembers(type);
+    if (type === "boolean" || members.every((m) => m === "true" || m === "false")) {
+      return `\`${code}\` is true or false, so it can't be printed. To show text that depends on it, use \`{if ${code}}…{else}…{/if}\`.`;
+    }
+    const empty = ["null", "undefined"].filter((m) => members.includes(m));
+    if (empty.length > 0 && empty.length < members.length) {
+      const what = empty.map((m) => `\`${m}\``).join(" or ");
+      const check = empty.length === 2 ? "!= null" : `!== ${empty[0] ?? "null"}`;
+      return `\`${code}\` might be ${what}, so it can't be printed. Give it a fallback, like \`{${code} ?? "…"}\`, or check it first with \`{if ${code} ${check}}…{/if}\`.`;
+    }
+    if (members.length === 1 && type.endsWith("[]")) {
+      return type.includes("Handle<")
+        ? `\`${code}\` is a list of objects, so it can't be printed. Print a property of each one, like \`{${code}.map((item) => item.name).join(", ")}\`.`
+        : `\`${code}\` is a list, so it can't be printed. Join it into text, like \`{${code}.join(", ")}\`.`;
+    }
+    if (members.length === 1 && /^\(.*\) => /.test(type)) {
+      return `\`${code}\` is a function, so it can't be printed. Call it to print what it returns: \`{${code}()}\`.`;
+    }
+  }
+
+  // player.mood = "happy": a value the property can't hold.
+  const assign = /^Type '(.+)' is not assignable to type '(.+)'\.$/.exec(first);
+  if (
+    context.assigned &&
+    code !== undefined &&
+    assign?.[1] !== undefined &&
+    assign[2] !== undefined
+  ) {
+    return `\`${code}\` holds \`${assign[2]}\`, so it can't be set to \`${assign[1]}\`.`;
+  }
+
+  // player.fear == "high": the two sides can never be equal.
+  const overlap =
+    /^This comparison appears to be unintentional because the types '(.+)' and '(.+)' have no overlap\.$/.exec(
+      first,
+    );
+  if (overlap?.[1] !== undefined && overlap[2] !== undefined) {
+    return `This comparison can never match: one side is \`${overlap[1]}\` and the other is \`${overlap[2]}\`. Check the value you're comparing with.`;
+  }
+
+  // {on enter: lantern = 3}: replacing a scope export.
+  const imported = /^Cannot assign to '([^']+)' because it is an import\.$/.exec(first);
+  if (imported?.[1] !== undefined && context.scope !== undefined) {
+    return `\`${imported[1]}\` comes from \`${context.scope}\`, and passages can't replace it. Change one of its properties instead.`;
+  }
+
+  // {greet()}: the wrong number of arguments.
+  const count = /^Expected (\d+(?:-\d+)?) arguments?, but got (\d+)( or more)?\.$/.exec(first);
+  if (count?.[1] !== undefined && count[2] !== undefined) {
+    const call = code !== undefined && /^[\w$.]+\(/.test(code) ? `\`${code}\`` : "This call";
+    const wanted = `${count[1]} ${count[1] === "1" ? "argument" : "arguments"}`;
+    const got = count[2] === "0" ? "none" : `${count[2]}${count[3] ?? ""}`;
+    return `${call} needs ${wanted}, but has ${got}.`;
+  }
+
+  // {visits("Cellar")}: visits is this passage's count, not a function.
+  if (first === "This expression is not callable." && code === "visits") {
+    return '`visits` is how many times this passage has been visited, not a function. To ask about another passage, use `visited("…")`.';
+  }
+
+  return undefined;
 }
 
 function rewriteLine(line: string, context: MessageContext): string {
