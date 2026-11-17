@@ -182,6 +182,7 @@ export type PrintSyntax = {
 
 // @public
 export type ProjectDiagnostic = {
+    readonly severity: "error" | "warning";
     readonly source: "parser" | "compiler" | "typescript";
     readonly file: string;
     readonly message: string;
@@ -204,6 +205,7 @@ export type ProjectOptions = {
     readonly scope?: string;
     readonly compilerOptions?: ts.CompilerOptions;
     readonly directives?: readonly DirectiveSpec[];
+    readonly start?: string;
 };
 
 // @public
