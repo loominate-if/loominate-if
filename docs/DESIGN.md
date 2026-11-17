@@ -125,6 +125,16 @@ Each passage file (`.weft`) compiles to a virtual TypeScript module, the techniq
 
 The compiler assigns every authored line of prose and dialogue a stable ID that survives edits to surrounding text (Phase 1). Line IDs enable skipping only previously read text across playthroughs, mapping voice files to lines, and line-by-line localization.
 
+A line is a source paragraph or a link label. Its ID is the passage name and a hash of the line's own text, as in `Cellar:k3f9a2`, so editing other lines never changes it. `{line name}` above a line pins its ID to `Cellar:name`, so a typo fix doesn't orphan a voice file or translation. See [ADR 0007](decisions/0007-line-ids.md).
+
+```
+:: Cellar
+It's dark.
+
+{line drip}
+Water drips.
+```
+
 ## Core runtime
 
 The core runtime knows only passages, state, choices, the event record, save/load, and undo; everything else builds on it.
