@@ -11,7 +11,7 @@ import type { EventRecord, LineId, TextStyle } from "../events/record.js";
 import type { StateId, StateStore } from "../state/store.js";
 import { bindObjects, renderingObjects } from "../objects/objects.js";
 import { StateError } from "../state/value.js";
-import { checkStyles } from "./prose.js";
+import { checkInlineLinks, checkStyles } from "./prose.js";
 
 /** A passage's ID: its name from `:: Name`. */
 export type PassageId = StateId;
@@ -26,6 +26,8 @@ export type TextNode = {
   readonly styles?: readonly TextStyle[];
   /** The authored line it came from, when it came from one. */
   readonly line?: LineId;
+  /** Links inside the paragraph, in order, as ranges of `text`. */
+  readonly links?: readonly InlineLink[];
 };
 
 /** A link to another passage, from `[[Label -> Target]]`. */
@@ -93,11 +95,46 @@ export type ContinueNode = {
 /** One piece of a rendered passage, in reading order. */
 export type PassageNode = TextNode | LinkNode | ContinueNode;
 
+/**
+ * A link inside a paragraph, from `You could [[ask about it -> Hall]] now.`
+ *
+ * @remarks
+ * The label is part of the paragraph's `text`, at `text.slice(start, end)`,
+ * so the text reads as a whole sentence in transcripts and search. Offsets are
+ * UTF-16 positions, `start` inclusive and `end` exclusive, never empty. Inline
+ * links don't overlap each other, and styles either contain a link, sit inside
+ * its label, or stay clear of it.
+ */
+export type InlineLink = LinkNode & {
+  /** Offset of the label's first character in the paragraph's `text`. */
+  readonly start: number;
+  /** Offset just past the label's last character. */
+  readonly end: number;
+};
+
 /** A way out of the current passage: a link or a continue point. */
 export type Choice = LinkNode | ContinueNode;
 
+/** An inline link as rendered: whether it can be followed, and why not. */
+export type RenderedInlineLink = RenderedLink & {
+  /** Offset of the label's first character in the paragraph's `text`. */
+  readonly start: number;
+  /** Offset just past the label's last character. */
+  readonly end: number;
+};
+
+/**
+ * A paragraph as rendered. An inline link whose guard hides it is left out of
+ * `links`, and its label stays in `text` as plain words, so the sentence still
+ * reads; disabled ones stay in.
+ */
+export type RenderedText = Omit<TextNode, "links"> & {
+  /** Links inside the paragraph the player can see, in order. */
+  readonly links?: readonly RenderedInlineLink[];
+};
+
 /** One piece of a rendered passage. Hidden links are left out; disabled ones stay in. */
-export type RenderedNode = TextNode | RenderedLink | ContinueNode;
+export type RenderedNode = RenderedText | RenderedLink | ContinueNode;
 
 /** Read-only access to state, which is all a passage body gets. */
 export type StateReader = Pick<StateStore, "get" | "has" | "entity" | "ids">;
@@ -281,26 +318,39 @@ export function createStory(
     const shown: RenderedNode[] = [];
     const choices: Choice[] = [];
     const unavailable: UnavailableLink[] = [];
-    for (const node of nodes) {
-      if (node.type === "text" && node.styles) checkStyles(passage.id, node);
-      if (node.type !== "link") {
-        shown.push(node);
-        if (node.type === "continue") choices.push(node);
-        continue;
-      }
-      const guard = node.guard;
+    /** Records a link as a choice or unavailable, and returns how it shows, if it does. */
+    const place = (link: LinkNode): RenderedLink | undefined => {
+      const guard = link.guard;
       if (!guard || guard.open) {
-        shown.push(Object.freeze({ ...node, available: true }));
-        choices.push(node);
-        continue;
+        choices.push(link);
+        return { ...link, available: true };
       }
       const mode = guard.mode ?? defaultMode;
-      unavailable.push(Object.freeze({ link: node, mode, condition: guard.condition }));
-      if (mode === "hidden") continue;
+      unavailable.push(Object.freeze({ link, mode, condition: guard.condition }));
+      if (mode === "hidden") return undefined;
       const reason = mode === "disabled-with-reason" ? guard.reason : undefined;
-      shown.push(
-        Object.freeze({ ...node, available: false, ...(reason !== undefined && { reason }) }),
-      );
+      return { ...link, available: false, ...(reason !== undefined && { reason }) };
+    };
+    for (const node of nodes) {
+      if (node.type === "text") {
+        if (node.styles) checkStyles(passage.id, node);
+        if (node.links) checkInlineLinks(passage.id, node);
+        const { links, ...rest } = node;
+        // A hidden inline link drops out of `links`; its label stays as plain text.
+        const visible = (links ?? []).flatMap((l): RenderedInlineLink[] => {
+          const shownLink = place(l);
+          return shownLink ? [Object.freeze({ ...shownLink, start: l.start, end: l.end })] : [];
+        });
+        shown.push(
+          Object.freeze(visible.length > 0 ? { ...rest, links: Object.freeze(visible) } : rest),
+        );
+      } else if (node.type === "continue") {
+        shown.push(node);
+        choices.push(node);
+      } else {
+        const link = place(node);
+        if (link) shown.push(Object.freeze(link));
+      }
     }
     return Object.freeze({
       passage,

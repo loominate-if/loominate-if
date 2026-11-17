@@ -82,7 +82,7 @@ The steps go down further than they should.
 ```
 
 - **Phases:** `on first visit`, `on enter`, `on leave`. Each runs exactly once per actual visit and is recorded in the undo history, so loading or re-rendering never repeats an effect.
-- **Link guards:** `{when …}` right after a link hides or disables it. Each link can choose hidden, disabled, or disabled-with-reason, with a game-wide default.
+- **Link guards:** `{when …}` right after a link hides or disables it. Each link can choose hidden, disabled, or disabled-with-reason, with a game-wide default. A hidden link inside a paragraph keeps its label as plain words, so the sentence still reads.
 - **Visit tracking** is built into the core: `visited("Cellar")`, `visits`, `firstVisit`.
 
 ### TypeScript modules

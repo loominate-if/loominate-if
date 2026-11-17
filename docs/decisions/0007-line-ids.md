@@ -22,7 +22,7 @@ Line IDs are a content hash, with optional pins.
 
 ### What a line is
 
-- A **line** is a source paragraph: the content of a passage between blank lines, links, and `{continue}`. Each link label is a line of its own.
+- A **line** is a source paragraph: the content of a passage between blank lines, links on lines of their own, and `{continue}`. The label of a link on its own line is a line of its own. A link inside a paragraph (#207) is part of that paragraph's line: its `[[label]]` counts in the paragraph's canonical text, and it gets no ID of its own, so translators see the whole sentence.
 - Content with no prose (no text and no printed value) isn't a line and gets no ID.
 - `{if}` blocks can join source paragraphs at runtime. Here a player who hasn't met the speaker sees one paragraph, "Hello friend.", made from two lines:
 

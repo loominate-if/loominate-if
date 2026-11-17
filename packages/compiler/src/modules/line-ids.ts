@@ -8,6 +8,7 @@
  * `{line name}` above a paragraph or link pins its ID to `<passage>:<name>`,
  * so a typo fix doesn't orphan voice or translation files.
  */
+import { standaloneLinks } from "./links.js";
 import type {
   ContentSyntax,
   DirectiveSyntax,
@@ -73,6 +74,7 @@ export function passageLines(passage: PassageSyntax, source: string): PassageLin
     return s;
   };
   let current = open(passage.header.end);
+  const standalone = standaloneLinks(passage.content, source);
 
   const walk = (nodes: readonly ContentSyntax[]): void => {
     for (const n of nodes) {
@@ -105,8 +107,14 @@ export function passageLines(passage: PassageSyntax, source: string): PassageLin
           current = open(n.span.end);
           break;
         case "link":
-          current.link = n;
-          current = open(n.guard?.span.end ?? n.span.end);
+          if (standalone.has(n)) {
+            current.link = n;
+            current = open(n.guard?.span.end ?? n.span.end);
+          } else {
+            // An inline link's label is part of its paragraph's line.
+            current.text += `[[${labelText(n.label)}]]`;
+            current.prose.push(n.span.start);
+          }
           break;
         case "directive":
           if (n.name === LINE_DIRECTIVE) current.pins.push(n);

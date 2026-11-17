@@ -113,6 +113,12 @@ export interface HistoryStep {
 }
 
 // @public
+export type InlineLink = LinkNode & {
+    readonly start: number;
+    readonly end: number;
+};
+
+// @public
 export function instanceId(origin: StateId, key: string): StateId;
 
 // @public
@@ -219,7 +225,7 @@ export type ProseOptions = {
 };
 
 // @public
-export type ProsePart = string | number | StyledProse;
+export type ProsePart = string | number | StyledProse | LinkNode;
 
 // @public
 export type RecordedEvent<K extends EventKind = EventKind> = {
@@ -240,13 +246,19 @@ export interface RenderContext {
 }
 
 // @public
+export type RenderedInlineLink = RenderedLink & {
+    readonly start: number;
+    readonly end: number;
+};
+
+// @public
 export type RenderedLink = LinkNode & {
     readonly available: boolean;
     readonly reason?: string;
 };
 
 // @public
-export type RenderedNode = TextNode | RenderedLink | ContinueNode;
+export type RenderedNode = RenderedText | RenderedLink | ContinueNode;
 
 // @public
 export interface RenderedPassage {
@@ -255,6 +267,11 @@ export interface RenderedPassage {
     readonly passage: Passage;
     readonly unavailable: readonly UnavailableLink[];
 }
+
+// @public
+export type RenderedText = Omit<TextNode, "links"> & {
+    readonly links?: readonly RenderedInlineLink[];
+};
 
 // @public
 export function spawn<D>(template: ObjectTemplate<D>, origin: ObjectRef, key?: string): Handle<D>;
@@ -360,6 +377,7 @@ export type TextNode = {
     readonly text: string;
     readonly styles?: readonly TextStyle[];
     readonly line?: LineId;
+    readonly links?: readonly InlineLink[];
 };
 
 // @public

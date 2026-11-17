@@ -122,13 +122,24 @@ describe("generatePassageModule", () => {
     expect(map.mappings).toMatch(/^[;A-Za-z0-9+/,]+$/);
   });
 
+  it("puts links inside a paragraph into its prose, with no line of their own", () => {
+    const { code } = generate(
+      ":: A\nYou could [[ask -> B]]{when lantern.isLit, hidden} now, *or [[leave -> C]]*.\n[[Wait -> A]]",
+    );
+    expect(code).toContain(
+      '$parts.push({ type: "link", label: "ask", target: "B", guard: { open: Boolean(lantern.isLit), condition: "lantern.isLit", mode: "hidden" } });',
+    );
+    expect(code).toMatch(/\$parts\d+\.push\(\{ type: "link", label: "leave", target: "C" \}\);/);
+    expect(code).toMatch(
+      /\$nodes\.push\(\{ type: "link", label: "Wait", target: "A", line: "A:\w{6}" \}\);/,
+    );
+    expect(code.match(/\$flush\(/g)).toHaveLength(3);
+  });
+
   it("reports constructs core can't run yet", () => {
     expect(errors(":: A\n{beat 1s}\n{wait}", { scopeExports: new Set() })).toEqual([
       "2:1 `{beat}` isn't supported yet; it arrives with beats and cut scenes (#41).",
       "3:1 `{wait}` isn't supported yet; it arrives with beats and cut scenes (#41).",
-    ]);
-    expect(errors(":: A\nYou could [[go -> B]] now.")).toEqual([
-      "2:11 Links inside a paragraph aren't supported yet (#207). Put the link on its own line.",
     ]);
     expect(errors(":: A\n[[*go* -> B]]")).toEqual([
       "2:1 Formatting in link labels isn't supported yet. Remove the `*` from this label.",
