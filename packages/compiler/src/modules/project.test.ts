@@ -138,6 +138,34 @@ export const matchbox = object("matchbox", {
     ]);
   });
 
+  it("reports broken links and unreachable passages with their locations (#32)", () => {
+    const result = compileProject({
+      root,
+      compilerOptions,
+      start: "Kitchen",
+      files: [
+        { path: "story.ts", text: story },
+        {
+          path: "travel.ts",
+          text: 'export const shortcut = (goTo: (p: string) => void) => goTo("Attic");\n',
+        },
+        { path: "cellar.weft", text: cellar },
+        {
+          path: "kitchen.weft",
+          text: kitchen + "[[Up -> Atic]]\n\n:: Attic\nDust.\n\n:: Pantry\nJars.\n",
+        },
+      ],
+    });
+    expect(show(result)).toEqual([
+      "kitchen.weft:7:9 compiler: There's no passage named `Atic`. Did you mean `Attic`?",
+      "kitchen.weft:12:4 compiler: Nothing leads to `Pantry` from `Kitchen`, so players can't reach it. Link to it from another passage, or remove it.",
+    ]);
+    expect(result.diagnostics.map((d) => d.severity)).toEqual(["error", "warning"]);
+    expect(() => compileProject({ root, compilerOptions, start: "Nowhere", files: [] })).toThrow(
+      `start: there's no passage named "Nowhere".`,
+    );
+  });
+
   it("checks passage names given to visited", () => {
     const result = compile([{ path: "a.weft", text: ':: A\n{if visited("Nowhere")}x{/if}\n' }]);
     expect(show(result)).toEqual([
