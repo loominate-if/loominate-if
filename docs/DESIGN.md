@@ -301,6 +301,16 @@ All randomness comes from named, seeded streams stored in the game state, so pla
 - **Replay.** A seed plus an action list reproduces any playthrough; bug reports can be small replay files that open in the inspector.
 - **Undo behavior.** Undoing and retrying gives the same result, preventing reroll-by-undo. Authors can opt individual streams out.
 
+Streams are defined in modules and drawn from in effects; [ADR 0008](decisions/0008-random-streams.md) fixes the generator and how stream seeds are derived.
+
+```ts
+export const weather = randomStream("weather");
+export const dungeon = randomStream("dungeon");
+
+// {on first visit: crypt.layout = dungeon.substream("crypt").pick(layouts)}
+// {on enter: if (weather.chance(0.3)) road.raining = true}
+```
+
 ## NPCs
 
 Each NPC chooses one of three simulation levels, so authors spend effort only on the characters who need it.

@@ -11,6 +11,7 @@ import type { EventRecord, LineId, TextStyle } from "../events/record.js";
 import type { StateId, StateStore } from "../state/store.js";
 import { bindObjects, renderingObjects } from "../objects/objects.js";
 import { StateError } from "../state/value.js";
+import { RANDOM_ID, SEED_FIELD } from "../random/random.js";
 import { checkInlineLinks, checkStyles } from "./prose.js";
 
 /** A passage's ID: its name from `:: Name`. */
@@ -203,6 +204,12 @@ export interface StoryOptions {
   readonly start: PassageId;
   /** How links with closed guards are shown when a link doesn't say. Defaults to `hidden`. */
   readonly guardMode?: GuardMode;
+  /**
+   * The master seed every random stream derives from (ADR 0008). It's stored in
+   * state when the story begins, so a loaded save keeps its own. Defaults to
+   * `"0"`; a new game normally gets a fresh seed from whatever starts it.
+   */
+  readonly seed?: string;
 }
 
 /** Plays a set of compiled passages over a state store and event record. */
@@ -430,7 +437,18 @@ export function createStory(
     visits,
     visited: (id) => visits(id) > 0,
     begin() {
-      if (current() === undefined) enter(lookup(options.start, "begin"));
+      if (current() !== undefined) return;
+      const start = lookup(options.start, "begin");
+      const wasClean = !store.dirty;
+      try {
+        // Before the start passage's effects, which may draw from streams.
+        if (!store.has(RANDOM_ID, SEED_FIELD))
+          store.set(RANDOM_ID, SEED_FIELD, options.seed ?? "0");
+        enter(start);
+      } catch (error) {
+        if (wasClean) store.rollback();
+        throw error;
+      }
     },
     render() {
       const id = current();
