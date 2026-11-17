@@ -18,6 +18,7 @@ import type {
   PassageSyntax,
 } from "../passages/syntax.js";
 import { LINE_DIRECTIVE, passageLines, type PassageLines } from "./line-ids.js";
+import { renderWriteMessage, renderWrites } from "./render-writes.js";
 import { encodeSourceMap, type Mapping, type SourceMap } from "./source-map.js";
 
 /** Names inline code gets from the passage's context, with no import. */
@@ -113,6 +114,40 @@ export function generatePassageModule(
   }
 
   // ---- Checks before generating ------------------------------------------
+
+  /** Conditions in `{if}` and `{when}`, where `=` is likely a mistyped `===`. */
+  function conditions(
+    nodes: readonly ContentSyntax[],
+    acc = new Set<CodeSyntax>(),
+  ): Set<CodeSyntax> {
+    for (const n of nodes) {
+      if (n.type === "emphasis") conditions(n.content, acc);
+      else if (n.type === "if") {
+        for (const b of n.branches) {
+          if (b.condition) acc.add(b.condition);
+          conditions(b.content, acc);
+        }
+      } else if (n.type === "link") {
+        const first = n.guard?.args[0];
+        if (first?.type === "positional") acc.add(first.value);
+      }
+    }
+    return acc;
+  }
+
+  /** Rendering is pure (#222): report state changes in rendering code. */
+  function checkRenderWrites(body: readonly ContentSyntax[]): void {
+    const conds = conditions(body);
+    for (const code of bodyCode(body)) {
+      for (const w of renderWrites(code.code)) {
+        error(
+          renderWriteMessage(w, conds.has(code)),
+          code.span.start + w.start,
+          code.span.start + w.end,
+        );
+      }
+    }
+  }
 
   function checkClashes(nodes: readonly ContentSyntax[]): void {
     for (const n of nodes) {
@@ -437,6 +472,7 @@ export function generatePassageModule(
       }
       write("    },\n");
     }
+    checkRenderWrites(body);
     const names = usedIn(bodyCode(body));
     write(`    body: (${contextParam(names, "$RenderContext")}): $PassageNode[] => {\n`);
     indent = "      ";
