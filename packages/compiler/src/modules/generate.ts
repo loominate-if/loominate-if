@@ -17,6 +17,7 @@ import type {
   PassageFileSyntax,
   PassageSyntax,
 } from "../passages/syntax.js";
+import { LINE_DIRECTIVE, passageLines, type PassageLines } from "./line-ids.js";
 import { encodeSourceMap, type Mapping, type SourceMap } from "./source-map.js";
 
 /** Names inline code gets from the passage's context, with no import. */
@@ -104,7 +105,7 @@ export function generatePassageModule(
       } else if (n.type === "link") {
         bodyCode(n.label, acc);
         for (const a of n.guard?.args ?? []) if (a.type !== "target") acc.push(a.value);
-      } else if (n.type === "directive" && !(n.name in PHASES)) {
+      } else if (n.type === "directive" && !(n.name in PHASES) && n.name !== LINE_DIRECTIVE) {
         for (const a of n.args) if (a.type !== "target") acc.push(a.value);
       }
     }
@@ -160,7 +161,20 @@ export function generatePassageModule(
   // ---- Bodies -------------------------------------------------------------
 
   let links: LinkSyntax[] = [];
+  let lineIds: PassageLines | undefined;
   let indent = "";
+
+  /**
+   * Where the source paragraph can change, sets the line the rendered
+   * paragraph takes: the first source paragraph that adds text to it.
+   */
+  function lineChange(parts: string, offset: number): void {
+    // Emphasis can't span paragraphs, so the line only changes at the top level.
+    if (parts !== "$parts" || !lineIds) return;
+    // No text can come before the next change, so a paragraph with no prose needs none.
+    const id = lineIds.lineAt(offset);
+    if (id !== undefined) write(`${indent}$line = $at($parts, $line, ${str(id)});\n`);
+  }
 
   function content(nodes: readonly ContentSyntax[], parts: string): void {
     for (const n of nodes) {
@@ -188,7 +202,8 @@ export function generatePassageModule(
           break;
         }
         case "break":
-          write(`${indent}$flush($nodes, $parts);\n`);
+          write(`${indent}$flush($nodes, $parts, $line);\n`);
+          lineChange(parts, n.span.end);
           break;
         case "if":
           for (const [i, b] of n.branches.entries()) {
@@ -202,10 +217,12 @@ export function generatePassageModule(
             }
             const outer = indent;
             indent += "  ";
+            lineChange(parts, b.span.start);
             content(b.content, parts);
             indent = outer;
             write(`${indent}}\n`);
           }
+          lineChange(parts, n.span.end);
           break;
         case "link":
           link(n, parts);
@@ -235,7 +252,7 @@ export function generatePassageModule(
       return;
     }
     mark(n.span.start);
-    write(`${indent}$flush($nodes, $parts);\n`);
+    write(`${indent}$flush($nodes, $parts, $line);\n`);
     write(`${indent}$nodes.push({ type: "link", label: `);
     if (n.label.every((l) => l.type === "text")) {
       write(str(n.label.map((l) => (l.type === "text" ? l.text : "")).join("")));
@@ -253,8 +270,11 @@ export function generatePassageModule(
       write('].join("")');
     }
     write(`, target: ${str(n.target.name)}`);
+    const id = lineIds?.links.get(n);
+    if (id !== undefined) write(`, line: ${str(id)}`);
     if (n.guard) guard(n.guard);
     write(" });\n");
+    lineChange(parts, n.guard?.span.end ?? n.span.end);
   }
 
   function guard(d: DirectiveSyntax): void {
@@ -330,15 +350,18 @@ export function generatePassageModule(
         );
       }
       mark(d.span.start);
-      write(`${indent}$flush($nodes, $parts);\n`);
+      write(`${indent}$flush($nodes, $parts, $line);\n`);
       write(`${indent}$nodes.push({ type: "continue", target: ${str(target.target.name)}`);
       if (label?.type === "named") {
         write(", label: ");
         copy(label.value);
       }
       write(" });\n");
+      lineChange("$parts", d.span.end);
       return;
     }
+    // `{line}` only names the line below it; passageLines checks it.
+    if (d.name === LINE_DIRECTIVE) return;
     if (d.name === "beat" || d.name === "wait") {
       error(
         `\`{${d.name}}\` isn't supported yet; it arrives with beats and cut scenes (#41).`,
@@ -374,6 +397,9 @@ export function generatePassageModule(
   function passage(p: PassageSyntax): void {
     checkClashes(p.content);
     links = allLinks(p.content);
+    lineIds = passageLines(p, source);
+    for (const problem of lineIds.problems)
+      error(problem.message, problem.span.start, problem.span.end);
     const effects = new Map<string, DirectiveSyntax[]>();
     const body: ContentSyntax[] = [];
     for (const n of p.content) {
@@ -417,8 +443,12 @@ export function generatePassageModule(
     contextLocals(names, "$context");
     write(`${indent}const $nodes: $PassageNode[] = [];\n`);
     write(`${indent}const $parts: $ProsePart[] = [];\n`);
+    const first = lineIds.lineAt(p.header.end);
+    write(
+      `${indent}let $line: string | undefined = ${first === undefined ? "undefined" : str(first)};\n`,
+    );
     content(body, "$parts");
-    write(`${indent}$flush($nodes, $parts);\n`);
+    write(`${indent}$flush($nodes, $parts, $line);\n`);
     write(`${indent}return $nodes;\n`);
     write("    },\n");
     write("  },\n");
@@ -456,15 +486,24 @@ export function generatePassageModule(
           "",
         ]
       : []),
+    ...(has("$at(")
+      ? [
+          "/** The line a paragraph takes: the first source paragraph that adds text to it (ADR 0007). */",
+          "function $at(parts: $ProsePart[], line: string | undefined, next: string): string | undefined {",
+          '  return parts.every((p) => typeof p === "string" && p.trim() === "") ? next : line;',
+          "}",
+          "",
+        ]
+      : []),
     "/** Ends the paragraph being built, if it has any text. */",
-    "function $flush(nodes: $PassageNode[], parts: $ProsePart[]): void {",
+    "function $flush(nodes: $PassageNode[], parts: $ProsePart[], line: string | undefined): void {",
     '  while (typeof parts[0] === "string" && parts[0].trim() === "") parts.shift();',
     '  while (typeof parts.at(-1) === "string" && String(parts.at(-1)).trim() === "") parts.pop();',
     "  const first = parts[0];",
     '  if (typeof first === "string") parts[0] = first.trimStart();',
     "  const last = parts.at(-1);",
     '  if (typeof last === "string") parts[parts.length - 1] = last.trimEnd();',
-    "  if (parts.length > 0) nodes.push($prose(parts.splice(0)));",
+    "  if (parts.length > 0) nodes.push($prose(parts.splice(0), line === undefined ? {} : { line }));",
     "}",
     "",
     "/** The passages in this file. */",

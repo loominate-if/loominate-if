@@ -24,6 +24,7 @@ export const coreDirectives: readonly DirectiveSpec[] = [
   { name: "wait" },
   { name: "continue" },
   { name: "when" },
+  { name: "line" },
 ];
 
 /** Names that belong to the grammar itself and can't be registered. */

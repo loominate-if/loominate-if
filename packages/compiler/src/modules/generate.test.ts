@@ -68,10 +68,22 @@ describe("generatePassageModule", () => {
       ':: A\n[[Go down -> Cellar]]{when lantern.isLit, reason: "Too dark."}\n[[Up -> B]]{when player.fear < 3, disabled}\n{continue -> C, label: "On"}',
     );
     expect(code).toContain(
-      '$nodes.push({ type: "link", label: "Go down", target: "Cellar", guard: { open: Boolean(lantern.isLit), condition: "lantern.isLit", mode: "disabled-with-reason", reason: "Too dark." } });',
+      '$nodes.push({ type: "link", label: "Go down", target: "Cellar", line: "A:ajfhgp", guard: { open: Boolean(lantern.isLit), condition: "lantern.isLit", mode: "disabled-with-reason", reason: "Too dark." } });',
     );
     expect(code).toContain('mode: "disabled"');
     expect(code).toContain('$nodes.push({ type: "continue", target: "C", label: "On" });');
+  });
+
+  it("passes line IDs to prose and links, and reports bad pins", () => {
+    const { code } = generate(":: A\n{line lantern}\nHello.\n[[Go -> B]]");
+    expect(code).toContain('let $line: string | undefined = "A:lantern";');
+    expect(code).toContain("$prose(parts.splice(0), line === undefined ? {} : { line })");
+    expect(code).toMatch(/line: "A:[0-9a-z]{6}" \}\);/);
+    // A pin's name is not code, so it imports nothing.
+    expect(code).not.toContain("import { lantern }");
+    expect(errors(":: A\nHello.\n{line late}")).toEqual([
+      "3:1 `{line late}` names the paragraph or link below it, but there isn't one. Put it on the line above the text it names.",
+    ]);
   });
 
   it("maps copied code exactly back to the passage file", () => {

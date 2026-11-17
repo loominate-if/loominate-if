@@ -298,6 +298,7 @@ describe("a compiled game", { timeout: 30_000 }, () => {
       type: "text",
       text: "The steps go down further than they should. You can't see the bottom.",
       styles: [{ start: 18, end: 25, style: "emphasis" }],
+      line: "Cellar Stairs:mdfqlr",
     });
     expect(stairs.nodes.slice(1)).toEqual([
       expect.objectContaining({
@@ -314,10 +315,60 @@ describe("a compiled game", { timeout: 30_000 }, () => {
     scope.lantern.isLit = true;
     expect(game.render().nodes[0]).toMatchObject({
       text: "The steps go down further than they should. Your lantern throws long shadows against the stone.",
+      // The same source paragraph, whichever branch shows.
+      line: "Cellar Stairs:mdfqlr",
     });
     game.follow({ type: "link", label: "Go down", target: "Cellar" });
     expect(game.render().nodes).toEqual([
-      { type: "text", text: "Damp. You've been scared 1 times." },
+      { type: "text", text: "Damp. You've been scared 1 times.", line: "Cellar:zyah7f" },
+    ]);
+  });
+
+  it("gives rendered prose, links, and narrative events stable line IDs", async () => {
+    const source = [
+      ":: Start",
+      "Hello {if firstVisit}there.",
+      "",
+      "Welcome {/if}friend.",
+      "{line again}",
+      "[[Again -> Start]]",
+    ].join("\n");
+    const result = compileProject({
+      root: out,
+      compilerOptions,
+      files: [{ path: "lines.weft", text: source }],
+    });
+    expect(show(result)).toEqual([]);
+    writeFileSync(result.passageNames.path, result.passageNames.code);
+    const [module] = result.modules.values();
+    if (!module) throw new Error("no module");
+    writeFileSync(module.path, module.code);
+    const { passages } = (await import(module.path)) as { passages: Passage[] };
+
+    const store = createStore();
+    const record = createEventRecord(store);
+    const game = createStory(store, record, passages, { start: "Start" });
+    game.begin();
+    const first = game.render().nodes;
+    const [hello, welcome, link] = first.map((n) => (n.type === "continue" ? undefined : n.line));
+    expect(first.map((n) => n.type === "text" && n.text)).toEqual([
+      "Hello there.",
+      "Welcome friend.",
+      false,
+    ]);
+    expect(hello).toMatch(/^Start:[0-9a-z]{6}$/);
+    expect(welcome).toMatch(/^Start:[0-9a-z]{6}$/);
+    expect(welcome).not.toBe(hello);
+    expect(link).toBe("Start:again");
+
+    // Without the branch, the two source paragraphs render as one, which
+    // takes the line of the first one that adds text to it.
+    game.follow({ type: "link", label: "Again", target: "Start" });
+    expect(game.render().nodes[0]).toEqual({ type: "text", text: "Hello friend.", line: hello });
+    expect(record.events({ kinds: ["narrative"] }).map((e) => [e.text, e.line])).toEqual([
+      ["Hello there.", hello],
+      ["Welcome friend.", welcome],
+      ["Hello friend.", hello],
     ]);
   });
 });
