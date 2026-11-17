@@ -70,6 +70,103 @@ describe("authorMessage", () => {
   });
 });
 
+describe("authorMessage in passages", () => {
+  const printed = (type: string, code: string): string =>
+    authorMessage(
+      `Argument of type '${type}' is not assignable to parameter of type 'string | number'.\n  Type 'null' is not assignable to type 'string | number'.`,
+      { printed: true, code },
+    );
+
+  it("explains values prose can't show, and how to show them", () => {
+    expect(printed("boolean", "lantern.isLit")).toBe(
+      "`lantern.isLit` is true or false, so it can't be printed. To show text that depends on it, use `{if lantern.isLit}…{else}…{/if}`.",
+    );
+    expect(printed("string | null", "player.nick")).toBe(
+      '`player.nick` might be `null`, so it can\'t be printed. Give it a fallback, like `{player.nick ?? "…"}`, or check it first with `{if player.nick !== null}…{/if}`.',
+    );
+    expect(printed("number | null | undefined", "n")).toBe(
+      '`n` might be `null` or `undefined`, so it can\'t be printed. Give it a fallback, like `{n ?? "…"}`, or check it first with `{if n != null}…{/if}`.',
+    );
+    expect(printed("string[]", "bag")).toBe(
+      '`bag` is a list, so it can\'t be printed. Join it into text, like `{bag.join(", ")}`.',
+    );
+    expect(printed("Handle<object>[]", "bag")).toBe(
+      '`bag` is a list of objects, so it can\'t be printed. Print a property of each one, like `{bag.map((item) => item.name).join(", ")}`.',
+    );
+    expect(printed("(fractionDigits?: number | undefined) => string", "oil.toFixed")).toBe(
+      "`oil.toFixed` is a function, so it can't be printed. Call it to print what it returns: `{oil.toFixed()}`.",
+    );
+  });
+
+  it("leaves printed types it has no advice for, and unprinted values, to the other rules", () => {
+    expect(printed("{ a: number; }", "x")).toContain("Argument of type '{ a: number; }'");
+    expect(
+      authorMessage(
+        "Argument of type 'boolean' is not assignable to parameter of type 'string | number'.",
+        { code: "x" },
+      ),
+    ).toBe("Argument of type 'boolean' is not assignable to parameter of type 'string | number'.");
+  });
+
+  it("treats a misspelled passage name like a broken link", () => {
+    const passages = ["Cellar", "Kitchen"];
+    const message = (name: string) =>
+      authorMessage(
+        `Argument of type '${JSON.stringify(name)}' is not assignable to parameter of type 'PassageName'.`,
+        { passages },
+      );
+    expect(message("Cellr")).toBe("There's no passage named `Cellr`. Did you mean `Cellar`?");
+    expect(message("Attic")).toBe(
+      "There's no passage named `Attic`. Check the spelling, or add the passage.",
+    );
+  });
+
+  it("explains assignments the property can't hold, but not other type mismatches", () => {
+    const message = `Type '"happy"' is not assignable to type '"calm" | "scared"'.`;
+    expect(authorMessage(message, { code: "player.mood", assigned: true })).toBe(
+      '`player.mood` holds `"calm" | "scared"`, so it can\'t be set to `"happy"`.',
+    );
+    expect(authorMessage(message, { code: "player.mood" })).toBe(message);
+  });
+
+  it("explains comparisons that can never match", () => {
+    expect(
+      authorMessage(
+        "This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.",
+      ),
+    ).toBe(
+      "This comparison can never match: one side is `number` and the other is `string`. Check the value you're comparing with.",
+    );
+  });
+
+  it("explains replacing a scope export, and calling visits", () => {
+    expect(
+      authorMessage("Cannot assign to 'lantern' because it is an import.", { scope: "story.ts" }),
+    ).toBe(
+      "`lantern` comes from `story.ts`, and passages can't replace it. Change one of its properties instead.",
+    );
+    expect(
+      authorMessage("This expression is not callable.\n  Type 'Number' has no call signatures.", {
+        code: "visits",
+      }),
+    ).toBe(
+      '`visits` is how many times this passage has been visited, not a function. To ask about another passage, use `visited("…")`.',
+    );
+  });
+
+  it("counts arguments in plain words", () => {
+    expect(authorMessage("Expected 1 arguments, but got 0.", { code: "greet()" })).toBe(
+      "`greet()` needs 1 argument, but has none.",
+    );
+    expect(authorMessage("Expected 1-2 arguments, but got 3.", { code: "x" })).toBe(
+      "This call needs 1-2 arguments, but has 3.",
+    );
+    expect(authorMessage("Expected 2 arguments, but got 3 or more.")).toBe(
+      "This call needs 2 arguments, but has 3 or more.",
+    );
+  });
+});
+
 describe("undefinedNameMessage", () => {
   it("reads the name from TypeScript's message", () => {
     expect(missingName("Cannot find name 'lamp'.")).toBe("lamp");
