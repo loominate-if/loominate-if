@@ -38,6 +38,16 @@ describe("generatePassageModule", () => {
     expect(code).not.toContain("$PassageName");
   });
 
+  it("declares the context parameter only where it's used", () => {
+    const { code } = generate(
+      ":: A\n{on enter: player.fear += 1}\n{on leave: if (firstVisit) player.fear = 0}\nHi.\n",
+    );
+    expect(code).toContain("enter: (): void => {");
+    expect(code).toContain("leave: ($context: $EffectContext): void => {");
+    expect(code).toContain("body: (): $PassageNode[] => {");
+    expect(code).not.toContain("RenderContext");
+  });
+
   it("types visited by passage name", () => {
     const { code } = generate(':: A\n{if visited("B")}x{/if}\n');
     expect(code).toContain('import type { PassageName as $PassageName } from "./$passages.js";');
@@ -48,9 +58,9 @@ describe("generatePassageModule", () => {
     const { code } = generate(
       ":: A\n{on enter: player.fear += 1}\n{on first visit: lantern.isLit = true}\n{on enter: player.fear *= 2}\nText.",
     );
-    const enter = code.slice(code.indexOf("enter: ($context"));
+    const enter = code.slice(code.indexOf("enter: ("));
     expect(enter.indexOf("player.fear += 1")).toBeLessThan(enter.indexOf("player.fear *= 2"));
-    expect(code.indexOf("firstVisit: ($context")).toBeLessThan(code.indexOf("enter: ($context"));
+    expect(code.indexOf("firstVisit: (")).toBeLessThan(code.indexOf("enter: ("));
   });
 
   it("generates guards and continue points", () => {

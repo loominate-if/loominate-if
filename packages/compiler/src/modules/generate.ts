@@ -355,6 +355,14 @@ export function generatePassageModule(
   }
 
   /** Destructures the context names `names` uses. */
+  /**
+   * The context parameter, only when the code uses a context name, so authors
+   * who enable `noUnusedParameters` get no errors in generated code (#213).
+   */
+  function contextParam(names: ReadonlySet<string>, type: string): string {
+    return CONTEXT_NAMES.some((n) => names.has(n)) ? `$context: ${type}` : "";
+  }
+
   function contextLocals(names: ReadonlySet<string>, ctx: string): void {
     const plain = ["visits", "firstVisit"].filter((n) => names.has(n));
     if (plain.length > 0) write(`${indent}const { ${plain.join(", ")} } = ${ctx};\n`);
@@ -388,9 +396,10 @@ export function generatePassageModule(
       for (const phase of ["firstVisit", "enter", "leave"]) {
         const list = effects.get(phase);
         if (!list) continue;
-        write(`      ${phase}: ($context: $EffectContext): void => {\n`);
+        const names = usedIn(list.flatMap((d) => (d.code ? [d.code] : [])));
+        write(`      ${phase}: (${contextParam(names, "$EffectContext")}): void => {\n`);
         indent = "        ";
-        contextLocals(usedIn(list.flatMap((d) => (d.code ? [d.code] : []))), "$context");
+        contextLocals(names, "$context");
         for (const d of list) {
           if (!d.code) continue;
           mark(d.span.start);
@@ -402,9 +411,10 @@ export function generatePassageModule(
       }
       write("    },\n");
     }
-    write("    body: ($context: $RenderContext): $PassageNode[] => {\n");
+    const names = usedIn(bodyCode(body));
+    write(`    body: (${contextParam(names, "$RenderContext")}): $PassageNode[] => {\n`);
     indent = "      ";
-    contextLocals(usedIn(bodyCode(body)), "$context");
+    contextLocals(names, "$context");
     write(`${indent}const $nodes: $PassageNode[] = [];\n`);
     write(`${indent}const $parts: $ProsePart[] = [];\n`);
     content(body, "$parts");

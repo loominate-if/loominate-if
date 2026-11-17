@@ -74,6 +74,23 @@ describe("compileProject", { timeout: 30_000 }, () => {
     ]);
   });
 
+  it("generates code that passes noUnusedParameters and noUnusedLocals (#213)", () => {
+    const result = compileProject({
+      root,
+      compilerOptions: { ...compilerOptions, noUnusedParameters: true, noUnusedLocals: true },
+      files: [
+        { path: "story.ts", text: story },
+        { path: "cellar.weft", text: cellar },
+        { path: "kitchen.weft", text: kitchen },
+        {
+          path: "plain.weft",
+          text: ":: Plain\nNo code at all.\n\n:: Counted\n{on enter: player.fear += visits}\nVisit {visits}.\n",
+        },
+      ],
+    });
+    expect(show(result)).toEqual([]);
+  });
+
   it("reports type errors in inline code at the passage file's lines", () => {
     const result = compile([
       { path: "story.ts", text: story },
