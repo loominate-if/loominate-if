@@ -94,3 +94,22 @@ export {
   type Replay,
   type StoryAction,
 } from "./replay/replay.js";
+export {
+  AUTOSAVE_SLOT,
+  createMemoryStorage,
+  createSave,
+  createSaves,
+  ENGINE_VERSION,
+  readSave,
+  SAVE_FORMAT,
+  SAVE_VERSION,
+  writeSave,
+  type GameInfo,
+  type LoadedSave,
+  type SaveFile,
+  type SaveStorage,
+  type Saves,
+  type SavesOptions,
+  type SaveSummary,
+  type UnreadableSave,
+} from "./save/save.js";

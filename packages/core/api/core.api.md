@@ -5,6 +5,9 @@
 ```ts
 
 // @public
+export const AUTOSAVE_SLOT = "autosave";
+
+// @public
 export type Choice = LinkNode | ContinueNode;
 
 // @public
@@ -35,6 +38,19 @@ export function createHistory(store: StateStore, options?: HistoryOptions): Hist
 export function createInstances(store: StateStore, templates: readonly Template<never>[]): Instances;
 
 // @public
+export function createMemoryStorage(): SaveStorage;
+
+// @public
+export function createSave(store: StateStore, options: {
+    readonly game: GameInfo;
+    readonly savedAt: Date;
+    readonly label?: string;
+}): SaveFile;
+
+// @public
+export function createSaves(options: SavesOptions): Saves;
+
+// @public
 export function createStore(snapshot?: StateSnapshot): StateStore;
 
 // @public
@@ -51,6 +67,9 @@ export type EffectPhase = "firstVisit" | "enter" | "leave";
 
 // @public
 export function emphasis(...parts: ProsePart[]): StyledProse;
+
+// @public
+export const ENGINE_VERSION = "0.0.0";
 
 // @public
 export type EventKind = keyof EventKinds & string;
@@ -90,6 +109,12 @@ export interface EventRecord {
     events<K extends EventKind = EventKind>(query?: EventQuery<K>): RecordedEvent<K>[];
     readonly length: number;
 }
+
+// @public
+export type GameInfo = {
+    readonly id: string;
+    readonly version: string;
+};
 
 // @public
 export type GuardMode = "hidden" | "disabled" | "disabled-with-reason";
@@ -175,6 +200,12 @@ export type LinkNode = {
 };
 
 // @public
+export type LoadedSave = {
+    readonly summary: SaveSummary;
+    readonly state: StateSnapshot;
+};
+
+// @public
 export function mixin<M extends ObjectDefinition<M>>(definition: M & ThisType<Handle<M>>): M;
 
 // @public
@@ -256,6 +287,9 @@ export function randomStream(name: string): RandomStream;
 export function readReplay(text: string): Replay;
 
 // @public
+export function readSave(text: string): SaveFile;
+
+// @public
 export type RecordedEvent<K extends EventKind = EventKind> = {
     [Kind in K]: EventKinds[Kind] & {
         readonly seq: number;
@@ -314,6 +348,58 @@ export const REPLAY_FORMAT = "loominate-replay";
 
 // @public
 export const REPLAY_VERSION = 1;
+
+// @public
+export const SAVE_FORMAT = "loominate-save";
+
+// @public
+export const SAVE_VERSION = 1;
+
+// @public
+export type SaveFile = {
+    readonly format: typeof SAVE_FORMAT;
+    readonly version: typeof SAVE_VERSION;
+    readonly game: GameInfo;
+    readonly engine: string;
+    readonly savedAt: string;
+    readonly label?: string;
+    readonly state: StateSnapshot;
+};
+
+// @public
+export interface Saves {
+    autosave(store: StateStore): Promise<SaveSummary>;
+    delete(slot: string): Promise<boolean>;
+    export(slot: string): Promise<string | undefined>;
+    import(slot: string, text: string): Promise<SaveSummary>;
+    list(): Promise<readonly (SaveSummary | UnreadableSave)[]>;
+    load(slot: string): Promise<LoadedSave | undefined>;
+    save(slot: string, store: StateStore, options?: {
+        readonly label?: string;
+    }): Promise<SaveSummary>;
+}
+
+// @public
+export interface SavesOptions {
+    readonly game: GameInfo;
+    readonly now?: () => Date;
+    readonly storage: SaveStorage;
+}
+
+// @public
+export interface SaveStorage {
+    delete(slot: string): Promise<void> | void;
+    get(slot: string): Promise<string | undefined> | string | undefined;
+    set(slot: string, text: string): Promise<void> | void;
+    slots(): Promise<readonly string[]> | readonly string[];
+}
+
+// @public
+export type SaveSummary = Omit<SaveFile, "state"> & {
+    readonly slot: string;
+    readonly passage?: PassageId;
+    readonly sameGameVersion: boolean;
+};
 
 // @public
 export function spawn<D>(template: ObjectTemplate<D>, origin: ObjectRef, key?: string): Handle<D>;
@@ -451,6 +537,15 @@ export type UnavailableLink = {
 };
 
 // @public
+export type UnreadableSave = {
+    readonly slot: string;
+    readonly problem: string;
+};
+
+// @public
 export function writeReplay(replay: Replay): string;
+
+// @public
+export function writeSave(file: SaveFile): string;
 
 ```
