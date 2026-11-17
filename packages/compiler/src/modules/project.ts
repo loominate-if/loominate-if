@@ -10,8 +10,9 @@ import { parsePassageFile } from "../passages/parse.js";
 import { locator } from "../passages/positions.js";
 import type { Span } from "../passages/syntax.js";
 import { CONTEXT_NAMES, generatePassageModule, type GeneratedModule } from "./generate.js";
-import { checkLinks, codeIn, stringLiterals, type FilePassage } from "./links.js";
-import { authorMessage } from "./messages.js";
+import { checkLinks, closestName, codeIn, stringLiterals, type FilePassage } from "./links.js";
+import { authorMessage, missingName, undefinedNameMessage, type NameHelp } from "./messages.js";
+import { checkObjectIds, findObjectDefinitions } from "./object-ids.js";
 import { toSource } from "./source-map.js";
 
 /** The extension of passage files. */
@@ -247,13 +248,45 @@ export function compileProject(options: ProjectOptions): CompiledProject {
     ...(program && { oldProgram: program }),
   });
   const byModule = new Map([...modules.values()].map((m) => [m.path, m]));
+  const userFiles = [...new Set([...tsFiles, ...(scopeExists ? [scopePath] : [])])];
+  const display = (file: string): string => path.relative(root, file).split(path.sep).join("/");
+
+  // What other modules export, to explain names passages can't see.
+  const checker = program.getTypeChecker();
+  const exportedBy = new Map<string, string>();
+  for (const file of tsFiles) {
+    if (file === scopePath) continue;
+    const source = program.getSourceFile(file);
+    const symbol = source && checker.getSymbolAtLocation(source);
+    for (const s of symbol ? checker.getExportsOfModule(symbol) : []) {
+      if (!exportedBy.has(s.name)) exportedBy.set(s.name, file);
+    }
+  }
+  const usable = [...scopeExports, ...CONTEXT_NAMES];
+  const nameHelp = (name: string): NameHelp => {
+    const other = scopeExports.has(name) ? undefined : exportedBy.get(name);
+    const suggestion = closestName(name, usable);
+    return {
+      scope: scopeExists ? display(scopePath) : undefined,
+      ...(other !== undefined && {
+        exportedBy: { path: display(other), specifier: specifier(scopePath, other) },
+      }),
+      ...(suggestion !== undefined && { suggestion }),
+    };
+  };
+
   for (const d of ts.getPreEmitDiagnostics(program)) {
     if (!d.file || d.start === undefined) continue;
     const fileName = path.resolve(d.file.fileName);
     const generated = byModule.get(fileName);
-    const message = authorMessage(ts.flattenDiagnosticMessageText(d.messageText, "\n"), {
-      printed: generated?.code.slice(0, d.start).endsWith("$print(") ?? false,
-    });
+    const text = ts.flattenDiagnosticMessageText(d.messageText, "\n");
+    const missing = generated ? missingName(text) : undefined;
+    const message =
+      missing !== undefined
+        ? undefinedNameMessage(missing, nameHelp(missing))
+        : authorMessage(text, {
+            printed: generated?.code.slice(0, d.start).endsWith("$print(") ?? false,
+          });
     if (generated) {
       const at = toSource(generated.mappings, d.start) ?? 0;
       const end = toSource(generated.mappings, d.start + (d.length ?? 0)) ?? at;
@@ -280,6 +313,29 @@ export function compileProject(options: ProjectOptions): CompiledProject {
         code: d.code,
       });
     }
+  }
+
+  // 4. Object IDs must be unique and not reserved.
+  const sites = findObjectDefinitions(program, userFiles);
+  const lines = new Map<string, ReturnType<typeof locator>>();
+  const lineOf = (file: string): ReturnType<typeof locator> => {
+    let l = lines.get(file);
+    if (!l) lines.set(file, (l = locator(host.readFile(file) ?? "")));
+    return l;
+  };
+  const where = (file: string, at: number): string => {
+    const { line, column } = lineOf(file).locate(at);
+    return `${display(file)}:${String(line)}:${String(column)}`;
+  };
+  for (const { site, message } of checkObjectIds(sites, (s) => where(s.file, s.start))) {
+    diagnostics.push({
+      severity: "error",
+      source: "compiler",
+      file: site.file,
+      message,
+      span: { start: site.start, end: site.end },
+      ...lineOf(site.file).locate(site.start),
+    });
   }
 
   diagnostics.sort((a, b) => a.file.localeCompare(b.file) || a.span.start - b.span.start);

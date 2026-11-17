@@ -141,3 +141,32 @@ function rewriteLine(line: string, context: MessageContext): string {
   }
   return out + line.slice(from);
 }
+
+/** What the compiler knows about the names passages can use, for {@link undefinedNameMessage}. */
+export interface NameHelp {
+  /** The scope module, as the author would write its path, or undefined if there isn't one. */
+  readonly scope: string | undefined;
+  /** A name close to the missing one that passages can use, if any. */
+  readonly suggestion?: string;
+  /** Another module that exports the missing name, as `{ path, specifier }` relative to the scope module. */
+  readonly exportedBy?: { readonly path: string; readonly specifier: string };
+}
+
+/** The name in TypeScript's "Cannot find name 'x'." messages (codes 2304 and 2552). */
+export function missingName(message: string): string | undefined {
+  return /^Cannot find name '([^']+)'\./.exec(message)?.[1];
+}
+
+/** Explains a name inline code uses that passages can't see (#33). */
+export function undefinedNameMessage(name: string, help: NameHelp): string {
+  const scope = help.scope ?? "story.ts";
+  if (help.exportedBy) {
+    return `\`${name}\` is exported by \`${help.exportedBy.path}\`, but passages only see what \`${scope}\` exports. Add \`export { ${name} } from "${help.exportedBy.specifier}";\` to \`${scope}\`.`;
+  }
+  if (help.suggestion !== undefined) {
+    return `\`${name}\` isn't defined. Did you mean \`${help.suggestion}\`?`;
+  }
+  return help.scope === undefined
+    ? `\`${name}\` isn't defined. To use it in passages, export it from \`${scope}\`.`
+    : `\`${name}\` isn't defined. Passages can use what \`${scope}\` exports, and \`visits\`, \`firstVisit\`, and \`visited\`.`;
+}
