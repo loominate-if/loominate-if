@@ -12,6 +12,13 @@ import type { StateId, StateStore } from "../state/store.js";
 import { bindObjects, renderingObjects } from "../objects/objects.js";
 import { StateError } from "../state/value.js";
 import { RANDOM_ID, SEED_FIELD } from "../random/random.js";
+import {
+  choiceRef,
+  REPLAY_FORMAT,
+  REPLAY_VERSION,
+  type Replay,
+  type StoryAction,
+} from "../replay/replay.js";
 import { checkInlineLinks, checkStyles } from "./prose.js";
 
 /** A passage's ID: its name from `:: Name`. */
@@ -248,6 +255,31 @@ export interface Story {
    * @throws {@link StateError} if there's no passage with that ID.
    */
   goTo(id: PassageId): void;
+  /**
+   * Every action since the story began, oldest first: each successful
+   * {@link Story.follow} and {@link Story.goTo}. The log lives in the state
+   * store, so undo trims it and saves carry it.
+   */
+  readonly actions: readonly StoryAction[];
+  /**
+   * Takes one action, as {@link Story.follow} or {@link Story.goTo} would.
+   * @throws {@link StateError} as those do.
+   */
+  perform(action: StoryAction): void;
+  /**
+   * The replay file for the story so far: its seed and {@link Story.actions}.
+   * Playing it on a fresh story reproduces the state and event record exactly.
+   * @throws {@link StateError} before {@link Story.begin}.
+   */
+  toReplay(): Replay;
+  /**
+   * Begins the story with a replay's seed and takes its actions in order. If an
+   * action fails, for example because the game changed since the replay was
+   * made, the story stays at the last action that worked, so it can be inspected.
+   * @throws {@link StateError} if the story has already begun, or naming the
+   * first action that fails.
+   */
+  playReplay(replay: Replay): void;
 }
 
 /** The state entity holding story progress. IDs starting with `$` are reserved for core. */
@@ -255,6 +287,9 @@ const STORY_ID = "$story";
 const CURRENT_FIELD = "current";
 /** The state entity holding visit counts, one field per visited passage. */
 const VISITS_ID = "$visits";
+/** The state entity holding the action log: `length`, then one field per action by index. */
+const ACTIONS_ID = "$actions";
+const LENGTH_FIELD = "length";
 
 /**
  * Creates the passage runtime.
@@ -395,6 +430,16 @@ export function createStory(
 
   let navigating = false;
 
+  const logLength = (): number => {
+    const n = store.get(ACTIONS_ID, LENGTH_FIELD);
+    return typeof n === "number" ? n : 0;
+  };
+  const log = (action: StoryAction): void => {
+    const n = logLength();
+    store.set(ACTIONS_ID, String(n), action);
+    store.set(ACTIONS_ID, LENGTH_FIELD, n + 1);
+  };
+
   const enter = (to: Passage): void => {
     if (navigating) {
       throw new StateError(
@@ -470,10 +515,59 @@ export function createStory(
         );
       }
       enter(lookup(choice.target, `follow from ${JSON.stringify(current())}`));
+      log({ type: "follow", choice: choiceRef(choice) });
     },
     goTo(id) {
       enter(lookup(id, "goTo"));
+      log({ type: "goTo", passage: id });
+    },
+    get actions() {
+      const out: StoryAction[] = [];
+      for (let i = 0; i < logLength(); i++) {
+        out.push(store.get(ACTIONS_ID, String(i)) as unknown as StoryAction);
+      }
+      return out;
+    },
+    perform(action) {
+      if (action.type === "follow") story.follow(action.choice);
+      else story.goTo(action.passage);
+    },
+    toReplay() {
+      const seed = store.get(RANDOM_ID, SEED_FIELD);
+      if (current() === undefined || typeof seed !== "string") {
+        throw new StateError("toReplay: call begin() first.");
+      }
+      return { format: REPLAY_FORMAT, version: REPLAY_VERSION, seed, actions: story.actions };
+    },
+    playReplay(replay) {
+      if (current() !== undefined) {
+        throw new StateError(
+          "playReplay: the story has already begun; play a replay on a fresh store.",
+        );
+      }
+      if (!store.has(RANDOM_ID, SEED_FIELD)) store.set(RANDOM_ID, SEED_FIELD, replay.seed);
+      story.begin();
+      replay.actions.forEach((action, i) => {
+        try {
+          story.perform(action);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          throw new StateError(
+            `replay action ${String(i + 1)} of ${String(replay.actions.length)} (${describe(action)}): ${message}`,
+            { cause: error },
+          );
+        }
+      });
     },
   };
   return story;
+}
+
+/** An action as a reader would say it, for replay errors. */
+function describe(action: StoryAction): string {
+  if (action.type === "goTo") return `go to ${JSON.stringify(action.passage)}`;
+  const { type, label, target } = action.choice;
+  const verb = type === "link" ? "follow" : "continue";
+  const name = label === undefined ? "" : ` ${JSON.stringify(label)}`;
+  return `${verb}${name} to ${JSON.stringify(target)}`;
 }
