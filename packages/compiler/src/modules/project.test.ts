@@ -168,6 +168,54 @@ export const matchbox = object("matchbox", {
     );
   });
 
+  it("explains names passages can't see (#33)", () => {
+    const result = compile([
+      { path: "story.ts", text: story },
+      {
+        path: "items.ts",
+        text: 'import { object } from "@loominate-if/core";\nexport const rope = object("rope", { length: 3 });\n',
+      },
+      {
+        path: "a.weft",
+        text: ":: A\n{if lanter.isLit}x{/if}\n{rope.length}\n{if vists > 1}y{/if}\n{if ghost}z{/if}\n",
+      },
+    ]);
+    expect(show(result)).toEqual([
+      "a.weft:2:5 typescript: `lanter` isn't defined. Did you mean `lantern`?",
+      'a.weft:3:2 typescript: `rope` is exported by `items.ts`, but passages only see what `story.ts` exports. Add `export { rope } from "./items.js";` to `story.ts`.',
+      "a.weft:4:5 typescript: `vists` isn't defined. Did you mean `visits`?",
+      "a.weft:5:5 typescript: `ghost` isn't defined. Passages can use what `story.ts` exports, and `visits`, `firstVisit`, and `visited`.",
+    ]);
+  });
+
+  it("reports duplicate and reserved object IDs, through wrappers too (#33)", () => {
+    const result = compile([
+      {
+        path: "story.ts",
+        text: `import { object, type Handle } from "@loominate-if/core";
+export const lantern = object("lantern", { isLit: false });
+export const thing = <const Id extends string>(id: Id) => object(id, { portable: true });
+export const lamp = thing("lantern");
+export const odd = object("gen:odd", {});
+export const sneaky = object("$story", {});
+export const same = (): Handle<{ isLit: boolean }, "lantern"> => lantern;
+export const again = same();
+`,
+      },
+      {
+        path: "more.ts",
+        text: 'import { object } from "@loominate-if/core";\nexport const dup = object("lantern", {});\n',
+      },
+    ]);
+    expect(show(result)).toEqual([
+      "more.ts:2:27 compiler: The object ID `lantern` is also used at story.ts:2:31, story.ts:4:27. Object IDs must be unique, so give each object its own ID.",
+      "story.ts:2:31 compiler: The object ID `lantern` is also used at more.ts:2:27, story.ts:4:27. Object IDs must be unique, so give each object its own ID.",
+      "story.ts:4:27 compiler: The object ID `lantern` is also used at more.ts:2:27, story.ts:2:31. Object IDs must be unique, so give each object its own ID.",
+      "story.ts:5:27 compiler: Object IDs starting with `gen:` are reserved for objects created during play. Choose another ID.",
+      "story.ts:6:30 compiler: Object IDs starting with `$` are reserved for the engine. Choose another ID.",
+    ]);
+  });
+
   it("checks passage names given to visited", () => {
     const result = compile([{ path: "a.weft", text: ':: A\n{if visited("Nowhere")}x{/if}\n' }]);
     expect(show(result)).toEqual([
@@ -177,7 +225,9 @@ export const matchbox = object("matchbox", {
 
   it("reports unknown names, and works without a scope module", () => {
     const result = compile([{ path: "a.weft", text: ":: A\n{if lamp.isLit}x{/if}\n" }]);
-    expect(show(result)).toEqual(["a.weft:2:5 typescript: Cannot find name 'lamp'."]);
+    expect(show(result)).toEqual([
+      "a.weft:2:5 typescript: `lamp` isn't defined. To use it in passages, export it from `story.ts`.",
+    ]);
   });
 
   it("reports scope exports that clash with context or reserved names", () => {
@@ -196,7 +246,7 @@ export const matchbox = object("matchbox", {
     expect(show(result)).toEqual([
       "a.weft:2:1 compiler: `{beat}` isn't supported yet; it arrives with beats and cut scenes (#41).",
       "a.weft:3:1 parser: This `}` doesn't close anything. Write `\\}` for a literal brace.",
-      "a.weft:4:5 typescript: Cannot find name 'nope'.",
+      "a.weft:4:5 typescript: `nope` isn't defined. To use it in passages, export it from `story.ts`.",
     ]);
   });
 });

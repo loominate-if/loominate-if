@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authorMessage } from "./messages.js";
+import { authorMessage, missingName, undefinedNameMessage } from "./messages.js";
 
 const lantern = `'Handle<{ name: string; taken: boolean; light(): void; }, "lantern">'`;
 
@@ -67,5 +67,31 @@ describe("authorMessage", () => {
     ]) {
       expect(authorMessage(message)).toBe(message);
     }
+  });
+});
+
+describe("undefinedNameMessage", () => {
+  it("reads the name from TypeScript's message", () => {
+    expect(missingName("Cannot find name 'lamp'.")).toBe("lamp");
+    expect(missingName("Cannot find name 'lamp'. Did you mean 'Map'?")).toBe("lamp");
+    expect(missingName("Type 'string' is not assignable to type 'number'.")).toBeUndefined();
+  });
+
+  it("re-exports, suggests, or explains, in that order", () => {
+    const exportedBy = { path: "items.ts", specifier: "./items.js" };
+    expect(
+      undefinedNameMessage("rope", { scope: "story.ts", exportedBy, suggestion: "robe" }),
+    ).toBe(
+      '`rope` is exported by `items.ts`, but passages only see what `story.ts` exports. Add `export { rope } from "./items.js";` to `story.ts`.',
+    );
+    expect(undefinedNameMessage("lamp", { scope: "game/story.ts", suggestion: "lantern" })).toBe(
+      "`lamp` isn't defined. Did you mean `lantern`?",
+    );
+    expect(undefinedNameMessage("lamp", { scope: "game/story.ts" })).toBe(
+      "`lamp` isn't defined. Passages can use what `game/story.ts` exports, and `visits`, `firstVisit`, and `visited`.",
+    );
+    expect(undefinedNameMessage("lamp", { scope: undefined })).toBe(
+      "`lamp` isn't defined. To use it in passages, export it from `story.ts`.",
+    );
   });
 });
