@@ -8,6 +8,17 @@
 export type Choice = LinkNode | ContinueNode;
 
 // @public
+export type ChoiceRef = {
+    readonly type: "link";
+    readonly target: PassageId;
+    readonly label: string;
+} | {
+    readonly type: "continue";
+    readonly target: PassageId;
+    readonly label?: string;
+};
+
+// @public
 export type ContinueNode = {
     readonly type: "continue";
     readonly target: PassageId;
@@ -242,6 +253,9 @@ export interface RandomStream {
 export function randomStream(name: string): RandomStream;
 
 // @public
+export function readReplay(text: string): Replay;
+
+// @public
 export type RecordedEvent<K extends EventKind = EventKind> = {
     [Kind in K]: EventKinds[Kind] & {
         readonly seq: number;
@@ -286,6 +300,20 @@ export interface RenderedPassage {
 export type RenderedText = Omit<TextNode, "links"> & {
     readonly links?: readonly RenderedInlineLink[];
 };
+
+// @public
+export type Replay = {
+    readonly format: typeof REPLAY_FORMAT;
+    readonly version: typeof REPLAY_VERSION;
+    readonly seed: string;
+    readonly actions: readonly StoryAction[];
+};
+
+// @public
+export const REPLAY_FORMAT = "loominate-replay";
+
+// @public
+export const REPLAY_VERSION = 1;
 
 // @public
 export function spawn<D>(template: ObjectTemplate<D>, origin: ObjectRef, key?: string): Handle<D>;
@@ -346,15 +374,28 @@ export type StateWriter = StateReader & Pick<StateStore, "set" | "delete">;
 
 // @public
 export interface Story {
+    readonly actions: readonly StoryAction[];
     begin(): void;
     readonly current: PassageId | undefined;
     follow(choice: Choice): void;
     goTo(id: PassageId): void;
     passage(id: PassageId): Passage | undefined;
+    perform(action: StoryAction): void;
+    playReplay(replay: Replay): void;
     render(): RenderedPassage;
+    toReplay(): Replay;
     visited(id: PassageId): boolean;
     visits(id: PassageId): number;
 }
+
+// @public
+export type StoryAction = {
+    readonly type: "follow";
+    readonly choice: ChoiceRef;
+} | {
+    readonly type: "goTo";
+    readonly passage: PassageId;
+};
 
 // @public
 export interface StoryOptions {
@@ -408,5 +449,8 @@ export type UnavailableLink = {
     readonly mode: GuardMode;
     readonly condition: string;
 };
+
+// @public
+export function writeReplay(replay: Replay): string;
 
 ```

@@ -303,6 +303,8 @@ All randomness comes from named, seeded streams stored in the game state, so pla
 
 Streams are defined in modules and drawn from in effects; [ADR 0008](decisions/0008-random-streams.md) fixes the generator and how stream seeds are derived.
 
+The story logs each action the player takes (following a choice, or moving straight to a passage) in the state store, so undo trims the log and saves carry it. `story.toReplay()` gives the seed and log as a replay, `writeReplay` and `readReplay` turn it into a small JSON file and back, and `story.playReplay()` reproduces the state and event record exactly, naming the first action that no longer fits if the game has changed. [ADR 0009](decisions/0009-replay-files.md) defines the log and the file format.
+
 ```ts
 export const weather = randomStream("weather");
 export const dungeon = randomStream("dungeon");
