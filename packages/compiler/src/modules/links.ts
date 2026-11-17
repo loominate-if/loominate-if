@@ -64,12 +64,39 @@ export function codeIn(content: readonly ContentSyntax[]): CodeSyntax[] {
   return out;
 }
 
-/** The string literals in TypeScript source text. */
+/** Calls that only ask about a passage, so naming one there doesn't lead to it. */
+const QUERIES = new Set(["visited", "visits"]);
+
+/** Whether `node` is the first argument of `visited(…)`, `visits(…)`, or `x.visited(…)`. */
+function isQueryArgument(node: ts.Node): boolean {
+  const call = node.parent;
+  if (!ts.isCallExpression(call) || call.arguments[0] !== node) return false;
+  const callee = call.expression;
+  const name = ts.isIdentifier(callee)
+    ? callee.text
+    : ts.isPropertyAccessExpression(callee)
+      ? callee.name.text
+      : undefined;
+  return name !== undefined && QUERIES.has(name);
+}
+
+/**
+ * The string literals in TypeScript source text that may name a passage to go
+ * to. Arguments to `visited` and `visits` are left out, since they only ask about
+ * a passage. An alias such as `const seen = visited` isn't recognized, which only
+ * means a warning may be missed.
+ */
 export function stringLiterals(code: string): string[] {
   const out: string[] = [];
-  const file = ts.createSourceFile("code.ts", code, ts.ScriptTarget.Latest, false);
+  // Parent pointers are needed to see what a literal is passed to.
+  const file = ts.createSourceFile("code.ts", code, ts.ScriptTarget.Latest, true);
   const visit = (node: ts.Node): void => {
-    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) out.push(node.text);
+    if (
+      (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) &&
+      !isQueryArgument(node)
+    ) {
+      out.push(node.text);
+    }
     ts.forEachChild(node, visit);
   };
   visit(file);

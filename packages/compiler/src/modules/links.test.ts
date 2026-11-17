@@ -66,9 +66,17 @@ describe("closestName", () => {
 });
 
 describe("stringLiterals", () => {
+  it("leaves out passages that code only asks about", () => {
+    expect(
+      stringLiterals(
+        'if (visited("Attic") && story.visits("Hall") > 1 && $context.visited(`Cellar`)) goTo("Garden");\nvisited(lookup("Pantry"));',
+      ),
+    ).toEqual(["Garden", "Pantry"]);
+  });
+
   it("finds strings and plain template literals, not identifiers or comments", () => {
     expect(
-      stringLiterals('goTo("Attic"); visited(`Cellar`); const Hall = 1; // "Nope"\n`a${x}b`'),
+      stringLiterals('goTo("Attic"); hint(`Cellar`); const Hall = 1; // "Nope"\n`a${x}b`'),
     ).toEqual(["Attic", "Cellar"]);
   });
 });

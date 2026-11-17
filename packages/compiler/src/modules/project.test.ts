@@ -152,7 +152,9 @@ export const matchbox = object("matchbox", {
         { path: "cellar.weft", text: cellar },
         {
           path: "kitchen.weft",
-          text: kitchen + "[[Up -> Atic]]\n\n:: Attic\nDust.\n\n:: Pantry\nJars.\n",
+          text:
+            kitchen +
+            '[[Up -> Atic]]\n\n:: Attic\nDust.\n\n:: Pantry\n{if visited("Pantry")}Jars.{/if}\n',
         },
       ],
     });
