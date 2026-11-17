@@ -86,6 +86,23 @@ describe("generatePassageModule", () => {
     ]);
   });
 
+  it("reports state changes in rendering code, but not in effects", () => {
+    expect(
+      errors(
+        [
+          ":: A",
+          "{if lantern.isLit = true}Lit.{/if} You shiver{player.fear++}.",
+          '[[Go -> B]]{when (player.fear -= 1) > 0, reason: "No."}',
+          "{on enter: player.fear++}",
+        ].join("\n"),
+      ),
+    ).toEqual([
+      "2:5 `lantern.isLit = true` sets a value instead of comparing. To compare, use `===`: `lantern.isLit === true`.",
+      "2:47 Showing a passage can't change state, so `player.fear++` can't run here. Change it in an effect instead, like `{on enter: player.fear++}`.",
+      "3:19 Showing a passage can't change state, so `player.fear -= 1` can't run here. Change it in an effect instead, like `{on enter: player.fear -= 1}`.",
+    ]);
+  });
+
   it("maps copied code exactly back to the passage file", () => {
     const source = ":: A\n{if lantern.isLit}\nx\n{/if}\n";
     const generated = generate(source);
