@@ -145,7 +145,7 @@ The core runtime knows only passages, state, choices, the event record, save/loa
 - **Undo.** History stores diffs rather than full snapshots, so long sessions stay small. Undo is unlimited by default, with an author-configurable cap.
 - **Event record.** All output is recorded as structured, tagged events (narrative, scene, dialogue, room description, action result, navigation, system message) rather than written directly to the screen. The page, story log, and full transcript are all views of this record.
 - **Visit tracking.** Visits per passage and per location are tracked automatically.
-- **Saving.** Autosave, multiple named slots, and export/import of save files.
+- **Saving.** Autosave, multiple named slots, and export/import of save files. A save is the whole state snapshot (so it carries the event record, action log, and seed) plus the game and engine versions; undo history starts afresh on load. Core keeps slots in storage the host supplies, and the player shell calls autosave after each action. [ADR 0010](decisions/0010-save-format.md) defines the format.
 - **Save durability.** Saves carry the game version and engine version. Authors supply migration hooks so saves from version 1.0 load in 1.1. Stable IDs make most migrations unnecessary.
 - **Persistent cross-playthrough data.** A separate store for achievements, unlocked endings, and settings that survives restarts and is never touched by undo.
 
