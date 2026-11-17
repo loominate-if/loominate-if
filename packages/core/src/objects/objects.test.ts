@@ -94,7 +94,7 @@ describe("object", () => {
   it("is an error to use an object with no story running", () => {
     const lantern = object("lantern", { isLit: false });
     expect(() => lantern.isLit).toThrow(
-      '"lantern".isLit: no story is running. Objects keep their state in a story\'s state store, so create one with createStory first.',
+      '"lantern".isLit: no story is running. Objects and random streams keep their state in a story\'s state store, so create one with createStory first.',
     );
   });
 

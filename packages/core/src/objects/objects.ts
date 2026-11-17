@@ -138,7 +138,7 @@ export function resetObjects(): void {
 function active(where: string): Binding {
   if (!binding) {
     throw new StateError(
-      `${where}: no story is running. Objects keep their state in a story's state store, so create one with createStory first.`,
+      `${where}: no story is running. Objects and random streams keep their state in a story's state store, so create one with createStory first.`,
     );
   }
   return binding;
@@ -152,6 +152,15 @@ function writable(where: string): StateStore {
     );
   }
   return b.store;
+}
+
+/**
+ * The running story's store, for other core modules that keep state in it,
+ * such as random streams. `write` refuses while a passage renders.
+ * @internal
+ */
+export function boundStore(where: string, write: boolean): StateStore {
+  return write ? writable(where) : active(where).store;
 }
 
 function instancesOfBinding(b: Binding): Instances {

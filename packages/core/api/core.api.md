@@ -228,6 +228,20 @@ export type ProseOptions = {
 export type ProsePart = string | number | StyledProse | LinkNode;
 
 // @public
+export interface RandomStream {
+    chance(p: number): boolean;
+    int(min: number, max: number): number;
+    readonly name: string;
+    next(): number;
+    pick<T>(items: readonly T[]): T;
+    shuffle<T>(items: readonly T[]): T[];
+    substream(name: string): RandomStream;
+}
+
+// @public
+export function randomStream(name: string): RandomStream;
+
+// @public
 export type RecordedEvent<K extends EventKind = EventKind> = {
     [Kind in K]: EventKinds[Kind] & {
         readonly seq: number;
@@ -345,6 +359,7 @@ export interface Story {
 // @public
 export interface StoryOptions {
     readonly guardMode?: GuardMode;
+    readonly seed?: string;
     readonly start: PassageId;
 }
 
