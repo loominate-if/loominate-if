@@ -124,3 +124,18 @@ export {
   type PersistentStorage,
   type PersistentStore,
 } from "./persistent/persistent.js";
+export {
+  GAME_SOURCE,
+  rulebook,
+  type DecideRulebook,
+  type Explanation,
+  type FoldRule,
+  type FoldRulebook,
+  type RuleInfo,
+  type RuleList,
+  type RuleOptions,
+  type RuleStep,
+  type Stopped,
+} from "./rules/rules.js";
+export { hook, type Hook, type HookContext, type HookKinds } from "./rules/hooks.js";
+export { registry, type Registry, type RegistryEntry } from "./rules/registry.js";

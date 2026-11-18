@@ -12,6 +12,7 @@
 import type { PassageId } from "../passages/story.js";
 import { createStore, type StateSnapshot, type StateStore } from "../state/store.js";
 import { StateError } from "../state/value.js";
+import { hook } from "../rules/hooks.js";
 
 /** This engine's version: `@loominate-if/core`'s package version. Saves record it. */
 export const ENGINE_VERSION = "0.0.0";
@@ -167,7 +168,9 @@ export function createSaves(options: SavesOptions): Saves {
       ...(label !== undefined && { label }),
     });
     await storage.set(slot, writeSave(file));
-    return summarize(slot, file, game);
+    const summary = summarize(slot, file, game);
+    hook("save").run({ slot, summary });
+    return summary;
   };
 
   const read = async (slot: string): Promise<LoadedSave | undefined> => {
@@ -187,7 +190,11 @@ export function createSaves(options: SavesOptions): Saves {
       return write(slot, store, saveOptions.label);
     },
     autosave: (store) => write(AUTOSAVE_SLOT, store),
-    load: (slot) => read(slot),
+    async load(slot) {
+      const save = await read(slot);
+      if (save) hook("load").run({ slot, summary: save.summary });
+      return save;
+    },
     async list() {
       const loaded: SaveSummary[] = [];
       const unreadable: UnreadableSave[] = [];

@@ -27,6 +27,7 @@ import {
   type StoryAction,
 } from "../replay/replay.js";
 import { checkInlineLinks, checkStyles } from "./prose.js";
+import { hook } from "../rules/hooks.js";
 
 /** A passage's ID: its name from `:: Name`. */
 export type PassageId = StateId;
@@ -463,6 +464,11 @@ export function createStory(
     };
   };
 
+  const hookContext = () => {
+    const { state, persistent, emit } = contextFor(current() ?? options.start);
+    return { state, persistent, emit };
+  };
+
   const runPhase = (passage: Passage, phase: EffectPhase): void => {
     const effect = passage.effects?.[phase];
     if (!effect) return;
@@ -489,7 +495,8 @@ export function createStory(
     store.set(ACTIONS_ID, LENGTH_FIELD, n + 1);
   };
 
-  const enter = (to: Passage): void => {
+  /** Moves to a passage: `start` when the story begins, `turn` for a player action. */
+  const enter = (to: Passage, why: "start" | "turn"): void => {
     if (navigating) {
       throw new StateError(
         `can't move to ${JSON.stringify(to.id)} while an effect phase is running; effects change state, and links and continue points move between passages.`,
@@ -503,12 +510,19 @@ export function createStory(
     try {
       const from = current();
       const leaving = from === undefined ? undefined : byId.get(from);
-      if (leaving) runPhase(leaving, "leave");
+      if (why === "start") {
+        hook("gameStart").run(hookContext());
+      }
+      if (leaving) {
+        runPhase(leaving, "leave");
+        hook("passageLeave").run(contextFor(leaving.id));
+      }
       record.emit("navigation", { ...(from !== undefined && { from }), to: to.id });
       store.set(STORY_ID, CURRENT_FIELD, to.id);
       store.set(VISITS_ID, to.id, visits(to.id) + 1);
       if (visits(to.id) === 1) runPhase(to, "firstVisit");
       runPhase(to, "enter");
+      hook("passageEnter").run(contextFor(to.id));
       for (const node of renderPassage(to).nodes) {
         if (node.type !== "text") continue;
         record.emit("narrative", {
@@ -516,6 +530,9 @@ export function createStory(
           ...(node.styles !== undefined && node.styles.length > 0 && { styles: node.styles }),
           ...(node.line !== undefined && { line: node.line }),
         });
+      }
+      if (why === "turn") {
+        hook("turnEnd").run(contextFor(to.id));
       }
     } catch (error) {
       // Leave no half-made move behind, when we can tell what the move changed.
@@ -544,7 +561,7 @@ export function createStory(
           store.set(RANDOM_ID, SEED_FIELD, options.seed ?? "0");
         // Effects may read persistent data, so replays need it as it was now (ADR 0011).
         store.set(PERSISTENT_ID, AT_BEGIN_FIELD, persistent.snapshot());
-        enter(start);
+        enter(start, "start");
       } catch (error) {
         if (wasClean) store.rollback();
         throw error;
@@ -569,11 +586,11 @@ export function createStory(
             : `follow: ${name} isn't a choice in ${where}.`,
         );
       }
-      enter(lookup(choice.target, `follow from ${JSON.stringify(current())}`));
+      enter(lookup(choice.target, `follow from ${JSON.stringify(current())}`), "turn");
       log({ type: "follow", choice: choiceRef(choice) });
     },
     goTo(id) {
-      enter(lookup(id, "goTo"));
+      enter(lookup(id, "goTo"), "turn");
       log({ type: "goTo", passage: id });
     },
     get actions() {

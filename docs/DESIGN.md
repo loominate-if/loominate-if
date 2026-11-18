@@ -551,6 +551,16 @@ The library is built from the same mechanisms authors use, so any library behavi
 - **Packages.** Extensions are npm packages that register rules, classes, widgets, and effects. Load order is explicit, and conflicting registrations produce a compile-time warning.
 - **Public API.** The public surface is documented and semantically versioned. Internal modules are marked and may change without notice.
 
+Rulebooks, hooks, and registries are module-level handles, defined once and added to as modules load. A rulebook either decides (the first rule to return a value wins) or folds (each rule transforms a value, and one can stop the rest); `explain()` shows what each rule did and which package added it. [ADR 0012](decisions/0012-rulebooks-hooks-registries.md) settles order, hooks, and registries.
+
+```ts
+export const damage = rulebook<number, Attack>("damage", { kind: "fold" });
+damage.rule("strength", (n, attack) => n + attack.strength, { source: "@loominate-if/rpg" });
+damage.rule("critical", (n, attack) => (attack.critical ? n * 2 : n), { after: "strength" });
+
+hook("turnEnd").rule("lamp-burns-down", ({ state }) => { /* … */ });
+```
+
 ## Tooling
 
 Tooling is built alongside the runtime from the first milestone, because debugging difficulty is what ended earlier attempts at this kind of project.
