@@ -387,10 +387,19 @@ export interface RandomStream {
     pick<T>(items: readonly T[]): T;
     shuffle<T>(items: readonly T[]): T[];
     substream(name: string): RandomStream;
+    readonly undo: RandomUndo;
 }
 
 // @public
-export function randomStream(name: string): RandomStream;
+export function randomStream(name: string, options?: RandomStreamOptions): RandomStream;
+
+// @public
+export interface RandomStreamOptions {
+    readonly undo?: RandomUndo;
+}
+
+// @public
+export type RandomUndo = "rewind" | "reroll";
 
 // @public
 export function readPersistent(text: string, gameId: string): StateSnapshot;
@@ -488,7 +497,7 @@ export type Replay = {
 export const REPLAY_FORMAT = "loominate-replay";
 
 // @public
-export const REPLAY_VERSION = 3;
+export const REPLAY_VERSION = 4;
 
 // @public
 export type ReplayCheck = {
@@ -675,12 +684,14 @@ export interface Story {
 }
 
 // @public
-export type StoryAction = {
+export type StoryAction = ({
     readonly type: "follow";
     readonly choice: ChoiceRef;
 } | {
     readonly type: "goTo";
     readonly passage: PassageId;
+}) & {
+    readonly attempt?: number;
 };
 
 // @public

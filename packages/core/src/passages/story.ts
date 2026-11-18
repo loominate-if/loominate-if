@@ -11,7 +11,8 @@ import type { EventRecord, LineId, TextStyle } from "../events/record.js";
 import type { StateId, StateSnapshot, StateStore } from "../state/store.js";
 import { bindObjects, renderingObjects } from "../objects/objects.js";
 import { StateError } from "../state/value.js";
-import { RANDOM_ID, SEED_FIELD } from "../random/random.js";
+import { MOVE_FIELD, RANDOM_ID, SEED_FIELD } from "../random/random.js";
+import { ATTEMPTS_ID } from "../state/history.js";
 import { ENGINE_VERSION, type GameInfo } from "../save/save.js";
 import {
   createPersistent,
@@ -495,8 +496,11 @@ export function createStory(
     store.set(ACTIONS_ID, LENGTH_FIELD, n + 1);
   };
 
-  /** Moves to a passage: `start` when the story begins, `turn` for a player action. */
-  const enter = (to: Passage, why: "start" | "turn"): void => {
+  /**
+   * Moves to a passage: `start` when the story begins, `turn` for a player
+   * action. `move` names the move for streams that reroll on undo (ADR 0014).
+   */
+  const enter = (to: Passage, why: "start" | "turn", move: string): void => {
     if (navigating) {
       throw new StateError(
         `can't move to ${JSON.stringify(to.id)} while an effect phase is running; effects change state, and links and continue points move between passages.`,
@@ -508,6 +512,7 @@ export function createStory(
     kept.commit();
     navigating = true;
     try {
+      store.set(RANDOM_ID, MOVE_FIELD, move);
       const from = current();
       const leaving = from === undefined ? undefined : byId.get(from);
       if (why === "start") {
@@ -544,6 +549,40 @@ export function createStory(
     }
   };
 
+  /**
+   * Takes a player action and logs it. A replayed action brings its attempt;
+   * otherwise it's counted from the undo-proof tally of tries here (ADR 0014).
+   */
+  const act = (to: Passage, action: StoryAction, replayed?: number): void => {
+    const n = logLength();
+    const tried = store.get(ATTEMPTS_ID, String(n));
+    const attempt = replayed ?? (typeof tried === "number" ? tried : 0);
+    enter(to, "turn", `${String(n)}.${String(attempt)}`);
+    store.set(ATTEMPTS_ID, String(n), attempt + 1);
+    log({ ...action, ...(attempt > 0 && { attempt }) });
+  };
+
+  const follow = (choice: Choice, attempt?: number): void => {
+    const page = story.render();
+    const same = (c: Choice): boolean =>
+      c.type === choice.type && c.target === choice.target && c.label === choice.label;
+    if (!page.choices.some(same)) {
+      const closed = page.unavailable.find((u) => same(u.link));
+      const name = JSON.stringify(choice.label ?? choice.target);
+      const where = `passage ${JSON.stringify(current())}`;
+      throw new StateError(
+        closed
+          ? `follow: ${name} in ${where} is unavailable because its condition \`${closed.condition}\` doesn't hold.`
+          : `follow: ${name} isn't a choice in ${where}.`,
+      );
+    }
+    act(
+      lookup(choice.target, `follow from ${JSON.stringify(current())}`),
+      { type: "follow", choice: choiceRef(choice) },
+      attempt,
+    );
+  };
+
   const story: Story = {
     get current() {
       return current();
@@ -561,7 +600,7 @@ export function createStory(
           store.set(RANDOM_ID, SEED_FIELD, options.seed ?? "0");
         // Effects may read persistent data, so replays need it as it was now (ADR 0011).
         store.set(PERSISTENT_ID, AT_BEGIN_FIELD, persistent.snapshot());
-        enter(start, "start");
+        enter(start, "start", "begin");
       } catch (error) {
         if (wasClean) store.rollback();
         throw error;
@@ -572,26 +611,11 @@ export function createStory(
       if (id === undefined) throw new StateError("render: call begin() first.");
       return renderPassage(lookup(id, "render"));
     },
-    follow(choice) {
-      const page = story.render();
-      const same = (c: Choice): boolean =>
-        c.type === choice.type && c.target === choice.target && c.label === choice.label;
-      if (!page.choices.some(same)) {
-        const closed = page.unavailable.find((u) => same(u.link));
-        const name = JSON.stringify(choice.label ?? choice.target);
-        const where = `passage ${JSON.stringify(current())}`;
-        throw new StateError(
-          closed
-            ? `follow: ${name} in ${where} is unavailable because its condition \`${closed.condition}\` doesn't hold.`
-            : `follow: ${name} isn't a choice in ${where}.`,
-        );
-      }
-      enter(lookup(choice.target, `follow from ${JSON.stringify(current())}`), "turn");
-      log({ type: "follow", choice: choiceRef(choice) });
+    follow: (choice) => {
+      follow(choice);
     },
-    goTo(id) {
-      enter(lookup(id, "goTo"), "turn");
-      log({ type: "goTo", passage: id });
+    goTo: (id) => {
+      act(lookup(id, "goTo"), { type: "goTo", passage: id });
     },
     get actions() {
       const out: StoryAction[] = [];
@@ -601,8 +625,13 @@ export function createStory(
       return out;
     },
     perform(action) {
-      if (action.type === "follow") story.follow(action.choice);
-      else story.goTo(action.passage);
+      if (action.type === "follow") follow(action.choice, action.attempt);
+      else
+        act(
+          lookup(action.passage, "goTo"),
+          { type: "goTo", passage: action.passage },
+          action.attempt,
+        );
     },
     toReplay(game) {
       const seed = store.get(RANDOM_ID, SEED_FIELD);

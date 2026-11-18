@@ -225,6 +225,6 @@ describe("in a story", () => {
     createStory(store, createEventRecord(store), [{ id: "A", tags: [], body: () => [] }], {
       start: "A",
     }).begin();
-    expect(store.entity("$random")).toEqual({ seed: "0" });
+    expect(store.entity("$random")).toEqual({ seed: "0", move: "begin" });
   });
 });

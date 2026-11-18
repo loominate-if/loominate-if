@@ -1,6 +1,6 @@
 # 0009. Action log and replay files
 
-- **Status:** Accepted, 2026-11-17; amended for version 2 ([#228](https://github.com/loominate-if/loominate-if/issues/228)) and version 3 ([#23](https://github.com/loominate-if/loominate-if/issues/23)), 2026-11-17
+- **Status:** Accepted, 2026-11-17; amended for version 2 ([#228](https://github.com/loominate-if/loominate-if/issues/228)) and version 3 ([#23](https://github.com/loominate-if/loominate-if/issues/23)), 2026-11-17, and version 4 ([#226](https://github.com/loominate-if/loominate-if/issues/226)), 2026-11-18
 - **Issue:** [#25](https://github.com/loominate-if/loominate-if/issues/25)
 - **Design:** [Randomness](../DESIGN.md#randomness), [Tooling](../DESIGN.md#tooling), design principle 4 (determinism)
 
@@ -36,22 +36,23 @@ A replay file is JSON:
 ```json
 {
   "format": "loominate-replay",
-  "version": 3,
+  "version": 4,
   "game": {"id":"lantern-road","version":"1.0.0"},
   "engine": "0.0.0",
   "seed": "fog-bound",
   "persistent": {"endings":{"end":true}},
   "actions": [
     {"type":"follow","choice":{"type":"link","target":"Road","label":"Walk on"}},
-    {"type":"goTo","passage":"Cellar"}
+    {"type":"goTo","passage":"Cellar","attempt":1}
   ]
 }
 ```
 
-- `format` marks the file as a replay; `version` is the file version, 3 here; `seed` is the master seed (ADR 0008); `actions` lists every action since the story began, in order.
+- `format` marks the file as a replay; `version` is the file version, 4 here; `seed` is the master seed (ADR 0008); `actions` lists every action since the story began, in order.
 - `engine` is the `ENGINE_VERSION` that made the file, and `game` is the game's ID and version, named as saves name them (ADR 0010). `story.toReplay(game)` records the game when the host passes it.
 - `persistent` is the persistent cross-playthrough data as it was when the story began (ADR 0011). A replay plays against it, in memory, never against the player's own.
-- Older files still read: version 1 (before #228) has no `game` or `engine`, and version 2 (before #23) has no `persistent`, so it plays against none.
+- An action's `attempt` says how many times an action was taken at that point before and undone, when it was (ADR 0014). Streams that reroll on undo draw from it. It's left out when it's 0.
+- Older files still read: version 1 (before #228) has no `game` or `engine`, version 2 (before #23) has no `persistent`, so it plays against none, and version 3 (before #226) has no `attempt`.
 - `writeReplay` writes fields in a fixed order with one action per line, so the same replay always gives the same text and replays diff well.
 - `readReplay` accepts exactly this shape and explains anything else: invalid JSON, the wrong `format`, a newer version, a missing or unknown field. Unknown fields are refused rather than ignored, so nothing in a file is silently dropped; adding a field means a new version.
 
@@ -66,6 +67,6 @@ A replay file is JSON:
 
 - Replay files are now a format with a version. Changing what version 1 means breaks existing replays; additions need version 2.
 - Saves grow by one small entry per action, much less than the event record they already carry.
-- Version 2 ([#228](https://github.com/loominate-if/loominate-if/issues/228)) added the game and engine versions, and version 3 ([#23](https://github.com/loominate-if/loominate-if/issues/23)) the persistent data. Readers keep accepting older versions.
+- Version 2 ([#228](https://github.com/loominate-if/loominate-if/issues/228)) added the game and engine versions, version 3 ([#23](https://github.com/loominate-if/loominate-if/issues/23)) the persistent data, and version 4 ([#226](https://github.com/loominate-if/loominate-if/issues/226)) action attempts. Readers keep accepting older versions.
 - A replay depends on passage IDs and choice labels. Renaming a link's label breaks replays that follow it, just as renaming a passage does.
 - Opening replay files in the inspector, and running them as walkthrough tests, build on `readReplay` and `playReplay`.
