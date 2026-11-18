@@ -147,7 +147,7 @@ The core runtime knows only passages, state, choices, the event record, save/loa
 - **Visit tracking.** Visits per passage and per location are tracked automatically.
 - **Saving.** Autosave, multiple named slots, and export/import of save files. A save is the whole state snapshot (so it carries the event record, action log, and seed) plus the game and engine versions; undo history starts afresh on load. Core keeps slots in storage the host supplies, and the player shell calls autosave after each action. [ADR 0010](decisions/0010-save-format.md) defines the format.
 - **Save durability.** Saves carry the game version and engine version. Authors supply migration hooks so saves from version 1.0 load in 1.1. Stable IDs make most migrations unnecessary.
-- **Persistent cross-playthrough data.** A separate store for achievements, unlocked endings, and settings that survives restarts and is never touched by undo.
+- **Persistent cross-playthrough data.** A separate store for achievements, unlocked endings, and settings that survives restarts and is never touched by undo. Effects reach it as `context.persistent`, read-only while rendering. The story copies it into game state when it begins, so replays play against the data the original began with, never the player's own. [ADR 0011](decisions/0011-persistent-store.md) defines it.
 
 ## Presentation
 

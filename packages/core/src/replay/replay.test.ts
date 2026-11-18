@@ -123,10 +123,11 @@ describe("replays", () => {
     const text = writeReplay(replay);
     expect(text).toBe(`{
   "format": "loominate-replay",
-  "version": 2,
+  "version": 3,
   "game": {"id":"lantern-road","version":"1.0.0"},
   "engine": "${ENGINE_VERSION}",
   "seed": "fog-bound",
+  "persistent": {},
   "actions": [
     {"type":"follow","choice":{"type":"link","target":"Road","label":"Walk on"}},
     {"type":"follow","choice":{"type":"link","target":"Inn","label":"Rest"}},
@@ -140,7 +141,7 @@ describe("replays", () => {
     expect(writeReplay(readReplay(text))).toBe(text);
     const empty: Replay = {
       format: "loominate-replay",
-      version: 2,
+      version: 3,
       engine: "1",
       seed: "",
       actions: [],
@@ -150,7 +151,7 @@ describe("replays", () => {
 
   it("record the engine always, and the game when given", () => {
     const { story } = playthrough();
-    expect(story.toReplay()).toMatchObject({ version: 2, engine: ENGINE_VERSION });
+    expect(story.toReplay()).toMatchObject({ version: 3, engine: ENGINE_VERSION });
     expect(story.toReplay()).not.toHaveProperty("game");
     expect(story.toReplay(game).game).toEqual(game);
   });
@@ -171,7 +172,7 @@ describe("replays", () => {
     // Nothing to compare: a version 1 file, played without saying which game.
     const v1: Replay = {
       format: replay.format,
-      version: 2,
+      version: 3,
       seed: replay.seed,
       actions: replay.actions,
     };
@@ -181,11 +182,25 @@ describe("replays", () => {
     );
   });
 
+  it("read version 2 files, which don't record persistent data", () => {
+    const v2 = `{"format":"loominate-replay","version":2,"engine":"1","seed":"s","actions":[]}`;
+    expect(readReplay(v2)).toEqual({
+      format: "loominate-replay",
+      version: 3,
+      engine: "1",
+      seed: "s",
+      actions: [],
+    });
+    expect(() => readReplay(v2.replace(`"seed"`, `"persistent":{},"seed"`))).toThrow(
+      /unknown field "persistent"/,
+    );
+  });
+
   it("read version 1 files, which don't record the game or engine", () => {
     const v1 = `{"format":"loominate-replay","version":1,"seed":"s","actions":[{"type":"goTo","passage":"Inn"}]}`;
     expect(readReplay(v1)).toEqual({
       format: "loominate-replay",
-      version: 2,
+      version: 3,
       seed: "s",
       actions: [{ type: "goTo", passage: "Inn" }],
     });
@@ -238,7 +253,7 @@ describe("reading replay files", () => {
   const file = (fields: Record<string, unknown>) =>
     JSON.stringify({
       format: "loominate-replay",
-      version: 2,
+      version: 3,
       engine: "1",
       seed: "s",
       actions: [],
@@ -251,10 +266,16 @@ describe("reading replay files", () => {
     expect(() => readReplay("[]")).toThrow(
       `replay: this isn't a replay file; it needs "format": "loominate-replay".`,
     );
-    expect(() => readReplay(file({ version: 3 }))).toThrow(
-      "replay: the file is version 3, made by a newer engine; this one reads versions 1 and 2.",
+    expect(() => readReplay(file({ version: 4 }))).toThrow(
+      "replay: the file is version 4, made by a newer engine; this one reads versions 1 to 3.",
     );
-    expect(() => readReplay(file({ version: "2" }))).toThrow(`replay: "version" must be 1 or 2.`);
+    expect(() => readReplay(file({ version: "3" }))).toThrow(
+      `replay: "version" must be 1, 2, or 3.`,
+    );
+    expect(() => readReplay(file({ persistent: [] }))).toThrow(
+      `replay: "persistent" must be an object of entities.`,
+    );
+    expect(() => readReplay(file({ persistent: { a: 1 } }))).toThrow(StateError);
     expect(() => readReplay(file({ engine: undefined }))).toThrow(
       `replay: "engine" must be a version string.`,
     );
@@ -267,7 +288,7 @@ describe("reading replay files", () => {
     expect(() => readReplay(file({ seed: 7 }))).toThrow(`replay: "seed" must be a string.`);
     expect(() => readReplay(file({ actions: {} }))).toThrow(`replay: "actions" must be a list.`);
     expect(() => readReplay(file({ notes: "hi" }))).toThrow(
-      `replay: the file has an unknown field "notes"; expected "format", "version", "game", "engine", "seed", "actions".`,
+      `replay: the file has an unknown field "notes"; expected "format", "version", "game", "engine", "seed", "persistent", "actions".`,
     );
   });
 

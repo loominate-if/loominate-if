@@ -8,11 +8,16 @@
  * event record.
  */
 import type { EventRecord, LineId, TextStyle } from "../events/record.js";
-import type { StateId, StateStore } from "../state/store.js";
+import type { StateId, StateSnapshot, StateStore } from "../state/store.js";
 import { bindObjects, renderingObjects } from "../objects/objects.js";
 import { StateError } from "../state/value.js";
 import { RANDOM_ID, SEED_FIELD } from "../random/random.js";
 import { ENGINE_VERSION, type GameInfo } from "../save/save.js";
+import {
+  createPersistent,
+  persistentState,
+  type PersistentStore,
+} from "../persistent/persistent.js";
 import {
   choiceRef,
   REPLAY_FORMAT,
@@ -153,6 +158,8 @@ export type StateReader = Pick<StateStore, "get" | "has" | "entity" | "ids">;
 export interface RenderContext {
   /** The game state, read-only. */
   readonly state: StateReader;
+  /** Persistent cross-playthrough data (achievements, endings, settings), read-only. */
+  readonly persistent: StateReader;
   /** The passage being rendered. */
   readonly passage: PassageId;
   /** How many times the player has entered this passage, counting the current visit. */
@@ -170,9 +177,14 @@ export type StateWriter = StateReader & Pick<StateStore, "set" | "delete">;
 export type EffectPhase = "firstVisit" | "enter" | "leave";
 
 /** What an effect phase can see and do. */
-export interface EffectContext extends Omit<RenderContext, "state"> {
+export interface EffectContext extends Omit<RenderContext, "state" | "persistent"> {
   /** The game state. Changes are recorded for undo, save, and replay. */
   readonly state: StateWriter;
+  /**
+   * Persistent cross-playthrough data. Changes outlast undo, restarts, and
+   * loading a save, but not a move that fails: those are rolled back.
+   */
+  readonly persistent: StateWriter;
   /** Records output, such as a message the effect wants to show. */
   readonly emit: EventRecord["emit"];
 }
@@ -219,6 +231,12 @@ export interface StoryOptions {
    * `"0"`; a new game normally gets a fresh seed from whatever starts it.
    */
   readonly seed?: string;
+  /**
+   * Persistent cross-playthrough data, from `openPersistent`. Defaults to an
+   * empty store in memory. The story copies it into game state when it begins,
+   * so saves and replays carry what it held then.
+   */
+  readonly persistent?: PersistentStore;
 }
 
 /** Plays a set of compiled passages over a state store and event record. */
@@ -281,6 +299,9 @@ export interface Story {
    * made, the story stays at the last action that worked, so it can be
    * inspected, and the error says if the replay came from another version.
    *
+   * The story plays against the persistent data the replay began with, in
+   * memory, so the player's own persistent data is never read or changed.
+   *
    * Pass the running `game` to check the replay belongs to it. The result says
    * whether the replay came from the same game and engine versions.
    * @throws {@link StateError} if the story has already begun, if the replay is
@@ -294,6 +315,9 @@ const STORY_ID = "$story";
 const CURRENT_FIELD = "current";
 /** The state entity holding visit counts, one field per visited passage. */
 const VISITS_ID = "$visits";
+/** The state entity holding the persistent data as it was when the story began, for replays. */
+const PERSISTENT_ID = "$persistent";
+const AT_BEGIN_FIELD = "atBegin";
 /** The state entity holding the action log: `length`, then one field per action by index. */
 const ACTIONS_ID = "$actions";
 const LENGTH_FIELD = "length";
@@ -331,6 +355,14 @@ export function createStory(
     entity: (id) => store.entity(id),
     ids: () => store.ids(),
   };
+  // A replay swaps in its own copy, so it never touches the player's real data.
+  let persistent = options.persistent ?? createPersistent();
+  const persistentReader = (): StateReader => ({
+    get: (id, key) => persistent.get(id, key),
+    has: (id, key) => persistent.has(id, key),
+    entity: (id) => persistent.entity(id),
+    ids: () => persistent.ids(),
+  });
 
   const current = (): PassageId | undefined => {
     const id = store.get(STORY_ID, CURRENT_FIELD);
@@ -351,6 +383,7 @@ export function createStory(
       ...renderingObjects(passage.id, () =>
         passage.body({
           state: reader,
+          persistent: persistentReader(),
           passage: passage.id,
           visits: count,
           firstVisit: count === 1,
@@ -413,6 +446,15 @@ export function createStory(
     const count = visits(passage);
     return {
       state: { ...reader, set: store.set, delete: store.delete },
+      persistent: {
+        ...persistentReader(),
+        set: (id, key, value) => {
+          persistent.set(id, key, value);
+        },
+        delete: (id, key) => {
+          persistent.delete(id, key);
+        },
+      },
       emit: record.emit,
       passage,
       visits: count,
@@ -454,6 +496,9 @@ export function createStory(
       );
     }
     const wasClean = !store.dirty;
+    // Persistent writes made by this move are undone with it if it fails.
+    const kept = persistentState(persistent);
+    kept.commit();
     navigating = true;
     try {
       const from = current();
@@ -475,6 +520,7 @@ export function createStory(
     } catch (error) {
       // Leave no half-made move behind, when we can tell what the move changed.
       if (wasClean) store.rollback();
+      kept.rollback();
       throw error;
     } finally {
       navigating = false;
@@ -496,6 +542,8 @@ export function createStory(
         // Before the start passage's effects, which may draw from streams.
         if (!store.has(RANDOM_ID, SEED_FIELD))
           store.set(RANDOM_ID, SEED_FIELD, options.seed ?? "0");
+        // Effects may read persistent data, so replays need it as it was now (ADR 0011).
+        store.set(PERSISTENT_ID, AT_BEGIN_FIELD, persistent.snapshot());
         enter(start);
       } catch (error) {
         if (wasClean) store.rollback();
@@ -544,12 +592,14 @@ export function createStory(
       if (current() === undefined || typeof seed !== "string") {
         throw new StateError("toReplay: call begin() first.");
       }
+      const atBegin = store.get(PERSISTENT_ID, AT_BEGIN_FIELD) as StateSnapshot | undefined;
       return {
         format: REPLAY_FORMAT,
         version: REPLAY_VERSION,
         ...(game !== undefined && { game: { id: game.id, version: game.version } }),
         engine: ENGINE_VERSION,
         seed,
+        ...(atBegin !== undefined && { persistent: atBegin }),
         actions: story.actions,
       };
     },
@@ -580,6 +630,8 @@ export function createStory(
       const note =
         versions.length === 0 ? "" : ` The replay was made with ${versions.join(", and ")}.`;
       if (!store.has(RANDOM_ID, SEED_FIELD)) store.set(RANDOM_ID, SEED_FIELD, replay.seed);
+      // The persistent data the replay began with, in memory: the player's own is never touched.
+      persistent = createPersistent(replay.persistent ?? {});
       story.begin();
       replay.actions.forEach((action, i) => {
         try {

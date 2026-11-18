@@ -41,6 +41,9 @@ export function createInstances(store: StateStore, templates: readonly Template<
 export function createMemoryStorage(): SaveStorage;
 
 // @public
+export function createPersistent(snapshot?: StateSnapshot): PersistentStore;
+
+// @public
 export function createSave(store: StateStore, options: {
     readonly game: GameInfo;
     readonly savedAt: Date;
@@ -57,8 +60,9 @@ export function createStore(snapshot?: StateSnapshot): StateStore;
 export function createStory(store: StateStore, record: EventRecord, passages: readonly Passage[], options: StoryOptions): Story;
 
 // @public
-export interface EffectContext extends Omit<RenderContext, "state"> {
+export interface EffectContext extends Omit<RenderContext, "state" | "persistent"> {
     readonly emit: EventRecord["emit"];
+    readonly persistent: StateWriter;
     readonly state: StateWriter;
 }
 
@@ -233,6 +237,12 @@ export interface ObjectTemplate<D> {
 }
 
 // @public
+export function openPersistent(options: {
+    readonly storage: PersistentStorage;
+    readonly game: GameInfo;
+}): Promise<PersistentStore>;
+
+// @public
 export interface Passage {
     readonly body: (context: RenderContext) => readonly PassageNode[];
     readonly effects?: PassageEffects;
@@ -250,6 +260,23 @@ export type PassageId = StateId;
 
 // @public
 export type PassageNode = TextNode | LinkNode | ContinueNode;
+
+// @public
+export const PERSISTENT_FORMAT = "loominate-persistent";
+
+// @public
+export const PERSISTENT_VERSION = 1;
+
+// @public
+export interface PersistentStorage {
+    read(): Promise<string | undefined> | string | undefined;
+    write(text: string): Promise<void> | void;
+}
+
+// @public
+export interface PersistentStore extends Pick<StateStore, "get" | "has" | "entity" | "ids" | "set" | "delete" | "snapshot"> {
+    flush(): Promise<void>;
+}
 
 // @public
 export function prose(parts: readonly ProsePart[], options?: ProseOptions): TextNode;
@@ -284,6 +311,9 @@ export interface RandomStream {
 export function randomStream(name: string): RandomStream;
 
 // @public
+export function readPersistent(text: string, gameId: string): StateSnapshot;
+
+// @public
 export function readReplay(text: string): Replay;
 
 // @public
@@ -302,6 +332,7 @@ export type RecordedEvent<K extends EventKind = EventKind> = {
 export interface RenderContext {
     readonly firstVisit: boolean;
     readonly passage: PassageId;
+    readonly persistent: StateReader;
     readonly state: StateReader;
     visited(passage: PassageId): boolean;
     readonly visits: number;
@@ -342,6 +373,7 @@ export type Replay = {
     readonly game?: GameInfo;
     readonly engine?: string;
     readonly seed: string;
+    readonly persistent?: StateSnapshot;
     readonly actions: readonly StoryAction[];
 };
 
@@ -349,7 +381,7 @@ export type Replay = {
 export const REPLAY_FORMAT = "loominate-replay";
 
 // @public
-export const REPLAY_VERSION = 2;
+export const REPLAY_VERSION = 3;
 
 // @public
 export type ReplayCheck = {
@@ -494,6 +526,7 @@ export type StoryAction = {
 // @public
 export interface StoryOptions {
     readonly guardMode?: GuardMode;
+    readonly persistent?: PersistentStore;
     readonly seed?: string;
     readonly start: PassageId;
 }
@@ -549,6 +582,9 @@ export type UnreadableSave = {
     readonly slot: string;
     readonly problem: string;
 };
+
+// @public
+export function writePersistent(game: GameInfo, state: StateSnapshot): string;
 
 // @public
 export function writeReplay(replay: Replay): string;

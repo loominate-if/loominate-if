@@ -1,6 +1,6 @@
 # 0009. Action log and replay files
 
-- **Status:** Accepted, 2026-11-17; amended for version 2 ([#228](https://github.com/loominate-if/loominate-if/issues/228)), 2026-11-17
+- **Status:** Accepted, 2026-11-17; amended for version 2 ([#228](https://github.com/loominate-if/loominate-if/issues/228)) and version 3 ([#23](https://github.com/loominate-if/loominate-if/issues/23)), 2026-11-17
 - **Issue:** [#25](https://github.com/loominate-if/loominate-if/issues/25)
 - **Design:** [Randomness](../DESIGN.md#randomness), [Tooling](../DESIGN.md#tooling), design principle 4 (determinism)
 
@@ -36,10 +36,11 @@ A replay file is JSON:
 ```json
 {
   "format": "loominate-replay",
-  "version": 2,
+  "version": 3,
   "game": {"id":"lantern-road","version":"1.0.0"},
   "engine": "0.0.0",
   "seed": "fog-bound",
+  "persistent": {"endings":{"end":true}},
   "actions": [
     {"type":"follow","choice":{"type":"link","target":"Road","label":"Walk on"}},
     {"type":"goTo","passage":"Cellar"}
@@ -47,9 +48,10 @@ A replay file is JSON:
 }
 ```
 
-- `format` marks the file as a replay; `version` is the file version, 2 here; `seed` is the master seed (ADR 0008); `actions` lists every action since the story began, in order.
+- `format` marks the file as a replay; `version` is the file version, 3 here; `seed` is the master seed (ADR 0008); `actions` lists every action since the story began, in order.
 - `engine` is the `ENGINE_VERSION` that made the file, and `game` is the game's ID and version, named as saves name them (ADR 0010). `story.toReplay(game)` records the game when the host passes it.
-- Version 1 files, from before #228, have no `game` or `engine` and still read, as replays with neither.
+- `persistent` is the persistent cross-playthrough data as it was when the story began (ADR 0011). A replay plays against it, in memory, never against the player's own.
+- Older files still read: version 1 (before #228) has no `game` or `engine`, and version 2 (before #23) has no `persistent`, so it plays against none.
 - `writeReplay` writes fields in a fixed order with one action per line, so the same replay always gives the same text and replays diff well.
 - `readReplay` accepts exactly this shape and explains anything else: invalid JSON, the wrong `format`, a newer version, a missing or unknown field. Unknown fields are refused rather than ignored, so nothing in a file is silently dropped; adding a field means a new version.
 
@@ -64,6 +66,6 @@ A replay file is JSON:
 
 - Replay files are now a format with a version. Changing what version 1 means breaks existing replays; additions need version 2.
 - Saves grow by one small entry per action, much less than the event record they already carry.
-- Version 2 ([#228](https://github.com/loominate-if/loominate-if/issues/228)) added the game and engine versions. Readers keep accepting version 1.
+- Version 2 ([#228](https://github.com/loominate-if/loominate-if/issues/228)) added the game and engine versions, and version 3 ([#23](https://github.com/loominate-if/loominate-if/issues/23)) the persistent data. Readers keep accepting older versions.
 - A replay depends on passage IDs and choice labels. Renaming a link's label breaks replays that follow it, just as renaming a passage does.
 - Opening replay files in the inspector, and running them as walkthrough tests, build on `readReplay` and `playReplay`.
