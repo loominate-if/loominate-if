@@ -60,6 +60,13 @@ export function createStore(snapshot?: StateSnapshot): StateStore;
 export function createStory(store: StateStore, record: EventRecord, passages: readonly Passage[], options: StoryOptions): Story;
 
 // @public
+export interface DecideRulebook<In, Out> extends RuleList<(input: In) => Out | undefined> {
+    explain(input: In): Explanation<Out>;
+    readonly kind: "decide";
+    run(input: In): Out;
+}
+
+// @public
 export interface EffectContext extends Omit<RenderContext, "state" | "persistent"> {
     readonly emit: EventRecord["emit"];
     readonly persistent: StateWriter;
@@ -115,6 +122,26 @@ export interface EventRecord {
 }
 
 // @public
+export interface Explanation<R> {
+    readonly decidedBy?: string;
+    readonly result: R;
+    readonly steps: readonly RuleStep[];
+}
+
+// @public
+export type FoldRule<V, In> = (value: V, input: In, stop: (value: V) => Stopped<V>) => V | Stopped<V>;
+
+// @public
+export interface FoldRulebook<V, In> extends RuleList<FoldRule<V, In>> {
+    explain(value: V, input: In): Explanation<V>;
+    readonly kind: "fold";
+    run(value: V, input: In): V;
+}
+
+// @public
+export const GAME_SOURCE = "game";
+
+// @public
 export type GameInfo = {
     readonly id: string;
     readonly version: string;
@@ -150,6 +177,35 @@ export interface HistoryOptions {
 export interface HistoryStep {
     readonly diff: StateDiff;
     readonly label?: string;
+}
+
+// @public
+export interface Hook<P> extends RuleList<(payload: P) => void> {
+    explain(payload: P): Explanation<undefined>;
+    readonly kind: "hook";
+    run(payload: P): void;
+}
+
+// @public
+export function hook<K extends keyof HookKinds & string>(name: K): Hook<HookKinds[K]>;
+
+// @public
+export type HookContext = Pick<EffectContext, "state" | "persistent" | "emit">;
+
+// @public
+export interface HookKinds {
+    gameStart: HookContext;
+    load: {
+        readonly slot: string;
+        readonly summary: SaveSummary;
+    };
+    passageEnter: EffectContext;
+    passageLeave: EffectContext;
+    save: {
+        readonly slot: string;
+        readonly summary: SaveSummary;
+    };
+    turnEnd: EffectContext;
 }
 
 // @public
@@ -329,6 +385,31 @@ export type RecordedEvent<K extends EventKind = EventKind> = {
 }[K];
 
 // @public
+export interface Registry<T> {
+    entries(): readonly RegistryEntry<T>[];
+    get(key: string): T | undefined;
+    has(key: string): boolean;
+    readonly name: string;
+    register(key: string, value: T, options?: {
+        readonly source?: string;
+    }): void;
+    remove(key: string): void;
+    replace(key: string, value: T, options?: {
+        readonly source?: string;
+    }): void;
+}
+
+// @public
+export function registry<T>(name: string): Registry<T>;
+
+// @public
+export interface RegistryEntry<T> {
+    readonly key: string;
+    readonly source: string;
+    readonly value: T;
+}
+
+// @public
 export interface RenderContext {
     readonly firstVisit: boolean;
     readonly passage: PassageId;
@@ -388,6 +469,54 @@ export type ReplayCheck = {
     readonly sameGameVersion?: boolean;
     readonly sameEngineVersion?: boolean;
 };
+
+// @public
+export function rulebook<In, Out>(name: string, options: {
+    readonly kind: "decide";
+    readonly otherwise: (input: In) => Out;
+}): DecideRulebook<In, Out>;
+
+// @public
+export function rulebook<In, Out>(name: string, options: {
+    readonly kind: "decide";
+}): DecideRulebook<In, Out | undefined>;
+
+// @public
+export function rulebook<V, In = undefined>(name: string, options: {
+    readonly kind: "fold";
+}): FoldRulebook<V, In>;
+
+// @public
+export interface RuleInfo {
+    readonly name: string;
+    readonly replacedBy?: string;
+    readonly source: string;
+}
+
+// @public
+export interface RuleList<F> {
+    readonly name: string;
+    remove(name: string): void;
+    replace(name: string, fn: F, options?: {
+        readonly source?: string;
+    }): void;
+    rule(name: string, fn: F, options?: RuleOptions): void;
+    rules(): readonly RuleInfo[];
+}
+
+// @public
+export interface RuleOptions {
+    readonly after?: string | readonly string[];
+    readonly before?: string | readonly string[];
+    readonly source?: string;
+}
+
+// @public
+export interface RuleStep {
+    readonly outcome: "continued" | "decided" | "changed" | "unchanged" | "stopped" | "ran";
+    readonly rule: string;
+    readonly source: string;
+}
 
 // @public
 export const SAVE_FORMAT = "loominate-save";
@@ -497,6 +626,11 @@ export type StateValue = null | boolean | number | string | readonly StateValue[
 
 // @public
 export type StateWriter = StateReader & Pick<StateStore, "set" | "delete">;
+
+// @public
+export interface Stopped<V> {
+    readonly stopped: V;
+}
 
 // @public
 export interface Story {
