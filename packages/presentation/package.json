@@ -18,5 +18,8 @@
   ],
   "dependencies": {
     "@loominate-if/core": "workspace:*"
+  },
+  "devDependencies": {
+    "jsdom": "30.1.3"
   }
 }
