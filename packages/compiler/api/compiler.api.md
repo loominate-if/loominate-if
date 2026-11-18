@@ -67,10 +67,25 @@ export type CompilerExtension = {
 };
 
 // @public
+export type CompilerSession = {
+    update(path: string, text: string | undefined): SessionChange;
+    module(path: string): GeneratedModule | undefined;
+    modules(): ReadonlyMap<string, GeneratedModule>;
+    passageNames(): {
+        readonly path: string;
+        readonly code: string;
+    };
+    diagnostics(): readonly ProjectDiagnostic[];
+};
+
+// @public
 export type ContentSyntax = TextSyntax | PrintSyntax | EmphasisSyntax | DirectiveSyntax | IfSyntax | LinkSyntax | BreakSyntax | LineFormSyntax;
 
 // @public
 export const coreExtension: CompilerExtension;
+
+// @public
+export function createCompilerSession(options: ProjectOptions): CompilerSession;
 
 // @public
 export type Diagnostic = {
@@ -306,6 +321,12 @@ export type ProjectOptions = {
 export type RuntimeExport = {
     readonly module: string;
     readonly export: string;
+};
+
+// @public
+export type SessionChange = {
+    readonly modules: readonly string[];
+    readonly passageNames: boolean;
 };
 
 // @public

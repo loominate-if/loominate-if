@@ -18,5 +18,12 @@
   ],
   "bin": {
     "loominate": "./dist/bin.js"
+  },
+  "dependencies": {
+    "@loominate-if/compiler": "workspace:*",
+    "vite": "8.3.5"
+  },
+  "devDependencies": {
+    "@loominate-if/core": "workspace:*"
   }
 }

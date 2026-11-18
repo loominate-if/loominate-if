@@ -109,15 +109,54 @@ function specifier(fromFile: string, toFile: string): string {
   return rel.startsWith(".") ? rel : `./${rel}`;
 }
 
+/** What changed after {@link CompilerSession.update}. */
+export type SessionChange = {
+  /** Passage files whose generated module changed, or that were removed. */
+  readonly modules: readonly string[];
+  /** Whether the passage-names module changed, because passages were added, removed, or renamed. */
+  readonly passageNames: boolean;
+};
+
 /**
- * Parses, generates, and type-checks a game's sources.
- *
- * @remarks
- * Each passage file `scenes/cellar.weft` becomes a virtual module
- * `scenes/cellar.weft.ts` exporting `passages`. Errors in inline code are
- * reported at the passage file's lines.
+ * A compiler that stays alive between edits, for a dev server or editor: it
+ * regenerates only the passage modules an edit affects, and type-checks
+ * incrementally.
  */
-export function compileProject(options: ProjectOptions): CompiledProject {
+export type CompilerSession = {
+  /**
+   * Replaces a file's text, or removes it with `undefined`, and regenerates
+   * what depends on it: the passage file's module, or every module if the
+   * scope module's exports changed.
+   */
+  update(path: string, text: string | undefined): SessionChange;
+  /** A passage file's generated module, by the passage file's path. */
+  module(path: string): GeneratedModule | undefined;
+  /** Every generated module, by passage file path. */
+  modules(): ReadonlyMap<string, GeneratedModule>;
+  /** The generated module listing every passage name as a type. */
+  passageNames(): { readonly path: string; readonly code: string };
+  /**
+   * Every problem in the game as it stands, sorted by file and position.
+   * Type-checking reuses the last check's work.
+   * @throws Error if `start` names no passage.
+   */
+  diagnostics(): readonly ProjectDiagnostic[];
+};
+
+/** A passage file as last generated, with what it was generated from. */
+type Generated = {
+  readonly text: string;
+  readonly scopeKey: string;
+  readonly parsed: PassageFileSyntax;
+  readonly module: GeneratedModule;
+};
+
+/**
+ * Starts a compiler session over a game's sources. See {@link compileProject}
+ * for a one-off compile.
+ * @throws Error if the extensions are malformed or conflict.
+ */
+export function createCompilerSession(options: ProjectOptions): CompilerSession {
   const root = path.resolve(options.root);
   const resolve = (p: string): string => path.resolve(root, p);
   const memory = new Map<string, string>();
@@ -131,13 +170,12 @@ export function compileProject(options: ProjectOptions): CompiledProject {
       .filter((r) => r.definition.entry === true)
       .map((r) => r.definition.name),
   );
-  const parsedFiles: PassageFileSyntax[] = [];
-  const diagnostics: ProjectDiagnostic[] = [];
-
-  const weft = [...memory.keys()].filter((p) => p.endsWith(PASSAGE_EXTENSION)).sort();
-  const tsFiles = [...memory.keys()].filter((p) => /\.(m|c)?tsx?$/.test(p)).sort();
   const scopePath = resolve(options.scope ?? "story.ts");
   const namesPath = resolve("$passages.ts");
+  const isTs = (p: string): boolean => /\.(m|c)?tsx?$/.test(p);
+  const weftFiles = (): string[] =>
+    [...memory.keys()].filter((p) => p.endsWith(PASSAGE_EXTENSION)).sort();
+  const tsFiles = (): string[] => [...memory.keys()].filter(isTs).sort();
 
   const host = ts.createCompilerHost(compilerOptions);
   const virtual = new Map<string, string>();
@@ -154,241 +192,333 @@ export function compileProject(options: ProjectOptions): CompiledProject {
     return directoryExists ? directoryExists(d) : ts.sys.directoryExists(d);
   };
   host.readFile = (p) => read(path.resolve(p)) ?? readFile(p);
+  // Source files are kept while their text is unchanged, so later checks reuse them.
+  const sourceFiles = new Map<string, ts.SourceFile>();
   host.getSourceFile = (p, language, onError, create) => {
     const text = read(path.resolve(p));
-    return text !== undefined
-      ? ts.createSourceFile(p, text, language, true)
-      : getSourceFile(p, language, onError, create);
+    if (text === undefined) return getSourceFile(p, language, onError, create);
+    const known = sourceFiles.get(p);
+    if (known?.text === text) return known;
+    const made = ts.createSourceFile(p, text, language, true);
+    sourceFiles.set(p, made);
+    return made;
   };
 
-  // 1. What the scope module exports.
-  const scopeExists = host.fileExists(scopePath);
-  const scopeExports = new Set<string>();
-  const reserved: { name: string; at: number }[] = [];
   let program: ts.Program | undefined;
-  if (scopeExists) {
-    program = ts.createProgram({
-      rootNames: [...new Set([...tsFiles, scopePath])],
-      options: compilerOptions,
-      host,
-    });
-    const checker = program.getTypeChecker();
-    const file = program.getSourceFile(scopePath);
-    const symbol = file && checker.getSymbolAtLocation(file);
-    for (const s of symbol ? checker.getExportsOfModule(symbol) : []) {
-      scopeExports.add(s.name);
-      if (CONTEXT_NAMES.includes(s.name) || s.name.startsWith("$")) {
-        reserved.push({ name: s.name, at: s.declarations?.[0]?.getStart() ?? 0 });
+  let scopeExists = false;
+  let scopeExports = new Set<string>();
+  /** The scope's exports as one string, so a module knows when it's stale. */
+  let scopeKey = "";
+  let reserved: { name: string; at: number }[] = [];
+  const generated = new Map<string, Generated>();
+  let namesCode = "";
+  let checked: readonly ProjectDiagnostic[] | undefined;
+
+  /** What the scope module exports. */
+  function refreshScope(): void {
+    scopeExists = host.fileExists(scopePath);
+    scopeExports = new Set();
+    reserved = [];
+    if (scopeExists) {
+      program = ts.createProgram({
+        rootNames: [...new Set([...tsFiles(), scopePath])],
+        options: compilerOptions,
+        host,
+        ...(program && { oldProgram: program }),
+      });
+      const checker = program.getTypeChecker();
+      const file = program.getSourceFile(scopePath);
+      const symbol = file && checker.getSymbolAtLocation(file);
+      for (const s of symbol ? checker.getExportsOfModule(symbol) : []) {
+        scopeExports.add(s.name);
+        if (CONTEXT_NAMES.includes(s.name) || s.name.startsWith("$")) {
+          reserved.push({ name: s.name, at: s.declarations?.[0]?.getStart() ?? 0 });
+        }
       }
     }
-  }
-  const scopeLines = locator(host.readFile(scopePath) ?? "");
-  for (const { name, at } of reserved) {
-    diagnostics.push({
-      severity: "error",
-      source: "compiler",
-      file: scopePath,
-      message: name.startsWith("$")
-        ? `The scope module exports \`${name}\`, but names starting with \`$\` are reserved for generated code. Rename the export.`
-        : `The scope module exports \`${name}\`, but passages already have \`${name}\` from their context. Rename the export.`,
-      span: { start: at, end: at + name.length },
-      ...scopeLines.locate(at),
-    });
+    scopeKey = `${String(scopeExists)}:${[...scopeExports].sort().join(",")}`;
   }
 
-  // 2. Parse and generate each passage file.
-  const modules = new Map<string, GeneratedModule>();
-  const names = new Set<string>();
-  const sources = new Map<string, string>();
-  const allPassages: FilePassage[] = [];
-  // Strings in code may name passages, as in goTo("Attic"); those count as reachable.
-  const named = new Set<string>();
-  for (const f of tsFiles) for (const lit of stringLiterals(memory.get(f) ?? "")) named.add(lit);
-  for (const file of weft) {
-    const text = memory.get(file) ?? "";
-    sources.set(file, text);
-    const parsed = parsePassageFile(text, {
-      file,
-      directives: syntax.parserDirectives,
-      lineForms: syntax.parserLineForms,
-    });
-    parsedFiles.push(parsed);
-    for (const d of parsed.diagnostics) diagnostics.push({ source: "parser", file, ...d });
-    for (const p of parsed.passages) {
-      if (p.name.name === "") continue;
-      names.add(p.name.name);
-      allPassages.push({ file, passage: p });
-      for (const c of codeIn(p.content)) for (const lit of stringLiterals(c.code)) named.add(lit);
+  /** Regenerates the passage modules that are stale, and the passage-names module. */
+  function regenerate(): SessionChange {
+    const changed: string[] = [];
+    const files = weftFiles();
+    for (const file of [...generated.keys()]) {
+      if (memory.has(file)) continue;
+      generated.delete(file);
+      virtual.delete(`${file}.ts`);
+      changed.push(file);
     }
-    const modulePath = `${file}.ts`;
-    const generated = generatePassageModule(parsed, text, {
-      modulePath,
-      scopeExports,
-      passageNamesSpecifier: specifier(modulePath, namesPath),
-      extensions,
-      ...(scopeExists && { scopeSpecifier: specifier(modulePath, scopePath) }),
-    });
-    for (const d of generated.diagnostics) diagnostics.push({ source: "compiler", file, ...d });
-    modules.set(file, generated);
-    virtual.set(modulePath, generated.code);
-  }
-  if (options.start !== undefined && !names.has(options.start)) {
-    throw new Error(
-      `start: there's no passage named ${JSON.stringify(options.start)}. Pass the name of the passage the game starts in.`,
-    );
-  }
-  for (const { definition: check, from } of syntax.checks) {
-    let found;
-    try {
-      found = check.run({ files: parsedFiles });
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      throw new Error(`The check "${check.name}" from ${from} failed: ${reason}`, { cause: error });
+    for (const file of files) {
+      const text = memory.get(file) ?? "";
+      const known = generated.get(file);
+      if (known?.text === text && known.scopeKey === scopeKey) continue;
+      const parsed = parsePassageFile(text, {
+        file,
+        directives: syntax.parserDirectives,
+        lineForms: syntax.parserLineForms,
+      });
+      const modulePath = `${file}.ts`;
+      const module = generatePassageModule(parsed, text, {
+        modulePath,
+        scopeExports,
+        passageNamesSpecifier: specifier(modulePath, namesPath),
+        extensions,
+        ...(scopeExists && { scopeSpecifier: specifier(modulePath, scopePath) }),
+      });
+      generated.set(file, { text, scopeKey, parsed, module });
+      if (known?.module.code !== module.code) {
+        virtual.set(modulePath, module.code);
+        changed.push(file);
+      }
     }
-    for (const d of found) {
+    const names = new Set<string>();
+    for (const { parsed } of generated.values()) {
+      for (const p of parsed.passages) if (p.name.name !== "") names.add(p.name.name);
+    }
+    const code = [
+      "// Generated by @loominate-if/compiler. Do not edit.",
+      "/** The name of every passage in the game. */",
+      `export type PassageName = ${
+        names.size > 0
+          ? [...names]
+              .sort()
+              .map((n) => JSON.stringify(n))
+              .join(" | ")
+          : "never"
+      };`,
+      "",
+    ].join("\n");
+    const namesChanged = code !== namesCode;
+    namesCode = code;
+    virtual.set(namesPath, namesCode);
+    checked = undefined;
+    return { modules: changed.sort(), passageNames: namesChanged };
+  }
+
+  function check(): ProjectDiagnostic[] {
+    const diagnostics: ProjectDiagnostic[] = [];
+    const scopeLines = locator(host.readFile(scopePath) ?? "");
+    for (const { name, at } of reserved) {
       diagnostics.push({
-        severity: d.severity,
-        source: "extension",
-        check: `${from}: ${check.name}`,
-        file: d.file,
-        message: d.message,
-        span: d.span,
-        ...locator(sources.get(d.file) ?? "").locate(d.span.start),
+        severity: "error",
+        source: "compiler",
+        file: scopePath,
+        message: name.startsWith("$")
+          ? `The scope module exports \`${name}\`, but names starting with \`$\` are reserved for generated code. Rename the export.`
+          : `The scope module exports \`${name}\`, but passages already have \`${name}\` from their context. Rename the export.`,
+        span: { start: at, end: at + name.length },
+        ...scopeLines.locate(at),
       });
     }
-  }
-  for (const problem of checkLinks(allPassages, named, options.start, entryRoles)) {
-    const at = problem.at.span.start;
-    diagnostics.push({
-      severity: problem.severity,
-      source: "compiler",
-      file: problem.file,
-      message: problem.message,
-      span: problem.at.span,
-      ...locator(sources.get(problem.file) ?? "").locate(at),
-    });
-  }
 
-  const namesCode = [
-    "// Generated by @loominate-if/compiler. Do not edit.",
-    "/** The name of every passage in the game. */",
-    `export type PassageName = ${
-      names.size > 0
-        ? [...names]
-            .sort()
-            .map((n) => JSON.stringify(n))
-            .join(" | ")
-        : "never"
-    };`,
-    "",
-  ].join("\n");
-  virtual.set(namesPath, namesCode);
-
-  // 3. Type-check everything as one program.
-  program = ts.createProgram({
-    rootNames: [...new Set([...tsFiles, ...(scopeExists ? [scopePath] : []), ...virtual.keys()])],
-    options: compilerOptions,
-    host,
-    ...(program && { oldProgram: program }),
-  });
-  const byModule = new Map([...modules.values()].map((m) => [m.path, m]));
-  const userFiles = [...new Set([...tsFiles, ...(scopeExists ? [scopePath] : [])])];
-  const display = (file: string): string => path.relative(root, file).split(path.sep).join("/");
-
-  // What other modules export, to explain names passages can't see.
-  const checker = program.getTypeChecker();
-  const exportedBy = new Map<string, string>();
-  for (const file of tsFiles) {
-    if (file === scopePath) continue;
-    const source = program.getSourceFile(file);
-    const symbol = source && checker.getSymbolAtLocation(source);
-    for (const s of symbol ? checker.getExportsOfModule(symbol) : []) {
-      if (!exportedBy.has(s.name)) exportedBy.set(s.name, file);
+    const names = new Set<string>();
+    const sources = new Map<string, string>();
+    const allPassages: FilePassage[] = [];
+    const parsedFiles: PassageFileSyntax[] = [];
+    const modules = new Map<string, GeneratedModule>();
+    // Strings in code may name passages, as in goTo("Attic"); those count as reachable.
+    const named = new Set<string>();
+    for (const f of tsFiles())
+      for (const lit of stringLiterals(memory.get(f) ?? "")) named.add(lit);
+    for (const [file, { text, parsed, module }] of [...generated].sort(([a], [b]) =>
+      a.localeCompare(b),
+    )) {
+      sources.set(file, text);
+      parsedFiles.push(parsed);
+      modules.set(file, module);
+      for (const d of parsed.diagnostics) diagnostics.push({ source: "parser", file, ...d });
+      for (const p of parsed.passages) {
+        if (p.name.name === "") continue;
+        names.add(p.name.name);
+        allPassages.push({ file, passage: p });
+        for (const c of codeIn(p.content)) for (const lit of stringLiterals(c.code)) named.add(lit);
+      }
+      for (const d of module.diagnostics) diagnostics.push({ source: "compiler", file, ...d });
     }
-  }
-  const usable = [...scopeExports, ...CONTEXT_NAMES];
-  const nameHelp = (name: string): NameHelp => {
-    const other = scopeExports.has(name) ? undefined : exportedBy.get(name);
-    const suggestion = closestName(name, usable);
-    return {
-      scope: scopeExists ? display(scopePath) : undefined,
-      ...(other !== undefined && {
-        exportedBy: { path: display(other), specifier: specifier(scopePath, other) },
-      }),
-      ...(suggestion !== undefined && { suggestion }),
+    if (options.start !== undefined && !names.has(options.start)) {
+      throw new Error(
+        `start: there's no passage named ${JSON.stringify(options.start)}. Pass the name of the passage the game starts in.`,
+      );
+    }
+    for (const { definition: c, from } of syntax.checks) {
+      let found;
+      try {
+        found = c.run({ files: parsedFiles });
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        throw new Error(`The check "${c.name}" from ${from} failed: ${reason}`, { cause: error });
+      }
+      for (const d of found) {
+        diagnostics.push({
+          severity: d.severity,
+          source: "extension",
+          check: `${from}: ${c.name}`,
+          file: d.file,
+          message: d.message,
+          span: d.span,
+          ...locator(sources.get(d.file) ?? "").locate(d.span.start),
+        });
+      }
+    }
+    for (const problem of checkLinks(allPassages, named, options.start, entryRoles)) {
+      const at = problem.at.span.start;
+      diagnostics.push({
+        severity: problem.severity,
+        source: "compiler",
+        file: problem.file,
+        message: problem.message,
+        span: problem.at.span,
+        ...locator(sources.get(problem.file) ?? "").locate(at),
+      });
+    }
+
+    // Type-check everything as one program, reusing the last check's work.
+    const files = tsFiles();
+    program = ts.createProgram({
+      rootNames: [...new Set([...files, ...(scopeExists ? [scopePath] : []), ...virtual.keys()])],
+      options: compilerOptions,
+      host,
+      ...(program && { oldProgram: program }),
+    });
+    const byModule = new Map([...modules.values()].map((m) => [m.path, m]));
+    const userFiles = [...new Set([...files, ...(scopeExists ? [scopePath] : [])])];
+    const display = (file: string): string => path.relative(root, file).split(path.sep).join("/");
+
+    // What other modules export, to explain names passages can't see.
+    const checker = program.getTypeChecker();
+    const exportedBy = new Map<string, string>();
+    for (const file of files) {
+      if (file === scopePath) continue;
+      const source = program.getSourceFile(file);
+      const symbol = source && checker.getSymbolAtLocation(source);
+      for (const s of symbol ? checker.getExportsOfModule(symbol) : []) {
+        if (!exportedBy.has(s.name)) exportedBy.set(s.name, file);
+      }
+    }
+    const usable = [...scopeExports, ...CONTEXT_NAMES];
+    const nameHelp = (name: string): NameHelp => {
+      const other = scopeExports.has(name) ? undefined : exportedBy.get(name);
+      const suggestion = closestName(name, usable);
+      return {
+        scope: scopeExists ? display(scopePath) : undefined,
+        ...(other !== undefined && {
+          exportedBy: { path: display(other), specifier: specifier(scopePath, other) },
+        }),
+        ...(suggestion !== undefined && { suggestion }),
+      };
     };
-  };
 
-  /** What a message rewrite can know about an error in a generated module. */
-  const passageContext = (code: string, start: number, length = 0): MessageContext => ({
-    printed: code.slice(0, start).endsWith("$print("),
-    code: code.slice(start, start + length),
-    assigned: /^\s*=(?!=)/.test(code.slice(start + length)),
-    passages: names,
-    scope: scopeExists ? display(scopePath) : "story.ts",
-  });
+    /** What a message rewrite can know about an error in a generated module. */
+    const passageContext = (code: string, start: number, length = 0): MessageContext => ({
+      printed: code.slice(0, start).endsWith("$print("),
+      code: code.slice(start, start + length),
+      assigned: /^\s*=(?!=)/.test(code.slice(start + length)),
+      passages: names,
+      scope: scopeExists ? display(scopePath) : "story.ts",
+    });
 
-  for (const d of ts.getPreEmitDiagnostics(program)) {
-    if (!d.file || d.start === undefined) continue;
-    const fileName = path.resolve(d.file.fileName);
-    const generated = byModule.get(fileName);
-    const text = ts.flattenDiagnosticMessageText(d.messageText, "\n");
-    const missing = generated ? missingName(text) : undefined;
-    const message =
-      missing !== undefined
-        ? undefinedNameMessage(missing, nameHelp(missing))
-        : authorMessage(text, generated ? passageContext(generated.code, d.start, d.length) : {});
-    if (generated) {
-      const at = toSource(generated.mappings, d.start) ?? 0;
-      const end = toSource(generated.mappings, d.start + (d.length ?? 0)) ?? at;
-      const lines = locator(sources.get(generated.file) ?? "");
+    for (const d of ts.getPreEmitDiagnostics(program)) {
+      if (!d.file || d.start === undefined) continue;
+      const fileName = path.resolve(d.file.fileName);
+      const generated = byModule.get(fileName);
+      const text = ts.flattenDiagnosticMessageText(d.messageText, "\n");
+      const missing = generated ? missingName(text) : undefined;
+      const message =
+        missing !== undefined
+          ? undefinedNameMessage(missing, nameHelp(missing))
+          : authorMessage(text, generated ? passageContext(generated.code, d.start, d.length) : {});
+      if (generated) {
+        const at = toSource(generated.mappings, d.start) ?? 0;
+        const end = toSource(generated.mappings, d.start + (d.length ?? 0)) ?? at;
+        const lines = locator(sources.get(generated.file) ?? "");
+        diagnostics.push({
+          severity: "error",
+          source: "typescript",
+          file: generated.file,
+          message,
+          span: { start: at, end: Math.max(end, at) },
+          ...lines.locate(at),
+          code: d.code,
+        });
+      } else if (memory.has(fileName)) {
+        const { line, character } = d.file.getLineAndCharacterOfPosition(d.start);
+        diagnostics.push({
+          severity: "error",
+          source: "typescript",
+          file: fileName,
+          message,
+          span: { start: d.start, end: d.start + (d.length ?? 0) },
+          line: line + 1,
+          column: character + 1,
+          code: d.code,
+        });
+      }
+    }
+
+    // 4. Object IDs must be unique and not reserved.
+    const sites = findObjectDefinitions(program, userFiles);
+    const lines = new Map<string, ReturnType<typeof locator>>();
+    const lineOf = (file: string): ReturnType<typeof locator> => {
+      let l = lines.get(file);
+      if (!l) lines.set(file, (l = locator(host.readFile(file) ?? "")));
+      return l;
+    };
+    const where = (file: string, at: number): string => {
+      const { line, column } = lineOf(file).locate(at);
+      return `${display(file)}:${String(line)}:${String(column)}`;
+    };
+    for (const { site, message } of checkObjectIds(sites, (s) => where(s.file, s.start))) {
       diagnostics.push({
         severity: "error",
-        source: "typescript",
-        file: generated.file,
+        source: "compiler",
+        file: site.file,
         message,
-        span: { start: at, end: Math.max(end, at) },
-        ...lines.locate(at),
-        code: d.code,
-      });
-    } else if (memory.has(fileName)) {
-      const { line, character } = d.file.getLineAndCharacterOfPosition(d.start);
-      diagnostics.push({
-        severity: "error",
-        source: "typescript",
-        file: fileName,
-        message,
-        span: { start: d.start, end: d.start + (d.length ?? 0) },
-        line: line + 1,
-        column: character + 1,
-        code: d.code,
+        span: { start: site.start, end: site.end },
+        ...lineOf(site.file).locate(site.start),
       });
     }
+
+    diagnostics.sort((a, b) => a.file.localeCompare(b.file) || a.span.start - b.span.start);
+    return diagnostics;
   }
 
-  // 4. Object IDs must be unique and not reserved.
-  const sites = findObjectDefinitions(program, userFiles);
-  const lines = new Map<string, ReturnType<typeof locator>>();
-  const lineOf = (file: string): ReturnType<typeof locator> => {
-    let l = lines.get(file);
-    if (!l) lines.set(file, (l = locator(host.readFile(file) ?? "")));
-    return l;
-  };
-  const where = (file: string, at: number): string => {
-    const { line, column } = lineOf(file).locate(at);
-    return `${display(file)}:${String(line)}:${String(column)}`;
-  };
-  for (const { site, message } of checkObjectIds(sites, (s) => where(s.file, s.start))) {
-    diagnostics.push({
-      severity: "error",
-      source: "compiler",
-      file: site.file,
-      message,
-      span: { start: site.start, end: site.end },
-      ...lineOf(site.file).locate(site.start),
-    });
-  }
+  refreshScope();
+  regenerate();
 
-  diagnostics.sort((a, b) => a.file.localeCompare(b.file) || a.span.start - b.span.start);
-  return { modules, passageNames: { path: namesPath, code: namesCode }, diagnostics };
+  return {
+    update(file, text) {
+      const at = resolve(file);
+      if (text === undefined) memory.delete(at);
+      else memory.set(at, text);
+      // A TypeScript file can change what the scope module exports.
+      if (isTs(at)) refreshScope();
+      return regenerate();
+    },
+    module: (file) => generated.get(resolve(file))?.module,
+    modules: () =>
+      new Map(
+        [...generated].sort(([a], [b]) => a.localeCompare(b)).map(([file, g]) => [file, g.module]),
+      ),
+    passageNames: () => ({ path: namesPath, code: namesCode }),
+    diagnostics() {
+      checked ??= check();
+      return checked;
+    },
+  };
+}
+
+/**
+ * Parses, generates, and type-checks a game's sources once.
+ *
+ * @remarks
+ * Each passage file `scenes/cellar.weft` becomes a virtual module
+ * `scenes/cellar.weft.ts` exporting `passages`. Errors in inline code are
+ * reported at the passage file's lines. A dev server keeps a
+ * {@link createCompilerSession} instead, so edits recompile incrementally.
+ */
+export function compileProject(options: ProjectOptions): CompiledProject {
+  const session = createCompilerSession(options);
+  const diagnostics = session.diagnostics();
+  return { modules: session.modules(), passageNames: session.passageNames(), diagnostics };
 }

@@ -148,3 +148,4 @@ vite.config.ts.timestamp-*
 # Turbo Repo
 .turbo
 packages/compiler/src/modules/__run-*/
+packages/cli/src/vite/__run-*/
