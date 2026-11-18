@@ -1,7 +1,6 @@
 /**
- * Which directive names the parser recognizes. A precursor to the full
- * extension API (#187), which adds argument declarations, role scoping, and
- * diagnostics on top of this.
+ * What the parser needs to know about directives and line forms. The
+ * extension API (#187, ADR 0015) builds these from each package's definitions.
  */
 
 /** How a directive is written, as far as the parser needs to know. */
@@ -13,19 +12,19 @@ export type DirectiveSpec = {
    * `{on enter: …}`. Otherwise it takes arguments, `{beat 1.5s}`.
    */
   readonly code?: boolean;
+  /** True if the directive guards the link right before it, like `{when …}`. */
+  readonly guard?: boolean;
+  /** How it's written, for error messages, such as `[[Go down -> Cellar]]{when lantern.isLit}`. */
+  readonly example?: string;
 };
 
-/** The directives core passage syntax provides (ADR 0004). */
-export const coreDirectives: readonly DirectiveSpec[] = [
-  { name: "on first visit", code: true },
-  { name: "on enter", code: true },
-  { name: "on leave", code: true },
-  { name: "beat" },
-  { name: "wait" },
-  { name: "continue" },
-  { name: "when" },
-  { name: "line" },
-];
+/** How a line form is written, as far as the parser needs to know. */
+export type LineFormSpec = {
+  /** The form's name, for the syntax tree. */
+  readonly name: string;
+  /** The character a line starts with, after indentation, such as `@`. */
+  readonly prefix: string;
+};
 
 /** Names that belong to the grammar itself and can't be registered. */
 const GRAMMAR = new Set(["if", "else", "else if"]);

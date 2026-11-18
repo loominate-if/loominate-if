@@ -17,7 +17,7 @@ export type Span = {
 /** A problem found in a passage file, positioned for the author. */
 export type Diagnostic = {
   /** How serious the problem is. The parser reports only errors. */
-  readonly severity: "error";
+  readonly severity: "error" | "warning";
   /** What went wrong and how to fix it, written for the author. */
   readonly message: string;
   /** Where the problem is. */
@@ -159,9 +159,31 @@ export type BreakSyntax = {
   readonly span: Span;
 };
 
+/** A line in a package's line form, such as `@mira (nervous) "Hello."`. */
+export type LineFormSyntax = {
+  readonly type: "lineForm";
+  /** The form's name. */
+  readonly name: string;
+  /** The character the line starts with. */
+  readonly prefix: string;
+  /** The rest of the line, after the prefix, trimmed. Its package's pattern reads it. */
+  readonly text: string;
+  /** Where `text` is. */
+  readonly textSpan: Span;
+  /** The whole line, from the prefix. */
+  readonly span: Span;
+};
+
 /** Anything that can appear in a passage body. */
 export type ContentSyntax =
-  TextSyntax | PrintSyntax | EmphasisSyntax | DirectiveSyntax | IfSyntax | LinkSyntax | BreakSyntax;
+  | TextSyntax
+  | PrintSyntax
+  | EmphasisSyntax
+  | DirectiveSyntax
+  | IfSyntax
+  | LinkSyntax
+  | BreakSyntax
+  | LineFormSyntax;
 
 /** A tag in a passage header: `scene`, or a role such as `room: platform`. */
 export type TagSyntax = {

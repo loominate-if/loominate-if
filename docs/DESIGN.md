@@ -118,6 +118,8 @@ Each passage file (`.weft`) compiles to a virtual TypeScript module, the techniq
 
 - links to passages that don't exist, and unreachable passages
 - references to undefined objects, topics, or facts
+
+Optional packages add their syntax through compiler extensions: directives with declared arguments, limited to tag roles if they like, tag roles, line forms such as `@speaker` lines, and checks over the whole game. A package's directive compiles to a call of a function the package exports, so TypeScript checks it, and core's own directives are registered the same way. Syntax from a package the game doesn't load is reported with the package to install. [ADR 0015](decisions/0015-compiler-extensions.md) defines the API.
 - passages tagged as rooms that aren't connected to one
 - type errors inside inline code
 
@@ -548,7 +550,7 @@ The library is built from the same mechanisms authors use, so any library behavi
 - **Hooks.** Typed lifecycle hooks (game start, passage enter/leave, action stages, turn end, clock advance, save/load) for cross-cutting behavior.
 - **Registries.** Directions, effects, widgets, layouts, and library classes are registered by name, so an extension can substitute its own implementation.
 - **Library messages.** Every built-in message routes through an overridable message table, enabling both theming ("You can't go that way" in a pirate voice) and localization.
-- **Packages.** Extensions are npm packages that register rules, classes, widgets, and effects. Load order is explicit, and conflicting registrations produce a compile-time warning.
+- **Packages.** Extensions are npm packages that register rules, classes, widgets, and effects. Load order is explicit, and conflicting registrations are a compile-time error, so meaning never depends on load order ([ADR 0004](decisions/0004-passage-syntax.md), [ADR 0015](decisions/0015-compiler-extensions.md)).
 - **Public API.** The public surface is documented and semantically versioned. Internal modules are marked and may change without notice.
 
 Rulebooks, hooks, and registries are module-level handles, defined once and added to as modules load. A rulebook either decides (the first rule to return a value wins) or folds (each rule transforms a value, and one can stop the rest); `explain()` shows what each rule did and which package added it. [ADR 0012](decisions/0012-rulebooks-hooks-registries.md) settles order, hooks, and registries.

@@ -1,8 +1,8 @@
 /**
  * Stable line IDs for prose and link labels (#34, ADR 0007).
  *
- * A line is a source paragraph: the content between blank lines, links, and
- * `{continue}`. Its ID is `<passage>:<hash>`, where the hash covers the
+ * A line is a source paragraph: the content between blank lines, links,
+ * line forms, and content directives such as `{continue}`. Its ID is `<passage>:<hash>`, where the hash covers the
  * paragraph's own text and code, so editing other paragraphs never changes it.
  * Text that repeats within a passage gets `-2`, `-3`, … in source order.
  * `{line name}` above a paragraph or link pins its ID to `<passage>:<name>`,
@@ -65,7 +65,11 @@ export function lineHash(text: string): string {
 const squash = (text: string): string => text.replace(/\s+/g, " ").trim();
 
 /** Assigns line IDs to a passage's paragraphs and links. */
-export function passageLines(passage: PassageSyntax, source: string): PassageLines {
+export function passageLines(
+  passage: PassageSyntax,
+  source: string,
+  ends: ReadonlySet<string> = new Set(["continue"]),
+): PassageLines {
   const problems: LineIdProblem[] = [];
   const segments: Segment[] = [];
   const open = (start: number): Segment => {
@@ -116,9 +120,13 @@ export function passageLines(passage: PassageSyntax, source: string): PassageLin
             current.prose.push(n.span.start);
           }
           break;
+        case "lineForm":
+          current = open(n.span.end);
+          break;
         case "directive":
           if (n.name === LINE_DIRECTIVE) current.pins.push(n);
-          else if (n.name === "continue") current = open(n.span.end);
+          // Content directives such as `{continue}` stand between paragraphs.
+          else if (ends.has(n.name)) current = open(n.span.end);
           // Effect code isn't part of the prose, so editing it keeps the paragraph's ID.
           else if (!n.code) current.text += squash(source.slice(n.span.start, n.span.end));
           break;

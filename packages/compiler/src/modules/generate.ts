@@ -6,6 +6,13 @@
  * copied verbatim and recorded in {@link Mapping}s, so TypeScript errors and
  * runtime stack traces lead back to the author's lines.
  */
+import { bindArguments, type BoundArgument } from "../extensions/arguments.js";
+import type {
+  CompilerExtension,
+  DirectiveDefinition,
+  RuntimeExport,
+} from "../extensions/extension.js";
+import { resolveExtensions, type From } from "../extensions/resolve.js";
 import { identifiers } from "../passages/code-scan.js";
 import { locator } from "../passages/positions.js";
 import type {
@@ -13,23 +20,18 @@ import type {
   ContentSyntax,
   Diagnostic,
   DirectiveSyntax,
+  LineFormSyntax,
   LinkSyntax,
   PassageFileSyntax,
   PassageSyntax,
 } from "../passages/syntax.js";
 import { standaloneLinks } from "./links.js";
-import { LINE_DIRECTIVE, passageLines, type PassageLines } from "./line-ids.js";
+import { passageLines, type PassageLines } from "./line-ids.js";
 import { renderWriteMessage, renderWrites } from "./render-writes.js";
 import { encodeSourceMap, type Mapping, type SourceMap } from "./source-map.js";
 
 /** Names inline code gets from the passage's context, with no import. */
 export const CONTEXT_NAMES: readonly string[] = ["visits", "firstVisit", "visited"];
-
-const PHASES: Record<string, "firstVisit" | "enter" | "leave"> = {
-  "on first visit": "firstVisit",
-  "on enter": "enter",
-  "on leave": "leave",
-};
 
 /** What the generator needs to know about the rest of the project. */
 export type GenerateOptions = {
@@ -41,7 +43,26 @@ export type GenerateOptions = {
   readonly scopeSpecifier?: string;
   /** Import specifier for the generated passage-names module. */
   readonly passageNamesSpecifier: string;
+  /**
+   * Packages' compiler extensions, in load order. Core's is always loaded
+   * first. Give the same list the file was parsed with.
+   */
+  readonly extensions?: readonly CompilerExtension[];
 };
+
+/** A directive matched to its definition, with its arguments read. */
+type Bound = {
+  readonly from: string;
+  readonly definition: DirectiveDefinition;
+  readonly args: readonly BoundArgument[];
+  /** False if an argument was wrong, so no call is generated. */
+  readonly ok: boolean;
+};
+
+const listOf = (items: readonly string[]): string =>
+  items.length <= 1
+    ? (items[0] ?? "")
+    : `${items.slice(0, -1).join(", ")} or ${items.at(-1) ?? ""}`;
 
 /** A passage file's generated module. */
 export type GeneratedModule = {
@@ -65,6 +86,7 @@ export function generatePassageModule(
   source: string,
   options: GenerateOptions,
 ): GeneratedModule {
+  const syntax = resolveExtensions(options.extensions ?? []);
   const lines = locator(source);
   const diagnostics: Diagnostic[] = [];
   const mappings: Mapping[] = [];
@@ -84,6 +106,107 @@ export function generatePassageModule(
     out += code.code;
   };
   const str = (text: string): string => JSON.stringify(text);
+
+  // ---- Directives and their definitions ----------------------------------
+
+  /** The tag roles of the passage being generated. */
+  let roles: ReadonlySet<string> = new Set();
+  const bindings = new Map<DirectiveSyntax, Bound | undefined>();
+
+  /** Matches a directive to its definition and reads its arguments, reporting problems once. */
+  function bind(d: DirectiveSyntax): Bound | undefined {
+    if (bindings.has(d)) return bindings.get(d);
+    const found: From<DirectiveDefinition> | { readonly error: string } = syntax.directive(
+      d.name,
+      roles,
+    );
+    let bound: Bound | undefined;
+    if ("error" in found) {
+      error(found.error, d.span.start, d.span.end);
+    } else if (found.definition.kind === "effect") {
+      bound = { from: found.from, definition: found.definition, args: [], ok: true };
+    } else {
+      const def = found.definition;
+      const { args, problems } = bindArguments(d, def.args ?? [], def.example);
+      for (const p of problems) error(p.message, p.span.start, p.span.end);
+      bound = { from: found.from, definition: def, args, ok: problems.length === 0 };
+    }
+    bindings.set(d, bound);
+    return bound;
+  }
+
+  /** The phase an effect directive runs in, or undefined for other directives. */
+  const phaseOf = (d: DirectiveSyntax): "firstVisit" | "enter" | "leave" | undefined => {
+    if (d.code === undefined) return undefined;
+    const def = bind(d)?.definition;
+    return def?.kind === "effect" ? def.phase : undefined;
+  };
+
+  /** Code in a directive's arguments: its expressions and conditions. */
+  const argumentCode = (d: DirectiveSyntax, kinds = ["expression", "condition"]): CodeSyntax[] =>
+    (bind(d)?.args ?? []).flatMap((a) =>
+      (a.kind === "expression" || a.kind === "condition") && kinds.includes(a.kind) ? [a.code] : [],
+    );
+
+  /** Runtime exports generated code calls, by module and export, with their local names. */
+  const runtimes = new Map<string, { readonly runtime: RuntimeExport; readonly local: string }>();
+  const localNames = new Set<string>();
+  function runtimeName(runtime: RuntimeExport): string {
+    const key = `${runtime.module}\u0000${runtime.export}`;
+    const known = runtimes.get(key);
+    if (known) return known.local;
+    let local = `$rt_${runtime.export.replace(/[^\w$]/g, "_")}`;
+    for (let n = 2; localNames.has(local); n++) local = `$rt_${runtime.export}${String(n)}`;
+    localNames.add(local);
+    runtimes.set(key, { runtime, local });
+    return local;
+  }
+
+  /** Writes a call of `runtime` with the arguments as one object. */
+  function call(runtime: RuntimeExport, args: readonly BoundArgument[]): void {
+    write(`${runtimeName(runtime)}({`);
+    for (const [i, a] of args.entries()) {
+      write(`${i === 0 ? " " : ", "}${a.spec.name}: `);
+      switch (a.kind) {
+        case "expression":
+          copy(a.code);
+          break;
+        case "condition":
+          write("{ value: Boolean(");
+          copy(a.code);
+          write(`), text: ${str(a.code.code)} }`);
+          break;
+        case "duration":
+          write(String(a.ms));
+          break;
+        case "passage":
+          mark(a.target.span.start);
+          write(str(a.target.name));
+          break;
+        case "words":
+          write(`[${a.words.map(str).join(", ")}]`);
+          break;
+        case "choice":
+          write(str(a.word));
+          break;
+      }
+    }
+    write(args.length > 0 ? " })" : "})");
+  }
+
+  /**
+   * A printed expression that starts with the name of a directive from a
+   * package this game doesn't load: say which package, not just that the name is undefined.
+   */
+  function missingDirective(code: string): string | undefined {
+    const word = /^([a-z][a-z0-9-]*)(?=$|[\s,:])/.exec(code)?.[1];
+    if (word === undefined || options.scopeExports.has(word) || CONTEXT_NAMES.includes(word)) {
+      return undefined;
+    }
+    const packages = syntax.missing("directive", word);
+    if (packages.length === 0) return undefined;
+    return `\`{${word}}\` comes from ${listOf(packages)}, which this game doesn't load. Install it and add it to the game's extensions.`;
+  }
 
   // ---- Which names each function needs -----------------------------------
 
@@ -106,9 +229,9 @@ export function generatePassageModule(
         }
       } else if (n.type === "link") {
         bodyCode(n.label, acc);
-        for (const a of n.guard?.args ?? []) if (a.type !== "target") acc.push(a.value);
-      } else if (n.type === "directive" && !(n.name in PHASES) && n.name !== LINE_DIRECTIVE) {
-        for (const a of n.args) if (a.type !== "target") acc.push(a.value);
+        if (n.guard) acc.push(...argumentCode(n.guard));
+      } else if (n.type === "directive" && n.code === undefined) {
+        acc.push(...argumentCode(n));
       }
     }
     return acc;
@@ -128,9 +251,8 @@ export function generatePassageModule(
           if (b.condition) acc.add(b.condition);
           conditions(b.content, acc);
         }
-      } else if (n.type === "link") {
-        const first = n.guard?.args[0];
-        if (first?.type === "positional") acc.add(first.value);
+      } else if (n.type === "link" && n.guard) {
+        for (const c of argumentCode(n.guard, ["condition"])) acc.add(c);
       }
     }
     return acc;
@@ -155,8 +277,9 @@ export function generatePassageModule(
       if (n.type === "directive") {
         const word = n.name.split(" ")[0] ?? "";
         if (options.scopeExports.has(word)) {
+          const from = [...new Set((syntax.directives.get(n.name) ?? []).map((d) => d.from))];
           error(
-            `\`${word}\` is a directive and also exported by the scope module. Write \`{(${word})}\` to print the export, or rename it.`,
+            `\`${word}\` is a directive from ${listOf(from)} and also exported by the scope module. Write \`{(${word})}\` to print the export, or rename it.`,
             n.span.start,
             n.span.end,
           );
@@ -194,11 +317,17 @@ export function generatePassageModule(
           mark(n.span.start);
           write(`${indent}${parts}.push(${str(n.text)});\n`);
           break;
-        case "print":
+        case "print": {
+          const missing = missingDirective(n.expression.code);
+          if (missing !== undefined) {
+            error(missing, n.span.start, n.span.end);
+            break;
+          }
           write(`${indent}${parts}.push($print(`);
           copy(n.expression);
           write("));\n");
           break;
+        }
         case "emphasis": {
           const inner = `$parts${String(indent.length)}`;
           mark(n.span.start);
@@ -241,8 +370,36 @@ export function generatePassageModule(
         case "directive":
           directive(n);
           break;
+        case "lineForm":
+          lineForm(n);
+          break;
       }
     }
+  }
+
+  function lineForm(n: LineFormSyntax): void {
+    const form = syntax.lineForms.get(n.prefix);
+    if (!form) return;
+    const def = form.definition;
+    const match = def.pattern.exec(n.text);
+    if (!match || match.index !== 0 || match[0].length !== n.text.length) {
+      const like = def.example === undefined ? "" : ` Write it like \`${def.example}\`.`;
+      error(
+        `This line starts with \`${n.prefix}\`, so it's a ${def.name} line (from ${form.from}), but the rest doesn't fit that form.${like} Write \`\\${n.prefix}\` for a literal \`${n.prefix}\`.`,
+        n.span.start,
+        n.span.end,
+      );
+      return;
+    }
+    const groups = Object.entries(match.groups ?? {}).filter(
+      (g): g is [string, string] => g[1] !== undefined,
+    );
+    mark(n.span.start);
+    write(`${indent}$flush($nodes, $parts, $line);\n`);
+    write(`${indent}$nodes.push(...[${runtimeName(def.runtime)}({`);
+    write(groups.map(([k, v]) => ` ${JSON.stringify(k)}: ${str(v)}`).join(","));
+    write(groups.length > 0 ? " })].flat());\n" : "})].flat());\n");
+    lineChange("$parts", n.span.end);
   }
 
   function link(n: LinkSyntax, parts: string): void {
@@ -287,103 +444,57 @@ export function generatePassageModule(
   }
 
   function guard(d: DirectiveSyntax): void {
-    let condition: CodeSyntax | undefined;
-    let mode: string | undefined;
-    let reason: CodeSyntax | undefined;
-    for (const a of d.args) {
-      if (a.type === "positional" && condition === undefined) condition = a.value;
-      else if (
-        a.type === "positional" &&
-        (a.value.code === "hidden" || a.value.code === "disabled")
-      ) {
-        mode = a.value.code;
-      } else if (a.type === "named" && a.key.name === "reason") reason = a.value;
-      else {
-        error(
-          '`{when}` takes a condition, then optionally `hidden`, `disabled`, or `reason: "…"`.',
-          a.span.start,
-          a.span.end,
-        );
-      }
-    }
-    if (!condition) {
-      error("`{when}` needs a condition, like `{when lantern.isLit}`.", d.span.start, d.span.end);
-      return;
-    }
-    if (reason && mode !== undefined) {
+    const b = bind(d);
+    if (!b?.ok) return;
+    const def = b.definition;
+    if (def.kind !== "guard") return;
+    if (!def.runtime) {
       error(
-        `\`reason:\` already shows the link disabled with its reason, so \`${mode}\` can't go with it.`,
+        `\`{${d.name}}\` isn't supported yet; ${def.unsupported ?? ""}.`,
         d.span.start,
         d.span.end,
       );
+      return;
     }
     mark(d.span.start);
-    write(", guard: { open: Boolean(");
-    copy(condition);
-    write(`), condition: ${str(condition.code)}`);
-    if (reason) {
-      write(', mode: "disabled-with-reason", reason: ');
-      copy(reason);
-    } else if (mode !== undefined) {
-      write(`, mode: ${str(mode)}`);
-    }
-    write(" }");
+    write(", guard: ");
+    call(def.runtime, b.args);
   }
 
   function directive(d: DirectiveSyntax): void {
-    if (d.name in PHASES) {
-      error(
-        `\`{${d.name}: …}\` runs when the passage is visited, not when it's shown, so it goes at the top level of the passage, not inside a block.`,
-        d.span.start,
-        d.span.end,
-      );
-      return;
-    }
-    if (d.name === "continue") {
-      const target = d.args.find((a) => a.type === "target");
-      const label = d.args.find((a) => a.type === "named" && a.key.name === "label");
-      const other = d.args.find((a) => a !== target && a !== label);
-      if (!target || target.type !== "target") {
+    const b = bind(d);
+    if (!b) return;
+    const def = b.definition;
+    switch (def.kind) {
+      case "effect":
         error(
-          "`{continue}` needs a passage, like `{continue -> Platform}`.",
+          `\`{${d.name}: …}\` runs when the passage is visited, not when it's shown, so it goes at the top level of the passage, not inside a block.`,
           d.span.start,
           d.span.end,
         );
         return;
-      }
-      if (other) {
-        error(
-          '`{continue}` takes `-> Passage` and optionally `label: "…"`.',
-          other.span.start,
-          other.span.end,
-        );
-      }
-      mark(d.span.start);
-      write(`${indent}$flush($nodes, $parts, $line);\n`);
-      write(`${indent}$nodes.push({ type: "continue", target: ${str(target.target.name)}`);
-      if (label?.type === "named") {
-        write(", label: ");
-        copy(label.value);
-      }
-      write(" });\n");
-      lineChange("$parts", d.span.end);
-      return;
+      // An annotation generates no code, and a guard away from a link was reported by the parser.
+      case "annotation":
+      case "guard":
+        return;
+      case "content":
+        if (!def.runtime) {
+          error(
+            `\`{${d.name}}\` isn't supported yet; ${def.unsupported ?? ""}.`,
+            d.span.start,
+            d.span.end,
+          );
+          return;
+        }
+        if (!b.ok) return;
+        mark(d.span.start);
+        write(`${indent}$flush($nodes, $parts, $line);\n`);
+        write(`${indent}$nodes.push(...[`);
+        call(def.runtime, b.args);
+        write("].flat());\n");
+        lineChange("$parts", d.span.end);
+        return;
     }
-    // `{line}` only names the line below it; passageLines checks it.
-    if (d.name === LINE_DIRECTIVE) return;
-    if (d.name === "beat" || d.name === "wait") {
-      error(
-        `\`{${d.name}}\` isn't supported yet; it arrives with beats and cut scenes (#41).`,
-        d.span.start,
-        d.span.end,
-      );
-      return;
-    }
-    error(
-      `\`{${d.name}}\` comes from a package that doesn't generate code yet.`,
-      d.span.start,
-      d.span.end,
-    );
   }
 
   /** Destructures the context names `names` uses. */
@@ -404,17 +515,41 @@ export function generatePassageModule(
   }
 
   function passage(p: PassageSyntax): void {
+    roles = new Set(p.tags.filter((t) => t.value !== undefined).map((t) => t.name));
+    for (const t of p.tags) {
+      if (t.value === undefined || syntax.tagRoles.has(t.name)) continue;
+      const packages = syntax.missing("tagRole", t.name);
+      if (packages.length > 0) {
+        error(
+          `The tag role \`${t.name}:\` comes from ${listOf(packages)}, which this game doesn't load. Install it and add it to the game's extensions.`,
+          t.span.start,
+          t.span.end,
+        );
+      } else {
+        // The game's own code may read its own roles, so this is only a warning.
+        diagnostics.push({
+          ...lines.error(
+            `No loaded package uses the tag role \`${t.name}:\`. If it's a typo, fix it; if the game's own code reads it, this is fine.`,
+            t.span.start,
+            t.span.end,
+          ),
+          severity: "warning",
+        });
+      }
+    }
     checkClashes(p.content);
     standalone = standaloneLinks(p.content, source);
-    lineIds = passageLines(p, source);
+    lineIds = passageLines(p, source, syntax.paragraphEnds);
     for (const problem of lineIds.problems)
       error(problem.message, problem.span.start, problem.span.end);
     const effects = new Map<string, DirectiveSyntax[]>();
     const body: ContentSyntax[] = [];
     for (const n of p.content) {
-      if (n.type === "directive" && n.name in PHASES) {
-        const phase = PHASES[n.name] ?? "enter";
+      const phase = n.type === "directive" ? phaseOf(n) : undefined;
+      if (n.type === "directive" && phase !== undefined) {
         effects.set(phase, [...(effects.get(phase) ?? []), n]);
+      } else if (n.type === "directive" && n.code !== undefined) {
+        // An effect directive that doesn't apply here was reported by bind().
       } else {
         body.push(n);
       }
@@ -478,10 +613,22 @@ export function generatePassageModule(
   const types = ["$EffectContext", "$Passage", "$PassageNode", "$ProsePart", "$RenderContext"]
     .filter((n) => n === "$Passage" || has(n))
     .map((n) => `${n.slice(1)} as ${n}`);
+  // Runtime exports that directives and line forms call, one import per module.
+  const byModule = new Map<string, string[]>();
+  for (const { runtime, local } of runtimes.values()) {
+    byModule.set(runtime.module, [
+      ...(byModule.get(runtime.module) ?? []),
+      `${runtime.export} as ${local}`,
+    ]);
+  }
+  const runtimeImports = [...byModule]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([module, names]) => `import { ${names.join(", ")} } from ${str(module)};`);
   const preamble = [
     `// Generated from ${file.file.split(/[\\/]/).pop() ?? file.file} by @loominate-if/compiler. Do not edit.`,
     `import { ${["prose as $prose", ...values].join(", ")} } from "@loominate-if/core";`,
     `import type { ${types.join(", ")} } from "@loominate-if/core";`,
+    ...runtimeImports,
     ...(has("$PassageName")
       ? [`import type { PassageName as $PassageName } from ${str(options.passageNamesSpecifier)};`]
       : []),

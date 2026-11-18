@@ -5,10 +5,11 @@
  */
 import path from "node:path";
 import ts from "typescript";
-import { coreDirectives, type DirectiveSpec } from "../passages/directives.js";
+import type { CompilerExtension } from "../extensions/extension.js";
+import { resolveExtensions } from "../extensions/resolve.js";
 import { parsePassageFile } from "../passages/parse.js";
 import { locator } from "../passages/positions.js";
-import type { Span } from "../passages/syntax.js";
+import type { PassageFileSyntax, Span } from "../passages/syntax.js";
 import { CONTEXT_NAMES, generatePassageModule, type GeneratedModule } from "./generate.js";
 import { checkLinks, closestName, codeIn, stringLiterals, type FilePassage } from "./links.js";
 import {
@@ -48,8 +49,11 @@ export type ProjectOptions = {
   readonly scope?: string;
   /** TypeScript options. Defaults to strict ES2023 modules with Node resolution. */
   readonly compilerOptions?: ts.CompilerOptions;
-  /** Directives to recognize. Defaults to the core ones. */
-  readonly directives?: readonly DirectiveSpec[];
+  /**
+   * Packages' compiler extensions, in load order: the directives, tag roles,
+   * line forms, and checks they add. Core's is always loaded first.
+   */
+  readonly extensions?: readonly CompilerExtension[];
   /**
    * The passage the game starts in. With it, passages that nothing leads to
    * are reported as warnings; without it, they aren't checked.
@@ -61,8 +65,10 @@ export type ProjectOptions = {
 export type ProjectDiagnostic = {
   /** Errors stop the game from building; warnings point at likely mistakes. */
   readonly severity: "error" | "warning";
-  /** Which stage found it. */
-  readonly source: "parser" | "compiler" | "typescript";
+  /** Which stage found it: an `extension` is a package's check. */
+  readonly source: "parser" | "compiler" | "typescript" | "extension";
+  /** For an extension's check, the package and check, as `@loominate-if/world: exits`. */
+  readonly check?: string;
   /** The author's file: a passage file for errors in inline code. */
   readonly file: string;
   /** What went wrong. */
@@ -117,6 +123,15 @@ export function compileProject(options: ProjectOptions): CompiledProject {
   const memory = new Map<string, string>();
   for (const f of options.files) memory.set(resolve(f.path), f.text);
   const compilerOptions = { ...DEFAULT_OPTIONS, ...options.compilerOptions, noEmit: true };
+  const extensions = options.extensions ?? [];
+  // Malformed or conflicting extensions are the game's setup, not its source: throw.
+  const syntax = resolveExtensions(extensions);
+  const entryRoles = new Set(
+    [...syntax.tagRoles.values()]
+      .filter((r) => r.definition.entry === true)
+      .map((r) => r.definition.name),
+  );
+  const parsedFiles: PassageFileSyntax[] = [];
   const diagnostics: ProjectDiagnostic[] = [];
 
   const weft = [...memory.keys()].filter((p) => p.endsWith(PASSAGE_EXTENSION)).sort();
@@ -194,8 +209,10 @@ export function compileProject(options: ProjectOptions): CompiledProject {
     sources.set(file, text);
     const parsed = parsePassageFile(text, {
       file,
-      directives: options.directives ?? coreDirectives,
+      directives: syntax.parserDirectives,
+      lineForms: syntax.parserLineForms,
     });
+    parsedFiles.push(parsed);
     for (const d of parsed.diagnostics) diagnostics.push({ source: "parser", file, ...d });
     for (const p of parsed.passages) {
       if (p.name.name === "") continue;
@@ -208,6 +225,7 @@ export function compileProject(options: ProjectOptions): CompiledProject {
       modulePath,
       scopeExports,
       passageNamesSpecifier: specifier(modulePath, namesPath),
+      extensions,
       ...(scopeExists && { scopeSpecifier: specifier(modulePath, scopePath) }),
     });
     for (const d of generated.diagnostics) diagnostics.push({ source: "compiler", file, ...d });
@@ -219,7 +237,27 @@ export function compileProject(options: ProjectOptions): CompiledProject {
       `start: there's no passage named ${JSON.stringify(options.start)}. Pass the name of the passage the game starts in.`,
     );
   }
-  for (const problem of checkLinks(allPassages, named, options.start)) {
+  for (const { definition: check, from } of syntax.checks) {
+    let found;
+    try {
+      found = check.run({ files: parsedFiles });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(`The check "${check.name}" from ${from} failed: ${reason}`, { cause: error });
+    }
+    for (const d of found) {
+      diagnostics.push({
+        severity: d.severity,
+        source: "extension",
+        check: `${from}: ${check.name}`,
+        file: d.file,
+        message: d.message,
+        span: d.span,
+        ...locator(sources.get(d.file) ?? "").locate(d.span.start),
+      });
+    }
+  }
+  for (const problem of checkLinks(allPassages, named, options.start, entryRoles)) {
     const at = problem.at.span.start;
     diagnostics.push({
       severity: problem.severity,

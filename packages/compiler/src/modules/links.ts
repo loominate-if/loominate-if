@@ -190,11 +190,14 @@ export function closestName(name: string, names: Iterable<string>): string | und
  *
  * @param named - strings that appear in code. A passage named in code, as in
  * `goTo("Attic")`, counts as reachable, since code can move there.
+ * @param entryRoles - tag roles whose passages a package enters itself, such
+ * as rooms and actors; those count as reachable too.
  */
 export function checkLinks(
   passages: readonly FilePassage[],
   named: ReadonlySet<string>,
   start: string | undefined,
+  entryRoles: ReadonlySet<string> = new Set(),
 ): LinkProblem[] {
   const problems: LinkProblem[] = [];
   const byName = new Map<string, FilePassage>();
@@ -226,7 +229,12 @@ export function checkLinks(
 
   if (start === undefined || !byName.has(start)) return problems;
   const reached = new Set<string>();
-  const queue = [start, ...[...named].filter((n) => byName.has(n))];
+  const entries = passages
+    .filter(({ passage }) =>
+      passage.tags.some((t) => t.value !== undefined && entryRoles.has(t.name)),
+    )
+    .map(({ passage }) => passage.name.name);
+  const queue = [start, ...[...named].filter((n) => byName.has(n)), ...entries];
   for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
     if (reached.has(next)) continue;
     reached.add(next);

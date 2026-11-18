@@ -76,6 +76,7 @@ export {
   type TextNode,
   type UnavailableLink,
 } from "./passages/story.js";
+export { continueTo, linkGuard } from "./passages/directives.js";
 export {
   emphasis,
   prose,
