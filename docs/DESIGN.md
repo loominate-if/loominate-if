@@ -110,7 +110,7 @@ export const station = place("station house", {
 - Objects created during play come from templates: `spawn(match, matchbox)` creates `gen:matchbox:match-1`.
 - Core provides `object()`; the world model's `place()`, `thing()`, and `actor()` build on it.
 
-Printed text uses tagged templates (`t`) that support adv3Lite-style message parameters for articles, pronouns, plurals, and verb agreement.
+Printed text uses tagged templates (`t`) that support adv3Lite-style message parameters for articles, pronouns, plurals, and verb agreement. A `t` text is a pure function that renders each time it's called, so functions in `${}` read current state, and parameters such as `{The ${door}}` are looked up by name in a registry that the world model and kits fill. [ADR 0013](decisions/0013-text-templates.md) defines it.
 
 ### Compilation and checking
 
