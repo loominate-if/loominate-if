@@ -10,11 +10,12 @@
  */
 import { matchBrace, splitTopLevel } from "./code-scan.js";
 import { locator } from "./positions.js";
+import { resolveExtensions } from "../extensions/resolve.js";
 import {
-  coreDirectives,
   directiveMatchers,
   type DirectiveMatcher,
   type DirectiveSpec,
+  type LineFormSpec,
 } from "./directives.js";
 import type {
   ArgumentSyntax,
@@ -23,6 +24,7 @@ import type {
   Diagnostic,
   DirectiveSyntax,
   IfBranch,
+  LineFormSyntax,
   LinkSyntax,
   NameSyntax,
   PassageFileSyntax,
@@ -38,10 +40,12 @@ export type ParseOptions = {
   /** The file's name, recorded on the result. Defaults to `"<passages>"`. */
   readonly file?: string;
   /**
-   * The directives to recognize. Defaults to {@link coreDirectives}; to add a
-   * package's directives, pass them along with the core ones.
+   * The directives to recognize. Defaults to core's (`coreExtension`); to add
+   * a package's, pass them along with core's.
    */
   readonly directives?: readonly DirectiveSpec[];
+  /** Line forms to recognize, such as `@speaker …` lines. Defaults to none. */
+  readonly lineForms?: readonly LineFormSpec[];
 };
 
 type Item =
@@ -50,6 +54,7 @@ type Item =
   | { k: "linkOpen" | "arrow" | "linkClose"; start: number; end: number }
   | { k: "print"; node: PrintSyntax; start: number; end: number }
   | { k: "directive"; node: DirectiveSyntax; start: number; end: number }
+  | { k: "lineForm"; node: LineFormSyntax; start: number; end: number }
   | { k: "if" | "elseIf"; condition: CodeSyntax; start: number; end: number }
   | { k: "else" | "endIf"; start: number; end: number };
 
@@ -84,7 +89,10 @@ const BAD_NAME_CHARACTER = /[[\]{}\\]/;
  */
 export function parsePassageFile(source: string, options: ParseOptions = {}): PassageFileSyntax {
   const file = options.file ?? "<passages>";
-  const matchers = directiveMatchers(options.directives ?? coreDirectives);
+  const specs = options.directives ?? resolveExtensions([]).parserDirectives;
+  const matchers = directiveMatchers(specs);
+  const guards = new Map(specs.filter((d) => d.guard === true).map((d) => [d.name, d]));
+  const lineForms = new Map((options.lineForms ?? []).map((f) => [f.prefix, f]));
   const diagnostics: Diagnostic[] = [];
 
   const lines = locator(source);
@@ -379,6 +387,23 @@ export function parsePassageFile(source: string, options: ParseOptions = {}): Pa
         if (source.startsWith("//", i)) {
           line.comment = true;
           i = lineEnd(i, end);
+          continue;
+        }
+        const form = lineForms.get(c);
+        if (form) {
+          // The whole line belongs to the form; its package's pattern reads it.
+          const stop = lineEnd(i, end);
+          const text = code(i + 1, stop);
+          const node: LineFormSyntax = {
+            type: "lineForm",
+            name: form.name,
+            prefix: form.prefix,
+            text: text.code,
+            textSpan: text.span,
+            span: { start: i, end: stop },
+          };
+          line.items.push({ k: "lineForm", node, start: i, end: stop });
+          i = stop;
           continue;
         }
       }
@@ -679,8 +704,10 @@ export function parsePassageFile(source: string, options: ParseOptions = {}): Pa
         if (spaces) nodes.pop();
         return;
       }
+      const name = item.node.name;
+      const example = guards.get(name)?.example ?? `[[Go down -> Cellar]]{${name} …}`;
       error(
-        "`{when …}` guards a link, so it goes right after one on the same line, like `[[Go down -> Cellar]]{when lantern.isLit}`.",
+        `\`{${name} …}\` guards a link, so it goes right after one on the same line, like \`${example}\`.`,
         item.start,
         item.end,
       );
@@ -729,8 +756,12 @@ export function parsePassageFile(source: string, options: ParseOptions = {}): Pa
           push(item.node);
           return;
         case "directive":
-          if (item.node.name === "when") guard(item);
+          if (guards.has(item.node.name)) guard(item);
           else push(item.node);
+          return;
+        case "lineForm":
+          unwindEmphasis(item.start);
+          push(item.node);
           return;
         case "if": {
           if (top().t === "link") {
@@ -851,6 +882,8 @@ export function parsePassageFile(source: string, options: ParseOptions = {}): Pa
         process(item);
       }
       if (content) joined = true;
+      // A line form stands on its own, between paragraphs.
+      if (items.some((it) => it.k === "lineForm")) joined = false;
 
       // Links close on the line they open.
       while (frames.some((f) => f.t === "link")) abandon(line.end);

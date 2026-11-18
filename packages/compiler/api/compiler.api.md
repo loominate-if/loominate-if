@@ -7,12 +7,30 @@
 import ts from 'typescript';
 
 // @public
+export type ArgumentKind = "expression" | "condition" | "duration" | "passage" | "words" | "choice";
+
+// @public
+export type ArgumentSpec = {
+    readonly name: string;
+    readonly kind: ArgumentKind;
+    readonly named?: boolean;
+    readonly required?: boolean;
+    readonly choices?: readonly string[];
+    readonly excludes?: readonly string[];
+};
+
+// @public
 export type ArgumentSyntax = PositionalArgument | NamedArgument | TargetArgument;
 
 // @public
 export type BreakSyntax = {
     readonly type: "break";
     readonly span: Span;
+};
+
+// @public
+export type CheckContext = {
+    readonly files: readonly PassageFileSyntax[];
 };
 
 // @public
@@ -35,14 +53,28 @@ export type CompiledProject = {
 export function compileProject(options: ProjectOptions): CompiledProject;
 
 // @public
-export type ContentSyntax = TextSyntax | PrintSyntax | EmphasisSyntax | DirectiveSyntax | IfSyntax | LinkSyntax | BreakSyntax;
+export type CompilerExtension = {
+    readonly name: string;
+    readonly directives?: readonly DirectiveDefinition[];
+    readonly tagRoles?: readonly TagRoleDefinition[];
+    readonly lineForms?: readonly LineFormDefinition[];
+    readonly checks?: readonly ExtensionCheck[];
+    readonly suggests?: {
+        readonly directive?: Readonly<Record<string, string>>;
+        readonly tagRole?: Readonly<Record<string, string>>;
+        readonly lineForm?: Readonly<Record<string, string>>;
+    };
+};
 
 // @public
-export const coreDirectives: readonly DirectiveSpec[];
+export type ContentSyntax = TextSyntax | PrintSyntax | EmphasisSyntax | DirectiveSyntax | IfSyntax | LinkSyntax | BreakSyntax | LineFormSyntax;
+
+// @public
+export const coreExtension: CompilerExtension;
 
 // @public
 export type Diagnostic = {
-    readonly severity: "error";
+    readonly severity: "error" | "warning";
     readonly message: string;
     readonly span: Span;
     readonly line: number;
@@ -50,9 +82,29 @@ export type Diagnostic = {
 };
 
 // @public
+export type DirectiveDefinition = {
+    readonly name: string;
+    readonly roles?: readonly string[];
+    readonly example?: string;
+} & ({
+    readonly kind: "effect";
+    readonly phase: "firstVisit" | "enter" | "leave";
+} | {
+    readonly kind: "content" | "guard";
+    readonly args?: readonly ArgumentSpec[];
+    readonly runtime?: RuntimeExport;
+    readonly unsupported?: string;
+} | {
+    readonly kind: "annotation";
+    readonly args?: readonly ArgumentSpec[];
+});
+
+// @public
 export type DirectiveSpec = {
     readonly name: string;
     readonly code?: boolean;
+    readonly guard?: boolean;
+    readonly example?: string;
 };
 
 // @public
@@ -74,6 +126,20 @@ export type EmphasisSyntax = {
 };
 
 // @public
+export type ExtensionCheck = {
+    readonly name: string;
+    readonly run: (context: CheckContext) => readonly ExtensionDiagnostic[];
+};
+
+// @public
+export type ExtensionDiagnostic = {
+    readonly severity: "error" | "warning";
+    readonly file: string;
+    readonly message: string;
+    readonly span: Span;
+};
+
+// @public
 export type GeneratedModule = {
     readonly file: string;
     readonly path: string;
@@ -89,6 +155,7 @@ export type GenerateOptions = {
     readonly scopeExports: ReadonlySet<string>;
     readonly scopeSpecifier?: string;
     readonly passageNamesSpecifier: string;
+    readonly extensions?: readonly CompilerExtension[];
 };
 
 // @public
@@ -105,6 +172,31 @@ export type IfBranch = {
 export type IfSyntax = {
     readonly type: "if";
     readonly branches: readonly IfBranch[];
+    readonly span: Span;
+};
+
+// @public
+export type LineFormDefinition = {
+    readonly name: string;
+    readonly prefix: string;
+    readonly pattern: RegExp;
+    readonly example?: string;
+    readonly runtime: RuntimeExport;
+};
+
+// @public
+export type LineFormSpec = {
+    readonly name: string;
+    readonly prefix: string;
+};
+
+// @public
+export type LineFormSyntax = {
+    readonly type: "lineForm";
+    readonly name: string;
+    readonly prefix: string;
+    readonly text: string;
+    readonly textSpan: Span;
     readonly span: Span;
 };
 
@@ -142,6 +234,7 @@ export type NameSyntax = {
 export type ParseOptions = {
     readonly file?: string;
     readonly directives?: readonly DirectiveSpec[];
+    readonly lineForms?: readonly LineFormSpec[];
 };
 
 // @public
@@ -183,7 +276,8 @@ export type PrintSyntax = {
 // @public
 export type ProjectDiagnostic = {
     readonly severity: "error" | "warning";
-    readonly source: "parser" | "compiler" | "typescript";
+    readonly source: "parser" | "compiler" | "typescript" | "extension";
+    readonly check?: string;
     readonly file: string;
     readonly message: string;
     readonly span: Span;
@@ -204,8 +298,14 @@ export type ProjectOptions = {
     readonly files: readonly ProjectFile[];
     readonly scope?: string;
     readonly compilerOptions?: ts.CompilerOptions;
-    readonly directives?: readonly DirectiveSpec[];
+    readonly extensions?: readonly CompilerExtension[];
     readonly start?: string;
+};
+
+// @public
+export type RuntimeExport = {
+    readonly module: string;
+    readonly export: string;
 };
 
 // @public
@@ -222,6 +322,12 @@ export type SourceMap = {
 export type Span = {
     readonly start: number;
     readonly end: number;
+};
+
+// @public
+export type TagRoleDefinition = {
+    readonly name: string;
+    readonly entry?: boolean;
 };
 
 // @public

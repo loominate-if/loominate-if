@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createEventRecord, createStore, createStory, type Passage } from "@loominate-if/core";
 import { afterAll, describe, expect, it } from "vitest";
+import type { CompilerExtension } from "../extensions/extension.js";
 import { compileProject, type ProjectFile } from "./project.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -46,8 +47,11 @@ const kitchen = `:: Kitchen
 Damp. You've been scared {player.fear} times.
 `;
 
+/** The world model's `room:` role, which the cellar uses, standing in for the real package. */
+const world: CompilerExtension = { name: "@loominate-if/world", tagRoles: [{ name: "room" }] };
+
 function compile(files: ProjectFile[]) {
-  return compileProject({ root, files, compilerOptions });
+  return compileProject({ root, files, compilerOptions, extensions: [world] });
 }
 
 const show = (r: ReturnType<typeof compile>): string[] =>
@@ -77,6 +81,7 @@ describe("compileProject", { timeout: 30_000 }, () => {
   it("generates code that passes noUnusedParameters and noUnusedLocals (#213)", () => {
     const result = compileProject({
       root,
+      extensions: [world],
       compilerOptions: { ...compilerOptions, noUnusedParameters: true, noUnusedLocals: true },
       files: [
         { path: "story.ts", text: story },
@@ -141,6 +146,7 @@ export const matchbox = object("matchbox", {
   it("reports broken links and unreachable passages with their locations (#32)", () => {
     const result = compileProject({
       root,
+      extensions: [world],
       compilerOptions,
       start: "Kitchen",
       files: [
@@ -293,6 +299,7 @@ describe("a compiled game", { timeout: 30_000 }, () => {
   it("plays through: prose, formatting, guards, effects on objects, and visits", async () => {
     const result = compileProject({
       root: out,
+      extensions: [world],
       compilerOptions,
       files: [
         { path: "story.ts", text: story },
@@ -371,6 +378,7 @@ describe("a compiled game", { timeout: 30_000 }, () => {
     mkdirSync(dir);
     const result = compileProject({
       root: dir,
+      extensions: [world],
       compilerOptions,
       files: [
         { path: "story.ts", text: scope },
@@ -420,6 +428,7 @@ describe("a compiled game", { timeout: 30_000 }, () => {
     ].join("\n");
     const result = compileProject({
       root: out,
+      extensions: [world],
       compilerOptions,
       files: [{ path: "lines.weft", text: source }],
     });

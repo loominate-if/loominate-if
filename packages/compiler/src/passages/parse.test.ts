@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coreDirectives } from "./directives.js";
+import { resolveExtensions } from "../extensions/resolve.js";
 import { parsePassageFile, type ParseOptions } from "./parse.js";
 import type { ArgumentSyntax, ContentSyntax, PassageSyntax } from "./syntax.js";
 
@@ -205,7 +205,9 @@ describe("braces", () => {
   });
 
   it("splits arguments at top-level commas into positional, named, and target", () => {
-    const options = { directives: [...coreDirectives, { name: "show" }, { name: "ask" }] };
+    const options = {
+      directives: [...resolveExtensions([]).parserDirectives, { name: "show" }, { name: "ask" }],
+    };
     expect(body("{show mira smiling, dissolve}", options)).toEqual([
       { show: ["mira smiling", "dissolve"] },
     ]);

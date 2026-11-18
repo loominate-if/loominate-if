@@ -29,6 +29,12 @@ export type ContinueNode = {
 };
 
 // @public
+export function continueTo(args: {
+    readonly target: PassageId;
+    readonly label?: string;
+}): ContinueNode;
+
+// @public
 export function createEventRecord(store: StateStore): EventRecord;
 
 // @public
@@ -252,6 +258,16 @@ export type LinkGuard = {
     readonly mode?: GuardMode;
     readonly reason?: string;
 };
+
+// @public
+export function linkGuard(args: {
+    readonly condition: {
+        readonly value: boolean;
+        readonly text: string;
+    };
+    readonly mode?: "hidden" | "disabled";
+    readonly reason?: string;
+}): LinkGuard;
 
 // @public
 export type LinkNode = {

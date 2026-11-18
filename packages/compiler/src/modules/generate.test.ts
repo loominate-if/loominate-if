@@ -68,10 +68,16 @@ describe("generatePassageModule", () => {
       ':: A\n[[Go down -> Cellar]]{when lantern.isLit, reason: "Too dark."}\n[[Up -> B]]{when player.fear < 3, disabled}\n{continue -> C, label: "On"}',
     );
     expect(code).toContain(
-      '$nodes.push({ type: "link", label: "Go down", target: "Cellar", line: "A:ajfhgp", guard: { open: Boolean(lantern.isLit), condition: "lantern.isLit", mode: "disabled-with-reason", reason: "Too dark." } });',
+      '$nodes.push({ type: "link", label: "Go down", target: "Cellar", line: "A:ajfhgp", guard: $rt_linkGuard({ condition: { value: Boolean(lantern.isLit), text: "lantern.isLit" }, reason: "Too dark." }) });',
     );
     expect(code).toContain('mode: "disabled"');
-    expect(code).toContain('$nodes.push({ type: "continue", target: "C", label: "On" });');
+    // Core's directives call core's exports, as a package's would (ADR 0015).
+    expect(code).toContain(
+      'import { linkGuard as $rt_linkGuard, continueTo as $rt_continueTo } from "@loominate-if/core";',
+    );
+    expect(code).toContain(
+      '$nodes.push(...[$rt_continueTo({ target: "C", label: "On" })].flat());',
+    );
   });
 
   it("passes line IDs to prose and links, and reports bad pins", () => {
@@ -127,7 +133,7 @@ describe("generatePassageModule", () => {
       ":: A\nYou could [[ask -> B]]{when lantern.isLit, hidden} now, *or [[leave -> C]]*.\n[[Wait -> A]]",
     );
     expect(code).toContain(
-      '$parts.push({ type: "link", label: "ask", target: "B", guard: { open: Boolean(lantern.isLit), condition: "lantern.isLit", mode: "hidden" } });',
+      '$parts.push({ type: "link", label: "ask", target: "B", guard: $rt_linkGuard({ condition: { value: Boolean(lantern.isLit), text: "lantern.isLit" }, mode: "hidden" }) });',
     );
     expect(code).toMatch(/\$parts\d+\.push\(\{ type: "link", label: "leave", target: "C" \}\);/);
     expect(code).toMatch(
@@ -155,15 +161,15 @@ describe("generatePassageModule", () => {
         ":: A\n[[a -> B]]{when x, sideways}\n[[a -> B]]{when x, hidden, reason: 'r'}\n{continue}",
       ),
     ).toEqual([
-      '2:20 `{when}` takes a condition, then optionally `hidden`, `disabled`, or `reason: "…"`.',
-      "3:11 `reason:` already shows the link disabled with its reason, so `hidden` can't go with it.",
-      "4:1 `{continue}` needs a passage, like `{continue -> Platform}`.",
+      "2:20 `{when}` takes `hidden` or `disabled` here, not `sideways`.",
+      "3:11 `{when}` can't take `hidden` and `reason:` together.",
+      "4:1 `{continue}` needs a passage, `-> Name`, like `{continue -> Platform}`.",
     ]);
   });
 
   it("reports a directive that clashes with a scope export (ADR 0004)", () => {
     expect(errors(":: A\nText.\n{wait}")).toEqual([
-      "3:1 `wait` is a directive and also exported by the scope module. Write `{(wait)}` to print the export, or rename it.",
+      "3:1 `wait` is a directive from @loominate-if/core and also exported by the scope module. Write `{(wait)}` to print the export, or rename it.",
       "3:1 `{wait}` isn't supported yet; it arrives with beats and cut scenes (#41).",
     ]);
   });
