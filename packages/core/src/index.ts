@@ -114,3 +114,13 @@ export {
   type SaveSummary,
   type UnreadableSave,
 } from "./save/save.js";
+export {
+  createPersistent,
+  openPersistent,
+  PERSISTENT_FORMAT,
+  PERSISTENT_VERSION,
+  readPersistent,
+  writePersistent,
+  type PersistentStorage,
+  type PersistentStore,
+} from "./persistent/persistent.js";

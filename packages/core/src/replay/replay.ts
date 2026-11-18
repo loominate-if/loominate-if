@@ -8,6 +8,7 @@
  */
 import type { PassageId } from "../passages/story.js";
 import type { GameInfo } from "../save/save.js";
+import { createStore, type StateSnapshot } from "../state/store.js";
 import { StateError } from "../state/value.js";
 
 /**
@@ -45,15 +46,16 @@ export type StoryAction =
 export const REPLAY_FORMAT = "loominate-replay";
 /**
  * The replay file version this engine writes. It also reads version 1 files,
- * which don't record the game or engine.
+ * which don't record the game or engine, and version 2 files, which don't
+ * record persistent data.
  */
-export const REPLAY_VERSION = 2;
+export const REPLAY_VERSION = 3;
 
 /** A replay file: the master seed and every action since the story began. */
 export type Replay = {
   /** Always {@link REPLAY_FORMAT}, so a replay can't be mistaken for another JSON file. */
   readonly format: typeof REPLAY_FORMAT;
-  /** The file's version, {@link REPLAY_VERSION}. A version 1 file reads as this version. */
+  /** The file's version, {@link REPLAY_VERSION}. Older files read as this version. */
   readonly version: typeof REPLAY_VERSION;
   /** The game that made the replay, when the host said. */
   readonly game?: GameInfo;
@@ -61,6 +63,11 @@ export type Replay = {
   readonly engine?: string;
   /** The master seed the story began with (ADR 0008). */
   readonly seed: string;
+  /**
+   * The persistent data when the story began (ADR 0011), which a replay plays
+   * against. Missing from older files, which play against none.
+   */
+  readonly persistent?: StateSnapshot;
   /** The actions, in the order they were taken. */
   readonly actions: readonly StoryAction[];
 };
@@ -91,6 +98,9 @@ export function writeReplay(replay: Replay): string {
       : [`  "game": ${JSON.stringify({ id: replay.game.id, version: replay.game.version })},`]),
     ...(replay.engine === undefined ? [] : [`  "engine": ${JSON.stringify(replay.engine)},`]),
     `  "seed": ${JSON.stringify(replay.seed)},`,
+    ...(replay.persistent === undefined
+      ? []
+      : [`  "persistent": ${JSON.stringify(replay.persistent)},`]),
     actions.length === 0 ? `  "actions": []` : `  "actions": [\n${actions.join(",\n")}\n  ]`,
     "}",
     "",
@@ -128,20 +138,14 @@ export function readReplay(text: string): Replay {
       `replay: this isn't a replay file; it needs "format": "${REPLAY_FORMAT}".`,
     );
   }
-  if (data.version !== 1 && data.version !== REPLAY_VERSION) {
+  if (data.version !== 1 && data.version !== 2 && data.version !== REPLAY_VERSION) {
     throw new StateError(
       typeof data.version === "number" && data.version > REPLAY_VERSION
-        ? `replay: the file is version ${String(data.version)}, made by a newer engine; this one reads versions 1 and ${String(REPLAY_VERSION)}.`
-        : `replay: "version" must be 1 or ${String(REPLAY_VERSION)}.`,
+        ? `replay: the file is version ${String(data.version)}, made by a newer engine; this one reads versions 1 to ${String(REPLAY_VERSION)}.`
+        : `replay: "version" must be 1, 2, or ${String(REPLAY_VERSION)}.`,
     );
   }
-  onlyFields(
-    data,
-    data.version === 1
-      ? ["format", "version", "seed", "actions"]
-      : ["format", "version", "game", "engine", "seed", "actions"],
-    "the file",
-  );
+  onlyFields(data, FIELDS[data.version], "the file");
   let game: GameInfo | undefined;
   if (data.game !== undefined) {
     const g = data.game;
@@ -151,12 +155,20 @@ export function readReplay(text: string): Replay {
     onlyFields(g, ["id", "version"], `"game"`);
     game = { id: g.id, version: g.version };
   }
-  if (data.version === REPLAY_VERSION && !isName(data.engine)) {
+  if (data.version !== 1 && !isName(data.engine)) {
     throw new StateError(`replay: "engine" must be a version string.`);
   }
   const engine = data.engine as string | undefined;
   if (typeof data.seed !== "string") throw new StateError(`replay: "seed" must be a string.`);
   if (!Array.isArray(data.actions)) throw new StateError(`replay: "actions" must be a list.`);
+  let persistent: StateSnapshot | undefined;
+  if (data.persistent !== undefined) {
+    if (!isRecord(data.persistent)) {
+      throw new StateError(`replay: "persistent" must be an object of entities.`);
+    }
+    // The store checks every ID and value, as it does for any snapshot.
+    persistent = createStore(data.persistent as StateSnapshot).snapshot();
+  }
   const actions = (data.actions as unknown[]).map(readAction);
   return {
     format: REPLAY_FORMAT,
@@ -164,9 +176,17 @@ export function readReplay(text: string): Replay {
     ...(game !== undefined && { game }),
     ...(engine !== undefined && { engine }),
     seed: data.seed,
+    ...(persistent !== undefined && { persistent }),
     actions,
   };
 }
+
+/** The fields each file version may have. */
+const FIELDS = {
+  1: ["format", "version", "seed", "actions"],
+  2: ["format", "version", "game", "engine", "seed", "actions"],
+  3: ["format", "version", "game", "engine", "seed", "persistent", "actions"],
+} as const;
 
 function readAction(value: unknown, index: number): StoryAction {
   const where = `action ${String(index + 1)}`;
