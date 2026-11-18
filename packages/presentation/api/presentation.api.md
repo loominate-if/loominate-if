@@ -4,4 +4,31 @@
 
 ```ts
 
+import type { Choice } from '@loominate-if/core';
+import type { EventRecord } from '@loominate-if/core';
+import type { Story } from '@loominate-if/core';
+
+// @public
+export function mountPage(container: HTMLElement, game: PageGame, options?: PageOptions): Page;
+
+// @public
+export interface Page {
+    destroy(): void;
+    readonly element: HTMLElement;
+    refresh(): void;
+}
+
+// @public
+export type PageGame = {
+    readonly story: Story;
+    readonly record: EventRecord;
+};
+
+// @public
+export type PageOptions = {
+    readonly onMove?: (choice: Choice) => void;
+    readonly drawerLabel?: string;
+    readonly continueLabel?: string;
+};
+
 ```
