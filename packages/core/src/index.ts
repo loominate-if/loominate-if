@@ -139,3 +139,15 @@ export {
 } from "./rules/rules.js";
 export { hook, type Hook, type HookContext, type HookKinds } from "./rules/hooks.js";
 export { registry, type Registry, type RegistryEntry } from "./rules/registry.js";
+export {
+  isText,
+  messageParameters,
+  t,
+  type MessageArg,
+  type MessageCall,
+  type MessageParameter,
+  type Text,
+  type TextContext,
+  type TextPrintable,
+  type TextValue,
+} from "./text/text.js";

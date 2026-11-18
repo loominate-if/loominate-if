@@ -240,6 +240,9 @@ export function instancesOf<D>(template: ObjectTemplate<D>): Handle<D>[];
 export function invertDiff(diff: StateDiff): StateDiff;
 
 // @public
+export function isText(value: unknown): value is Text;
+
+// @public
 export type LineId = string;
 
 // @public
@@ -264,6 +267,29 @@ export type LoadedSave = {
     readonly summary: SaveSummary;
     readonly state: StateSnapshot;
 };
+
+// @public
+export type MessageArg = {
+    readonly kind: "word";
+    readonly word: string;
+} | {
+    readonly kind: "value";
+    readonly value: unknown;
+};
+
+// @public
+export interface MessageCall {
+    readonly args: readonly MessageArg[];
+    readonly context: TextContext;
+    readonly name: string;
+    readonly text: Text;
+}
+
+// @public
+export type MessageParameter = (call: MessageCall) => string;
+
+// @public
+export const messageParameters: Registry<MessageParameter>;
 
 // @public
 export function mixin<M extends ObjectDefinition<M>>(definition: M & ThisType<Handle<M>>): M;
@@ -675,6 +701,9 @@ export type StyledProse = {
 };
 
 // @public
+export function t(strings: TemplateStringsArray, ...values: TextValue[]): Text;
+
+// @public
 export interface Template<P extends StateValue = StateValue> {
     readonly init?: (params: P) => {
         readonly [key: string]: StateValue;
@@ -689,6 +718,17 @@ export function template<D extends ObjectDefinition<D>>(name: string, definition
 export type TemplateParams<T> = T extends Template<infer P> ? P : never;
 
 // @public
+export interface Text {
+    (context?: TextContext): string;
+    readonly source: string;
+}
+
+// @public
+export type TextContext = {
+    readonly [name: string]: unknown;
+};
+
+// @public
 export type TextNode = {
     readonly type: "text";
     readonly text: string;
@@ -698,11 +738,17 @@ export type TextNode = {
 };
 
 // @public
+export type TextPrintable = string | number | Text;
+
+// @public
 export type TextStyle = {
     readonly start: number;
     readonly end: number;
     readonly style: "emphasis" | "strong";
 };
+
+// @public
+export type TextValue = string | number | ObjectRef | ((context: TextContext) => TextPrintable | ObjectRef);
 
 // @public
 export type UnavailableLink = {

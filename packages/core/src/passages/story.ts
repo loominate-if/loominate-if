@@ -381,7 +381,7 @@ export function createStory(
     const wasClean = !store.dirty;
     const count = visits(passage.id);
     const nodes = Object.freeze([
-      ...renderingObjects(passage.id, () =>
+      ...renderingObjects(`passage ${JSON.stringify(passage.id)}`, () =>
         passage.body({
           state: reader,
           persistent: persistentReader(),

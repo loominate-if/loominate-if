@@ -73,7 +73,7 @@ interface Binding {
   instancesFor: number;
   /** Handles of objects created during play, one per ID. */
   readonly spawned: Map<StateId, object>;
-  /** The passage being rendered, while one is. */
+  /** What's being rendered, while something is, such as `passage "Cellar"`. */
   rendering: string | undefined;
 }
 
@@ -112,12 +112,16 @@ export function bindObjects(store: StateStore): void {
   views.clear();
 }
 
-/** Runs `render` with object writes refused, because rendering must be pure. */
-export function renderingObjects<T>(passage: string, render: () => T): T {
+/**
+ * Runs `render` with object writes refused, because rendering must be pure.
+ * `what` names what's rendering in errors, such as `passage "Cellar"`; inside
+ * another render, the outer one is named.
+ */
+export function renderingObjects<T>(what: string, render: () => T): T {
   const b = binding;
   if (!b) return render();
   const outer = b.rendering;
-  b.rendering = passage;
+  b.rendering = outer ?? what;
   try {
     return render();
   } finally {
@@ -148,7 +152,7 @@ function writable(where: string): StateStore {
   const b = active(where);
   if (b.rendering !== undefined) {
     throw new StateError(
-      `passage ${JSON.stringify(b.rendering)}: rendering tried to change ${where}. Rendering must be pure; change state in an effect phase such as {on enter: …} instead.`,
+      `${b.rendering}: rendering tried to change ${where}. Rendering must be pure; change state in an effect phase such as {on enter: …} instead.`,
     );
   }
   return b.store;
