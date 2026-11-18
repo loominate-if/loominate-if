@@ -4,3 +4,4 @@ coverage
 docs/*.svg
 # Prose docs are hand-formatted; table padding and emphasis rewrites create noisy diffs.
 *.md
+scratch

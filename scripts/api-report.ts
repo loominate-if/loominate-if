@@ -42,7 +42,15 @@ export function extractorConfig(packageDir: string): IConfigFile {
   return {
     projectFolder: packageDir,
     mainEntryPointFilePath: "<projectFolder>/dist/index.d.ts",
-    compiler: { tsconfigFilePath: "<projectFolder>/tsconfig.json" },
+    compiler: {
+      tsconfigFilePath: "<projectFolder>/tsconfig.json",
+      // Workspace packages resolve to their source for tests; the report reads
+      // each dependency's built declarations, as a consumer would.
+      overrideTsconfig: {
+        extends: "./tsconfig.json",
+        compilerOptions: { customConditions: [] },
+      },
+    },
     apiReport: {
       enabled: true,
       reportFolder: "<projectFolder>/api/",

@@ -4,4 +4,27 @@
 
 ```ts
 
+import { CompilerExtension } from '@loominate-if/compiler';
+import { createCompilerSession } from '@loominate-if/compiler';
+import type { Plugin } from 'vite';
+import { ProjectDiagnostic } from '@loominate-if/compiler';
+import { ProjectFile } from '@loominate-if/compiler';
+
+// @public
+export function formatDiagnostic(root: string, d: ProjectDiagnostic): string;
+
+// @public
+export function gameFiles(root: string): ProjectFile[];
+
+// @public
+export function loominate(options?: LoominateOptions): Plugin;
+
+// @public
+export type LoominateOptions = {
+    readonly scope?: string;
+    readonly start?: string;
+    readonly extensions?: readonly CompilerExtension[];
+    readonly compilerOptions?: Parameters<typeof createCompilerSession>[0]["compilerOptions"];
+};
+
 ```

@@ -26,6 +26,9 @@ export {
 export { toSource, type Mapping, type SourceMap } from "./modules/source-map.js";
 export {
   compileProject,
+  createCompilerSession,
+  type CompilerSession,
+  type SessionChange,
   PASSAGE_EXTENSION,
   type CompiledProject,
   type ProjectDiagnostic,

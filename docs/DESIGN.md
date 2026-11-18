@@ -568,7 +568,7 @@ hook("turnEnd").rule("lamp-burns-down", ({ state }) => { /* … */ });
 Tooling is built alongside the runtime from the first milestone, because debugging difficulty is what ended earlier attempts at this kind of project.
 
 - **CLI.** Scaffold a new game, run a dev server with hot reload, run tests, and build every target.
-- **Compiler.** Passage files plus TypeScript to a bundle, with errors reported against author source lines.
+- **Compiler.** Passage files plus TypeScript to a bundle, with errors reported against author source lines. A compiler session recompiles only what an edit affects, and the CLI's Vite plugin uses it for hot reload and builds ([ADR 0016](decisions/0016-bundler-plugin.md)).
 - **Inspector.** An in-game panel showing the object tree and every property, the event log, which rules fired and why, why any choice or topic is hidden, active fuses and daemons, NPC locations and agendas, conversation locks, and time travel through state history.
 - **Walkthrough tests.** Scripted playthroughs that choose actions in order and assert on world state and output. They let Claude Code verify its own changes and protect authors from regressions.
 - **Replay files.** Seed plus action list, loadable in the inspector for bug reports.
