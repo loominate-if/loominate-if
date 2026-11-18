@@ -48,6 +48,6 @@ Once games ship, the generator and derivation are part of the save, replay, and 
 - The generator, the derivation, the 15-draw warm-up, and the draw functions are now part of the save, replay, and shared-seed contract. Changing any of them changes results for existing seeds and needs a version bump of that contract.
 - Saves grow by one field per stream used, four numbers each.
 - Renaming a stream changes its results; stream names are stable IDs like any other.
-- Opting a stream out of undo, so retrying rerolls it, needs history support and is [#226](https://github.com/loominate-if/loominate-if/issues/226).
+- Opting a stream out of undo, so retrying rerolls it, is `randomStream(name, { undo: "reroll" })`, defined in [ADR 0014](0014-reroll-streams.md).
 - Memorable seed words ("amber-lantern-fog") and seed entry belong to whatever starts a game. Any string works as a seed.
 - Dice notation such as `roll("2d6", stream)` can build on `int()` in the RPG kit.

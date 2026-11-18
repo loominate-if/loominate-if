@@ -299,7 +299,7 @@ All randomness comes from named, seeded streams stored in the game state, so pla
 - **Named streams.** Each system draws from its own stream derived from the master seed (world setup, weather, combat, and so on). A shared seed reliably produces the same world even when players make different choices, and adding a roll to one system in a later version doesn't shift the others. Streams are hierarchical: a substream keyed by name (the seed plus "level-3") gives the same results whenever it is first used, regardless of what the player did before.
 - **Shareable seeds.** Displayed as memorable words ("amber-lantern-fog") and tied to the game version. Authors can fix the seed or hide seed entry. A "seed of the day" is possible.
 - **Replay.** A seed plus an action list reproduces any playthrough; bug reports can be small replay files that open in the inspector.
-- **Undo behavior.** Undoing and retrying gives the same result, preventing reroll-by-undo. Authors can opt individual streams out.
+- **Undo behavior.** Undoing and retrying gives the same result, preventing reroll-by-undo. Authors can opt individual streams out with `randomStream("fortune", { undo: "reroll" })`: its draws in each action come from the action's number and how many times it was tried, which undo doesn't rewind and replays record ([ADR 0014](decisions/0014-reroll-streams.md)).
 
 Streams are defined in modules and drawn from in effects; [ADR 0008](decisions/0008-random-streams.md) fixes the generator and how stream seeds are derived.
 

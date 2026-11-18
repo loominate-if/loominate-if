@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createHistory } from "./history.js";
+import { ATTEMPTS_ID, createHistory } from "./history.js";
 import { createStore, type StateStore } from "./store.js";
 import { StateError } from "./value.js";
 
@@ -187,5 +187,23 @@ describe("memory over a long session", () => {
     expect(stateSize).toBeGreaterThan(200_000);
     // A thousand snapshots would be ~200 MB; a thousand diffs are tiny.
     expect(size(history.past)).toBeLessThan(100_000);
+  });
+});
+
+describe("the attempts tally", () => {
+  it("is left alone by undo and redo, so a retry is known to be one", () => {
+    const store = createStore();
+    const history = createHistory(store);
+    store.set("player", "room", "hall");
+    store.set(ATTEMPTS_ID, "0", 1);
+    history.checkpoint("move");
+    history.undo();
+    expect(store.has("player", "room")).toBe(false);
+    expect(store.get(ATTEMPTS_ID, "0")).toBe(1);
+    store.set(ATTEMPTS_ID, "0", 2);
+    store.commit();
+    history.redo();
+    expect(store.get("player", "room")).toBe("hall");
+    expect(store.get(ATTEMPTS_ID, "0")).toBe(2);
   });
 });

@@ -84,7 +84,12 @@ export {
   type ProsePart,
   type StyledProse,
 } from "./passages/prose.js";
-export { randomStream, type RandomStream } from "./random/random.js";
+export {
+  randomStream,
+  type RandomStream,
+  type RandomStreamOptions,
+  type RandomUndo,
+} from "./random/random.js";
 export {
   readReplay,
   REPLAY_FORMAT,

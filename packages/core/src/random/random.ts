@@ -6,6 +6,12 @@
  * comes from the master seed and the stream's full name alone, so draws from one
  * stream never shift another, and a substream such as `world/level-3` gives the
  * same results whenever it's first used.
+ *
+ * A stream made with `{ undo: "reroll" }` gives new results when an action is
+ * undone and taken again (#226, ADR 0014). Its draws in each move start from
+ * the seed, its name, and the move: the action's number and how many times it
+ * was tried before. The story keeps that tally out of undo's reach and records
+ * it in the action log, so save, load, and replay still reproduce exactly.
  */
 import { boundStore } from "../objects/objects.js";
 import { StateError } from "../state/value.js";
@@ -14,6 +20,12 @@ import { StateError } from "../state/value.js";
 export const RANDOM_ID = "$random";
 /** The field of {@link RANDOM_ID} holding the master seed. */
 export const SEED_FIELD = "seed";
+/**
+ * The field of {@link RANDOM_ID} naming the current move: `begin`, or the
+ * action's number and attempt, as `3.1`. Set by the story; streams that reroll
+ * on undo draw from it.
+ */
+export const MOVE_FIELD = "move";
 /** The state entity holding each stream's position, one field per stream name. */
 const STREAMS_ID = "$streams";
 
@@ -21,6 +33,8 @@ const STREAMS_ID = "$streams";
 export interface RandomStream {
   /** The stream's full name, with substream names joined by `/`, as in `world/level-3`. */
   readonly name: string;
+  /** What undo does to the stream: see {@link RandomStreamOptions.undo}. */
+  readonly undo: RandomUndo;
   /** A number from 0 inclusive to 1 exclusive. */
   next(): number;
   /**
@@ -42,9 +56,24 @@ export interface RandomStream {
   shuffle<T>(items: readonly T[]): T[];
   /**
    * A substream, named `<this name>/<name>`. Its results depend only on the
-   * master seed and its name, never on what this stream has drawn.
+   * master seed and its name, never on what this stream has drawn. It undoes
+   * as this stream does.
    */
   substream(name: string): RandomStream;
+}
+
+/** What undo does to a random stream. */
+export type RandomUndo = "rewind" | "reroll";
+
+/** Options for {@link randomStream}. */
+export interface RandomStreamOptions {
+  /**
+   * `"rewind"` (the default): undo rewinds the stream, so undoing and retrying
+   * gives the same result, and players can't reroll by undoing.
+   * `"reroll"`: retrying after undo gives a new result, for flavor text or a
+   * fortune teller who says something new each time.
+   */
+  readonly undo?: RandomUndo;
 }
 
 const NAME = /^[^/]+$/;
@@ -58,10 +87,16 @@ const NAME = /^[^/]+$/;
  * export const weather = randomStream("weather");
  * // {on enter: if (weather.chance(0.3)) raining.on = true}
  * ```
- * @throws {@link StateError} if `name` is empty or contains `/`.
+ * @throws {@link StateError} if `name` is empty or contains `/`, or `undo` isn't `"rewind"` or `"reroll"`.
  */
-export function randomStream(name: string): RandomStream {
-  return makeStream(checkName(name));
+export function randomStream(name: string, options: RandomStreamOptions = {}): RandomStream {
+  const undo = options.undo ?? "rewind";
+  if (undo !== "rewind" && undo !== "reroll") {
+    throw new StateError(
+      `randomStream ${JSON.stringify(name)}: undo is "rewind" or "reroll", not ${JSON.stringify(undo)}.`,
+    );
+  }
+  return makeStream(checkName(name), undo);
 }
 
 function checkName(name: string): string {
@@ -73,7 +108,7 @@ function checkName(name: string): string {
   return name;
 }
 
-function makeStream(name: string): RandomStream {
+function makeStream(name: string, undo: RandomUndo): RandomStream {
   const where = `random stream ${JSON.stringify(name)}`;
 
   /** Draws one 32-bit value, advancing the stored position. */
@@ -86,9 +121,22 @@ function makeStream(name: string): RandomStream {
       );
     }
     const stored = store.get(STREAMS_ID, name);
-    const state = isState(stored) ? [...stored] : startState(seed, name);
+    if (undo === "rewind") {
+      const state = isState(stored) ? [...stored] : startState(seed, name);
+      const value = sfc32(state);
+      store.set(STREAMS_ID, name, state);
+      return value;
+    }
+    // A rerolling stream starts afresh in each move, from the move's name, so
+    // a retried action (another attempt) draws differently.
+    const move = store.get(RANDOM_ID, MOVE_FIELD);
+    const at = typeof move === "string" ? move : "";
+    const state =
+      isMoveState(stored) && stored.move === at
+        ? [...stored.state]
+        : startState(seed, `${name}\u0000${at}`);
     const value = sfc32(state);
-    store.set(STREAMS_ID, name, state);
+    store.set(STREAMS_ID, name, { move: at, state });
     return value;
   };
 
@@ -134,12 +182,23 @@ function makeStream(name: string): RandomStream {
       }
       return out;
     },
-    substream: (sub: string) => makeStream(`${name}/${checkName(sub)}`),
+    undo,
+    substream: (sub: string) => makeStream(`${name}/${checkName(sub)}`, undo),
   });
 }
 
 function isState(value: unknown): value is readonly number[] {
   return Array.isArray(value) && value.length === 4 && value.every((n) => Number.isInteger(n));
+}
+
+function isMoveState(value: unknown): value is { move: string; state: readonly number[] } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "move" in value &&
+    "state" in value &&
+    isState(value.state)
+  );
 }
 
 /** A stream's first position: the cyrb128 hash of the seed and name, then 15 draws to mix it. */

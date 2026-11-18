@@ -57,6 +57,16 @@ export interface History {
   clear(): void;
 }
 
+/**
+ * The state entity undo and redo leave alone: how many times each action has
+ * been tried, so a retry after undo is known to be one (#226, ADR 0014).
+ * IDs starting with `$` are reserved for core.
+ */
+export const ATTEMPTS_ID = "$attempts";
+
+/** A step's changes, without those undo leaves alone. */
+const undoable = (diff: StateDiff): StateDiff => diff.filter((c) => c.id !== ATTEMPTS_ID);
+
 function checkLimit(limit: number): void {
   if (limit !== Infinity && !(Number.isInteger(limit) && limit >= 0)) {
     throw new StateError(
@@ -112,7 +122,7 @@ export function createHistory(store: StateStore, options: HistoryOptions = {}): 
       const step = past.at(-1);
       if (!step) return false;
       // Apply before moving the step, so a failed apply leaves history as it was.
-      store.apply(invertDiff(step.diff));
+      store.apply(invertDiff(undoable(step.diff)));
       past.pop();
       future.push(step);
       return true;
@@ -121,7 +131,7 @@ export function createHistory(store: StateStore, options: HistoryOptions = {}): 
       ensureClean("redo");
       const step = future.at(-1);
       if (!step) return false;
-      store.apply(step.diff);
+      store.apply(undoable(step.diff));
       future.pop();
       past.push(step);
       return true;
