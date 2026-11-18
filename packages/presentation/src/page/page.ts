@@ -16,6 +16,15 @@ import type {
   Story,
   TextStyle,
 } from "@loominate-if/core";
+import {
+  display,
+  layouts,
+  widgets,
+  type LayoutDefinition,
+  type MountedWidget,
+  type WidgetDefinition,
+  type WidgetHost,
+} from "./layout.js";
 import { appendProse } from "./prose.js";
 
 /** What a page shows: a story and its event record. */
@@ -57,7 +66,8 @@ const PROSE_KINDS: readonly EventKind[] = ["narrative", "scene", "dialogue", "ro
 
 /**
  * Shows a story in `container`: the current passage in the main view, and
- * the story so far in a drawer.
+ * the story so far in a drawer, in the layout named by `display.layout`, with
+ * its widgets.
  *
  * @remarks
  * The main view is a live region, so screen readers announce each new
@@ -91,7 +101,6 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
   summary.textContent = options.drawerLabel ?? "Story so far";
   const scrollback = el("div", "loominate-drawer-content");
   drawer.append(summary, scrollback);
-  root.append(main, drawer);
   container.append(root);
 
   let reasons = 0;
@@ -199,9 +208,102 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     drawer.hidden = scrollback.childElementCount === 0;
   };
 
+  // ---- Layout and widgets ------------------------------------------------
+
+  type Mounted = {
+    readonly name: string;
+    readonly element: HTMLElement;
+    readonly definition: WidgetDefinition;
+    readonly view: MountedWidget<unknown>;
+    data: unknown;
+  };
+  let layout: { readonly name: string; readonly definition: LayoutDefinition } | undefined;
+  let mounted: Mounted[] = [];
+  const host: WidgetHost = { story, record, follow };
+
+  const mount = (region: HTMLElement, name: string): Mounted => {
+    const definition = widgets.get(name);
+    if (!definition) {
+      throw new Error(
+        `The widget "${name}" isn't registered. Register it with widgets.register("${name}", …).`,
+      );
+    }
+    const element = el("div", `loominate-widget loominate-widget-${name}`);
+    element.dataset.widget = name;
+    region.append(element);
+    const data = definition.data(game);
+    return { name, element, definition, view: definition.view.mount(element, data, host), data };
+  };
+  const unmount = (w: Mounted): void => {
+    w.view.unmount();
+    w.element.remove();
+  };
+
+  /** Builds the regions of the layout `display.layout` names, if it changed. */
+  const drawLayout = (): void => {
+    const name = display.layout;
+    const definition = layouts.get(name);
+    if (layout?.name === name && layout.definition === definition) return;
+    if (!definition) {
+      throw new Error(
+        `The layout "${name}" isn't registered. Register it with layouts.register("${name}", { regions: […] }), or set display.layout to one that is.`,
+      );
+    }
+    if (!definition.regions.includes("main")) {
+      throw new Error(
+        `The layout "${name}" has no "main" region, where the passage goes. Add "main" to its regions.`,
+      );
+    }
+    for (const region of Object.keys(definition.widgets ?? {})) {
+      if (!definition.regions.includes(region)) {
+        throw new Error(
+          `The layout "${name}" puts widgets in "${region}", which isn't one of its regions.`,
+        );
+      }
+    }
+    for (const w of mounted) unmount(w);
+    mounted = [];
+    root.replaceChildren(
+      ...definition.regions.map((region) => {
+        const r = el("div", `loominate-region loominate-region-${region}`);
+        r.dataset.region = region;
+        if (region === "main") r.append(main, drawer);
+        const names = definition.widgets?.[region] ?? [];
+        for (const w of names) mounted.push(mount(r, w));
+        r.hidden = region !== "main" && names.length === 0;
+        return r;
+      }),
+    );
+    root.dataset.layout = name;
+    layout = { name, definition };
+  };
+
+  /** Updates each widget whose data changed, and remounts one whose definition was replaced. */
+  const drawWidgets = (): void => {
+    mounted = mounted.map((w) => {
+      if (widgets.get(w.name) !== w.definition) {
+        const region = w.element.parentElement;
+        const next = region ? mount(region, w.name) : w;
+        if (region) {
+          w.element.replaceWith(next.element);
+          w.view.unmount();
+        }
+        return next;
+      }
+      const data = w.definition.data(game);
+      if (!same(data, w.data)) {
+        w.view.update(data);
+        w.data = data;
+      }
+      return w;
+    });
+  };
+
   const draw = (): void => {
+    drawLayout();
     drawMain();
     drawDrawer();
+    drawWidgets();
   };
 
   story.begin();
@@ -210,7 +312,24 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     element: root,
     refresh: draw,
     destroy() {
+      for (const w of mounted) unmount(w);
+      mounted = [];
       root.remove();
     },
   };
+}
+
+/** Whether two pieces of plain data are the same. */
+function same(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const ka = Object.keys(a);
+  const kb = Object.keys(b);
+  if (ka.length !== kb.length) return false;
+  return ka.every(
+    (k) =>
+      Object.hasOwn(b, k) &&
+      same((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]),
+  );
 }

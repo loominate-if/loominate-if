@@ -4,9 +4,31 @@
 
 ```ts
 
-import type { Choice } from '@loominate-if/core';
+import { Choice } from '@loominate-if/core';
 import type { EventRecord } from '@loominate-if/core';
+import { Handle } from '@loominate-if/core';
+import { Registry } from '@loominate-if/core';
 import type { Story } from '@loominate-if/core';
+
+// @public
+export const display: Handle<    {
+layout: string;
+}, "loominate:display">;
+
+// @public
+export type LayoutDefinition = {
+    readonly regions: readonly string[];
+    readonly widgets?: Readonly<Record<string, readonly string[]>>;
+};
+
+// @public
+export const layouts: Registry<LayoutDefinition>;
+
+// @public
+export interface MountedWidget<D> {
+    unmount(): void;
+    update(data: D): void;
+}
 
 // @public
 export function mountPage(container: HTMLElement, game: PageGame, options?: PageOptions): Page;
@@ -30,5 +52,42 @@ export type PageOptions = {
     readonly drawerLabel?: string;
     readonly continueLabel?: string;
 };
+
+// @public
+export function statusLine(options?: StatusLineOptions): WidgetDefinition<StatusLineData>;
+
+// @public
+export type StatusLineData = {
+    readonly left: string;
+    readonly right: string;
+};
+
+// @public
+export type StatusLineOptions = {
+    readonly left?: (game: PageGame) => string;
+    readonly right?: (game: PageGame) => string;
+};
+
+// @public
+export const statusLineView: WidgetView<StatusLineData>;
+
+// @public
+export type WidgetDefinition<D = unknown> = {
+    readonly data: (game: PageGame) => D;
+    readonly view: WidgetView<D>;
+};
+
+// @public
+export type WidgetHost = PageGame & {
+    follow(choice: Choice): void;
+};
+
+// @public
+export const widgets: Registry<WidgetDefinition>;
+
+// @public
+export interface WidgetView<D> {
+    mount(element: HTMLElement, data: D, host: WidgetHost): MountedWidget<D>;
+}
 
 ```
