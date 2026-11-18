@@ -37,8 +37,13 @@ export type LoominateOptions = {
 const MODULE_SUFFIX = ".ts";
 const SKIP = new Set(["node_modules", "dist", ".git"]);
 const SOURCE = /\.(weft|m?tsx?)$/;
+/** Tool configuration such as `vite.config.ts`, which isn't part of the game. */
+const CONFIG = /\.config\.[cm]?[jt]sx?$/;
 
-/** Every passage file and TypeScript module under `root`, outside dependencies and output. */
+/**
+ * Every passage file and TypeScript module under `root`, outside dependencies
+ * and output, and not tool configuration such as `vite.config.ts`.
+ */
 export function gameFiles(root: string): ProjectFile[] {
   const out: ProjectFile[] = [];
   const walk = (dir: string): void => {
@@ -46,7 +51,11 @@ export function gameFiles(root: string): ProjectFile[] {
       if (entry.name.startsWith(".") || SKIP.has(entry.name)) continue;
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(full);
-      else if (SOURCE.test(entry.name) && !entry.name.endsWith(".d.ts")) {
+      else if (
+        SOURCE.test(entry.name) &&
+        !entry.name.endsWith(".d.ts") &&
+        !CONFIG.test(entry.name)
+      ) {
         out.push({ path: full, text: readFileSync(full, "utf8") });
       }
     }
@@ -95,9 +104,35 @@ export function loominate(options: LoominateOptions = {}): Plugin {
     }
   };
 
+  /** A passage file's generated code, for Vite and for its dependency scan. */
+  const generatedCode = (id: string): string | undefined =>
+    id.endsWith(PASSAGE_EXTENSION + MODULE_SUFFIX)
+      ? active().module(id.slice(0, -MODULE_SUFFIX.length))?.code
+      : undefined;
+
   return {
     name: "loominate",
     enforce: "pre",
+
+    config() {
+      // Vite scans the game's imports for dependencies at startup, reading each
+      // module from disk. Generated modules aren't on disk, so give it their code.
+      return {
+        optimizeDeps: {
+          rolldownOptions: {
+            plugins: [
+              {
+                name: "loominate-scan",
+                load(id: string) {
+                  const code = generatedCode(id);
+                  return code === undefined ? undefined : { code, moduleType: "ts" as const };
+                },
+              },
+            ],
+          },
+        },
+      };
+    },
 
     configResolved(config) {
       root = path.resolve(config.root);
@@ -160,7 +195,7 @@ export function loominate(options: LoominateOptions = {}): Plugin {
     },
 
     async hotUpdate({ file, timestamp, type, read, modules }) {
-      if (!SOURCE.test(file) || !inGame(file)) return;
+      if (!SOURCE.test(file) || CONFIG.test(file) || !inGame(file)) return;
       const key = `${file}@${String(timestamp)}`;
       let change = changes.get(key);
       if (!change) {

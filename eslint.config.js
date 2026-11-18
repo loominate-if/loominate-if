@@ -61,6 +61,7 @@ export default tseslint.config(
       "**/node_modules/**",
       "**/__run-*/**",
       "bench/**/out/**",
+      "scratch/**",
     ],
   },
   js.configs.recommended,

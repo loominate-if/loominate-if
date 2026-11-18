@@ -65,6 +65,21 @@ describe("the loominate Vite plugin", () => {
     expect(main.play()).toEqual(["The lamp is on.", "Damp, lit."]);
   });
 
+  it("gives Vite's dependency scan the generated code, which isn't on disk", async () => {
+    const run = game(files);
+    const server = (run.server = await serve(run.dir));
+    const plugins = server.config.optimizeDeps.rolldownOptions?.plugins;
+    const scan = (Array.isArray(plugins) ? plugins : []).find(
+      (p): p is { name: string; load: (id: string) => unknown } =>
+        typeof p === "object" && p !== null && "name" in p && p.name === "loominate-scan",
+    );
+    expect(scan?.load(path.join(run.dir, "hall.weft.ts"))).toMatchObject({
+      code: expect.stringContaining("export const passages") as unknown,
+      moduleType: "ts",
+    });
+    expect(scan?.load(path.join(run.dir, "main.ts"))).toBeUndefined();
+  });
+
   it("recompiles a passage file when it changes, and nothing else", async () => {
     const run = game(files);
     const server = (run.server = await serve(run.dir));
@@ -109,7 +124,15 @@ describe("the loominate Vite plugin", () => {
 
 describe("game files", () => {
   it("are the passage files and TypeScript modules outside dependencies and output", () => {
-    const run = game({ "a.weft": ":: A\n", "b.ts": "", "c.d.ts": "", "d.js": "" });
+    const run = game({
+      "a.weft": ":: A\n",
+      "b.ts": "",
+      "c.d.ts": "",
+      "d.js": "",
+      // Tool configuration isn't game code; type-checking vite.config.ts crashed TypeScript.
+      "vite.config.ts": "export default {};\n",
+      "vitest.config.mts": "",
+    });
     expect(gameFiles(run.dir).map((f) => path.basename(f.path))).toEqual(["a.weft", "b.ts"]);
   });
 
