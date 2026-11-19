@@ -32,5 +32,5 @@ The CLI uses **Vite 8**, pinned to 8.3.5. Its dev server has hot module replacem
 - Game code imports each passage file. Whether the CLI gathers every passage file into one module for the game's entry is for the dev server and builds (#53, #55) to decide.
 - The plugin type-checks the whole game after every edit. That reuses earlier work, but large games may need it debounced or moved off the update path; #53 can measure.
 - Module-level handles (ADR 0012) still need resetting when a module is evaluated again on hot update. That's the dev server's job (#53).
-- Finding packages' compiler extensions is #238. Until then they're passed to `loominate({ extensions })`.
+- Finding packages' compiler extensions is #238, decided in [ADR 0023](0023-game-config-and-cli-commands.md): `loominate dev` and `loominate build` read them from `loominate.config.ts` and pass them to the plugin.
 - Upgrading Vite is a deliberate change to the CLI's pinned dependency.

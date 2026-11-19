@@ -219,7 +219,11 @@ importers:
 
   packages/core: {}
 
-  packages/create: {}
+  packages/create:
+    devDependencies:
+      '@loominate-if/cli':
+        specifier: workspace:*
+        version: link:../cli
 
   packages/inspector: {}
 

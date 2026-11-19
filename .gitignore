@@ -149,6 +149,8 @@ vite.config.ts.timestamp-*
 .turbo
 packages/compiler/src/modules/__run-*/
 packages/cli/src/vite/__run-*/
+packages/cli/__run-*/
+packages/create/__run-*/
 
 # Local, untracked test games and experiments
 scratch/
