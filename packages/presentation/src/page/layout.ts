@@ -1,0 +1,146 @@
+/**
+ * Layouts, regions, and headless widgets (#38, ADR 0017).
+ *
+ * A layout names its regions in order; widgets live in regions. Both are
+ * registered by name in registries (ADR 0012), so a game or kit can add its
+ * own or replace a built-in one. Which layout is showing is game state, on
+ * {@link display}, so effects switch it and undo, saves, and replays restore it.
+ *
+ * A widget is headless: `data` computes plain data from the game, purely, and
+ * `view` draws it through a small mount/update/unmount contract that any UI
+ * framework can meet (ADR 0003).
+ */
+import { object, registry, type Choice, type Registry } from "@loominate-if/core";
+import type { PageGame } from "./page.js";
+
+/** The package that registers presentation's built-in layouts and widgets. */
+const SOURCE = "@loominate-if/presentation";
+
+/** A layout: named regions in document order, and the widgets in each. */
+export type LayoutDefinition = {
+  /**
+   * Region names, in document order. One must be `main`, where the passage
+   * and the story-so-far drawer go. Each region is a
+   * `<div class="loominate-region" data-region="…">` for themes to place.
+   */
+  readonly regions: readonly string[];
+  /** The widgets in each region, by registered name, in order. */
+  readonly widgets?: Readonly<Record<string, readonly string[]>>;
+};
+
+/** What a widget's view can do: read the game, and make a move as the player would. */
+export type WidgetHost = PageGame & {
+  /** Follows a choice, as clicking a link on the page does, and redraws the page. */
+  follow(choice: Choice): void;
+};
+
+/** A widget's view once mounted. */
+export interface MountedWidget<D> {
+  /** Shows new data. Called only when the data changed. */
+  update(data: D): void;
+  /** Removes the view. Its element is removed after. */
+  unmount(): void;
+}
+
+/**
+ * How a widget is drawn: mounted into an element with its first data, then
+ * updated. A view written with a UI framework meets this through an adapter.
+ */
+export interface WidgetView<D> {
+  /** Draws the widget into `element`. */
+  mount(element: HTMLElement, data: D, host: WidgetHost): MountedWidget<D>;
+}
+
+/**
+ * A widget: headless data and a view. Replace a registered widget's `view`
+ * to restyle it completely while keeping its data.
+ */
+export type WidgetDefinition<D = unknown> = {
+  /**
+   * The widget's data, computed from the game after each move. It must be
+   * pure, and plain data (strings, numbers, booleans, null, arrays, objects),
+   * so the page can tell when it changed.
+   */
+  readonly data: (game: PageGame) => D;
+  /** How it's drawn. */
+  readonly view: WidgetView<D>;
+};
+
+/** Layouts by name. `page` (header, main, footer) is registered by default. */
+export const layouts: Registry<LayoutDefinition> = registry<LayoutDefinition>("layouts");
+
+/** Widgets by name. `status-line` is registered by default. */
+export const widgets: Registry<WidgetDefinition> = registry<WidgetDefinition>("widgets");
+
+/**
+ * What the page shows, as game state. Set `display.layout` in an effect to
+ * switch layouts: `{on enter: display.layout = "conversation"}`.
+ */
+export const display = object("loominate:display", {
+  /** The registered layout to show. */
+  layout: "page",
+});
+
+/** The data the status line shows. */
+export type StatusLineData = {
+  /** Text at the start of the line. */
+  readonly left: string;
+  /** Text at the end of the line. */
+  readonly right: string;
+};
+
+/** Options for {@link statusLine}. */
+export type StatusLineOptions = {
+  /** The left text. Defaults to the current passage's name. */
+  readonly left?: (game: PageGame) => string;
+  /** The right text. Defaults to the number of moves made, as `Moves: 3`. */
+  readonly right?: (game: PageGame) => string;
+};
+
+/** The status line's view: two spans in a bar. */
+export const statusLineView: WidgetView<StatusLineData> = {
+  mount(element, data) {
+    const doc = element.ownerDocument;
+    const bar = doc.createElement("div");
+    bar.className = "loominate-status";
+    const left = doc.createElement("span");
+    left.className = "loominate-status-left";
+    const right = doc.createElement("span");
+    right.className = "loominate-status-right";
+    bar.append(left, right);
+    element.append(bar);
+    const show = (d: StatusLineData): void => {
+      left.textContent = d.left;
+      right.textContent = d.right;
+    };
+    show(data);
+    return {
+      update: show,
+      unmount() {
+        bar.remove();
+      },
+    };
+  },
+};
+
+/**
+ * A status line: a bar with text at each end, such as the location and the
+ * score.
+ *
+ * @example
+ * ```ts
+ * widgets.replace("status-line", statusLine({ right: () => `Score: ${String(score.points)}` }));
+ * ```
+ */
+export function statusLine(options: StatusLineOptions = {}): WidgetDefinition<StatusLineData> {
+  return {
+    data: (game) => ({
+      left: options.left?.(game) ?? game.story.current ?? "",
+      right: options.right?.(game) ?? `Moves: ${String(game.story.actions.length)}`,
+    }),
+    view: statusLineView,
+  };
+}
+
+layouts.register("page", { regions: ["header", "main", "footer"] }, { source: SOURCE });
+widgets.register("status-line", statusLine(), { source: SOURCE });

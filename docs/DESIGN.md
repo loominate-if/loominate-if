@@ -167,6 +167,8 @@ Each passage or action result replaces the main view. A "story so far" drawer gi
 - Games can switch layouts at runtime; conversation mode is the first built-in example.
 - Mobile rules collapse sidebars into drawers or tabs on narrow screens.
 
+Layouts and widgets are registered by name. The current layout is game state, on presentation's `display` object, so an effect switches it and undo restores it. A widget is pure data computed from the game after each move, plus a view that mounts, updates when the data changes, and unmounts. [ADR 0017](decisions/0017-layouts-and-widgets.md) defines them.
+
 ### Theming
 
 Light customization uses CSS custom properties in a theme file. Deep customization replaces a widget's render template entirely, so the same compass data can drive a brass ship's compass, a subway map, or a list of street names.
