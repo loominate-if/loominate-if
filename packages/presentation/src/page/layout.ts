@@ -26,6 +26,13 @@ export type LayoutDefinition = {
   readonly regions: readonly string[];
   /** The widgets in each region, by registered name, in order. */
   readonly widgets?: Readonly<Record<string, readonly string[]>>;
+  /**
+   * Regions shown beside `main` rather than above or below it, at its
+   * `start` (left, in left-to-right languages) or `end`. On narrow screens
+   * each collapses into a drawer the player opens with a button named after
+   * it: start sidebars above the passage, end sidebars below it.
+   */
+  readonly sidebars?: Readonly<Record<string, "start" | "end">>;
 };
 
 /** What a widget's view can do: read the game, and make a move as the player would. */

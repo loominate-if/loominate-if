@@ -14,6 +14,8 @@ mountPage(container, { story, record }, { styles: false });
 
 The class names stay the same either way: `.loominate-page`, `.loominate-region` (with `data-region="header"` and so on), `.loominate-passage`, `.loominate-link`, `.loominate-continue`, `.loominate-reason`, `.loominate-drawer`, and `.loominate-status`. A link that can't be followed has `aria-disabled="true"`; style it with `.loominate-link[aria-disabled="true"]`, not `:disabled`.
 
+Sidebars ([ADR 0019](../decisions/0019-sidebars-and-narrow-screens.md)) sit with main in `.loominate-columns`, and each has `data-sidebar="start"` or `"end"`. The page root has `data-sidebars` listing the sides in use, and `data-narrow` on narrow screens, where each sidebar shows a `.loominate-sidebar-toggle` button and a `.loominate-sidebar-panel`. The narrow breakpoint is `mountPage`'s `narrow` option, not a token, because custom properties can't be used in media queries.
+
 ## A theme file
 
 A theme file is ordinary CSS that sets tokens. Load it however your game loads CSS, for example with a `<link>` in `index.html` or `import "./theme.css"` in `main.ts`:
@@ -46,7 +48,8 @@ Give your own colors as `light-dark(light, dark)` pairs to keep following the pr
 | `--loominate-font-ui` | `system-ui, -apple-system, "Segoe UI", Roboto, sans-serif` | The typeface for widgets, such as the status line, and the drawer's label. |
 | `--loominate-font-size` | `1.125rem` | The prose's size. |
 | `--loominate-line-height` | `1.6` | The prose's line height. |
-| `--loominate-measure` | `38rem` | The page's maximum width, which keeps lines readable. |
+| `--loominate-measure` | `38rem` | The maximum width of the page without sidebars, which keeps lines readable. |
+| `--loominate-sidebar-width` | `14rem` | The width of each sidebar beside main, which widens the page by as much. |
 | `--loominate-space` | `1rem` | The base spacing; paddings and gaps are multiples of it. |
 | `--loominate-radius` | `0.375rem` | The corner radius of buttons and panels. |
 | `--loominate-color-text` | `light-dark(#1f1d1a, #ece8e1)` | Prose and other text. |

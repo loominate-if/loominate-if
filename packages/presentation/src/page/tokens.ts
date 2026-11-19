@@ -40,7 +40,12 @@ export const themeTokens: readonly ThemeToken[] = [
   {
     name: "--loominate-measure",
     value: "38rem",
-    description: "The page's maximum width, which keeps lines readable.",
+    description: "The maximum width of the page without sidebars, which keeps lines readable.",
+  },
+  {
+    name: "--loominate-sidebar-width",
+    value: "14rem",
+    description: "The width of each sidebar beside main, which widens the page by as much.",
   },
   {
     name: "--loominate-space",
