@@ -41,7 +41,7 @@ A save file is one line of JSON:
 ### Slots
 
 - `createSaves({ storage, game })` manages slots for one game: `save`, `autosave`, `load`, `list`, `delete`, `export`, and `import`.
-- Slots are kept in a `SaveStorage` the host supplies: four methods (`get`, `set`, `delete`, `slots`) over slot names and save file text, synchronous or asynchronous. Core provides `createMemoryStorage()`; browser storage and the save menu are presentation's ([#230](https://github.com/loominate-if/loominate-if/issues/230)).
+- Slots are kept in a `SaveStorage` the host supplies: four methods (`get`, `set`, `delete`, `slots`) over slot names and save file text, synchronous or asynchronous. Core provides `createMemoryStorage()`; browser storage and the save menu are presentation's ([#230](https://github.com/loominate-if/loominate-if/issues/230), decided in [ADR 0022](0022-player-shell-and-browser-saves.md)).
 - `list()` gives summaries (everything but the state, plus the slot and current passage) newest first, ties broken by slot name so the order never depends on the storage. Slots that can't be loaded come last, each with its reason, so one bad file never hides the others.
 - Export gives a slot's file text; import checks a file can be loaded into this game before writing it to a slot, so a bad import never overwrites a save.
 
