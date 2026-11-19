@@ -51,6 +51,7 @@ export type PageOptions = {
     readonly onMove?: (choice: Choice) => void;
     readonly drawerLabel?: string;
     readonly continueLabel?: string;
+    readonly styles?: boolean;
 };
 
 // @public
@@ -70,6 +71,16 @@ export type StatusLineOptions = {
 
 // @public
 export const statusLineView: WidgetView<StatusLineData>;
+
+// @public
+export type ThemeToken = {
+    readonly name: `--loominate-${string}`;
+    readonly value: string;
+    readonly description: string;
+};
+
+// @public
+export const themeTokens: readonly ThemeToken[];
 
 // @public
 export type WidgetDefinition<D = unknown> = {

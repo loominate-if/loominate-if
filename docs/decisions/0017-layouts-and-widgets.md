@@ -13,7 +13,7 @@ The page (#37) shows a passage and the story so far. Games also need layouts, wh
 ### Registries
 
 - `layouts` and `widgets` are registries (ADR 0012), so a game or kit adds its own, and replaces or removes a built-in one, by name. Presentation registers the `page` layout (`header`, `main`, `footer`, with no widgets) and the `status-line` widget.
-- A layout is data: its regions in document order, one of which must be `main`, and the widgets in each region by name. Each region is a `<div class="loominate-region" data-region="…">`, which themes place with CSS. A region with no widgets is hidden, apart from `main`. The `main` region holds the passage and the story-so-far drawer.
+- A layout is data: its regions in document order, one of which must be `main`, and the widgets in each region by name. Each region is an element with `class="loominate-region"` and `data-region="…"`, which themes place with CSS. Since #43 each region is a landmark: `header`, `footer`, `nav`, and `aside` regions use those elements, and any other region is a named `<section>`. A region with no widgets is hidden, apart from `main`. The `main` region holds the passage and the story-so-far drawer.
 
 ### The current layout is game state
 
