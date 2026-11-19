@@ -95,13 +95,23 @@ export function loominate(options: LoominateOptions = {}): Plugin {
   const inGame = (file: string): boolean =>
     file.startsWith(root + path.sep) && !file.split(path.sep).some((part) => SKIP.has(part));
 
-  /** Logs the game's problems after an edit, so the author sees them where the server runs. */
+  /** Whether the last report had problems, so fixing the last one can be announced. */
+  let hadProblems = false;
+  /**
+   * Logs the game's problems when the dev server starts and after each edit,
+   * so the author sees them where the server runs, and says when they're all fixed.
+   */
   const report = (): void => {
-    for (const d of active().diagnostics()) {
+    const diagnostics = active().diagnostics();
+    for (const d of diagnostics) {
       const line = formatDiagnostic(root, d);
       if (d.severity === "error") logger?.error(line, { timestamp: true });
       else logger?.warn(line, { timestamp: true });
     }
+    if (diagnostics.length === 0 && hadProblems) {
+      logger?.info("The game has no problems now.", { timestamp: true });
+    }
+    hadProblems = diagnostics.length > 0;
   };
 
   /** A passage file's generated code, for Vite and for its dependency scan. */
@@ -145,6 +155,11 @@ export function loominate(options: LoominateOptions = {}): Plugin {
         ...(options.extensions !== undefined && { extensions: options.extensions }),
         ...(options.compilerOptions !== undefined && { compilerOptions: options.compilerOptions }),
       });
+    },
+
+    configureServer() {
+      // Problems already in the game when the server starts, before any edit.
+      report();
     },
 
     buildStart() {

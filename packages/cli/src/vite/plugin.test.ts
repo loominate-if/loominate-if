@@ -44,11 +44,30 @@ export function play(): string[] {
 `,
 };
 
-async function serve(dir: string) {
+/** What the server logged, by level. */
+type Logged = { level: "info" | "warn" | "error"; message: string }[];
+
+async function serve(dir: string, logged?: Logged) {
+  const log =
+    (level: Logged[number]["level"]) =>
+    (message: string): void => {
+      logged?.push({ level, message });
+    };
   return createServer({
     root: dir,
     configFile: false,
     logLevel: "silent",
+    ...(logged && {
+      customLogger: {
+        info: log("info"),
+        warn: log("warn"),
+        warnOnce: log("warn"),
+        error: log("error"),
+        clearScreen: () => undefined,
+        hasErrorLogged: () => false,
+        hasWarned: false,
+      },
+    }),
     plugins: [loominate({ start: "Hall", compilerOptions: { customConditions: ["source"] } })],
     // Resolve workspace packages to their TypeScript source, as tests do everywhere.
     resolve: { conditions: ["source"] },
@@ -105,6 +124,33 @@ describe("the loominate Vite plugin", () => {
     server.environments.ssr.moduleGraph.invalidateModule(before);
     const main = (await server.ssrLoadModule("/main.ts")) as { play(): string[] };
     expect(main.play()).toEqual(["The lamp is off.", "Damp, lit."]);
+  });
+
+  it("reports problems already in the game when the server starts, and when they're fixed", async () => {
+    const run = game({
+      ...files,
+      "hall.weft": ":: Hall\n{nope}\n{continue -> Cellar}\n\n:: Cellar\nDamp.\n",
+    });
+    const logged: Logged = [];
+    const server = (run.server = await serve(run.dir, logged));
+    expect(logged.filter((l) => l.level === "error").map((l) => l.message)).toEqual([
+      expect.stringMatching(/^hall\.weft:2:2 error: `nope` isn't defined\./) as unknown,
+    ]);
+
+    logged.length = 0;
+    const file = path.join(run.dir, "hall.weft");
+    const plugin = server.config.plugins.find((p) => p.name === "loominate");
+    const hotUpdate = plugin?.hotUpdate;
+    const handler = typeof hotUpdate === "function" ? hotUpdate : hotUpdate?.handler;
+    await handler?.call({ environment: server.environments.ssr } as never, {
+      type: "update",
+      file,
+      timestamp: Date.now(),
+      modules: [],
+      read: () => hall("on"),
+      server,
+    });
+    expect(logged).toEqual([{ level: "info", message: "The game has no problems now." }]);
   });
 
   it("fails a build with the game's errors, at the passage lines", async () => {
