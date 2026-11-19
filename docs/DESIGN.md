@@ -196,6 +196,8 @@ Music, ambience, and sound-effect channels with crossfades, a volume UI, and han
 
 New text is announced through live regions, focus moves sensibly after each choice, every widget is keyboard-operable (including numpad or vi-style compass keys), and reduced-motion preferences disable animated effects.
 
+The page's baseline: the passage is a polite live region inside the `<main>` landmark and takes focus after each move, so the next Tab reaches its first choice. A link that can't be followed stays in the tab order, marked `aria-disabled`, with its reason as the button's description, so a keyboard or screen-reader player still learns why. Every layout region is a landmark: `header`, `footer`, `nav`, and `aside` regions use those elements, and any other region is a section named after itself. Tests run axe over the page in each of its states and play a walkthrough with the keyboard alone.
+
 ## Actions and interaction
 
 Players act through dynamic context menus whose options are contributed by the world's current state, all built on a single action pipeline that a parser can later share.

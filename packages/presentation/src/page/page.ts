@@ -61,6 +61,15 @@ export interface Page {
   destroy(): void;
 }
 
+/** Region names drawn as the HTML landmark element of the same name. */
+const LANDMARKS: ReadonlySet<string> = new Set(["header", "footer", "nav", "aside"]);
+
+/** A region's accessible name: `side-panel` is "Side panel". */
+function regionLabel(region: string): string {
+  const words = region.replace(/[-_]+/g, " ").trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 /** Event kinds the drawer shows: prose the player read. */
 const PROSE_KINDS: readonly EventKind[] = ["narrative", "scene", "dialogue", "room-description"];
 
@@ -70,8 +79,11 @@ const PROSE_KINDS: readonly EventKind[] = ["narrative", "scene", "dialogue", "ro
  * its widgets.
  *
  * @remarks
- * The main view is a live region, so screen readers announce each new
- * passage, and it takes focus after each move.
+ * The passage is a live region in the page's `<main>` landmark, so screen
+ * readers announce each new passage, and it takes focus after each move, so
+ * the next Tab reaches its first choice. Links that can't be followed stay
+ * focusable, marked `aria-disabled`, with their reasons as descriptions.
+ * Every region is a landmark.
  *
  * @example
  * ```ts
@@ -93,14 +105,18 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
   };
 
   const root = el("div", "loominate-page");
+  // The passage and the drawer share the main landmark; only the passage is
+  // live, so opening the drawer or redrawing it isn't announced.
   const main = el("main", "loominate-main");
-  main.tabIndex = -1;
-  main.setAttribute("aria-live", "polite");
+  const passage = el("div", "loominate-passage");
+  passage.tabIndex = -1;
+  passage.setAttribute("aria-live", "polite");
   const drawer = el("details", "loominate-drawer");
   const summary = el("summary");
   summary.textContent = options.drawerLabel ?? "Story so far";
   const scrollback = el("div", "loominate-drawer-content");
   drawer.append(summary, scrollback);
+  main.append(passage, drawer);
   container.append(root);
 
   let reasons = 0;
@@ -108,10 +124,14 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     story.follow(choice);
     options.onMove?.(choice);
     draw();
-    main.focus({ preventScroll: true });
+    passage.focus({ preventScroll: true });
   };
 
-  /** A button for a link or continue point, disabled with its reason when it can't be followed. */
+  /**
+   * A button for a link or continue point. One that can't be followed is
+   * marked `aria-disabled` rather than `disabled`, so it stays in the tab
+   * order and a keyboard or screen-reader player still finds it and its reason.
+   */
   const button = (
     node: RenderedLink | Extract<RenderedNode, { type: "continue" }>,
     label: Node[] | string,
@@ -121,7 +141,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     b.type = "button";
     b.append(...(typeof label === "string" ? [label] : label));
     if (node.type === "link" && !node.available) {
-      b.disabled = true;
+      b.setAttribute("aria-disabled", "true");
       return b;
     }
     b.addEventListener("click", () => {
@@ -141,7 +161,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
   };
 
   const drawMain = (): void => {
-    main.replaceChildren();
+    passage.replaceChildren();
     for (const node of story.render().nodes) {
       if (node.type === "text") {
         const p = el("p");
@@ -158,12 +178,12 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
             return b;
           },
         );
-        main.append(p);
+        passage.append(p);
         // Reasons for disabled inline links follow the paragraph, so the sentence still reads.
         for (const r of after) {
           const note = el("p", "loominate-note");
           note.append(r);
-          main.append(note);
+          passage.append(note);
         }
       } else {
         const p = el("p", "loominate-choice");
@@ -177,7 +197,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
           const r = reason(b, node.reason);
           if (r) p.append(" ", r);
         }
-        main.append(p);
+        passage.append(p);
       }
     }
   };
@@ -239,6 +259,19 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     w.element.remove();
   };
 
+  /**
+   * A region's element. Every widget sits in a landmark, so screen-reader
+   * players can jump to it: `header`, `footer`, `nav`, and `aside` regions use
+   * those elements, and any other region is a section named after itself.
+   */
+  const regionElement = (region: string): HTMLElement => {
+    if (region === "main") return el("div");
+    if (LANDMARKS.has(region)) return el(region as "header");
+    const section = el("section");
+    section.setAttribute("aria-label", regionLabel(region));
+    return section;
+  };
+
   /** Builds the regions of the layout `display.layout` names, if it changed. */
   const drawLayout = (): void => {
     const name = display.layout;
@@ -265,9 +298,10 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     mounted = [];
     root.replaceChildren(
       ...definition.regions.map((region) => {
-        const r = el("div", `loominate-region loominate-region-${region}`);
+        const r = regionElement(region);
+        r.className = `loominate-region loominate-region-${region}`;
         r.dataset.region = region;
-        if (region === "main") r.append(main, drawer);
+        if (region === "main") r.append(main);
         const names = definition.widgets?.[region] ?? [];
         for (const w of names) mounted.push(mount(r, w));
         r.hidden = region !== "main" && names.length === 0;
