@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer, defaultServerConditions, type ViteDevServer } from "vite";
 import { afterEach, describe, expect, it } from "vitest";
-import { formatDiagnostic, gameFiles, loominate } from "./plugin.js";
+import { codeFrame, formatDiagnostic, gameFiles, loominate, overlay } from "./plugin.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const runs: { dir: string; server?: ViteDevServer }[] = [];
@@ -153,6 +153,46 @@ describe("the loominate Vite plugin", () => {
     expect(logged).toEqual([{ level: "info", message: "The game has no problems now." }]);
   });
 
+  it("shows the game's errors in Vite's overlay on each page that connects", async () => {
+    const run = game({
+      ...files,
+      "hall.weft": ":: Hall\n{nope}\n{continue -> Cellar}\n\n:: Cellar\nDamp.\n",
+    });
+    const server = (run.server = await serve(run.dir));
+    const plugin = server.config.plugins.find((p) => p.name === "loominate");
+    const configure = plugin?.configureServer;
+    const handler = typeof configure === "function" ? configure : configure?.handler;
+    // Vite tells listeners of each page that connects, with a client to send to just that page.
+    type Client = { send(payload: unknown): void };
+    const listeners: ((data: unknown, client: Client) => void)[] = [];
+    const sent: unknown[] = [];
+    await handler?.call(
+      {} as never,
+      {
+        ws: {
+          on: (event: string, listener: (data: unknown, client: Client) => void) => {
+            if (event === "vite:client:connect") listeners.push(listener);
+          },
+        },
+      } as never,
+    );
+    const page: Client = { send: (payload) => sent.push(payload) };
+    for (const listener of listeners) listener(undefined, page);
+    expect(sent).toEqual([
+      {
+        type: "error",
+        err: expect.objectContaining({
+          message: expect.stringMatching(
+            /^The game has an error:\nhall\.weft:2:2 error: `nope` isn't defined\./,
+          ) as unknown,
+          plugin: "loominate",
+          loc: { file: path.join(run.dir, "hall.weft"), line: 2, column: 2 },
+          frame: expect.stringContaining("> 2 | {nope}") as unknown,
+        }) as unknown,
+      },
+    ]);
+  });
+
   it("fails a build with the game's errors, at the passage lines", async () => {
     const run = game({ ...files, "hall.weft": ":: Hall\n[[Nowhere]]\n" });
     const { build } = await import("vite");
@@ -165,6 +205,31 @@ describe("the loominate Vite plugin", () => {
         build: { write: false, lib: { entry: path.join(run.dir, "main.ts"), formats: ["es"] } },
       }),
     ).rejects.toThrow("hall.weft:2:3 error: There's no passage named `Nowhere`.");
+  });
+});
+
+describe("the error overlay", () => {
+  it("frames the lines around an error, with a caret at its column", () => {
+    expect(codeFrame("one\ntwo {nope}\nthree\nfour\nfive", 2, 6)).toBe(
+      ["  1 | one", "> 2 | two {nope}", "    |      ^", "  3 | three"].join("\n"),
+    );
+  });
+
+  it("is left out when the game has only warnings, or nothing", () => {
+    expect(overlay("/game", [])).toBeUndefined();
+    expect(
+      overlay("/game", [
+        {
+          severity: "warning",
+          source: "compiler",
+          file: "/game/a.weft",
+          message: "Unreachable.",
+          span: { start: 0, end: 1 },
+          line: 1,
+          column: 1,
+        },
+      ]),
+    ).toBeUndefined();
   });
 });
 

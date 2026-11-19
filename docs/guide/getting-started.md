@@ -9,7 +9,9 @@ npm install
 npm run dev
 ```
 
-That gives you a small game, with the dev server showing it in your browser. Edit a file and the game updates as you save. Errors in passages or code are reported against your own lines, in the terminal.
+That gives you a small game, with the dev server showing it in your browser. Edit a file and the page reloads as you save, back at the passage you were on, with the game's state as it was, showing your edited text. If an edit means that can't work, for example because you renamed the passage you were at, the page says so and offers a new game.
+
+Errors in passages or code are reported against your own lines, in the terminal and over the game in the browser. Fix the last one and the terminal says the game has no problems.
 
 ## What's in it
 
