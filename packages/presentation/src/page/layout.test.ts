@@ -112,11 +112,12 @@ describe("layouts", () => {
     });
     const { root, regions, click } = play();
     const main = root.querySelector("main");
+    const passage = root.querySelector(".loominate-passage");
     click("Ring the bell");
     expect(root.dataset.layout).toBe("conversation");
     expect(regions()).toEqual(["portraits", "main"]);
     expect(root.querySelector("main")).toBe(main);
-    expect(document.activeElement).toBe(main);
+    expect(document.activeElement).toBe(passage);
     expect(root.querySelector(".loominate-status")?.textContent).toBe("ButlerMoves: 1");
     click("Never mind");
     expect(root.dataset.layout).toBe("page");

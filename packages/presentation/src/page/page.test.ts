@@ -88,7 +88,7 @@ function play(snapshot?: StateSnapshot, onMove?: () => void) {
     },
   );
   history.checkpoint();
-  const main = () => container.querySelector("main") as HTMLElement;
+  const main = () => container.querySelector(".loominate-passage") as HTMLElement;
   const drawer = () => container.querySelector("details") as HTMLDetailsElement;
   const click = (label: string) => {
     const b = [...main().querySelectorAll("button")].find((x) => x.textContent === label);
@@ -132,7 +132,8 @@ describe("the page", () => {
     const { main, click } = play();
     click("Go to the stairs");
     const down = [...main().querySelectorAll("button")].find((b) => b.textContent === "Go down");
-    expect(down?.disabled).toBe(true);
+    expect(down?.getAttribute("aria-disabled")).toBe("true");
+    expect(down?.disabled).toBe(false);
     const reason = document.getElementById(down?.getAttribute("aria-describedby") ?? "");
     expect(reason?.textContent).toBe("It's too dark to see the steps.");
   });
@@ -143,9 +144,9 @@ describe("the page", () => {
     const paragraph = main().querySelector("p");
     expect(paragraph?.textContent).toBe("The steps go down. You could go back or feel your way.");
     const inline = paragraph?.querySelectorAll<HTMLButtonElement>("button.loominate-inline");
-    expect([...(inline ?? [])].map((b) => [b.textContent, b.disabled])).toEqual([
-      ["go back", false],
-      ["feel your way", true],
+    expect([...(inline ?? [])].map((b) => [b.textContent, b.ariaDisabled])).toEqual([
+      ["go back", null],
+      ["feel your way", "true"],
     ]);
     expect(main().querySelector(".loominate-note")?.textContent).toBe("Too risky.");
     click("go back");
