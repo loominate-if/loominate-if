@@ -11,6 +11,11 @@ import { pathToFileURL } from "node:url";
 import type { CompilerExtension } from "@loominate-if/compiler";
 import { runnerImport } from "vite";
 
+/** The module a config's `import { defineConfig } from "@loominate-if/cli"` loads. */
+const DEFINE = "\0loominate:define-config";
+/** What the config's import of `@loominate-if/cli` is rewritten to. */
+const DEFINE_URL = "/@loominate/define-config";
+
 /** The config file's name, in the game's root. */
 export const CONFIG_FILE = "loominate.config.ts";
 
@@ -87,11 +92,25 @@ export async function loadConfig(
     configFile: false,
     logLevel: "silent",
     resolve: { conditions },
-    ssr: {
-      resolve: { conditions, externalConditions: conditions },
-      // Packages read from source, as in this repository, go through Vite, which compiles them.
-      ...(options.conditions?.length ? { noExternal: [/^@loominate-if\//] } : {}),
-    },
+    ssr: { resolve: { conditions, externalConditions: conditions } },
+    plugins: [
+      {
+        // A config needs only defineConfig from the CLI. Supplying it here means
+        // reading a config never loads the whole CLI, whether it's installed
+        // built or, as in this repository, as TypeScript sources.
+        name: "loominate-config",
+        enforce: "pre",
+        // Rewritten in the config's own source, since Vite's server runtime
+        // hands an installed package's import to Node before plugins see it.
+        transform: (code, id) =>
+          path.resolve(id) === file
+            ? code.replace(/(from\s*)(["'])@loominate-if\/cli\2/g, `$1"${DEFINE_URL}"`)
+            : undefined,
+        resolveId: (source) => (source === DEFINE_URL ? DEFINE : undefined),
+        load: (id) =>
+          id === DEFINE ? "export const defineConfig = (config) => config;\n" : undefined,
+      },
+    ],
   });
   const config = check(module.default);
   return { ...config, root: dir, loaded: await loadExtensions(dir, config.extensions ?? []) };

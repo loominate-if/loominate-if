@@ -1,0 +1,15 @@
+:: Dawn [ending]
+{effect fade}
+Morning comes grey and quiet. Far to the south, a ship rides at anchor in the lee of the headland: {night.ship}, safe.
+
+**The end.**
+
+:: Wreck [ending]
+In the morning the beach is strewn with timber, and a nameboard lies half buried in the sand. It reads {night.ship}.
+
+**The end.**
+
+:: Hearth [ending]
+You sit by the fire and listen to the wind, and you don't climb the tower again. Whatever passed on the water in the night, you never learn.
+
+**The end.**

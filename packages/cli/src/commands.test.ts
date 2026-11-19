@@ -22,17 +22,11 @@ afterAll(() => {
 });
 
 let games = 0;
-/**
- * A game folder with this repository's presentation package installed. The
- * config's CLI is a stand-in with `defineConfig`, as in config.test.ts.
- */
+/** A game folder with this repository's packages installed. */
 function game(files: Record<string, string>): string {
   const root = path.join(temp, `game-${String(++games)}`);
   const all = {
     "package.json": '{"type":"module"}',
-    "node_modules/@loominate-if/cli/package.json":
-      '{"name":"@loominate-if/cli","type":"module","exports":{".":"./index.js"}}',
-    "node_modules/@loominate-if/cli/index.js": "export const defineConfig = (config) => config;\n",
     "loominate.config.ts": `import { defineConfig } from "@loominate-if/cli";
 export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, title: "Test Game", start: "Start" });
 `,
@@ -46,6 +40,7 @@ export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, title
     mkdirSync(path.dirname(path.join(root, name)), { recursive: true });
     writeFileSync(path.join(root, name), text);
   }
+  mkdirSync(path.join(root, "node_modules/@loominate-if"), { recursive: true });
   for (const pkg of ["core", "presentation", "testing"]) {
     symlinkSync(
       path.join(packages, pkg),

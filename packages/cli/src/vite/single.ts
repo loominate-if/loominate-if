@@ -9,6 +9,8 @@ import type { Plugin, UserConfig } from "vite";
 /** Vite settings that put the whole game in one script, with assets as data URLs. */
 export const singleFileConfig: UserConfig = {
   build: {
+    // Only one file is written, so a static build already in dist/ stays beside it.
+    emptyOutDir: false,
     assetsInlineLimit: () => true,
     cssCodeSplit: false,
     modulePreload: false,

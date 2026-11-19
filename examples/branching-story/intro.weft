@@ -1,0 +1,20 @@
+:: Start [scene]
+{on first visit: night.ship = storm.pick(SHIPS)}
+The supply boat left you here in October, with a crate of oil, a crate of tins, and the promise that someone would come back in spring.
+{page}
+Tonight the wind has a voice. It worries at the shutters and pulls at the door, and somewhere below the cliff the sea is breaking white.
+{beat 1.5s}
+It is time to light the lamp.
+{continue -> Cottage, label: "Begin"}
+
+:: Cottage
+{if firstVisit}The cottage is cold.{else}The cottage is as you left it.{/if} Your coat hangs by the door, and the tower stands black against the clouds. You could look in the [[supply shed -> Shed]] first, or go straight up.
+
+[[Climb the tower -> Stairs]]
+[[Stay by the fire -> Hearth]]{when visited("Stairs"), hidden}
+
+:: Shed
+{on first visit: keeper.hasMatches = true}
+{if firstVisit}Behind the oil drums you find a tin of matches, dry as bone. You pocket it.{else}There's nothing else here you need.{/if}
+
+[[Back to the cottage -> Cottage]]
