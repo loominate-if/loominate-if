@@ -15,5 +15,8 @@
   "files": [
     "dist",
     "!dist/**/*.test.*"
-  ]
+  ],
+  "dependencies": {
+    "@loominate-if/core": "workspace:*"
+  }
 }

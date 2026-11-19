@@ -1,19 +1,21 @@
 #!/usr/bin/env node
 /** The `loominate` command. */
 import { parseArgs } from "node:util";
-import { build, dev } from "./commands.js";
+import { build, dev, test } from "./commands.js";
 
 const HELP = `Usage: loominate <command> [options]
 
 Commands:
   dev      Serve the game, recompiling and reloading as you edit
   build    Build the game in dist/: a static site, or with --target single, one HTML file
+  test     Run the game's walkthrough tests, *.test.ts; name files to run only those
 
 Options:
   --root <dir>   The game's folder (default: the current folder)
   --port <n>     The dev server's port
   --open         Open the game in a browser (dev)
   --target <t>   What to build: static (default) or single (build)
+  --watch        Rerun tests as files change (test)
   -h, --help     Show this help`;
 
 async function main(argv: readonly string[]): Promise<void> {
@@ -25,6 +27,7 @@ async function main(argv: readonly string[]): Promise<void> {
       port: { type: "string" },
       open: { type: "boolean" },
       target: { type: "string" },
+      watch: { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
   });
@@ -53,6 +56,13 @@ async function main(argv: readonly string[]): Promise<void> {
       );
     }
     await build({ ...(root !== undefined && { root }), target });
+  } else if (command === "test") {
+    const result = await test({
+      ...(root !== undefined && { root }),
+      filters: positionals.slice(1),
+      ...(values.watch && { watch: true }),
+    });
+    if (!result.passed) process.exitCode = 1;
   } else {
     throw new Error(`There's no command "${command}". Run \`loominate --help\` to see them.`);
   }

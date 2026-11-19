@@ -4,4 +4,61 @@
 
 ```ts
 
+import { BeatNode } from '@loominate-if/core';
+import { EventRecord } from '@loominate-if/core';
+import { History } from '@loominate-if/core';
+import { Passage } from '@loominate-if/core';
+import { PassageId } from '@loominate-if/core';
+import { Replay } from '@loominate-if/core';
+import { StateSnapshot } from '@loominate-if/core';
+import { StateStore } from '@loominate-if/core';
+import { Story } from '@loominate-if/core';
+import { StoryOptions } from '@loominate-if/core';
+
+// @public
+export type GameDefinition = {
+    readonly passages: readonly Passage[];
+    readonly start: PassageId;
+    readonly story?: Omit<StoryOptions, "start" | "seed">;
+};
+
+// @public
+export function play(options?: WalkthroughOptions): Walkthrough;
+
+// @internal
+export function _setGame(game: GameDefinition | undefined): void;
+
+// @public
+export type UnavailableChoice = {
+    readonly label: string;
+    readonly condition: string;
+    readonly reason?: string;
+    readonly shown: boolean;
+};
+
+// @public
+export interface Walkthrough {
+    advance(): this;
+    readonly beat: BeatNode | undefined;
+    readonly choices: readonly string[];
+    choose(label: string): this;
+    readonly history: History;
+    readonly passage: PassageId;
+    readonly record: EventRecord;
+    replay(): Replay;
+    skip(): this;
+    readonly store: StateStore;
+    readonly story: Story;
+    readonly text: string;
+    readonly transcript: string;
+    readonly unavailable: readonly UnavailableChoice[];
+    undo(): this;
+}
+
+// @public
+export type WalkthroughOptions = Partial<GameDefinition> & {
+    readonly seed?: string;
+    readonly from?: StateSnapshot;
+};
+
 ```

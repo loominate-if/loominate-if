@@ -193,6 +193,19 @@ describe("the loominate Vite plugin", () => {
     ]);
   });
 
+  it("resolves a generated module by its URL as well as its passage file", async () => {
+    const run = game(files);
+    const server = (run.server = await serve(run.dir));
+    const container = server.environments.ssr.pluginContainer;
+    const generated = path.join(run.dir, "hall.weft.ts");
+    expect((await container.resolveId("./hall.weft", path.join(run.dir, "main.ts")))?.id).toBe(
+      generated,
+    );
+    expect((await container.resolveId("/hall.weft.ts"))?.id).toBe(generated);
+    expect((await container.resolveId(generated))?.id).toBe(generated);
+    expect(await container.resolveId("/nowhere.weft.ts")).toBeNull();
+  });
+
   it("fails a build with the game's errors, at the passage lines", async () => {
     const run = game({ ...files, "hall.weft": ":: Hall\n[[Nowhere]]\n" });
     const { build } = await import("vite");

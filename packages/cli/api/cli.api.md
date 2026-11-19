@@ -80,6 +80,9 @@ export type LoominateOptions = {
 };
 
 // @public
+export function loominateWalkthrough(config: ResolvedConfig): Plugin;
+
+// @public
 export const MAIN = "/@loominate/main";
 
 // @public
@@ -87,5 +90,24 @@ export type ResolvedConfig = LoominateConfig & {
     readonly root: string;
     readonly loaded: readonly CompilerExtension[];
 };
+
+// @public
+export function test(options?: TestOptions): Promise<TestResult>;
+
+// @public
+export type TestOptions = CommandOptions & {
+    readonly filters?: readonly string[];
+    readonly watch?: boolean;
+};
+
+// @public
+export type TestResult = {
+    readonly passed: boolean;
+    readonly tests: number;
+    readonly failed: number;
+};
+
+// @public
+export const WALKTHROUGH_SETUP = "/@loominate/walkthrough";
 
 ```
