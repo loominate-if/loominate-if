@@ -213,6 +213,38 @@ describe("playing a game", () => {
     expect(document.head.querySelector("style[data-loominate-styles]")).toBeNull();
   });
 
+  it("explains a save the edited game can't continue, and keeps it until a new game", async () => {
+    const storage = createMemoryStorage();
+    const errors: unknown[] = [];
+    const first = await start({ storage });
+    first.click("Walk on");
+    await vi.waitFor(async () => {
+      expect(await autosaved(storage)).toBe("Bridge");
+    });
+    first.player.destroy();
+    // The game is edited: the bridge is gone. A reload in the same tab tries to carry on.
+    const edited = passages.filter((p) => p.id !== "Bridge");
+    const reloaded = await start({
+      storage,
+      passages: edited,
+      onError: (e) => errors.push(e),
+    });
+    const screen = reloaded.container.querySelector(".loominate-start");
+    expect(screen?.textContent).toContain(
+      "Your game in progress can't be continued with this version of the game.",
+    );
+    expect(screen?.querySelector(".loominate-note")?.textContent).toMatch(/Bridge/);
+    expect([...(screen?.querySelectorAll("button") ?? [])].map((b) => b.textContent)).toEqual([
+      "New game",
+    ]);
+    expect(document.activeElement?.textContent).toBe("New game");
+    expect(reloaded.container.querySelectorAll(".loominate-page")).toHaveLength(1);
+    expect(errors).toHaveLength(1);
+    expect(await autosaved(storage)).toBe("Bridge");
+    reloaded.click("New game");
+    expect(reloaded.text()).toContain("A long road.");
+  });
+
   it("notes a game saved by another version", async () => {
     const storage = createMemoryStorage();
     const store = createStore();

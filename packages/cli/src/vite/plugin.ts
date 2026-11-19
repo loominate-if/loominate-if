@@ -19,7 +19,7 @@ import {
   type ProjectFile,
   type SessionChange,
 } from "@loominate-if/compiler";
-import type { EnvironmentModuleNode, Logger, Plugin } from "vite";
+import type { EnvironmentModuleNode, ErrorPayload, Logger, Plugin } from "vite";
 
 /** Options for {@link loominate}. */
 export type LoominateOptions = {
@@ -62,6 +62,51 @@ export function gameFiles(root: string): ProjectFile[] {
   };
   walk(root);
   return out.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/** Vite's error overlay payload for the game's errors, or `undefined` if it has none. */
+export function overlay(
+  root: string,
+  diagnostics: readonly ProjectDiagnostic[],
+): ErrorPayload | undefined {
+  const errors = diagnostics.filter((d) => d.severity === "error");
+  const [first] = errors;
+  if (!first) return undefined;
+  const count = errors.length === 1 ? "an error" : `${String(errors.length)} errors`;
+  return {
+    type: "error",
+    err: {
+      message: `The game has ${count}:\n${errors.map((d) => formatDiagnostic(root, d)).join("\n")}`,
+      stack: "",
+      id: first.file,
+      plugin: "loominate",
+      loc: { file: first.file, line: first.line, column: first.column },
+      frame: codeFrame(readSource(first.file), first.line, first.column),
+    },
+  };
+}
+
+/** A file's text, or "" if it's gone. */
+function readSource(file: string): string {
+  try {
+    return readFileSync(file, "utf8");
+  } catch {
+    return "";
+  }
+}
+
+/** The lines around `line`, numbered, with a caret under `column`. */
+export function codeFrame(text: string, line: number, column: number): string {
+  const lines = text.split(/\r?\n/);
+  const from = Math.max(1, line - 2);
+  const to = Math.min(lines.length, line + 1);
+  const width = String(to).length;
+  const out: string[] = [];
+  for (let n = from; n <= to; n++) {
+    out.push(`${n === line ? ">" : " "} ${String(n).padStart(width)} | ${lines[n - 1] ?? ""}`);
+    if (n === line) out.push(`  ${" ".repeat(width)} | ${" ".repeat(Math.max(0, column - 1))}^`);
+  }
+  return out.join("\n");
 }
 
 /** A diagnostic as one line: `scenes/cellar.weft:3:5 error: …`. */
@@ -157,9 +202,15 @@ export function loominate(options: LoominateOptions = {}): Plugin {
       });
     },
 
-    configureServer() {
+    configureServer(server) {
       // Problems already in the game when the server starts, before any edit.
       report();
+      // Each page that connects, including after the reload an edit causes,
+      // sees the game's errors in Vite's overlay as well as in the terminal.
+      server.ws.on("vite:client:connect", (_data, client) => {
+        const payload = overlay(root, active().diagnostics());
+        if (payload) client.send(payload);
+      });
     },
 
     buildStart() {

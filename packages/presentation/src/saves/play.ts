@@ -291,7 +291,23 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
    * as a page, with the game's own styles, so the first thing the player sees
    * looks like the game: the title as a heading, then choices like a passage's.
    */
-  const offer = (autosaved: LoadedSave): void => {
+  /**
+   * Resumes a saved game. When the game has changed so the save no longer
+   * fits it, for example a passage it was at was renamed, the start screen
+   * says so instead, and the save is kept until the player starts a new game.
+   */
+  const resume = (autosaved: LoadedSave): void => {
+    try {
+      start(autosaved.state);
+    } catch (error) {
+      onError(error);
+      page = undefined;
+      for (const half of host.querySelectorAll(".loominate-page:not([data-screen])")) half.remove();
+      offer(autosaved, error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const offer = (autosaved: LoadedSave, problem?: string): void => {
     const el = <K extends keyof HTMLElementTagNameMap>(
       tag: K,
       className?: string,
@@ -315,11 +331,14 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
       el(
         "p",
         undefined,
-        where === undefined
-          ? "You have a game in progress."
-          : `You have a game in progress, at ${where}.`,
+        problem !== undefined
+          ? "Your game in progress can't be continued with this version of the game."
+          : where === undefined
+            ? "You have a game in progress."
+            : `You have a game in progress, at ${where}.`,
       ),
     );
+    if (problem !== undefined) passage.append(el("p", "loominate-note", problem));
     if (!autosaved.summary.sameGameVersion) {
       passage.append(
         el(
@@ -338,16 +357,20 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
       passage.append(p);
       return b;
     };
-    const resume = choice("Continue", "loominate-continue", () => {
-      start(autosaved.state);
-    });
-    choice("New game", "loominate-link", () => {
+    const first =
+      problem === undefined
+        ? choice("Continue", "loominate-continue", () => {
+            host.querySelector(".loominate-start")?.remove();
+            resume(autosaved);
+          })
+        : undefined;
+    const fresh = choice("New game", "loominate-link", () => {
       start();
     });
     main.append(passage);
     screen.append(main);
     host.prepend(screen);
-    resume.focus();
+    (first ?? fresh).focus();
   };
 
   let autosaved: LoadedSave | undefined;
@@ -359,7 +382,7 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
   }
   // A reload, or back and forward, in the same tab carries straight on; a
   // player who closed the tab and came back chooses.
-  if (autosaved && playingInThisTab()) start(autosaved.state);
+  if (autosaved && playingInThisTab()) resume(autosaved);
   else if (autosaved) offer(autosaved);
   else start();
 
