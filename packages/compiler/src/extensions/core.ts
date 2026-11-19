@@ -7,7 +7,7 @@ import type { CompilerExtension, RuntimeExport } from "./extension.js";
 
 const core = (name: string): RuntimeExport => ({ module: "@loominate-if/core", export: name });
 
-/** Core's directives: effect phases, continue points, link guards, line pins, and beats. */
+/** Core's directives: effect phases, continue points, named effects, link guards, line pins, and beats. */
 export const coreExtension: CompilerExtension = {
   name: "@loominate-if/core",
   directives: [
@@ -23,6 +23,17 @@ export const coreExtension: CompilerExtension = {
         { name: "label", kind: "expression", named: true },
       ],
       runtime: core("continueTo"),
+    },
+    {
+      name: "effect",
+      kind: "content",
+      example: "{effect fade}",
+      args: [
+        { name: "name", kind: "words", required: true },
+        { name: "duration", kind: "duration", named: true },
+        { name: "options", kind: "expression", named: true },
+      ],
+      runtime: core("namedEffect"),
     },
     {
       name: "when",

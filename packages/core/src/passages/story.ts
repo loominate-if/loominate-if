@@ -109,8 +109,27 @@ export type ContinueNode = {
   readonly label?: string;
 };
 
+/**
+ * A named presentation effect, from `{effect shake}` or
+ * `{effect typewriter, duration: 2s}`: a fade, a typewriter, a shake. It
+ * changes nothing in the story; presentation looks the name up in its effects
+ * registry and plays it, on what follows or on the whole page.
+ *
+ * Not to be confused with a passage's {@link PassageEffects}, which change state.
+ */
+export type NamedEffectNode = {
+  /** Node type. */
+  readonly type: "effect";
+  /** The registered effect's name, e.g. `fade`. */
+  readonly name: string;
+  /** How long it should take, in milliseconds, when the passage says. */
+  readonly duration?: number;
+  /** Further settings the effect understands. */
+  readonly options?: Readonly<Record<string, unknown>>;
+};
+
 /** One piece of a rendered passage, in reading order. */
-export type PassageNode = TextNode | LinkNode | ContinueNode;
+export type PassageNode = TextNode | LinkNode | ContinueNode | NamedEffectNode;
 
 /**
  * A link inside a paragraph, from `You could [[ask about it -> Hall]] now.`
@@ -151,7 +170,7 @@ export type RenderedText = Omit<TextNode, "links"> & {
 };
 
 /** One piece of a rendered passage. Hidden links are left out; disabled ones stay in. */
-export type RenderedNode = RenderedText | RenderedLink | ContinueNode;
+export type RenderedNode = RenderedText | RenderedLink | ContinueNode | NamedEffectNode;
 
 /** Read-only access to state, which is all a passage body gets. */
 export type StateReader = Pick<StateStore, "get" | "has" | "entity" | "ids">;
@@ -431,6 +450,8 @@ export function createStory(
       } else if (node.type === "continue") {
         shown.push(node);
         choices.push(node);
+      } else if (node.type === "effect") {
+        shown.push(Object.freeze(node));
       } else {
         const link = place(node);
         if (link) shown.push(Object.freeze(link));

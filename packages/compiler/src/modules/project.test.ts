@@ -444,7 +444,7 @@ describe("a compiled game", { timeout: 30_000 }, () => {
     const game = createStory(store, record, passages, { start: "Start" });
     game.begin();
     const first = game.render().nodes;
-    const [hello, welcome, link] = first.map((n) => (n.type === "continue" ? undefined : n.line));
+    const [hello, welcome, link] = first.map((n) => ("line" in n ? n.line : undefined));
     expect(first.map((n) => n.type === "text" && n.text)).toEqual([
       "Hello there.",
       "Welcome friend.",

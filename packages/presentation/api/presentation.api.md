@@ -16,6 +16,26 @@ layout: string;
 }, "loominate:display">;
 
 // @public
+export type EffectDefinition = {
+    readonly target?: "next" | "page";
+    readonly play: (element: HTMLElement, context: EffectPlayContext) => EffectFinish | undefined;
+    readonly reduced?: (element: HTMLElement, context: EffectPlayContext) => EffectFinish | undefined;
+};
+
+// @public
+export type EffectFinish = () => void;
+
+// @public
+export type EffectPlayContext = {
+    readonly duration?: number;
+    readonly options: Readonly<Record<string, unknown>>;
+    readonly page: HTMLElement;
+};
+
+// @public
+export const effects: Registry<EffectDefinition>;
+
+// @public
 export type LayoutDefinition = {
     readonly regions: readonly string[];
     readonly widgets?: Readonly<Record<string, readonly string[]>>;

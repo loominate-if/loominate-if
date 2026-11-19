@@ -19,3 +19,9 @@ export {
   type WidgetView,
 } from "./page/layout.js";
 export { themeTokens, type ThemeToken } from "./page/tokens.js";
+export {
+  effects,
+  type EffectPlayContext,
+  type EffectDefinition,
+  type EffectFinish,
+} from "./page/effects.js";

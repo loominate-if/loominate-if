@@ -59,6 +59,7 @@ export {
   type InlineLink,
   type LinkGuard,
   type LinkNode,
+  type NamedEffectNode,
   type Passage,
   type PassageEffects,
   type PassageId,
@@ -76,7 +77,7 @@ export {
   type TextNode,
   type UnavailableLink,
 } from "./passages/story.js";
-export { continueTo, linkGuard } from "./passages/directives.js";
+export { continueTo, linkGuard, namedEffect } from "./passages/directives.js";
 export {
   emphasis,
   prose,
