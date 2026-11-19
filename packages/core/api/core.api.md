@@ -8,6 +8,23 @@
 export const AUTOSAVE_SLOT = "autosave";
 
 // @public
+export function beat(args: {
+    readonly duration: number;
+}): BeatNode;
+
+// @public
+export type BeatEffects = {
+    readonly [P in "firstVisit" | "enter"]?: (context: EffectContext) => void;
+};
+
+// @public
+export type BeatNode = {
+    readonly type: "beat";
+    readonly duration?: number;
+    readonly page?: true;
+};
+
+// @public
 export type Choice = LinkNode | ContinueNode;
 
 // @public
@@ -97,6 +114,11 @@ export interface EventKinds {
     "room-description": ProseFields & {
         readonly room: StateId;
     };
+    beat: {
+        readonly passage: StateId;
+        readonly step: number;
+        readonly page?: boolean;
+    };
     dialogue: ProseFields & {
         readonly speaker?: StateId;
     };
@@ -108,6 +130,7 @@ export interface EventKinds {
     phase: {
         readonly passage: StateId;
         readonly phase: "firstVisit" | "enter" | "leave";
+        readonly beat?: number;
     };
     scene: ProseFields;
     system: ProseFields;
@@ -356,7 +379,11 @@ export function openPersistent(options: {
 }): Promise<PersistentStore>;
 
 // @public
+export function pageBreak(args?: Readonly<Record<string, never>>): BeatNode;
+
+// @public
 export interface Passage {
+    readonly beats?: readonly BeatEffects[];
     readonly body: (context: RenderContext) => readonly PassageNode[];
     readonly effects?: PassageEffects;
     readonly id: PassageId;
@@ -372,7 +399,7 @@ export type PassageEffects = {
 export type PassageId = StateId;
 
 // @public
-export type PassageNode = TextNode | LinkNode | ContinueNode | NamedEffectNode;
+export type PassageNode = TextNode | LinkNode | ContinueNode | NamedEffectNode | BeatNode;
 
 // @public
 export const PERSISTENT_FORMAT = "loominate-persistent";
@@ -502,9 +529,11 @@ export type RenderedNode = RenderedText | RenderedLink | ContinueNode | NamedEff
 
 // @public
 export interface RenderedPassage {
+    readonly beat?: BeatNode;
     readonly choices: readonly Choice[];
     readonly nodes: readonly RenderedNode[];
     readonly passage: Passage;
+    readonly step: number;
     readonly unavailable: readonly UnavailableLink[];
 }
 
@@ -528,7 +557,7 @@ export type Replay = {
 export const REPLAY_FORMAT = "loominate-replay";
 
 // @public
-export const REPLAY_VERSION = 4;
+export const REPLAY_VERSION = 5;
 
 // @public
 export type ReplayCheck = {
@@ -701,6 +730,7 @@ export interface Stopped<V> {
 // @public
 export interface Story {
     readonly actions: readonly StoryAction[];
+    advance(): void;
     begin(): void;
     readonly current: PassageId | undefined;
     follow(choice: Choice): void;
@@ -721,6 +751,8 @@ export type StoryAction = ({
 } | {
     readonly type: "goTo";
     readonly passage: PassageId;
+} | {
+    readonly type: "advance";
 }) & {
     readonly attempt?: number;
 };
@@ -804,6 +836,9 @@ export type UnreadableSave = {
     readonly slot: string;
     readonly problem: string;
 };
+
+// @public
+export function wait(args?: Readonly<Record<string, never>>): BeatNode;
 
 // @public
 export function writePersistent(game: GameInfo, state: StateSnapshot): string;

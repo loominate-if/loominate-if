@@ -35,12 +35,13 @@ export type ChoiceRef =
 
 /**
  * One thing the player did, as logged and replayed: following one of the
- * current passage's choices ({@link Story.follow}), or moving straight to a
- * passage ({@link Story.goTo}).
+ * current passage's choices ({@link Story.follow}), moving straight to a
+ * passage ({@link Story.goTo}), or moving past a beat ({@link Story.advance}).
  */
 export type StoryAction = (
   | { readonly type: "follow"; readonly choice: ChoiceRef }
   | { readonly type: "goTo"; readonly passage: PassageId }
+  | { readonly type: "advance" }
 ) & {
   /**
    * How many times an action was taken here before and then undone, when it
@@ -54,9 +55,10 @@ export const REPLAY_FORMAT = "loominate-replay";
 /**
  * The replay file version this engine writes. It also reads version 1 files,
  * which don't record the game or engine, version 2 files, which don't record
- * persistent data, and version 3 files, which don't record attempts.
+ * persistent data, version 3 files, which don't record attempts, and version 4
+ * files, which have no `advance` actions.
  */
-export const REPLAY_VERSION = 4;
+export const REPLAY_VERSION = 5;
 
 /** A replay file: the master seed and every action since the story began. */
 export type Replay = {
@@ -118,6 +120,7 @@ export function writeReplay(replay: Replay): string {
 function canonical(action: StoryAction): StoryAction {
   const attempt = action.attempt ? { attempt: action.attempt } : {};
   if (action.type === "goTo") return { type: "goTo", passage: action.passage, ...attempt };
+  if (action.type === "advance") return { type: "advance", ...attempt };
   return { type: "follow", choice: choiceRef(action.choice), ...attempt };
 }
 
@@ -146,11 +149,17 @@ export function readReplay(text: string): Replay {
       `replay: this isn't a replay file; it needs "format": "${REPLAY_FORMAT}".`,
     );
   }
-  if (data.version !== 1 && data.version !== 2 && data.version !== 3 && data.version !== 4) {
+  if (
+    data.version !== 1 &&
+    data.version !== 2 &&
+    data.version !== 3 &&
+    data.version !== 4 &&
+    data.version !== 5
+  ) {
     throw new StateError(
       typeof data.version === "number" && data.version > REPLAY_VERSION
         ? `replay: the file is version ${String(data.version)}, made by a newer engine; this one reads versions 1 to ${String(REPLAY_VERSION)}.`
-        : `replay: "version" must be 1, 2, 3, or ${String(REPLAY_VERSION)}.`,
+        : `replay: "version" must be 1, 2, 3, 4, or ${String(REPLAY_VERSION)}.`,
     );
   }
   onlyFields(data, FIELDS[data.version], "the file");
@@ -177,8 +186,9 @@ export function readReplay(text: string): Replay {
     // The store checks every ID and value, as it does for any snapshot.
     persistent = createStore(data.persistent as StateSnapshot).snapshot();
   }
-  const attempts = data.version === 4;
-  const actions = (data.actions as unknown[]).map((a, i) => readAction(a, i, attempts));
+  const actions = (data.actions as unknown[]).map((a, i) =>
+    readAction(a, i, data.version as keyof typeof FIELDS),
+  );
   return {
     format: REPLAY_FORMAT,
     version: REPLAY_VERSION,
@@ -196,19 +206,25 @@ const FIELDS = {
   2: ["format", "version", "game", "engine", "seed", "actions"],
   3: ["format", "version", "game", "engine", "seed", "persistent", "actions"],
   4: ["format", "version", "game", "engine", "seed", "persistent", "actions"],
+  5: ["format", "version", "game", "engine", "seed", "persistent", "actions"],
 } as const;
 
-function readAction(value: unknown, index: number, attempts: boolean): StoryAction {
+function readAction(value: unknown, index: number, version: keyof typeof FIELDS): StoryAction {
   const where = `action ${String(index + 1)}`;
   const bad = (what: string): StateError => new StateError(`replay: ${where} ${what}.`);
   if (!isRecord(value)) throw bad("must be an object");
   // Version 4 added "attempt", left out when it's 0.
-  const extra = attempts ? ["attempt"] : [];
+  const extra = version >= 4 ? ["attempt"] : [];
   const attempt = value.attempt;
   if (attempt !== undefined && !(Number.isSafeInteger(attempt) && (attempt as number) > 0)) {
     throw bad(`has an "attempt" that isn't a whole number above 0`);
   }
   const tried = attempt === undefined ? {} : { attempt: attempt as number };
+  // Version 5 added "advance", for moving past a beat.
+  if (value.type === "advance" && version >= 5) {
+    onlyFields(value, ["type", ...extra], where);
+    return { type: "advance", ...tried };
+  }
   if (value.type === "goTo") {
     onlyFields(value, ["type", "passage", ...extra], where);
     if (!isName(value.passage)) throw bad(`needs a "passage" name`);
@@ -241,7 +257,11 @@ function readAction(value: unknown, index: number, attempts: boolean): StoryActi
       ...tried,
     };
   }
-  throw bad(`has an unknown "type"; actions are "follow" or "goTo"`);
+  throw bad(
+    version >= 5
+      ? `has an unknown "type"; actions are "follow", "goTo", or "advance"`
+      : `has an unknown "type"; actions are "follow" or "goTo"`,
+  );
 }
 
 function onlyFields(value: Record<string, unknown>, allowed: readonly string[], where: string) {

@@ -4,7 +4,7 @@
  * directives work exactly as a package's would.
  */
 import { StateError } from "../state/value.js";
-import type { ContinueNode, LinkGuard, NamedEffectNode, PassageId } from "./story.js";
+import type { BeatNode, ContinueNode, LinkGuard, NamedEffectNode, PassageId } from "./story.js";
 
 /**
  * A continue point, from `{continue -> Target}` or `{continue -> Target, label: "…"}`.
@@ -18,6 +18,27 @@ export function continueTo(args: {
     target: args.target,
     ...(args.label !== undefined && { label: args.label }),
   };
+}
+
+/** A timed pause, from `{beat 1.5s}`: what follows appears after `duration` milliseconds. */
+export function beat(args: { readonly duration: number }): BeatNode {
+  return { type: "beat", duration: args.duration };
+}
+
+/**
+ * A pause until the player moves on, from `{wait}`. It takes no arguments;
+ * the parameter is the empty object every directive call passes.
+ */
+export function wait(args: Readonly<Record<string, never>> = {}): BeatNode {
+  return { ...args, type: "beat" };
+}
+
+/**
+ * A page break, from `{page}`: a pause until the player moves on, after which
+ * what follows replaces what came before on screen.
+ */
+export function pageBreak(args: Readonly<Record<string, never>> = {}): BeatNode {
+  return { ...args, type: "beat", page: true };
 }
 
 /**

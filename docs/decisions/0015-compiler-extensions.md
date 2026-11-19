@@ -25,7 +25,7 @@ Each directive has a kind:
 - **`guard`**: `{name args}` right after a link, compiling to a call that returns the link's guard.
 - **`annotation`**: `{name args}` that generates no code, read by the compiler or a package's checks.
 
-So the runtime package only exports ordinary functions, and TypeScript checks each generated call against the function's real signature, reporting errors at the directive. Core's `{continue}` and `{when}` call core's `continueTo` and `linkGuard` the same way. A `content` or `guard` directive may instead say why it's `unsupported` (`{beat}` and `{wait}`, until #41).
+So the runtime package only exports ordinary functions, and TypeScript checks each generated call against the function's real signature, reporting errors at the directive. Core's `{continue}` and `{when}` call core's `continueTo` and `linkGuard` the same way. A `content` or `guard` directive may instead say why it's `unsupported` (`{beat}` and `{wait}`, until #41). A content directive with `beat: true` divides the passage into parts, as core's `{beat}`, `{wait}`, and `{page}` do ([ADR 0021](0021-beats.md)).
 
 ### Arguments
 

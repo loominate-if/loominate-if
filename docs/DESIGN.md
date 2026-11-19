@@ -188,6 +188,8 @@ A scene is a sequence of beats the runtime understands: timed pauses, waits for 
 
 Long introductions use the same machinery for paging, so they don't need to be split into many tiny passages.
 
+`{beat 1.5s}`, `{wait}`, and `{page}` divide a passage into parts. How far the player has got is story state, moved on by `story.advance()`, a logged action, so undo, saves, and replays stop at beat boundaries. Effect phases written after a beat run when the player reaches it. The page waits out timed beats on a wall-clock timer, shows Continue and Skip, and passes timed beats at once under reduced motion or `pacing: "immediate"` ([ADR 0021](decisions/0021-beats.md), [guide](guide/beats.md)).
+
 ### Effects
 
 Fades, typewriter text, screen shakes, and similar effects are named effects usable from passages, with an API for registering new ones. Raw DOM access remains as an escape hatch, not the main path.

@@ -28,7 +28,7 @@ Passage files end in `.weft`. In weaving, the weft is the thread carried back an
 - `{if}` becomes an `if` statement, links and `{continue}` become core link and continue nodes, and `{when}` becomes a `LinkGuard`, keeping the condition's source text for the inspector.
 - Effect phases become the passage's `effects`. They must be at the top level of a passage: they run when it's visited, not when it's shown.
 - Printed values go through a helper typed `string | number`, so printing anything else is a type error (ADR 0004).
-- Constructs core can't run yet are compile errors that name the issue that adds them: `{beat}` and `{wait}` (#41), links inside a paragraph (#207), and formatting in link labels.
+- Constructs core can't run yet are compile errors that name the issue that adds them: `{beat}` and `{wait}` (#41, since added by [ADR 0021](0021-beats.md)), links inside a paragraph (#207), and formatting in link labels.
 
 ### The scope module
 
