@@ -173,6 +173,8 @@ Layouts and widgets are registered by name. The current layout is game state, on
 
 Light customization uses CSS custom properties in a theme file. Deep customization replaces a widget's render template entirely, so the same compass data can drive a brass ship's compass, a subway map, or a list of street names.
 
+`mountPage` adds default styles in the `loominate` cascade layer, so any author CSS overrides them. They're written in `--loominate-*` tokens whose colors follow the player's light or dark preference. [ADR 0018](decisions/0018-theming.md) defines them, and the [theming guide](guide/theming.md) lists the tokens.
+
 ### Cut scenes and beats
 
 A scene is a sequence of beats the runtime understands: timed pauses, waits for a click, paced reveals, and continue points. Because beats are first-class:

@@ -17,3 +17,4 @@ export {
   type WidgetHost,
   type WidgetView,
 } from "./page/layout.js";
+export { themeTokens, type ThemeToken } from "./page/tokens.js";

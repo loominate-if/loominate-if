@@ -26,6 +26,7 @@ import {
   type WidgetHost,
 } from "./layout.js";
 import { appendProse } from "./prose.js";
+import { addStyles } from "./theme.js";
 
 /** What a page shows: a story and its event record. */
 export type PageGame = {
@@ -46,6 +47,12 @@ export type PageOptions = {
   readonly drawerLabel?: string;
   /** The label for a continue point that has none. Defaults to "Continue". */
   readonly continueLabel?: string;
+  /**
+   * Whether to add the default styles to the document. They sit in the
+   * `loominate` cascade layer, so a game's own CSS overrides them without
+   * this. Pass `false` to style the page from nothing. Defaults to `true`.
+   */
+  readonly styles?: boolean;
 };
 
 /** A story shown on a page. */
@@ -95,6 +102,7 @@ const PROSE_KINDS: readonly EventKind[] = ["narrative", "scene", "dialogue", "ro
 export function mountPage(container: HTMLElement, game: PageGame, options: PageOptions = {}): Page {
   const { story, record } = game;
   const doc = container.ownerDocument;
+  if (options.styles !== false) addStyles(doc);
   const el = <K extends keyof HTMLElementTagNameMap>(
     tag: K,
     className?: string,
