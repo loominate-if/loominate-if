@@ -86,6 +86,48 @@ describe("loominate build", () => {
     expect(code).toContain("test-game");
   }, 60_000);
 
+  it("builds a static site that works from any folder on any host", async () => {
+    const root = game({ "start.weft": START });
+    await build(options(root));
+    const dist = path.join(root, "dist");
+    const html = readFileSync(path.join(dist, "index.html"), "utf8");
+    const urls = [...html.matchAll(/\s(?:src|href)="([^"]+)"/g)].map((m) => m[1] ?? "");
+    expect(urls.length).toBeGreaterThan(0);
+    // Hosted in a subfolder, as on GitHub Pages or itch.io, every URL still reaches its file.
+    const page = new URL("https://example.com/games/test-game/index.html");
+    for (const url of urls) {
+      expect(url.startsWith("./")).toBe(true);
+      const resolved = new URL(url, page).pathname.replace("/games/test-game/", "");
+      expect(existsSync(path.join(dist, resolved))).toBe(true);
+    }
+  }, 60_000);
+
+  it("builds one HTML file, with everything inlined, as the single target", async () => {
+    // Prose that would end an inline script if it weren't escaped.
+    const root = game({
+      "start.weft": START,
+      "sign.weft": ":: Sign\nIt reads </script> in chalk.\n",
+    });
+    await build({ ...options(root), target: "single" });
+    const dist = path.join(root, "dist");
+    expect(readdirSync(dist)).toEqual(["test-game.html"]);
+    const html = readFileSync(path.join(dist, "test-game.html"), "utf8");
+    expect(html).not.toMatch(/\s(?:src|href)="\.?\/?assets\//);
+    const scripts = [...html.matchAll(/<script type="module">([\s\S]*?)<\/script>/g)];
+    expect(scripts).toHaveLength(1);
+    expect(scripts[0]?.[1]).toContain("You wake in the dark.");
+    expect(scripts[0]?.[1]).toContain("It reads <\\/script> in chalk.");
+    // Nothing in the inlined script can end the script element early.
+    expect(scripts[0]?.[1]).not.toMatch(/<\/script/i);
+  }, 60_000);
+
+  it("names the build targets when given another", async () => {
+    const root = game({ "start.weft": START });
+    await expect(build({ ...options(root), target: "zip" as never })).rejects.toThrow(
+      'There\'s no build target "zip". Use static or single.',
+    );
+  });
+
   it("fails on errors in the game, naming them", async () => {
     const root = game({ "start.weft": ":: Start\n{nope}\n" });
     await expect(build(options(root))).rejects.toThrow(/start\.weft:2:2 error: .*nope/);

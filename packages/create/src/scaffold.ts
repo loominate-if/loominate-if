@@ -50,7 +50,11 @@ export function templateFiles(id: string, title: string, version: string): Recor
         version: "0.1.0",
         private: true,
         type: "module",
-        scripts: { dev: "loominate dev", build: "loominate build" },
+        scripts: {
+          dev: "loominate dev",
+          build: "loominate build",
+          "build:single": "loominate build --target single",
+        },
         dependencies: { "@loominate-if/core": range, "@loominate-if/presentation": range },
         devDependencies: { "@loominate-if/cli": range },
       },

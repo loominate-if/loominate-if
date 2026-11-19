@@ -11,5 +11,11 @@ export {
   type LoominateConfig,
   type ResolvedConfig,
 } from "./config/config.js";
-export { build, dev, type CommandOptions } from "./commands.js";
+export {
+  build,
+  dev,
+  type BuildOptions,
+  type BuildTarget,
+  type CommandOptions,
+} from "./commands.js";
 export { MAIN, loominateApp } from "./vite/app.js";

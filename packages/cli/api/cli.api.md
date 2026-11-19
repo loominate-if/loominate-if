@@ -13,7 +13,15 @@ import { ProjectFile } from '@loominate-if/compiler';
 import { ViteDevServer } from 'vite';
 
 // @public
-export function build(options?: CommandOptions): Promise<void>;
+export function build(options?: BuildOptions): Promise<void>;
+
+// @public
+export type BuildOptions = CommandOptions & {
+    readonly target?: BuildTarget;
+};
+
+// @public
+export type BuildTarget = "static" | "single";
 
 // @public
 export type CommandOptions = {
