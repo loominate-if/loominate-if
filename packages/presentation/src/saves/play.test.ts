@@ -197,6 +197,22 @@ describe("playing a game", () => {
     expect(again.text()).toContain("A stone bridge.");
   });
 
+  it("styles the start screen like the game, before any page is mounted", async () => {
+    const storage = createMemoryStorage();
+    await createSaves({ storage, game }).autosave(createStore());
+    document.head.replaceChildren();
+    const { container } = await start({ storage });
+    expect(container.querySelector(".loominate-start")).not.toBeNull();
+    expect(container.querySelector(".loominate-page:not([data-screen])")).toBeNull();
+    expect(document.head.querySelector("style[data-loominate-styles]")).not.toBeNull();
+  });
+
+  it("leaves the default styles out when the page's styles are off", async () => {
+    document.head.replaceChildren();
+    await start({ storage: createMemoryStorage(), page: { styles: false } });
+    expect(document.head.querySelector("style[data-loominate-styles]")).toBeNull();
+  });
+
   it("notes a game saved by another version", async () => {
     const storage = createMemoryStorage();
     const store = createStore();

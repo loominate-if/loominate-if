@@ -25,6 +25,7 @@ import {
 } from "@loominate-if/core";
 import { layouts, widget, widgets, type WidgetDefinition } from "../page/layout.js";
 import { mountPage, type Page, type PageOptions } from "../page/page.js";
+import { addStyles } from "../page/theme.js";
 import { createSaveMenu } from "./menu.js";
 import { createBrowserStorage } from "./storage.js";
 
@@ -189,6 +190,8 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
       });
   };
 
+  // Before anything is drawn: the start screen and save menu come before any page does.
+  if (options.page?.styles !== false) addStyles(doc);
   const host = doc.createElement("div");
   host.className = "loominate-player";
   container.append(host);
