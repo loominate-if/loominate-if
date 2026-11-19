@@ -80,6 +80,17 @@ describe("generatePassageModule", () => {
     );
   });
 
+  it("generates named effects, with durations and options", () => {
+    const { code } = generate(
+      ":: A\n{effect shake}\nBoom.\n{effect typewriter, duration: 2s, options: { cursor: true }}\nHello.",
+    );
+    expect(code).toContain('import { namedEffect as $rt_namedEffect } from "@loominate-if/core";');
+    expect(code).toContain('$nodes.push(...[$rt_namedEffect({ name: ["shake"] })].flat());');
+    expect(code).toContain(
+      '$nodes.push(...[$rt_namedEffect({ name: ["typewriter"], duration: 2000, options: { cursor: true } })].flat());',
+    );
+  });
+
   it("passes line IDs to prose and links, and reports bad pins", () => {
     const { code } = generate(":: A\n{line lantern}\nHello.\n[[Go -> B]]");
     expect(code).toContain('let $line: string | undefined = "A:lantern";');

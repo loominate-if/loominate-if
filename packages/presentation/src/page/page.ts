@@ -8,6 +8,7 @@
 import type {
   Choice,
   EventKind,
+  NamedEffectNode,
   EventRecord,
   RecordedEvent,
   RenderedInlineLink,
@@ -26,6 +27,7 @@ import {
   type WidgetHost,
 } from "./layout.js";
 import { appendProse } from "./prose.js";
+import { effects, type EffectDefinition, type EffectFinish } from "./effects.js";
 import { addStyles } from "./theme.js";
 
 /** What a page shows: a story and its event record. */
@@ -66,7 +68,8 @@ export interface Page {
   readonly element: HTMLElement;
   /**
    * Redraws the page from the story and its record, after something outside
-   * the page changed them, such as undo or loading a save.
+   * the page changed them, such as undo or loading a save. The passage's
+   * named effects don't play again.
    */
   refresh(): void;
   /** Removes the page from the document. */
@@ -136,7 +139,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
   const follow = (choice: Choice): void => {
     story.follow(choice);
     options.onMove?.(choice);
-    draw();
+    draw(true);
     passage.focus({ preventScroll: true });
   };
 
@@ -173,10 +176,65 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     return r;
   };
 
-  const drawMain = (): void => {
+  // ---- Named effects ----------------------------------------------------
+
+  /** How to finish the effects still playing. */
+  let playing: EffectFinish[] = [];
+  const finishEffects = (): void => {
+    const now = playing;
+    playing = [];
+    for (const finish of now) finish();
+  };
+  // A click or key press anywhere on the page finishes them, so the player is never kept waiting.
+  root.addEventListener("click", finishEffects, { capture: true });
+  root.addEventListener("keydown", finishEffects, { capture: true });
+
+  const effect = (node: NamedEffectNode): EffectDefinition => {
+    const definition = effects.get(node.name);
+    if (!definition) {
+      throw new Error(
+        `The effect "${node.name}" isn't registered. Register it with effects.register("${node.name}", { play(element) { … } }), or use one that is: ${effects
+          .entries()
+          .map((e) => e.key)
+          .join(", ")}.`,
+      );
+    }
+    return definition;
+  };
+
+  /** Plays effects on their elements, or their reduced variants if the player prefers less motion. */
+  const playEffects = (queue: readonly [EffectDefinition, NamedEffectNode, HTMLElement][]) => {
+    if (queue.length === 0) return;
+    const reduce =
+      doc.defaultView?.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    for (const [definition, node, element] of queue) {
+      const play = reduce ? definition.reduced : definition.play;
+      const finish = play?.(element, {
+        options: node.options ?? {},
+        page: root,
+        ...(node.duration !== undefined && { duration: node.duration }),
+      });
+      if (finish) playing.push(finish);
+    }
+  };
+
+  /** Draws the passage, playing its effects if the player just arrived. */
+  const drawMain = (arrived: boolean): void => {
+    finishEffects();
     passage.replaceChildren();
+    /** Effects waiting for the next element drawn. */
+    let pending: [EffectDefinition, NamedEffectNode][] = [];
+    const queue: [EffectDefinition, NamedEffectNode, HTMLElement][] = [];
+    const drawn = (element: HTMLElement): void => {
+      for (const [definition, node] of pending) queue.push([definition, node, element]);
+      pending = [];
+    };
     for (const node of story.render().nodes) {
-      if (node.type === "text") {
+      if (node.type === "effect") {
+        const definition = effect(node);
+        if (definition.target === "page") queue.push([definition, node, root]);
+        else pending.push([definition, node]);
+      } else if (node.type === "text") {
         const p = el("p");
         const after: HTMLElement[] = [];
         appendProse(
@@ -192,6 +250,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
           },
         );
         passage.append(p);
+        drawn(p);
         // Reasons for disabled inline links follow the paragraph, so the sentence still reads.
         for (const r of after) {
           const note = el("p", "loominate-note");
@@ -211,8 +270,10 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
           if (r) p.append(" ", r);
         }
         passage.append(p);
+        drawn(p);
       }
     }
+    if (arrived) playEffects(queue);
   };
 
   const drawDrawer = (): void => {
@@ -433,19 +494,24 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     });
   };
 
-  const draw = (): void => {
+  const draw = (arrived = false): void => {
     drawLayout();
-    drawMain();
+    drawMain(arrived);
     drawDrawer();
     drawWidgets();
   };
 
+  // Effects play for a story starting here, not for one loaded from a save.
+  const fresh = story.current === undefined;
   story.begin();
-  draw();
+  draw(fresh);
   return {
     element: root,
-    refresh: draw,
+    refresh: () => {
+      draw();
+    },
     destroy() {
+      finishEffects();
       narrowQuery?.removeEventListener("change", applyNarrow);
       for (const w of mounted) unmount(w);
       mounted = [];

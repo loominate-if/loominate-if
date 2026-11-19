@@ -192,6 +192,8 @@ Long introductions use the same machinery for paging, so they don't need to be s
 
 Fades, typewriter text, screen shakes, and similar effects are named effects usable from passages, with an API for registering new ones. Raw DOM access remains as an escape hatch, not the main path.
 
+A passage asks for one with `{effect name}`, which core renders as a node that changes nothing. Presentation's `effects` registry plays it on what follows or on the page, only when the player arrives, finishing early on any click or key press. Under reduced motion, an effect is skipped unless it has a reduced variant ([ADR 0020](decisions/0020-named-effects.md), [guide](guide/effects.md)).
+
 ### Audio
 
 Music, ambience, and sound-effect channels with crossfades, a volume UI, and handling of browser autoplay restrictions. Beats can trigger sounds.

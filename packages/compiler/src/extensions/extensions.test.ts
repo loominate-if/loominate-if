@@ -280,6 +280,7 @@ describe("loading extensions", () => {
     expect(syntax.parserDirectives.map((d) => d.name).sort()).toEqual([
       "beat",
       "continue",
+      "effect",
       "line",
       "on enter",
       "on first visit",

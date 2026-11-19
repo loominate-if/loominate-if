@@ -7,6 +7,16 @@ import { themeTokens } from "../packages/presentation/src/page/tokens.ts";
 const repo = join(import.meta.dirname, "..");
 const read = (file: string): string => readFileSync(join(repo, file), "utf8");
 
+/** The code between `// #region name` and `// #endregion` in a test, unindented. */
+function region(file: string, name: string): string | undefined {
+  const text = read(file);
+  const found = new RegExp(`// #region ${name}.*\\n([\\s\\S]*?)\\n\\s*// #endregion`).exec(
+    text,
+  )?.[1];
+  const indent = /^ */.exec(found ?? "")?.[0].length ?? 0;
+  return found?.replace(new RegExp(`^ {${String(indent)}}`, "gm"), "");
+}
+
 describe("the theming guide", () => {
   const guide = read("docs/guide/theming.md");
 
@@ -19,9 +29,16 @@ describe("the theming guide", () => {
   });
 
   it("shows the replaced-template example exactly as a test runs it", () => {
-    const test = read("packages/presentation/src/page/theme.test.ts");
-    const region = /\/\/ #region ship-status.*\n([\s\S]*?)\n\s*\/\/ #endregion/.exec(test)?.[1];
-    expect(region).toBeDefined();
-    expect(guide).toContain((region ?? "").replace(/^ {6}/gm, ""));
+    const code = region("packages/presentation/src/page/theme.test.ts", "ship-status");
+    expect(code).toBeDefined();
+    expect(guide).toContain(code);
+  });
+});
+
+describe("the effects guide", () => {
+  it("shows the registration example exactly as a test runs it", () => {
+    const code = region("packages/presentation/src/page/effects.test.ts", "glow-effect");
+    expect(code).toBeDefined();
+    expect(read("docs/guide/effects.md")).toContain(code);
   });
 });

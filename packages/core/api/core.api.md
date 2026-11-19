@@ -311,6 +311,21 @@ export const messageParameters: Registry<MessageParameter>;
 export function mixin<M extends ObjectDefinition<M>>(definition: M & ThisType<Handle<M>>): M;
 
 // @public
+export function namedEffect(args: {
+    readonly name: readonly string[];
+    readonly duration?: number;
+    readonly options?: Readonly<Record<string, unknown>>;
+}): NamedEffectNode;
+
+// @public
+export type NamedEffectNode = {
+    readonly type: "effect";
+    readonly name: string;
+    readonly duration?: number;
+    readonly options?: Readonly<Record<string, unknown>>;
+};
+
+// @public
 export function object<Id extends StateId, D extends ObjectDefinition<D>>(id: Id, definition: D & ThisType<Handle<D, Id>>): Handle<D, Id>;
 
 // @public
@@ -357,7 +372,7 @@ export type PassageEffects = {
 export type PassageId = StateId;
 
 // @public
-export type PassageNode = TextNode | LinkNode | ContinueNode;
+export type PassageNode = TextNode | LinkNode | ContinueNode | NamedEffectNode;
 
 // @public
 export const PERSISTENT_FORMAT = "loominate-persistent";
@@ -483,7 +498,7 @@ export type RenderedLink = LinkNode & {
 };
 
 // @public
-export type RenderedNode = RenderedText | RenderedLink | ContinueNode;
+export type RenderedNode = RenderedText | RenderedLink | ContinueNode | NamedEffectNode;
 
 // @public
 export interface RenderedPassage {
