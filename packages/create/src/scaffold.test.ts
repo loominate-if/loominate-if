@@ -59,7 +59,11 @@ describe("scaffolding a game", () => {
     >;
     expect(pkg).toMatchObject({
       name: "lantern-road",
-      scripts: { dev: "loominate dev", build: "loominate build" },
+      scripts: {
+        dev: "loominate dev",
+        build: "loominate build",
+        "build:single": "loominate build --target single",
+      },
       dependencies: { "@loominate-if/core": "^1.2.3", "@loominate-if/presentation": "^1.2.3" },
       devDependencies: { "@loominate-if/cli": "^1.2.3" },
     });

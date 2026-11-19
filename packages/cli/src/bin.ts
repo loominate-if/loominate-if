@@ -7,12 +7,13 @@ const HELP = `Usage: loominate <command> [options]
 
 Commands:
   dev      Serve the game, recompiling and reloading as you edit
-  build    Build the game as a static site in dist/
+  build    Build the game in dist/: a static site, or with --target single, one HTML file
 
 Options:
   --root <dir>   The game's folder (default: the current folder)
   --port <n>     The dev server's port
   --open         Open the game in a browser (dev)
+  --target <t>   What to build: static (default) or single (build)
   -h, --help     Show this help`;
 
 async function main(argv: readonly string[]): Promise<void> {
@@ -23,6 +24,7 @@ async function main(argv: readonly string[]): Promise<void> {
       root: { type: "string" },
       port: { type: "string" },
       open: { type: "boolean" },
+      target: { type: "string" },
       help: { type: "boolean", short: "h" },
     },
   });
@@ -44,7 +46,13 @@ async function main(argv: readonly string[]): Promise<void> {
     server.printUrls();
     server.bindCLIShortcuts({ print: true });
   } else if (command === "build") {
-    await build({ ...(root !== undefined && { root }) });
+    const target = values.target ?? "static";
+    if (target !== "static" && target !== "single") {
+      throw new Error(
+        `There's no build target "${target}". Use --target static or --target single.`,
+      );
+    }
+    await build({ ...(root !== undefined && { root }), target });
   } else {
     throw new Error(`There's no command "${command}". Run \`loominate --help\` to see them.`);
   }

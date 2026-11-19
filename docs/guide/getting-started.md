@@ -38,7 +38,17 @@ Errors in passages or code are reported against your own lines, in the terminal 
 npm run build
 ```
 
-This writes the game to `dist/` as a static site, which can be hosted anywhere or opened from a local web server. A build fails if the game has errors.
+This writes the game to `dist/` as a static site, which can be hosted anywhere or opened from a local web server. Its URLs are relative, so it works from any folder: GitHub Pages, itch.io, Netlify, or your own site.
+
+To share the game as one file that opens by double-click, with no server:
+
+```sh
+npm run build:single
+```
+
+This writes `dist/my-game.html`, with everything inlined. Saves in it are kept by the browser for that file's location, so moving the file starts afresh; players can carry saves across with the save menu's export and import.
+
+Either build fails if the game has errors.
 
 ## Extensions
 

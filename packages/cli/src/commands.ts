@@ -13,6 +13,7 @@ import {
 } from "vite";
 import { loadConfig, type ResolvedConfig } from "./config/config.js";
 import { loominateApp } from "./vite/app.js";
+import { singleFile, singleFileConfig } from "./vite/single.js";
 import { loominate } from "./vite/plugin.js";
 
 /** Options for {@link dev} and {@link build}. */
@@ -23,6 +24,20 @@ export type CommandOptions = {
   readonly conditions?: readonly string[];
   /** More Vite configuration, merged over the command's. */
   readonly vite?: InlineConfig;
+};
+
+/** The build targets: a static site of files, or one HTML file. */
+export type BuildTarget = "static" | "single";
+
+/** Options for {@link build}. */
+export type BuildOptions = CommandOptions & {
+  /**
+   * What to build. `static`, the default, writes a site to `dist/`:
+   * `index.html`, the bundled script, and assets as files, for any static
+   * host. `single` writes one HTML file, `dist/<game id>.html`, with
+   * everything inlined, which opens by double-click with no server.
+   */
+  readonly target?: BuildTarget;
 };
 
 /** The Vite configuration for a game, from its resolved config. */
@@ -61,12 +76,24 @@ export async function dev(options: CommandOptions = {}): Promise<ViteDevServer> 
 }
 
 /**
- * Builds the game as a static site in `dist/`, failing on any error in it.
- * @throws Error if the game's config can't be loaded or the game has errors.
+ * Builds the game for a target, in `dist/`, failing on any error in it.
+ * @throws Error if the game's config can't be loaded, the target is unknown,
+ * or the game has errors.
  */
-export async function build(options: CommandOptions = {}): Promise<void> {
+export async function build(options: BuildOptions = {}): Promise<void> {
+  const target = options.target ?? "static";
+  if (target !== "static" && target !== "single") {
+    throw new Error(`There's no build target "${String(target)}". Use static or single.`);
+  }
   const config = await loadConfig(options.root ?? process.cwd(), {
     ...(options.conditions && { conditions: options.conditions }),
   });
-  await viteBuild(viteConfig(config, options));
+  const base = viteConfig(config, options);
+  await viteBuild(
+    target === "single"
+      ? mergeConfig(mergeConfig(base, singleFileConfig), {
+          plugins: [singleFile(`${config.game.id}.html`)],
+        })
+      : base,
+  );
 }
