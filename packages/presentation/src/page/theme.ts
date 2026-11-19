@@ -145,7 +145,7 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   flex-wrap: wrap;
   gap: calc(${v("space")} / 2);
 }
-.loominate-game-menu button, .loominate-start button, .loominate-saves button {
+.loominate-game-menu button, .loominate-saves button {
   padding: calc(${v("space")} / 4) calc(${v("space")} / 1.5);
   border: 1px solid ${v("color-border")};
   border-radius: ${v("radius")};
@@ -159,19 +159,10 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   color: ${v("color-muted")};
   cursor: not-allowed;
 }
-.loominate-start, .loominate-saves {
+.loominate-saves {
   color: ${v("color-text")};
   background: ${v("color-background")};
   line-height: ${v("line-height")};
-}
-.loominate-start {
-  max-width: ${v("measure")};
-  margin-inline: auto;
-  padding: calc(${v("space")} * 3) ${v("space")};
-  font-family: ${v("font-body")};
-  text-align: center;
-}
-.loominate-saves {
   width: min(36rem, 100% - 2 * ${v("space")});
   padding: ${v("space")};
   border: 1px solid ${v("color-border")};

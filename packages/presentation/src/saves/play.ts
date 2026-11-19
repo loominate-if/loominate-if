@@ -283,39 +283,66 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
   };
 
   /** The start screen for a returning player: Continue or New game. */
+  /**
+   * The start screen for a returning player: Continue or New game. It's drawn
+   * as a page, with the game's own styles, so the first thing the player sees
+   * looks like the game: the title as a heading, then choices like a passage's.
+   */
   const offer = (autosaved: LoadedSave): void => {
-    const screen = doc.createElement("section");
-    screen.className = "loominate-start";
-    const heading = doc.createElement("h1");
+    const el = <K extends keyof HTMLElementTagNameMap>(
+      tag: K,
+      className?: string,
+      text?: string,
+    ): HTMLElementTagNameMap[K] => {
+      const node = doc.createElement(tag);
+      if (className !== undefined) node.className = className;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    };
+    const screen = el("div", "loominate-page loominate-start");
+    screen.dataset.screen = "start";
+    const main = el("main", "loominate-main");
+    const passage = el("div", "loominate-passage");
+    const heading = el("h1", undefined, options.title ?? options.game.id);
     heading.id = "loominate-start-title";
-    heading.textContent = options.title ?? options.game.id;
-    screen.setAttribute("aria-labelledby", heading.id);
-    const where = doc.createElement("p");
-    where.textContent =
-      autosaved.summary.passage === undefined
-        ? "You have a game in progress."
-        : `You have a game in progress, at ${autosaved.summary.passage}.`;
-    const choices = doc.createElement("p");
-    const button = (text: string, onClick: () => void) => {
-      const b = doc.createElement("button");
+    main.setAttribute("aria-labelledby", heading.id);
+    const where = autosaved.summary.passage;
+    passage.append(
+      heading,
+      el(
+        "p",
+        undefined,
+        where === undefined
+          ? "You have a game in progress."
+          : `You have a game in progress, at ${where}.`,
+      ),
+    );
+    if (!autosaved.summary.sameGameVersion) {
+      passage.append(
+        el(
+          "p",
+          "loominate-note",
+          `It was saved by version ${autosaved.summary.game.version} of the game.`,
+        ),
+      );
+    }
+    const choice = (text: string, className: string, onClick: () => void) => {
+      const b = el("button", className, text);
       b.type = "button";
-      b.textContent = text;
       b.addEventListener("click", onClick);
-      choices.append(b, " ");
+      const p = el("p", "loominate-choice");
+      p.append(b);
+      passage.append(p);
       return b;
     };
-    const resume = button("Continue", () => {
+    const resume = choice("Continue", "loominate-continue", () => {
       start(autosaved.state);
     });
-    button("New game", () => {
+    choice("New game", "loominate-link", () => {
       start();
     });
-    screen.append(heading, where, choices);
-    if (!autosaved.summary.sameGameVersion) {
-      const note = doc.createElement("p");
-      note.textContent = `It was saved by version ${autosaved.summary.game.version} of the game.`;
-      screen.insertBefore(note, choices);
-    }
+    main.append(passage);
+    screen.append(main);
     host.prepend(screen);
     resume.focus();
   };

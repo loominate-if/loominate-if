@@ -149,8 +149,17 @@ describe("playing a game", () => {
     closeTab();
 
     const back = await start({ storage });
-    const screen = back.container.querySelector(".loominate-start");
+    const screen = back.container.querySelector<HTMLElement>(".loominate-start");
+    // Drawn as a page, so the game's own styles and theme apply to it.
+    expect(screen?.classList.contains("loominate-page")).toBe(true);
+    expect(screen?.dataset.screen).toBe("start");
     expect(screen?.querySelector("h1")?.textContent).toBe("Lantern Road");
+    expect(back.button("Continue").className).toBe("loominate-continue");
+    expect(back.button("New game").className).toBe("loominate-link");
+    const violations = (
+      await axe.run(document, { rules: { "color-contrast": { enabled: false } } })
+    ).violations.flatMap((v) => v.nodes.map((n) => `${v.id}: ${n.html}`));
+    expect(violations).toEqual([]);
     expect(screen?.textContent).toContain("You have a game in progress, at Bridge.");
     expect(document.activeElement).toBe(back.button("Continue"));
     back.click("Continue");

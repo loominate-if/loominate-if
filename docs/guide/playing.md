@@ -27,6 +27,10 @@ await playGame(document.querySelector("#app")!, {
 - **The save menu**, which saves under a name, loads, saves over a slot, exports a save as a file, imports one, and deletes, asking first. It's a dialog that works from the keyboard and with screen readers.
 - A note when a save was made by another version of the game.
 
+## Styling the start screen
+
+The start screen is drawn as a page, so your theme and page styles apply to it as they do in play: Continue looks like a continue point and New game like a choice. To style it alone, use `.loominate-page[data-screen="start"]`.
+
 ## Placing the game menu
 
 The game menu is a widget named `game-menu`. If your game replaces the `page` layout, put it where you want it:
