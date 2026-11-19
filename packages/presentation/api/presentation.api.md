@@ -7,9 +7,22 @@
 import type { BeatNode } from '@loominate-if/core';
 import { Choice } from '@loominate-if/core';
 import type { EventRecord } from '@loominate-if/core';
+import { GameInfo } from '@loominate-if/core';
 import { Handle } from '@loominate-if/core';
+import { Passage } from '@loominate-if/core';
+import { PassageId } from '@loominate-if/core';
 import { Registry } from '@loominate-if/core';
-import type { Story } from '@loominate-if/core';
+import { SaveStorage } from '@loominate-if/core';
+import { Story } from '@loominate-if/core';
+import { StoryOptions } from '@loominate-if/core';
+
+// @public
+export type BrowserStorageOptions = {
+    readonly indexedDB?: IDBFactory;
+};
+
+// @public
+export function createBrowserStorage(gameId: string, options?: BrowserStorageOptions): SaveStorage;
 
 // @public
 export const display: Handle<    {
@@ -77,6 +90,31 @@ export type PageOptions = {
     readonly continueLabel?: string;
     readonly styles?: boolean;
     readonly narrow?: string;
+};
+
+// @public
+export interface Player {
+    destroy(): void;
+    load(slot: string): Promise<void>;
+    newGame(): Promise<void>;
+    readonly page: Page | undefined;
+    readonly story: Story | undefined;
+}
+
+// @public
+export function playGame(container: HTMLElement, options: PlayOptions): Promise<Player>;
+
+// @public
+export type PlayOptions = {
+    readonly passages: readonly Passage[];
+    readonly start: PassageId;
+    readonly game: GameInfo;
+    readonly title?: string;
+    readonly storage?: SaveStorage;
+    readonly seed?: () => string;
+    readonly story?: Omit<StoryOptions, "start" | "seed">;
+    readonly page?: PageOptions;
+    readonly onError?: (error: unknown) => void;
 };
 
 // @public

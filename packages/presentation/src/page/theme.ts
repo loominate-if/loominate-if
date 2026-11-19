@@ -140,6 +140,56 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
 }
 .loominate-sidebar-toggle::before { content: "\\25B8\\00A0" / ""; }
 .loominate-sidebar-toggle[aria-expanded="true"]::before { content: "\\25BE\\00A0" / ""; }
+.loominate-game-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(${v("space")} / 2);
+}
+.loominate-game-menu button, .loominate-saves button {
+  padding: calc(${v("space")} / 4) calc(${v("space")} / 1.5);
+  border: 1px solid ${v("color-border")};
+  border-radius: ${v("radius")};
+  background: ${v("color-surface")};
+  color: ${v("color-text")};
+  font: inherit;
+  font-family: ${v("font-ui")};
+  cursor: pointer;
+}
+.loominate-game-menu [aria-disabled="true"] {
+  color: ${v("color-muted")};
+  cursor: not-allowed;
+}
+.loominate-saves {
+  color: ${v("color-text")};
+  background: ${v("color-background")};
+  line-height: ${v("line-height")};
+  width: min(36rem, 100% - 2 * ${v("space")});
+  padding: ${v("space")};
+  border: 1px solid ${v("color-border")};
+  border-radius: ${v("radius")};
+  font-family: ${v("font-ui")};
+}
+.loominate-saves::backdrop { background: rgb(0 0 0 / 0.4); }
+.loominate-saves :focus-visible {
+  outline: 2px solid ${v("color-focus")};
+  outline-offset: 2px;
+}
+.loominate-saves-list { padding: 0; list-style: none; }
+.loominate-saves-slot {
+  padding-block: calc(${v("space")} / 2);
+  border-block-end: 1px solid ${v("color-border")};
+}
+.loominate-saves-name { font-weight: 600; }
+.loominate-saves-meta, .loominate-saves-version, .loominate-saves-problem, .loominate-saves-empty {
+  color: ${v("color-muted")};
+  font-size: 0.9em;
+}
+.loominate-saves-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(${v("space")} / 2);
+  margin-block-start: calc(${v("space")} / 4);
+}
 @media (max-width: 30rem) {
   .loominate-page { padding: calc(${v("space")} * 0.75); }
 }

@@ -25,3 +25,5 @@ export {
   type EffectDefinition,
   type EffectFinish,
 } from "./page/effects.js";
+export { createBrowserStorage, type BrowserStorageOptions } from "./saves/storage.js";
+export { playGame, type Player, type PlayOptions } from "./saves/play.js";
