@@ -53,6 +53,11 @@ export type PageOptions = {
    * this. Pass `false` to style the page from nothing. Defaults to `true`.
    */
   readonly styles?: boolean;
+  /**
+   * The media query under which a layout's sidebars collapse into drawers.
+   * Defaults to `(max-width: 48rem)`.
+   */
+  readonly narrow?: string;
 };
 
 /** A story shown on a page. */
@@ -280,6 +285,50 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     return section;
   };
 
+  // ---- Sidebars on narrow screens ---------------------------------------
+
+  type Toggle = {
+    readonly region: string;
+    readonly button: HTMLElement;
+    readonly panel: HTMLElement;
+  };
+  let toggles: Toggle[] = [];
+  /** Which sidebars the player opened, kept across moves and layout switches. */
+  const open = new Set<string>();
+  const narrowQuery = doc.defaultView?.matchMedia?.(options.narrow ?? "(max-width: 48rem)");
+  let panels = 0;
+
+  /** Fills a sidebar region with its toggle and its panel, and returns the panel. */
+  const sidebar = (region: HTMLElement, name: string): HTMLElement => {
+    const button = el("button", "loominate-sidebar-toggle");
+    button.type = "button";
+    button.textContent = regionLabel(name);
+    const panel = el("div", "loominate-sidebar-panel");
+    panel.id = `loominate-sidebar-${String(++panels)}`;
+    button.setAttribute("aria-controls", panel.id);
+    button.addEventListener("click", () => {
+      if (open.has(name)) open.delete(name);
+      else open.add(name);
+      applyNarrow();
+    });
+    region.append(button, panel);
+    toggles.push({ region: name, button, panel });
+    return panel;
+  };
+
+  /** Shows sidebars beside main on wide screens, and as closed-by-default drawers on narrow ones. */
+  const applyNarrow = (): void => {
+    const narrow = narrowQuery?.matches ?? false;
+    root.toggleAttribute("data-narrow", narrow);
+    for (const { region, button, panel } of toggles) {
+      button.hidden = !narrow;
+      const expanded = !narrow || open.has(region);
+      button.setAttribute("aria-expanded", String(expanded));
+      panel.hidden = !expanded;
+    }
+  };
+  narrowQuery?.addEventListener("change", applyNarrow);
+
   /** Builds the regions of the layout `display.layout` names, if it changed. */
   const drawLayout = (): void => {
     const name = display.layout;
@@ -302,22 +351,65 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
         );
       }
     }
+    const sidebars = definition.sidebars ?? {};
+    for (const [region, side] of Object.entries(sidebars)) {
+      if (!definition.regions.includes(region) || region === "main") {
+        throw new Error(
+          region === "main"
+            ? `The layout "${name}" makes "main" a sidebar. Only other regions can be sidebars.`
+            : `The layout "${name}" makes "${region}" a sidebar, but it isn't one of its regions.`,
+        );
+      }
+      if (side !== "start" && side !== "end") {
+        throw new Error(
+          `The layout "${name}" puts the sidebar "${region}" at ${JSON.stringify(side)}. Use "start" or "end".`,
+        );
+      }
+    }
     for (const w of mounted) unmount(w);
     mounted = [];
+    toggles = [];
+    const elements = new Map<string, HTMLElement>();
+    for (const region of definition.regions) {
+      const r = regionElement(region);
+      r.className = `loominate-region loominate-region-${region}`;
+      r.dataset.region = region;
+      // A sidebar's widgets go in a panel that a button shows and hides on narrow screens.
+      const side = sidebars[region];
+      let into = r;
+      if (side) {
+        r.dataset.sidebar = side;
+        into = sidebar(r, region);
+      }
+      if (region === "main") r.append(main);
+      const names = definition.widgets?.[region] ?? [];
+      for (const w of names) mounted.push(mount(into, w));
+      r.hidden = region !== "main" && names.length === 0;
+      elements.set(region, r);
+    }
+    // Main and its sidebars share a row of columns, in visual order, so
+    // reading and tab order match what's on screen.
+    const columns = el("div", "loominate-columns");
+    const of = (s: "start" | "end") =>
+      definition.regions
+        .filter((r) => sidebars[r] === s)
+        .map((r) => elements.get(r) as HTMLElement);
+    columns.append(...of("start"), elements.get("main") as HTMLElement, ...of("end"));
     root.replaceChildren(
-      ...definition.regions.map((region) => {
-        const r = regionElement(region);
-        r.className = `loominate-region loominate-region-${region}`;
-        r.dataset.region = region;
-        if (region === "main") r.append(main);
-        const names = definition.widgets?.[region] ?? [];
-        for (const w of names) mounted.push(mount(r, w));
-        r.hidden = region !== "main" && names.length === 0;
-        return r;
-      }),
+      ...definition.regions.flatMap((region) =>
+        region === "main"
+          ? [columns]
+          : sidebars[region]
+            ? []
+            : [elements.get(region) as HTMLElement],
+      ),
     );
+    const sides = (["start", "end"] as const).filter((s) => of(s).some((r) => !r.hidden));
+    if (sides.length > 0) root.dataset.sidebars = sides.join(" ");
+    else delete root.dataset.sidebars;
     root.dataset.layout = name;
     layout = { name, definition };
+    applyNarrow();
   };
 
   /** Updates each widget whose data changed, and remounts one whose definition was replaced. */
@@ -354,6 +446,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     element: root,
     refresh: draw,
     destroy() {
+      narrowQuery?.removeEventListener("change", applyNarrow);
       for (const w of mounted) unmount(w);
       mounted = [];
       root.remove();

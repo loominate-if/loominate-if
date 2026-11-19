@@ -19,6 +19,7 @@ layout: string;
 export type LayoutDefinition = {
     readonly regions: readonly string[];
     readonly widgets?: Readonly<Record<string, readonly string[]>>;
+    readonly sidebars?: Readonly<Record<string, "start" | "end">>;
 };
 
 // @public
@@ -52,6 +53,7 @@ export type PageOptions = {
     readonly drawerLabel?: string;
     readonly continueLabel?: string;
     readonly styles?: boolean;
+    readonly narrow?: string;
 };
 
 // @public
