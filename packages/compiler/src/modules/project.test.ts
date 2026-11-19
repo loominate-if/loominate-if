@@ -280,9 +280,11 @@ export const again = same();
   });
 
   it("collects parser, compiler, and TypeScript errors together", () => {
-    const result = compile([{ path: "a.weft", text: ":: A\n{beat 1s}\n}\n{if nope}x{/if}\n" }]);
+    const result = compile([
+      { path: "a.weft", text: ":: A\n{if 1}{beat 1s}{/if}\n}\n{if nope}x{/if}\n" },
+    ]);
     expect(show(result)).toEqual([
-      "a.weft:2:1 compiler: `{beat}` isn't supported yet; it arrives with beats and cut scenes (#41).",
+      "a.weft:2:7 compiler: `{beat}` divides the passage into parts the player reaches in turn, so it goes at the top level of the passage, not inside a block.",
       "a.weft:3:1 parser: This `}` doesn't close anything. Write `\\}` for a literal brace.",
       "a.weft:4:5 typescript: `nope` isn't defined. To use it in passages, export it from `story.ts`.",
     ]);
@@ -415,6 +417,59 @@ describe("a compiled game", { timeout: 30_000 }, () => {
     expect(shown.text.slice(letter.start, letter.end)).toBe("read the letter");
     game.follow(letter);
     expect(game.current).toBe("Letter");
+  });
+
+  it("plays through beats, with effects written after them run as the player reaches them", async () => {
+    const scope =
+      'import { object } from "@loominate-if/core";\nexport const train = object("train", { stopped: false, beats: 0 });\n';
+    const source = [
+      ":: Arrival",
+      "{on enter: train.beats = 0}",
+      "The train slows.",
+      "{beat 1.5s}",
+      "{on enter: train.beats += 1}",
+      "Brakes scream.",
+      "{wait}",
+      "{on first visit: train.stopped = true}",
+      "{if train.stopped}It stops.{/if}",
+      "{page}",
+      "[[Get off -> Platform]]",
+      ":: Platform",
+      "Cold air.",
+    ].join("\n");
+    const dir = path.join(out, "beats");
+    mkdirSync(dir);
+    const result = compileProject({
+      root: dir,
+      compilerOptions,
+      files: [
+        { path: "story.ts", text: scope },
+        { path: "arrival.weft", text: source },
+      ],
+    });
+    expect(show(result)).toEqual([]);
+    writeFileSync(path.join(dir, "story.ts"), scope);
+    writeFileSync(result.passageNames.path, result.passageNames.code);
+    const [module] = result.modules.values();
+    if (!module) throw new Error("no module");
+    writeFileSync(module.path, module.code);
+    const { passages } = (await import(module.path)) as { passages: Passage[] };
+
+    const store = createStore();
+    const game = createStory(store, createEventRecord(store), passages, { start: "Arrival" });
+    game.begin();
+    const text = () => game.render().nodes.map((n) => ("text" in n ? n.text : n.type));
+    expect(text()).toEqual(["The train slows."]);
+    expect(game.render().beat).toEqual({ type: "beat", duration: 1500 });
+    game.advance();
+    expect(text()).toEqual(["The train slows.", "Brakes scream."]);
+    expect(store.entity("train")).toEqual({ beats: 1 });
+    game.advance();
+    expect(text()).toEqual(["The train slows.", "Brakes scream.", "It stops."]);
+    expect(game.render().beat).toEqual({ type: "beat", page: true });
+    game.advance();
+    expect(text()).toEqual(["link"]);
+    expect(store.entity("train")).toEqual({ beats: 1, stopped: true });
   });
 
   it("gives rendered prose, links, and narrative events stable line IDs", async () => {

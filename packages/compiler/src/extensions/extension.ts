@@ -91,6 +91,13 @@ export type DirectiveDefinition = {
       readonly runtime?: RuntimeExport;
       /** Why it can't be used yet, when it has no `runtime`. */
       readonly unsupported?: string;
+      /**
+       * True for a content directive whose node is a beat, like core's
+       * `{beat}`, `{wait}`, and `{page}`: it divides the passage into parts, so
+       * it must be at the top level, and effect phases after it run when the
+       * player reaches its part.
+       */
+      readonly beat?: boolean;
     }
   | {
       readonly kind: "annotation";

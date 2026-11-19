@@ -109,6 +109,7 @@ export type DirectiveDefinition = {
     readonly args?: readonly ArgumentSpec[];
     readonly runtime?: RuntimeExport;
     readonly unsupported?: string;
+    readonly beat?: boolean;
 } | {
     readonly kind: "annotation";
     readonly args?: readonly ArgumentSpec[];

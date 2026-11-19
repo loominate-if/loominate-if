@@ -51,6 +51,8 @@ export {
 } from "./events/record.js";
 export {
   createStory,
+  type BeatEffects,
+  type BeatNode,
   type Choice,
   type ContinueNode,
   type EffectContext,
@@ -77,7 +79,14 @@ export {
   type TextNode,
   type UnavailableLink,
 } from "./passages/story.js";
-export { continueTo, linkGuard, namedEffect } from "./passages/directives.js";
+export {
+  beat,
+  continueTo,
+  linkGuard,
+  namedEffect,
+  pageBreak,
+  wait,
+} from "./passages/directives.js";
 export {
   emphasis,
   prose,

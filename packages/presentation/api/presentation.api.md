@@ -4,6 +4,7 @@
 
 ```ts
 
+import type { BeatNode } from '@loominate-if/core';
 import { Choice } from '@loominate-if/core';
 import type { EventRecord } from '@loominate-if/core';
 import { Handle } from '@loominate-if/core';
@@ -69,7 +70,9 @@ export type PageGame = {
 
 // @public
 export type PageOptions = {
-    readonly onMove?: (choice: Choice) => void;
+    readonly onMove?: (move: Choice | BeatNode) => void;
+    readonly pacing?: "paced" | "immediate";
+    readonly skipLabel?: string;
     readonly drawerLabel?: string;
     readonly continueLabel?: string;
     readonly styles?: boolean;

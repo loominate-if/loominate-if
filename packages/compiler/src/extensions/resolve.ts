@@ -104,6 +104,9 @@ function checkDirective(from: string, d: DirectiveDefinition): void {
   if (d.roles?.length === 0)
     fail(`${where}: \`roles\` is empty; leave it out to allow it everywhere.`);
   if (d.kind !== "effect") checkArguments(where, d.args ?? []);
+  if (d.kind === "guard" && d.beat === true) {
+    fail(`${where}: only a content directive can be a beat.`);
+  }
   if ((d.kind === "content" || d.kind === "guard") && !d.runtime && d.unsupported === undefined) {
     fail(`${where}: give it a \`runtime\` export to call, or say why it's \`unsupported\`.`);
   }

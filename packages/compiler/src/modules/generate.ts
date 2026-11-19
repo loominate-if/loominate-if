@@ -109,6 +109,9 @@ export function generatePassageModule(
 
   // ---- Directives and their definitions ----------------------------------
 
+  /** How deep in blocks (`{if}`, emphasis) the content being generated is. */
+  let nested = 0;
+
   /** The tag roles of the passage being generated. */
   let roles: ReadonlySet<string> = new Set();
   const bindings = new Map<DirectiveSyntax, Bound | undefined>();
@@ -329,6 +332,7 @@ export function generatePassageModule(
           break;
         }
         case "emphasis": {
+          nested++;
           const inner = `$parts${String(indent.length)}`;
           mark(n.span.start);
           write(`${indent}{\n`);
@@ -339,6 +343,7 @@ export function generatePassageModule(
           write(`${indent}${parts}.push(${n.strong ? "$strong" : "$emphasis"}(...${inner}));\n`);
           indent = outer;
           write(`${indent}}\n`);
+          nested--;
           break;
         }
         case "break":
@@ -358,7 +363,9 @@ export function generatePassageModule(
             const outer = indent;
             indent += "  ";
             lineChange(parts, b.span.start);
+            nested++;
             content(b.content, parts);
+            nested--;
             indent = outer;
             write(`${indent}}\n`);
           }
@@ -465,6 +472,14 @@ export function generatePassageModule(
     const b = bind(d);
     if (!b) return;
     const def = b.definition;
+    if (def.kind === "content" && def.beat === true && nested > 0) {
+      error(
+        `\`{${d.name}}\` divides the passage into parts the player reaches in turn, so it goes at the top level of the passage, not inside a block.`,
+        d.span.start,
+        d.span.end,
+      );
+      return;
+    }
     switch (def.kind) {
       case "effect":
         error(
@@ -542,11 +557,26 @@ export function generatePassageModule(
     lineIds = passageLines(p, source, syntax.paragraphEnds);
     for (const problem of lineIds.problems)
       error(problem.message, problem.span.start, problem.span.end);
-    const effects = new Map<string, DirectiveSyntax[]>();
+    // Beats divide the passage into parts; effect phases belong to the part they're written in.
+    const parts: Map<string, DirectiveSyntax[]>[] = [new Map()];
     const body: ContentSyntax[] = [];
     for (const n of p.content) {
       const phase = n.type === "directive" ? phaseOf(n) : undefined;
-      if (n.type === "directive" && phase !== undefined) {
+      // Looked up without bind(), so problems are still reported in source order.
+      const found =
+        n.type === "directive" && n.code === undefined
+          ? syntax.directive(n.name, roles)
+          : undefined;
+      const def = found && "definition" in found ? found.definition : undefined;
+      if (def?.kind === "content" && def.beat === true) parts.push(new Map());
+      const effects = parts.at(-1) as Map<string, DirectiveSyntax[]>;
+      if (n.type === "directive" && phase === "leave" && parts.length > 1) {
+        error(
+          "`{on leave: …}` runs when the player leaves the passage, not when they reach a part of it, so it goes before the passage's first beat.",
+          n.span.start,
+          n.span.end,
+        );
+      } else if (n.type === "directive" && phase !== undefined) {
         effects.set(phase, [...(effects.get(phase) ?? []), n]);
       } else if (n.type === "directive" && n.code !== undefined) {
         // An effect directive that doesn't apply here was reported by bind().
@@ -561,14 +591,14 @@ export function generatePassageModule(
     write(
       `    tags: [${p.tags.map((t) => str(t.value === undefined ? t.name : `${t.name}: ${t.value}`)).join(", ")}],\n`,
     );
-    if (effects.size > 0) {
-      write("    effects: {\n");
+    /** Writes one part's effect phases as an object's properties, at `at` indentation. */
+    const phases = (effects: Map<string, DirectiveSyntax[]>, at: string): void => {
       for (const phase of ["firstVisit", "enter", "leave"]) {
         const list = effects.get(phase);
         if (!list) continue;
         const names = usedIn(list.flatMap((d) => (d.code ? [d.code] : [])));
-        write(`      ${phase}: (${contextParam(names, "$EffectContext")}): void => {\n`);
-        indent = "        ";
+        write(`${at}${phase}: (${contextParam(names, "$EffectContext")}): void => {\n`);
+        indent = `${at}  `;
         contextLocals(names, "$context");
         for (const d of list) {
           if (!d.code) continue;
@@ -577,9 +607,26 @@ export function generatePassageModule(
           copy(d.code);
           write(`\n${indent}}\n`);
         }
+        write(`${at}},\n`);
+      }
+    };
+    const [effects, ...later] = parts as [
+      Map<string, DirectiveSyntax[]>,
+      ...Map<string, DirectiveSyntax[]>[],
+    ];
+    if (effects.size > 0) {
+      write("    effects: {\n");
+      phases(effects, "      ");
+      write("    },\n");
+    }
+    if (later.some((m) => m.size > 0)) {
+      write("    beats: [\n");
+      for (const m of later) {
+        write("      {\n");
+        phases(m, "        ");
         write("      },\n");
       }
-      write("    },\n");
+      write("    ],\n");
     }
     checkRenderWrites(body);
     const names = usedIn(bodyCode(body));

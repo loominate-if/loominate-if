@@ -6,6 +6,7 @@
  * changing the record.
  */
 import type {
+  BeatNode,
   Choice,
   EventKind,
   NamedEffectNode,
@@ -42,9 +43,20 @@ export type PageGame = {
 export type PageOptions = {
   /**
    * Called after each move the player makes on the page, with the choice
-   * followed: a place to checkpoint undo history or autosave.
+   * followed or the beat moved past: a place to checkpoint undo history or
+   * autosave, so undo and saves stop at beat boundaries too.
    */
-  readonly onMove?: (choice: Choice) => void;
+  readonly onMove?: (move: Choice | BeatNode) => void;
+  /**
+   * How timed beats (`{beat 1.5s}`) play. `paced`, the default, waits out
+   * each one; `immediate` moves past them at once, so the text appears
+   * without pauses, as it also does when the player prefers reduced motion.
+   * Offer `immediate` as a setting, for example for screen-reader players.
+   * `{wait}` and `{page}` always wait for the player.
+   */
+  readonly pacing?: "paced" | "immediate";
+  /** The label for the button that moves past every remaining beat. Defaults to "Skip". */
+  readonly skipLabel?: string;
   /** The drawer's label. Defaults to "Story so far". */
   readonly drawerLabel?: string;
   /** The label for a continue point that has none. Defaults to "Continue". */
@@ -218,10 +230,95 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     }
   };
 
-  /** Draws the passage, playing its effects if the player just arrived. */
-  const drawMain = (arrived: boolean): void => {
+  // ---- Beats --------------------------------------------------------------
+
+  /** The pending timed beat's timer, if one is running. */
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  /** The controls for the pending beat: continue and skip. */
+  let beatControls: HTMLElement | undefined;
+  /** How many rendered nodes are on screen, so a beat's new part is appended after them. */
+  let drawnCount = 0;
+
+  const stopTimer = (): void => {
+    if (timer !== undefined) clearTimeout(timer);
+    timer = undefined;
+  };
+  const reducedMotion = (): boolean =>
+    doc.defaultView?.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+  const immediate = (): boolean => options.pacing === "immediate" || reducedMotion();
+
+  /** Moves past the pending beat, and shows the part it reveals. */
+  const advance = (): void => {
+    const beat = story.render().beat;
+    if (!beat) return;
+    const focused = beatControls?.contains(doc.activeElement) ?? false;
+    story.advance();
+    options.onMove?.(beat);
+    // A page break clears the screen; otherwise the new part follows what's shown.
+    draw(true, beat.page ? 0 : drawnCount);
+    if (focused) passage.focus({ preventScroll: true });
+  };
+
+  /** Moves past every remaining beat at once, without their effects. */
+  const skip = (): void => {
+    const focused = beatControls?.contains(doc.activeElement) ?? false;
+    let from = drawnCount;
+    for (let beat = story.render().beat; beat; beat = story.render().beat) {
+      story.advance();
+      options.onMove?.(beat);
+      if (beat.page) from = 0;
+    }
+    draw(false, from);
+    if (focused) passage.focus({ preventScroll: true });
+  };
+
+  /** Shows the controls for a pending beat, and starts its timer when it's timed. */
+  const drawBeat = (beat: BeatNode, arrived: boolean): void => {
+    const timed = beat.duration !== undefined;
+    if (timed && arrived && immediate()) {
+      advance();
+      return;
+    }
+    const controls = el("p", "loominate-beat");
+    if (!timed || immediate()) {
+      const next = el("button", "loominate-continue");
+      next.type = "button";
+      next.textContent = options.continueLabel ?? "Continue";
+      next.addEventListener("click", advance);
+      controls.append(next);
+    }
+    const skipping = el("button", "loominate-skip");
+    skipping.type = "button";
+    skipping.textContent = options.skipLabel ?? "Skip";
+    skipping.addEventListener("click", skip);
+    controls.append(" ", skipping);
+    passage.append(controls);
+    beatControls = controls;
+    // Wall-clock time paces the presentation only; the story moves on through advance().
+    if (timed && !immediate()) timer = setTimeout(advance, beat.duration);
+  };
+
+  // A click on the page, away from its buttons, hurries a timed pause along.
+  root.addEventListener("click", (event) => {
+    if (timer === undefined) return;
+    if ((event.target as Element | null)?.closest("button, a, summary, input, select, textarea"))
+      return;
+    stopTimer();
+    advance();
+  });
+
+  /**
+   * Draws the passage, playing its effects if the player just arrived. With
+   * `from`, keeps the first `from` nodes on screen and draws only the rest,
+   * so a beat's new part is announced without repeating what came before.
+   */
+  const drawMain = (arrived: boolean, from = 0): void => {
     finishEffects();
-    passage.replaceChildren();
+    stopTimer();
+    beatControls?.remove();
+    beatControls = undefined;
+    if (from === 0) passage.replaceChildren();
+    const rendered = story.render();
     /** Effects waiting for the next element drawn. */
     let pending: [EffectDefinition, NamedEffectNode][] = [];
     const queue: [EffectDefinition, NamedEffectNode, HTMLElement][] = [];
@@ -229,7 +326,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
       for (const [definition, node] of pending) queue.push([definition, node, element]);
       pending = [];
     };
-    for (const node of story.render().nodes) {
+    for (const node of rendered.nodes.slice(from)) {
       if (node.type === "effect") {
         const definition = effect(node);
         if (definition.target === "page") queue.push([definition, node, root]);
@@ -273,16 +370,20 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
         drawn(p);
       }
     }
+    drawnCount = rendered.nodes.length;
     if (arrived) playEffects(queue);
+    if (rendered.beat) drawBeat(rendered.beat, arrived);
   };
 
   const drawDrawer = (): void => {
-    const events = record.events({ kinds: [...PROSE_KINDS, "navigation"] });
-    // Each move starts at a navigation; the last move is the one on screen.
+    const events = record.events({ kinds: [...PROSE_KINDS, "navigation", "beat"] });
+    // Each move starts at a navigation, and each page of a passage at a page
+    // break; the last of them is the one on screen.
     const turns: RecordedEvent[][] = [];
     for (const e of events) {
-      if (e.kind === "navigation" || turns.length === 0) turns.push([]);
-      if (e.kind !== "navigation") turns.at(-1)?.push(e);
+      const starts = e.kind === "navigation" || (e.kind === "beat" && e.page === true);
+      if (starts || turns.length === 0) turns.push([]);
+      if (e.kind !== "navigation" && e.kind !== "beat") turns.at(-1)?.push(e);
     }
     turns.pop();
     scrollback.replaceChildren(
@@ -494,9 +595,9 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     });
   };
 
-  const draw = (arrived = false): void => {
+  const draw = (arrived = false, from = 0): void => {
     drawLayout();
-    drawMain(arrived);
+    drawMain(arrived, from);
     drawDrawer();
     drawWidgets();
   };
@@ -512,6 +613,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     },
     destroy() {
       finishEffects();
+      stopTimer();
       narrowQuery?.removeEventListener("change", applyNarrow);
       for (const w of mounted) unmount(w);
       mounted = [];

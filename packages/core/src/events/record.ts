@@ -90,6 +90,17 @@ export interface EventKinds {
     readonly passage: StateId;
     /** Which phase ran. */
     readonly phase: "firstVisit" | "enter" | "leave";
+    /** For phases written after a beat, which beat they follow, from 1. */
+    readonly beat?: number;
+  };
+  /** The player moved past a beat in a passage, revealing its next part. */
+  beat: {
+    /** The passage. */
+    readonly passage: StateId;
+    /** How many beats the player has now moved past in this visit, from 1. */
+    readonly step: number;
+    /** True when the beat was a page break, so what came before left the screen. */
+    readonly page?: boolean;
   };
 }
 

@@ -128,8 +128,23 @@ export type NamedEffectNode = {
   readonly options?: Readonly<Record<string, unknown>>;
 };
 
+/**
+ * A beat, which divides a passage into parts the player reaches in turn:
+ * `{beat 1.5s}` is a timed pause, `{wait}` waits for the player, and `{page}`
+ * waits for the player and then clears the screen, for long introductions.
+ * {@link Story.advance} moves past it.
+ */
+export type BeatNode = {
+  /** Node type. */
+  readonly type: "beat";
+  /** How long the pause lasts, in milliseconds. Missing when it waits for the player. */
+  readonly duration?: number;
+  /** True when what follows replaces what came before on screen. */
+  readonly page?: true;
+};
+
 /** One piece of a rendered passage, in reading order. */
-export type PassageNode = TextNode | LinkNode | ContinueNode | NamedEffectNode;
+export type PassageNode = TextNode | LinkNode | ContinueNode | NamedEffectNode | BeatNode;
 
 /**
  * A link inside a paragraph, from `You could [[ask about it -> Hall]] now.`
@@ -194,6 +209,14 @@ export interface RenderContext {
 /** Read and write access to state, which effect phases get. */
 export type StateWriter = StateReader & Pick<StateStore, "set" | "delete">;
 
+/**
+ * The effect phases written after a beat. They run when the player reaches the
+ * beat's part of the passage, so a scene can change things as it unfolds.
+ */
+export type BeatEffects = {
+  readonly [P in "firstVisit" | "enter"]?: (context: EffectContext) => void;
+};
+
 /** The effect phases a passage can declare. */
 export type EffectPhase = "firstVisit" | "enter" | "leave";
 
@@ -226,14 +249,27 @@ export interface Passage {
   readonly body: (context: RenderContext) => readonly PassageNode[];
   /** The passage's effect phases, the only place a passage changes state. */
   readonly effects?: PassageEffects;
+  /**
+   * The effect phases written after each beat, in order: `beats[0]` runs
+   * when the player reaches the part after the first beat.
+   */
+  readonly beats?: readonly BeatEffects[];
 }
 
 /** A rendered passage. */
 export interface RenderedPassage {
   /** The passage rendered. */
   readonly passage: Passage;
-  /** What the player sees, in reading order: text, links (hidden ones left out), and continue points. */
+  /**
+   * What the player sees, in reading order: text, links (hidden ones left
+   * out), continue points, and named effects, up to the beat the player has
+   * reached, from the last page break before it.
+   */
   readonly nodes: readonly RenderedNode[];
+  /** The beat the player hasn't moved past yet, if the passage has more to show. */
+  readonly beat?: BeatNode;
+  /** How many beats the player has moved past in this visit. */
+  readonly step: number;
   /** The links and continue points the player can follow now, in reading order. */
   readonly choices: readonly Choice[];
   /** Links whose guards are closed, hidden or disabled, with their conditions, for the inspector. */
@@ -291,6 +327,15 @@ export interface Story {
    */
   follow(choice: Choice): void;
   /**
+   * Moves past the current passage's next beat, revealing the part after it:
+   * runs that part's `firstVisit` (on the passage's first visit) and `enter`
+   * effects, records a beat event and the part's prose, and logs the action,
+   * so undo, saves, and replays stop at beat boundaries. Presentation calls it
+   * when a timed beat's time is up, or the player moves on.
+   * @throws {@link StateError} if the passage has no beat left, or an effect throws.
+   */
+  advance(): void;
+  /**
    * Moves straight to a passage, as author code does. Records the same events as
    * {@link Story.follow}.
    * @throws {@link StateError} if there's no passage with that ID.
@@ -334,6 +379,8 @@ export interface Story {
 /** The state entity holding story progress. IDs starting with `$` are reserved for core. */
 const STORY_ID = "$story";
 const CURRENT_FIELD = "current";
+/** How many beats the player has moved past in the current passage, when any. */
+const STEP_FIELD = "step";
 /** The state entity holding visit counts, one field per visited passage. */
 const VISITS_ID = "$visits";
 /** The state entity holding the persistent data as it was when the story began, for replays. */
@@ -395,7 +442,16 @@ export function createStory(
     return typeof n === "number" ? n : 0;
   };
 
-  const renderPassage = (passage: Passage): RenderedPassage => {
+  const stepIn = (): number => {
+    const n = store.get(STORY_ID, STEP_FIELD);
+    return typeof n === "number" ? n : 0;
+  };
+
+  /**
+   * Renders a passage as the player sees it after `step` beats, or with
+   * `part`, only the part the last of those beats revealed.
+   */
+  const renderPassage = (passage: Passage, step = 0, part = false): RenderedPassage => {
     // A body only gets a read-only view, but it could still reach the store some
     // other way. Catch that when we can: a clean store must stay clean.
     const wasClean = !store.dirty;
@@ -418,6 +474,17 @@ export function createStory(
         `passage ${JSON.stringify(passage.id)}: rendering changed state. Rendering must be pure; change state in an effect phase such as {on enter: …} instead.`,
       );
     }
+    // Beats divide the passage into parts; the player sees those up to `step`,
+    // from the last page break before it.
+    const beats = nodes.flatMap((n, i) => (n.type === "beat" ? [i] : []));
+    const reached = Math.min(step, beats.length);
+    let from = 0;
+    for (let b = 0; b < reached; b++) {
+      const at = beats[b] as number;
+      if (part || (nodes[at] as BeatNode).page) from = at + 1;
+    }
+    const to = reached < beats.length ? (beats[reached] as number) : nodes.length;
+    const beat = reached < beats.length ? (nodes[to] as BeatNode) : undefined;
     const shown: RenderedNode[] = [];
     const choices: Choice[] = [];
     const unavailable: UnavailableLink[] = [];
@@ -434,7 +501,8 @@ export function createStory(
       const reason = mode === "disabled-with-reason" ? guard.reason : undefined;
       return { ...link, available: false, ...(reason !== undefined && { reason }) };
     };
-    for (const node of nodes) {
+    for (const node of nodes.slice(from, to)) {
+      if (node.type === "beat") continue;
       if (node.type === "text") {
         if (node.styles) checkStyles(passage.id, node);
         if (node.links) checkInlineLinks(passage.id, node);
@@ -459,6 +527,8 @@ export function createStory(
     }
     return Object.freeze({
       passage,
+      step: reached,
+      ...(beat !== undefined && { beat: Object.freeze(beat) }),
       nodes: Object.freeze(shown),
       choices: Object.freeze(choices),
       unavailable: Object.freeze(unavailable),
@@ -491,16 +561,38 @@ export function createStory(
     return { state, persistent, emit };
   };
 
-  const runPhase = (passage: Passage, phase: EffectPhase): void => {
-    const effect = passage.effects?.[phase];
+  /** Runs one effect phase, written after beat number `beat` when it's given. */
+  const runEffect = (
+    passage: Passage,
+    phase: EffectPhase,
+    effect: ((context: EffectContext) => void) | undefined,
+    beat?: number,
+  ): void => {
     if (!effect) return;
-    record.emit("phase", { passage: passage.id, phase });
+    record.emit("phase", { passage: passage.id, phase, ...(beat !== undefined && { beat }) });
     try {
       effect(contextFor(passage.id));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new StateError(`passage ${JSON.stringify(passage.id)} ${phase} effect: ${message}`, {
-        cause: error,
+      const where = beat === undefined ? "" : ` after beat ${String(beat)}`;
+      throw new StateError(
+        `passage ${JSON.stringify(passage.id)} ${phase} effect${where}: ${message}`,
+        { cause: error },
+      );
+    }
+  };
+  const runPhase = (passage: Passage, phase: EffectPhase): void => {
+    runEffect(passage, phase, passage.effects?.[phase]);
+  };
+
+  /** Records a passage's prose as the player reads it. */
+  const recordProse = (nodes: readonly RenderedNode[]): void => {
+    for (const node of nodes) {
+      if (node.type !== "text") continue;
+      record.emit("narrative", {
+        text: node.text,
+        ...(node.styles !== undefined && node.styles.length > 0 && { styles: node.styles }),
+        ...(node.line !== undefined && { line: node.line }),
       });
     }
   };
@@ -521,18 +613,32 @@ export function createStory(
    * Moves to a passage: `start` when the story begins, `turn` for a player
    * action. `move` names the move for streams that reroll on undo (ADR 0014).
    */
-  const enter = (to: Passage, why: "start" | "turn", move: string): void => {
-    if (navigating) {
-      throw new StateError(
-        `can't move to ${JSON.stringify(to.id)} while an effect phase is running; effects change state, and links and continue points move between passages.`,
-      );
-    }
+  /** Runs `fn` as one move: all of it happens, or, when we can tell what it changed, none. */
+  const transaction = (fn: () => void): void => {
     const wasClean = !store.dirty;
     // Persistent writes made by this move are undone with it if it fails.
     const kept = persistentState(persistent);
     kept.commit();
     navigating = true;
     try {
+      fn();
+    } catch (error) {
+      // Leave no half-made move behind, when we can tell what the move changed.
+      if (wasClean) store.rollback();
+      kept.rollback();
+      throw error;
+    } finally {
+      navigating = false;
+    }
+  };
+
+  const enter = (to: Passage, why: "start" | "turn", move: string): void => {
+    if (navigating) {
+      throw new StateError(
+        `can't move to ${JSON.stringify(to.id)} while an effect phase is running; effects change state, and links and continue points move between passages.`,
+      );
+    }
+    transaction(() => {
       store.set(RANDOM_ID, MOVE_FIELD, move);
       const from = current();
       const leaving = from === undefined ? undefined : byId.get(from);
@@ -545,29 +651,49 @@ export function createStory(
       }
       record.emit("navigation", { ...(from !== undefined && { from }), to: to.id });
       store.set(STORY_ID, CURRENT_FIELD, to.id);
+      if (store.has(STORY_ID, STEP_FIELD)) store.delete(STORY_ID, STEP_FIELD);
       store.set(VISITS_ID, to.id, visits(to.id) + 1);
       if (visits(to.id) === 1) runPhase(to, "firstVisit");
       runPhase(to, "enter");
       hook("passageEnter").run(contextFor(to.id));
-      for (const node of renderPassage(to).nodes) {
-        if (node.type !== "text") continue;
-        record.emit("narrative", {
-          text: node.text,
-          ...(node.styles !== undefined && node.styles.length > 0 && { styles: node.styles }),
-          ...(node.line !== undefined && { line: node.line }),
-        });
-      }
+      recordProse(renderPassage(to).nodes);
       if (why === "turn") {
         hook("turnEnd").run(contextFor(to.id));
       }
-    } catch (error) {
-      // Leave no half-made move behind, when we can tell what the move changed.
-      if (wasClean) store.rollback();
-      kept.rollback();
-      throw error;
-    } finally {
-      navigating = false;
+    });
+  };
+
+  /** Moves past the current passage's next beat (see {@link Story.advance}). */
+  const advance = (replayed?: number): void => {
+    const id = current();
+    if (id === undefined) throw new StateError("advance: call begin() first.");
+    if (navigating) {
+      throw new StateError(
+        "can't advance while an effect phase is running; effects change state, and the page moves past beats.",
+      );
     }
+    const passage = lookup(id, "advance");
+    const step = stepIn();
+    const beat = renderPassage(passage, step).beat;
+    if (!beat) {
+      throw new StateError(
+        `advance: passage ${JSON.stringify(id)} has no beat left to move past; follow one of its choices instead.`,
+      );
+    }
+    const n = logLength();
+    const tried = store.get(ATTEMPTS_ID, String(n));
+    const attempt = replayed ?? (typeof tried === "number" ? tried : 0);
+    transaction(() => {
+      store.set(RANDOM_ID, MOVE_FIELD, `${String(n)}.${String(attempt)}`);
+      store.set(STORY_ID, STEP_FIELD, step + 1);
+      record.emit("beat", { passage: id, step: step + 1, ...(beat.page && { page: true }) });
+      const effects = passage.beats?.[step];
+      if (visits(id) === 1) runEffect(passage, "firstVisit", effects?.firstVisit, step + 1);
+      runEffect(passage, "enter", effects?.enter, step + 1);
+      recordProse(renderPassage(passage, step + 1, true).nodes);
+    });
+    store.set(ATTEMPTS_ID, String(n), attempt + 1);
+    log({ type: "advance", ...(attempt > 0 && { attempt }) });
   };
 
   /**
@@ -630,10 +756,13 @@ export function createStory(
     render() {
       const id = current();
       if (id === undefined) throw new StateError("render: call begin() first.");
-      return renderPassage(lookup(id, "render"));
+      return renderPassage(lookup(id, "render"), stepIn());
     },
     follow: (choice) => {
       follow(choice);
+    },
+    advance: () => {
+      advance();
     },
     goTo: (id) => {
       act(lookup(id, "goTo"), { type: "goTo", passage: id });
@@ -647,6 +776,7 @@ export function createStory(
     },
     perform(action) {
       if (action.type === "follow") follow(action.choice, action.attempt);
+      else if (action.type === "advance") advance(action.attempt);
       else
         act(
           lookup(action.passage, "goTo"),
@@ -720,6 +850,7 @@ export function createStory(
 /** An action as a reader would say it, for replay errors. */
 function describe(action: StoryAction): string {
   if (action.type === "goTo") return `go to ${JSON.stringify(action.passage)}`;
+  if (action.type === "advance") return "move past a beat";
   const { type, label, target } = action.choice;
   const verb = type === "link" ? "follow" : "continue";
   const name = label === undefined ? "" : ` ${JSON.stringify(label)}`;

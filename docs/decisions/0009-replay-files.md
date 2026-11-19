@@ -21,7 +21,7 @@ A seed plus an action list reproduces a playthrough, and bug reports can be smal
   - `{"type": "goTo", "passage": "..."}`, from `story.goTo()`.
 - A followed choice is logged as its `type` (`link` or `continue`), `target`, and `label`: the same fields `follow()` already matches choices by. Guards aren't logged; they're worked out again on replay, so a replay can't follow a link that's closed.
 - Beginning the story isn't an action. It follows from the seed and the start passage.
-- Later layers add action types (parser commands, world actions, conversation topics) with a new replay version.
+- Later layers add action types (parser commands, world actions, conversation topics) with a new replay version. Version 5 added `{"type": "advance"}`, for moving past a beat ([ADR 0021](0021-beats.md)).
 
 ### The log
 

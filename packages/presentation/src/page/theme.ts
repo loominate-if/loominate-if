@@ -71,6 +71,23 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   background: ${v("color-surface")};
   cursor: pointer;
 }
+.loominate-beat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: ${v("space")};
+  margin-block: ${v("space")};
+}
+.loominate-skip {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: ${v("color-muted")};
+  font-family: ${v("font-ui")};
+  font-size: 0.9em;
+  text-decoration: underline;
+  cursor: pointer;
+}
 .loominate-reason, .loominate-note {
   color: ${v("color-muted")};
   font-size: 0.9em;
@@ -127,7 +144,7 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   .loominate-page { padding: calc(${v("space")} * 0.75); }
 }
 @media (pointer: coarse) {
-  .loominate-choice .loominate-link, .loominate-continue, .loominate-sidebar-toggle {
+  .loominate-choice .loominate-link, .loominate-continue, .loominate-skip, .loominate-sidebar-toggle {
     min-height: 2.75rem;
   }
   .loominate-drawer summary { padding-block: calc(${v("space")} / 2); }

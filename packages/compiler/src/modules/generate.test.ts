@@ -154,10 +154,6 @@ describe("generatePassageModule", () => {
   });
 
   it("reports constructs core can't run yet", () => {
-    expect(errors(":: A\n{beat 1s}\n{wait}", { scopeExports: new Set() })).toEqual([
-      "2:1 `{beat}` isn't supported yet; it arrives with beats and cut scenes (#41).",
-      "3:1 `{wait}` isn't supported yet; it arrives with beats and cut scenes (#41).",
-    ]);
     expect(errors(":: A\n[[*go* -> B]]")).toEqual([
       "2:1 Formatting in link labels isn't supported yet. Remove the `*` from this label.",
     ]);
@@ -181,7 +177,37 @@ describe("generatePassageModule", () => {
   it("reports a directive that clashes with a scope export (ADR 0004)", () => {
     expect(errors(":: A\nText.\n{wait}")).toEqual([
       "3:1 `wait` is a directive from @loominate-if/core and also exported by the scope module. Write `{(wait)}` to print the export, or rename it.",
-      "3:1 `{wait}` isn't supported yet; it arrives with beats and cut scenes (#41).",
+    ]);
+  });
+
+  it("generates beats, waits, and page breaks, with effects for each part", () => {
+    const { code } = generate(
+      ":: A\n{on enter: a()}\nOne.\n{beat 1.5s}\n{on first visit: b()}\nTwo.\n{wait}\nThree.\n{page}\n{on enter: c()}\nFour.",
+      { scopeExports: new Set(["a", "b", "c"]) },
+    );
+    expect(code).toContain(
+      'import { beat as $rt_beat, wait as $rt_wait, pageBreak as $rt_pageBreak } from "@loominate-if/core";',
+    );
+    expect(code).toContain("$nodes.push(...[$rt_beat({ duration: 1500 })].flat());");
+    expect(code).toContain("$nodes.push(...[$rt_wait({})].flat());");
+    expect(code).toContain("$nodes.push(...[$rt_pageBreak({})].flat());");
+    const beats = code.slice(code.indexOf("beats: ["), code.indexOf("body: ("));
+    expect(code.slice(code.indexOf("effects: {"), code.indexOf("beats: ["))).toContain("a()");
+    expect(beats.indexOf("firstVisit: ")).toBeLessThan(beats.indexOf("b()"));
+    expect(beats.match(/^ {6}\{$/gm)).toHaveLength(3);
+    expect(beats.indexOf("b()")).toBeLessThan(beats.indexOf("c()"));
+    expect(beats).not.toContain("a()");
+  });
+
+  it("reports beats inside blocks, and leave effects after a beat", () => {
+    expect(
+      errors(":: A\n{if x}{wait}{/if}\nOne.\n{beat 1s}\n{on leave: y()}", {
+        scopeExports: new Set(["x", "y"]),
+      }),
+    ).toEqual([
+      // Effects are gathered before the body is generated; compileProject sorts by position.
+      "5:1 `{on leave: …}` runs when the player leaves the passage, not when they reach a part of it, so it goes before the passage's first beat.",
+      "2:7 `{wait}` divides the passage into parts the player reaches in turn, so it goes at the top level of the passage, not inside a block.",
     ]);
   });
 });
