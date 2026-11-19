@@ -6,12 +6,13 @@ import {
   createStory,
   type Passage,
 } from "@loominate-if/core";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import {
   display,
   layouts,
   statusLine,
   statusLineView,
+  widget,
   widgets,
   type WidgetDefinition,
   type WidgetView,
@@ -243,6 +244,37 @@ describe("widgets", () => {
       "Hall / Score: 0",
     );
     expect(document.querySelectorAll('[data-widget="status-line"]')).toHaveLength(1);
+    display.layout = "page";
+  });
+
+  it("written inline with widget(), get their data typed in the view", () => {
+    const seen: string[][] = [];
+    widgets.register(
+      "visited",
+      widget({
+        data: ({ story }) => (story.visits("Garden") > 0 ? ["Hall", "Garden"] : ["Hall"]),
+        view: {
+          mount(element, places) {
+            expectTypeOf(places).toEqualTypeOf<string[]>();
+            const show = (next: string[]) => {
+              seen.push(next);
+              element.textContent = next.join(", ");
+            };
+            show(places);
+            return { update: show, unmount: () => undefined };
+          },
+        },
+      }),
+    );
+    cleanup.push(() => {
+      widgets.remove("visited");
+    });
+    addLayout("visits", { regions: ["header", "main"], widgets: { header: ["visited"] } });
+    const { page, click } = play();
+    display.layout = "visits";
+    page.refresh();
+    click("Garden");
+    expect(seen).toEqual([["Hall"], ["Hall", "Garden"]]);
     display.layout = "page";
   });
 

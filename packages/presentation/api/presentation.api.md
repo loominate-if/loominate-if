@@ -85,6 +85,9 @@ export type ThemeToken = {
 export const themeTokens: readonly ThemeToken[];
 
 // @public
+export function widget<D>(definition: WidgetDefinition<D>): WidgetDefinition<D>;
+
+// @public
 export type WidgetDefinition<D = unknown> = {
     readonly data: (game: PageGame) => D;
     readonly view: WidgetView<D>;

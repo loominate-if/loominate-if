@@ -91,3 +91,5 @@ widgets.replace("status-line", { ...statusLine(), view: shipsLog });
 ```
 
 The page notices the replaced widget on its next draw and mounts the new view in the same place. A view can use any UI framework, as long as it meets the `mount`/`update`/`unmount` contract. Keep it keyboard-operable: if it can make moves, use buttons.
+
+A new widget of your own is registered the same way. Wrap it in `widget(…)` so its view sees the data typed: `widgets.register("notes", widget({ data: …, view: … }))`.
