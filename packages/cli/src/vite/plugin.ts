@@ -231,6 +231,15 @@ export function loominate(options: LoominateOptions = {}): Plugin {
     },
 
     resolveId(source, importer) {
+      // A generated module asked for by its own URL, `/cellar.weft.ts`, as Vitest's
+      // module runner does when a second test file imports what a first one did.
+      if (source.endsWith(PASSAGE_EXTENSION + MODULE_SUFFIX)) {
+        const file = source.slice(0, -MODULE_SUFFIX.length);
+        if (path.isAbsolute(file) && active().module(file)) return source;
+        const fromRoot = path.join(root, file);
+        if (active().module(fromRoot)) return fromRoot + MODULE_SUFFIX;
+        return undefined;
+      }
       // `./cellar.weft.js` is how TypeScript's NodeNext resolution names it; `./cellar.weft` works too.
       const spec = source.endsWith(`${PASSAGE_EXTENSION}.js`) ? source.slice(0, -3) : source;
       if (!isPassageFile(spec) || !(spec.startsWith(".") || path.isAbsolute(spec))) return;

@@ -54,9 +54,14 @@ export function templateFiles(id: string, title: string, version: string): Recor
           dev: "loominate dev",
           build: "loominate build",
           "build:single": "loominate build --target single",
+          test: "loominate test",
         },
         dependencies: { "@loominate-if/core": range, "@loominate-if/presentation": range },
-        devDependencies: { "@loominate-if/cli": range },
+        devDependencies: {
+          "@loominate-if/cli": range,
+          "@loominate-if/testing": range,
+          vitest: "^5.1.0",
+        },
       },
       null,
       2,
@@ -89,6 +94,23 @@ You turn the little brass switch, and the room fills with light.
 :: Room
 Bare walls, a table, and a door you haven't opened yet.
 {continue -> Start}
+`,
+    "walkthrough.test.ts": `// Walkthrough tests play the game as a player would. Run them with \`npm test\`.
+import { play } from "@loominate-if/testing";
+import { expect, test } from "vitest";
+import { lamp } from "./story.js";
+
+test("lighting the lamp", () => {
+  const game = play();
+  expect(game.text).toContain("An unlit lamp sits on the table.");
+
+  game.choose("Light the lamp");
+  expect(lamp.lit).toBe(true);
+
+  game.choose("Continue");
+  expect(game.text).toContain("The lamp throws a warm light over everything.");
+  expect(game.choices).toEqual(["Look around"]);
+});
 `,
     "index.html": `<!doctype html>
 <html lang="en">

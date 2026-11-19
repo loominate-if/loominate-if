@@ -14,6 +14,7 @@ import {
 import { loadConfig, type ResolvedConfig } from "./config/config.js";
 import { loominateApp } from "./vite/app.js";
 import { singleFile, singleFileConfig } from "./vite/single.js";
+import { loominateWalkthrough, WALKTHROUGH_SETUP } from "./vite/walkthrough.js";
 import { loominate } from "./vite/plugin.js";
 
 /** Options for {@link dev} and {@link build}. */
@@ -96,4 +97,69 @@ export async function build(options: BuildOptions = {}): Promise<void> {
         })
       : base,
   );
+}
+
+/** Options for {@link test}. */
+export type TestOptions = CommandOptions & {
+  /** Only test files whose paths contain one of these. */
+  readonly filters?: readonly string[];
+  /** Keep running, and rerun tests as files change. */
+  readonly watch?: boolean;
+};
+
+/** A finished test run. */
+export type TestResult = {
+  /** Whether every test passed, and there was at least one. */
+  readonly passed: boolean;
+  /** How many tests ran. */
+  readonly tests: number;
+  /** How many tests failed. */
+  readonly failed: number;
+};
+
+/**
+ * Runs the game's walkthrough tests, `*.test.ts` files, with Vitest. Tests
+ * import passage files as the game does, and `play()` from
+ * `@loominate-if/testing` plays the game the config describes.
+ * @throws Error if the game's config can't be loaded, or Vitest isn't installed.
+ */
+export async function test(options: TestOptions = {}): Promise<TestResult> {
+  const config = await loadConfig(options.root ?? process.cwd(), {
+    ...(options.conditions && { conditions: options.conditions }),
+  });
+  let vitest: typeof import("vitest/node");
+  try {
+    vitest = await import("vitest/node");
+  } catch {
+    throw new Error(
+      "Walkthrough tests run with Vitest, which isn't installed. Install it with `npm install --save-dev vitest @loominate-if/testing`.",
+    );
+  }
+  const base = viteConfig(config, options);
+  const run = await vitest.startVitest(
+    [...(options.filters ?? [])],
+    { root: config.root, watch: options.watch ?? false, run: !(options.watch ?? false) },
+    mergeConfig(base, {
+      plugins: [loominateWalkthrough(config)],
+      test: { setupFiles: [WALKTHROUGH_SETUP], passWithNoTests: false },
+    }),
+  );
+  const files = run.state.getFiles();
+  const tests = files.reduce((n, file) => n + countTests(file), 0);
+  const failed = files.reduce((n, file) => n + countTests(file, "fail"), 0);
+  // A file that fails to load, or an error outside any test, fails the run too.
+  const broken =
+    files.filter((f) => f.result?.state === "fail" && countTests(f, "fail") === 0).length +
+    run.state.getUnhandledErrors().length;
+  if (!(options.watch ?? false)) await run.close();
+  return { passed: failed === 0 && broken === 0 && tests > 0, tests, failed };
+}
+
+/** A Vitest task: a file, a suite, or a test. */
+type Task = { type: string; result?: { state?: string }; tasks?: readonly Task[] };
+
+/** How many tests a file or suite has, or only those in a state such as `fail`. */
+function countTests(task: Task, state?: string): number {
+  if (task.type === "test") return state === undefined || task.result?.state === state ? 1 : 0;
+  return (task.tasks ?? []).reduce((n, t) => n + countTests(t, state), 0);
 }

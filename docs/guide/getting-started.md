@@ -30,7 +30,18 @@ Errors in passages or code are reported against your own lines, in the terminal 
   ```
 
   `game.id` keeps your game's saves apart from other games'; don't change it once players have saves. Raise `game.version` when you release a new version, and players loading an older save are told. `start` is the passage a new game starts in.
+- `walkthrough.test.ts` is a walkthrough test, which plays the game and checks what happens.
 - `index.html` is the page the game runs in. It loads `/@loominate/main`, which plays every passage file with the player shell: saves, autosave, undo, and the save menu ([playing guide](playing.md)).
+
+## Test it
+
+`walkthrough.test.ts` plays the game and checks what happens, as a player would:
+
+```sh
+npm test
+```
+
+Add a walkthrough for each path through your story, and they'll catch it when an edit breaks one ([walkthrough guide](walkthroughs.md)).
 
 ## Build it
 

@@ -12,7 +12,7 @@ import {
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { build, dev } from "./commands.js";
+import { build, dev, test } from "./commands.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const packages = path.resolve(here, "../..");
@@ -46,7 +46,7 @@ export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, title
     mkdirSync(path.dirname(path.join(root, name)), { recursive: true });
     writeFileSync(path.join(root, name), text);
   }
-  for (const pkg of ["core", "presentation"]) {
+  for (const pkg of ["core", "presentation", "testing"]) {
     symlinkSync(
       path.join(packages, pkg),
       path.join(root, `node_modules/@loominate-if/${pkg}`),
@@ -155,4 +155,41 @@ describe("loominate dev", () => {
       errors.mockRestore();
     }
   }, 60_000);
+});
+
+describe("loominate test", () => {
+  it("runs walkthroughs against the game the config describes, and reports failures", async () => {
+    const root = game({
+      "start.weft": START,
+      "lamp.test.ts": `import { play } from "@loominate-if/testing";
+import { expect, test } from "vitest";
+import { lamp } from "./story.js";
+
+test("lighting the lamp", () => {
+  const game = play();
+  expect(game.text).toBe("You wake in the dark.");
+  game.choose("Light the lamp");
+  expect(lamp.lit).toBe(true);
+});
+`,
+      "broken.test.ts": `import { play } from "@loominate-if/testing";
+import { test } from "vitest";
+
+test("a choice that isn't there", () => {
+  play().choose("Fly");
+});
+`,
+    });
+    // One run per process, as on the command line: Vitest keeps state between runs in one process.
+    // The nested run's report, including its expected failure, stays out of this run's output.
+    const quiet = [
+      vi.spyOn(process.stdout, "write").mockImplementation(() => true),
+      vi.spyOn(process.stderr, "write").mockImplementation(() => true),
+    ];
+    try {
+      expect(await test(options(root))).toEqual({ passed: false, tests: 2, failed: 1 });
+    } finally {
+      for (const spy of quiet) spy.mockRestore();
+    }
+  }, 120_000);
 });

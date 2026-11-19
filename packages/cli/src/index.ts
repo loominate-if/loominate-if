@@ -17,5 +17,9 @@ export {
   type BuildOptions,
   type BuildTarget,
   type CommandOptions,
+  test,
+  type TestOptions,
+  type TestResult,
 } from "./commands.js";
 export { MAIN, loominateApp } from "./vite/app.js";
+export { loominateWalkthrough, WALKTHROUGH_SETUP } from "./vite/walkthrough.js";
