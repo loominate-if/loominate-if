@@ -15,5 +15,11 @@
   "files": [
     "dist",
     "!dist/**/*.test.*"
-  ]
+  ],
+  "bin": {
+    "create-loominate-if": "./dist/bin.js"
+  },
+  "devDependencies": {
+    "@loominate-if/cli": "workspace:*"
+  }
 }

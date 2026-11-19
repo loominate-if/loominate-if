@@ -4,4 +4,19 @@
 
 ```ts
 
+// @public
+export function gameId(name: string): string;
+
+// @public
+export function scaffold(dir: string, options?: ScaffoldOptions): readonly string[];
+
+// @public
+export type ScaffoldOptions = {
+    readonly title?: string;
+    readonly version?: string;
+};
+
+// @public
+export function templateFiles(id: string, title: string, version: string): Record<string, string>;
+
 ```

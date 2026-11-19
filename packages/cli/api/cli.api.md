@@ -6,9 +6,30 @@
 
 import { CompilerExtension } from '@loominate-if/compiler';
 import { createCompilerSession } from '@loominate-if/compiler';
+import { InlineConfig } from 'vite';
 import type { Plugin } from 'vite';
 import { ProjectDiagnostic } from '@loominate-if/compiler';
 import { ProjectFile } from '@loominate-if/compiler';
+import { ViteDevServer } from 'vite';
+
+// @public
+export function build(options?: CommandOptions): Promise<void>;
+
+// @public
+export type CommandOptions = {
+    readonly root?: string;
+    readonly conditions?: readonly string[];
+    readonly vite?: InlineConfig;
+};
+
+// @public
+export const CONFIG_FILE = "loominate.config.ts";
+
+// @public
+export function defineConfig(config: LoominateConfig): LoominateConfig;
+
+// @public
+export function dev(options?: CommandOptions): Promise<ViteDevServer>;
 
 // @public
 export function formatDiagnostic(root: string, d: ProjectDiagnostic): string;
@@ -17,7 +38,30 @@ export function formatDiagnostic(root: string, d: ProjectDiagnostic): string;
 export function gameFiles(root: string): ProjectFile[];
 
 // @public
+export function loadConfig(root: string, options?: LoadConfigOptions): Promise<ResolvedConfig>;
+
+// @public
+export type LoadConfigOptions = {
+    readonly conditions?: readonly string[];
+};
+
+// @public
 export function loominate(options?: LoominateOptions): Plugin;
+
+// @public
+export function loominateApp(config: ResolvedConfig): Plugin;
+
+// @public
+export type LoominateConfig = {
+    readonly game: {
+        readonly id: string;
+        readonly version: string;
+    };
+    readonly title?: string;
+    readonly start: string;
+    readonly extensions?: readonly string[];
+    readonly scope?: string;
+};
 
 // @public
 export type LoominateOptions = {
@@ -25,6 +69,15 @@ export type LoominateOptions = {
     readonly start?: string;
     readonly extensions?: readonly CompilerExtension[];
     readonly compilerOptions?: Parameters<typeof createCompilerSession>[0]["compilerOptions"];
+};
+
+// @public
+export const MAIN = "/@loominate/main";
+
+// @public
+export type ResolvedConfig = LoominateConfig & {
+    readonly root: string;
+    readonly loaded: readonly CompilerExtension[];
 };
 
 ```

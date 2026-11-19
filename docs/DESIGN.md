@@ -562,7 +562,7 @@ The library is built from the same mechanisms authors use, so any library behavi
 - **Hooks.** Typed lifecycle hooks (game start, passage enter/leave, action stages, turn end, clock advance, save/load) for cross-cutting behavior.
 - **Registries.** Directions, effects, widgets, layouts, and library classes are registered by name, so an extension can substitute its own implementation.
 - **Library messages.** Every built-in message routes through an overridable message table, enabling both theming ("You can't go that way" in a pirate voice) and localization.
-- **Packages.** Extensions are npm packages that register rules, classes, widgets, and effects. Load order is explicit, and conflicting registrations are a compile-time error, so meaning never depends on load order ([ADR 0004](decisions/0004-passage-syntax.md), [ADR 0015](decisions/0015-compiler-extensions.md)).
+- **Packages.** Extensions are npm packages that register rules, classes, widgets, and effects. Load order is explicit, listed in the game's `loominate.config.ts`, and conflicting registrations are a compile-time error, so meaning never depends on load order ([ADR 0004](decisions/0004-passage-syntax.md), [ADR 0015](decisions/0015-compiler-extensions.md), [ADR 0023](decisions/0023-game-config-and-cli-commands.md)).
 - **Public API.** The public surface is documented and semantically versioned. Internal modules are marked and may change without notice.
 
 Rulebooks, hooks, and registries are module-level handles, defined once and added to as modules load. A rulebook either decides (the first rule to return a value wins) or folds (each rule transforms a value, and one can stop the rest); `explain()` shows what each rule did and which package added it. [ADR 0012](decisions/0012-rulebooks-hooks-registries.md) settles order, hooks, and registries.
@@ -579,7 +579,7 @@ hook("turnEnd").rule("lamp-burns-down", ({ state }) => { /* … */ });
 
 Tooling is built alongside the runtime from the first milestone, because debugging difficulty is what ended earlier attempts at this kind of project.
 
-- **CLI.** Scaffold a new game, run a dev server with hot reload, run tests, and build every target.
+- **CLI.** Scaffold a new game, run a dev server with hot reload, run tests, and build every target. A game's `loominate.config.ts` names its ID, version, start passage, and compiler extensions in load order, and every command reads it; `npm create @loominate-if` scaffolds a game around it ([ADR 0023](decisions/0023-game-config-and-cli-commands.md), [guide](guide/getting-started.md)).
 - **Compiler.** Passage files plus TypeScript to a bundle, with errors reported against author source lines. A compiler session recompiles only what an edit affects, and the CLI's Vite plugin uses it for hot reload and builds ([ADR 0016](decisions/0016-bundler-plugin.md)).
 - **Inspector.** An in-game panel showing the object tree and every property, the event log, which rules fired and why, why any choice or topic is hidden, active fuses and daemons, NPC locations and agendas, conversation locks, and time travel through state history.
 - **Walkthrough tests.** Scripted playthroughs that choose actions in order and assert on world state and output. They let Claude Code verify its own changes and protect authors from regressions.

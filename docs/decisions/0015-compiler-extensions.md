@@ -53,7 +53,7 @@ An argument can exclude others (`{when}`'s `hidden` and `reason:`). Errors name 
 
 ### Loading
 
-`compileProject({ extensions })` takes extensions in load order, with core's always first. How the CLI and language server find them is [#238](https://github.com/loominate-if/loominate-if/issues/238).
+`compileProject({ extensions })` takes extensions in load order, with core's always first. How the CLI and language server find them is [#238](https://github.com/loominate-if/loominate-if/issues/238), decided in [ADR 0023](0023-game-config-and-cli-commands.md).
 
 ### Unloaded packages
 
