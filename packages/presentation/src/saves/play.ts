@@ -137,8 +137,9 @@ function freshSeed(): string {
 }
 
 /**
- * Plays a game in `container`: offers Continue when there's an autosave,
- * then shows the page, with Undo, Save, and Load in the `game-menu` widget,
+ * Plays a game in `container`. A reload in the same tab carries on from the
+ * autosave; a player who comes back after closing the tab is offered
+ * Continue or New game. Then it shows the page, with Undo, Save, and Load in the `game-menu` widget,
  * which goes in the `page` layout's header unless the game has changed that
  * layout.
  *
@@ -229,8 +230,27 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
     );
   }
 
+  // Session storage lasts as long as the tab, through reloads, so it tells a
+  // reload from a return. It can be missing or refuse writes; then every visit is a return.
+  const sessionKey = `loominate:playing:${options.game.id}`;
+  const playingInThisTab = (): boolean => {
+    try {
+      return doc.defaultView?.sessionStorage.getItem(sessionKey) === "1";
+    } catch {
+      return false;
+    }
+  };
+  const markPlaying = (): void => {
+    try {
+      doc.defaultView?.sessionStorage.setItem(sessionKey, "1");
+    } catch {
+      // Without session storage, a reload offers Continue, which is still safe.
+    }
+  };
+
   /** Starts a game: a loaded one from its state, or a new one. */
   const start = (snapshot?: StateSnapshot): void => {
+    markPlaying();
     page?.destroy();
     host.querySelector(".loominate-start")?.remove();
     store = createStore(snapshot);
@@ -307,7 +327,10 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
     // An autosave that can't be loaded mustn't stop the game; it's listed in the save menu.
     onError(error);
   }
-  if (autosaved) offer(autosaved);
+  // A reload, or back and forward, in the same tab carries straight on; a
+  // player who closed the tab and came back chooses.
+  if (autosaved && playingInThisTab()) start(autosaved.state);
+  else if (autosaved) offer(autosaved);
   else start();
 
   return {

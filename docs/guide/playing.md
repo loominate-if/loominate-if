@@ -22,7 +22,7 @@ await playGame(document.querySelector("#app")!, {
 
 ## What players get
 
-- **Autosave** after every move. When they come back, a start screen offers **Continue** or **New game**.
+- **Autosave** after every move. Reloading the page carries straight on. When they come back after closing the tab, a start screen offers **Continue** or **New game**.
 - **Undo**, **Save**, and **Load** in the game menu, in the page's header.
 - **The save menu**, which saves under a name, loads, saves over a slot, exports a save as a file, imports one, and deletes, asking first. It's a dialog that works from the keyboard and with screen readers.
 - A note when a save was made by another version of the game.

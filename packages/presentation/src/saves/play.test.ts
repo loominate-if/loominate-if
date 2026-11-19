@@ -37,7 +37,13 @@ const passages: Passage[] = [
 
 const game = { id: "lantern-road", version: "1.0.0" };
 const players: { destroy(): void }[] = [];
+/** Closing the tab: what lasts only as long as the tab goes. */
+const closeTab = () => {
+  sessionStorage.clear();
+};
+
 afterEach(() => {
+  closeTab();
   for (const p of players.splice(0)) p.destroy();
   document.body.replaceChildren();
   widgets.remove("game-menu");
@@ -119,7 +125,7 @@ describe("playing a game", () => {
     });
   });
 
-  it("offers Continue to a returning player, or a new game", async () => {
+  it("carries straight on after a reload in the same tab", async () => {
     const storage = createMemoryStorage();
     const first = await start({ storage });
     first.click("Walk on");
@@ -127,6 +133,20 @@ describe("playing a game", () => {
       expect(await autosaved(storage)).toBe("Bridge");
     });
     first.player.destroy();
+    const reloaded = await start({ storage });
+    expect(reloaded.container.querySelector(".loominate-start")).toBeNull();
+    expect(reloaded.text()).toContain("A stone bridge.");
+  });
+
+  it("offers Continue to a player who comes back after closing the tab, or a new game", async () => {
+    const storage = createMemoryStorage();
+    const first = await start({ storage });
+    first.click("Walk on");
+    await vi.waitFor(async () => {
+      expect(await autosaved(storage)).toBe("Bridge");
+    });
+    first.player.destroy();
+    closeTab();
 
     const back = await start({ storage });
     const screen = back.container.querySelector(".loominate-start");
@@ -138,6 +158,7 @@ describe("playing a game", () => {
     expect(back.container.querySelector(".loominate-start")).toBeNull();
 
     back.player.destroy();
+    closeTab();
     const fresh = await start({ storage });
     fresh.click("New game");
     expect(fresh.text()).toContain("A long road.");
@@ -154,6 +175,13 @@ describe("playing a game", () => {
       expect(await autosaved(createBrowserStorage("reload-test"), "reload-test")).toBe("Bridge");
     });
     first.player.destroy();
+    // A reload in the same tab carries straight on.
+    const reloaded = await start({ game: { id: "reload-test", version: "1.0.0" } });
+    expect(reloaded.container.querySelector(".loominate-start")).toBeNull();
+    expect(reloaded.text()).toContain("A stone bridge.");
+    reloaded.player.destroy();
+    // Coming back after closing the tab offers Continue.
+    closeTab();
     const again = await start({ game: { id: "reload-test", version: "1.0.0" } });
     expect(again.container.querySelector(".loominate-start")).not.toBeNull();
     again.click("Continue");

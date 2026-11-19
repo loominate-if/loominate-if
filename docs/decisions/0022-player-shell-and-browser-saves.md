@@ -20,7 +20,8 @@ Core has saves, slots, autosave, and export and import over a `SaveStorage` the 
 
 - **Starting.** It creates the store, story, undo history, and page. A new game gets a fresh master seed from the browser's random source, the one place randomness enters, and stored with the game. `seed` overrides it for a seed-of-the-day or tests.
 - **Autosave.** It checkpoints undo and autosaves after every move on the page, beats included, in order, one at a time. A failed autosave goes to `onError` and doesn't stop play.
-- **Returning players.** With an autosave, a start screen offers Continue, focused, or New game, noting a save from another game version. A broken autosave doesn't block a new game; it's listed in the save menu with its problem.
+- **Reloads carry on.** A reload, or going back and forward, in the same tab resumes from the autosave without asking. The shell marks the tab in `sessionStorage` when a game starts. That lasts through reloads and is cleared when the tab closes, so it tells a reload from a return.
+- **Returning players choose.** A player who comes back after closing the tab, with an autosave, gets a start screen offering Continue, focused, or New game, noting a save from another game version. Where session storage is unavailable, every visit counts as a return, which is still safe. A broken autosave doesn't block a new game; it's listed in the save menu with its problem.
 - **Storage.** It uses browser storage, or memory for the visit when the browser has none, as some private windows don't.
 
 ### The game menu and save menu
