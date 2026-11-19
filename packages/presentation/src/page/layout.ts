@@ -73,6 +73,29 @@ export type WidgetDefinition<D = unknown> = {
   readonly view: WidgetView<D>;
 };
 
+/**
+ * Defines a widget, inferring its data type from `data`, so `view` sees it
+ * typed even when the widget is written inline in a registration.
+ *
+ * @example
+ * ```ts
+ * widgets.register("notes", widget({
+ *   data: ({ story }) => [story.visits("Lit") > 0 ? "A lit lantern" : "An unlit lantern"],
+ *   view: {
+ *     mount(element, items) {
+ *       // items: string[]
+ *       const show = (next: string[]) => { element.textContent = next.join(", "); };
+ *       show(items);
+ *       return { update: show, unmount: () => { element.textContent = ""; } };
+ *     },
+ *   },
+ * }));
+ * ```
+ */
+export function widget<D>(definition: WidgetDefinition<D>): WidgetDefinition<D> {
+  return definition;
+}
+
 /** Layouts by name. `page` (header, main, footer) is registered by default. */
 export const layouts: Registry<LayoutDefinition> = registry<LayoutDefinition>("layouts");
 

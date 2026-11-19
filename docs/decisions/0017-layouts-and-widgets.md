@@ -25,7 +25,7 @@ The page (#37) shows a passage and the story so far. Games also need layouts, wh
 
 ### Widgets
 
-- A widget is `{ data, view }`.
+- A widget is `{ data, view }`. Wrapping one in `widget(…)` infers its data type from `data`, so a widget written inline in `widgets.register` gets typed data in its view (#245).
 - `data(game)` is the headless part: a pure function from the story and record to plain data.
 - `view.mount(element, data, host)` draws it and returns `{ update(data), unmount() }`.
   - The host has the story, the record, and `follow(choice)`, which makes a move as clicking a link does.

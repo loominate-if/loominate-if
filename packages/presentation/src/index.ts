@@ -8,6 +8,7 @@ export {
   layouts,
   statusLine,
   statusLineView,
+  widget,
   widgets,
   type LayoutDefinition,
   type MountedWidget,
