@@ -46,7 +46,7 @@ To share the game as one file that opens by double-click, with no server:
 npm run build:single
 ```
 
-This writes `dist/my-game.html`, with everything inlined. Saves in it are kept by the browser for that file's location, so moving the file starts afresh; players can carry saves across with the save menu's export and import.
+This writes `dist/my-game.html`, with everything inlined. Browsers differ in how they keep saves for files opened from disk, so moving the file or opening it in another browser can start afresh; players can carry saves across with the save menu's export and import.
 
 Either build fails if the game has errors.
 

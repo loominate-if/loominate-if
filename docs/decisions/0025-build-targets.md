@@ -19,5 +19,5 @@ The design lists four build targets. The static site, the default, must run from
 ## Consequences
 
 - Inlined binary assets grow by about a third and load up front, as the design says.
-- Saves in a single file opened from disk are kept per file location by the browser. Moving or renaming the file starts a fresh set of saves, which the save menu's export and import can carry across.
+- Browsers keep storage for files opened from disk in different ways. Some share it across every local file, and some keep it more narrowly, so moving the file or switching browsers can lose its saves. Saves are keyed by game ID, so sharing is safe, and the save menu's export and import carry saves across.
 - The archive and app targets build on the static site's output.
