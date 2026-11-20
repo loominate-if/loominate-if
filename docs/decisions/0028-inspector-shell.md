@@ -51,8 +51,16 @@ Added with [#47](https://github.com/loominate-if/loominate-if/issues/47).
 - So the panel can show which part of a condition closed a link, the compiler passes each `condition` argument with a `parts()` function beside its value and text. It splits the condition at `&&`, `||`, `??`, `!`, `?:`, and parentheses, and lists each comparison with its sides that aren't literals. Core's `linkGuard` calls `parts()` only when the guard is closed, and records each part's value as the inspector writes it (`→ lamp` for an object), or the error it threw, on `LinkGuard.parts`.
 - A part on its own can fail to type-check where the whole condition doesn't: `door.open` loses the narrowing that `door &&` gave it. The condition as written is type-checked as before, and its parts' copies aren't checked again; they're evaluated with errors caught, and an error is shown as the part's explanation.
 
+### Which rules ran
+
+Added with [#48](https://github.com/loominate-if/loominate-if/issues/48).
+
+- Core's `traceRules(listener)` calls listeners after every rulebook and hook run with a `RuleRun`: its name and kind, each rule's step (name, source package, outcome), and the rule that decided, if one did. Runs started with `explain` aren't reported. A listener that throws is ignored, and with no listeners nothing extra happens, so tracing never changes how a game plays.
+- The trace is kept in memory by the inspector, not in the state store, so saves, undo, and replays are unchanged. The cost is that it starts afresh on each page load.
+- The **Rules** panel groups runs into turns, ending one at each `onChange`, and keeps the last 50. The inspector starts tracing when its module loads, which in `loominate dev` is before the game starts, so the start's rules are its first turn. Autosave runs the `save` hook after the turn it saves has ended, so `save` runs join the latest turn.
+
 ## Consequences
 
 - `describeObjects` is public, so world and kit panels can show objects the same way.
 - A game run by `loominate dev` always has the inspector; the toggle button is visible in a corner of the page during development.
-- Editing values from the tree is left for later (#258), as is everything in the other inspector issues (#48–#50).
+- Editing values from the tree is left for later (#258), as is everything in the other inspector issues (#49 and #50).

@@ -115,6 +115,19 @@ summary { cursor: pointer; padding: 1px 2px; border-radius: 3px; }
 .parts [data-falsy] { background: var(--changed); border-radius: 3px; padding: 0 3px; justify-self: start; }
 .part-error { color: light-dark(#a1330b, #ffab8a); }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+.turn { padding: 0.25rem 0.25rem 0.4rem; border-block-end: 1px solid var(--line); border-radius: 3px; }
+.turn h3 { margin: 0.2rem 0; font-size: 0.85rem; }
+.run { margin: 0.2rem 0 0.35rem; }
+.run-title { margin: 0; display: flex; gap: 0.4rem; align-items: baseline; }
+.book { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 600; }
+.run-kind { color: var(--muted); font-size: 11px; }
+.steps { border-collapse: collapse; inline-size: 100%; font-size: 12px; margin-block-start: 0.1rem; }
+.steps th { text-align: start; color: var(--muted); font-weight: 400; font-size: 11px; padding: 0 0.4rem 0 0; }
+.steps td { padding: 0.05rem 0.4rem 0.05rem 0; vertical-align: top; }
+.steps .rule { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.steps .source { color: var(--muted); }
+.steps [data-decided] .outcome { font-weight: 600; }
+.idle { margin: 0.15rem 0 0; color: var(--muted); font-size: 12px; }
 .visually-hidden { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (prefers-reduced-motion: no-preference) { .toggle { transition: box-shadow 0.15s; } }
 `;

@@ -640,6 +640,14 @@ export interface RuleOptions {
 }
 
 // @public
+export interface RuleRun {
+    readonly decidedBy?: string;
+    readonly kind: "decide" | "fold" | "hook";
+    readonly rulebook: string;
+    readonly steps: readonly RuleStep[];
+}
+
+// @public
 export interface RuleStep {
     readonly outcome: "continued" | "decided" | "changed" | "unchanged" | "stopped" | "ran";
     readonly rule: string;
@@ -856,6 +864,9 @@ export type TextStyle = {
 
 // @public
 export type TextValue = string | number | ObjectRef | ((context: TextContext) => TextPrintable | ObjectRef);
+
+// @public
+export function traceRules(listener: (run: RuleRun) => void): () => void;
 
 // @public
 export type UnavailableLink = {

@@ -4,8 +4,10 @@ import {
   createEventRecord,
   createMemoryStorage,
   createStore,
+  hook,
   linkGuard,
   object,
+  rulebook,
   type Passage,
 } from "@loominate-if/core";
 import { layouts, playGame, widgets, type Player } from "@loominate-if/presentation";
@@ -14,10 +16,13 @@ import axe from "axe-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SHOWN_EVENTS } from "./event-log.js";
 import { explainers } from "./explainers.js";
+import { KEPT_TURNS } from "./rules.js";
 import { inspect, type Inspector } from "./inspect.js";
 import { panels, type InspectorPanel } from "./panels.js";
 
 const shed = object("shed", { name: "shed" });
+/** A rulebook the tower consults, as a package's might be. */
+const weather = rulebook<undefined, string>("weather", { kind: "decide", otherwise: () => "calm" });
 const keeper = object("keeper", { pockets: { coins: [1, 2], matches: false } });
 const lamp = object("lamp", { lit: false, oil: 3, where: shed });
 
@@ -67,6 +72,7 @@ const passages: Passage[] = [
     tags: [],
     effects: {
       enter: ({ emit }) => {
+        weather.run(undefined);
         lamp.lit = true;
         emit("system", { text: "The lamp is lit." }, ["lamp", "light"]);
         emit("system", { text: "The wind rises." }, ["weather"]);
@@ -347,6 +353,7 @@ describe("panels", () => {
       "State",
       "Events",
       "Choices",
+      "Rules",
       "Clock",
     ]);
     expect(mount).not.toHaveBeenCalled();
@@ -624,4 +631,124 @@ describe("the choices panel", () => {
     const results = await axe.run(document.body, { rules: { region: { enabled: false } } });
     expect(results.violations.map((v) => `${v.id}: ${v.description}`)).toEqual([]);
   });
+});
+
+describe("the rules panel", () => {
+  const showRules = async (open: Awaited<ReturnType<typeof setup>>) => {
+    open.inspector.open();
+    open.q<HTMLButtonElement>("#loominate-inspector-tab-rules")?.click();
+  };
+  /** A turn as text: its heading, then each rule run and its steps. */
+  const turn = (section: HTMLElement | undefined) =>
+    section
+      ? [
+          `${section.dataset.changed !== undefined ? "*" : ""}${section.querySelector("h3")?.firstChild?.textContent ?? ""}`,
+          ...[...section.querySelectorAll(".run")].map(
+            (run) =>
+              `${run.querySelector(".book")?.textContent ?? ""} (${run.querySelector(".run-kind")?.textContent ?? ""}): ${[
+                ...run.querySelectorAll("tbody tr"),
+              ]
+                .map((row) => [...row.children].map((c) => c.textContent).join(" / "))
+                .join("; ")}`,
+          ),
+          ...[...section.querySelectorAll(".idle, .empty")].map((p) => p.textContent ?? ""),
+        ]
+      : [];
+  const withRules = async (body: () => Promise<void>) => {
+    hook("passageEnter").rule("note-arrival", () => undefined, { source: "@my/kit" });
+    weather.rule("storm", () => "stormy");
+    try {
+      await body();
+    } finally {
+      hook("passageEnter").remove("note-arrival");
+      weather.remove("storm");
+    }
+  };
+
+  it("lists the rules that ran each turn, with their packages and what they did", () =>
+    withRules(async () => {
+      const game = await setup();
+      await showRules(game);
+      const turns = () => game.qa<HTMLElement>(".turn");
+      // The autosave of the start joins the start's turn once it's written.
+      await vi.waitFor(() => {
+        expect(turn(turns().at(-1))).toEqual([
+          "Start · Cottage",
+          "passageEnter (hook): note-arrival / @my/kit / ran",
+          "With no rules: gameStart, save",
+        ]);
+      });
+      game.follow("Climb");
+      expect(turn(turns().at(-1))).toEqual([
+        "*Turn 1 · Tower",
+        "weather (decide): storm / game / decided",
+        "passageEnter (hook): note-arrival / @my/kit / ran",
+        "With no rules: passageLeave, turnEnd",
+      ]);
+      await vi.waitFor(() => {
+        expect(turn(turns().at(-1)).at(-1)).toBe("With no rules: passageLeave, turnEnd, save");
+      });
+      // A late arrival leaves the marks as they were.
+      expect(turns().at(-1)?.dataset.changed).toBe("");
+      expect(game.q("[data-decided] .outcome")?.textContent).toBe("decided");
+      expect(game.q(".count")?.textContent).toBe("2 turns since the inspector loaded");
+    }));
+
+  it("puts what an autosave ran with the turn it saved", () =>
+    withRules(async () => {
+      hook("save").rule("back-up", () => undefined, { source: "@my/cloud" });
+      try {
+        const game = await setup();
+        await showRules(game);
+        game.follow("Climb");
+        await vi.waitFor(() => {
+          expect(game.q(".turn:last-of-type")?.textContent).toContain("back-up");
+        });
+        game.follow("Down");
+        // The latest turn's own rules, then the autosave that saved it.
+        await vi.waitFor(() => {
+          expect(turn(game.qa<HTMLElement>(".turn").at(-1)).slice(0, 3)).toEqual([
+            "*Turn 2 · Cottage",
+            "passageEnter (hook): note-arrival / @my/kit / ran",
+            "save (hook): back-up / @my/cloud / ran",
+          ]);
+        });
+      } finally {
+        hook("save").remove("back-up");
+      }
+    }));
+
+  it("ends a turn at an undo too, and says when no rules ran", async () => {
+    const game = await setup();
+    await showRules(game);
+    game.follow("Climb");
+    const undo = [...game.container.querySelectorAll("button")].find(
+      (b) => b.textContent === "Undo",
+    );
+    undo?.click();
+    expect(turn(game.qa<HTMLElement>(".turn").at(-1))).toEqual([
+      "*Turn 2 · Cottage",
+      "No rules ran.",
+    ]);
+  });
+
+  it(`keeps the last ${String(KEPT_TURNS)} turns`, async () => {
+    const game = await setup();
+    for (let i = 0; i < KEPT_TURNS + 3; i++) game.follow(i % 2 === 0 ? "Climb" : "Down");
+    await showRules(game);
+    expect(game.qa(".turn")).toHaveLength(KEPT_TURNS);
+    expect(game.q(".count")?.textContent).toBe(
+      `${String(KEPT_TURNS)} turns since the inspector loaded, the last ${String(KEPT_TURNS)} kept`,
+    );
+    expect(game.qa(".turn h3")[0]?.textContent).toBe("Turn 4 · Cottage");
+  });
+
+  it("passes automated accessibility checks", () =>
+    withRules(async () => {
+      const game = await setup();
+      await showRules(game);
+      game.follow("Climb");
+      const results = await axe.run(document.body, { rules: { region: { enabled: false } } });
+      expect(results.violations.map((v) => `${v.id}: ${v.description}`)).toEqual([]);
+    }));
 });

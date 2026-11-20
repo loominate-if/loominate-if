@@ -37,6 +37,15 @@ The **Choices** tab lists every choice where the player is: the links and contin
 - the value of each part of that condition, so you can see which part closed it. For `{when lamp.lit && lamp.oil > 0}`, it shows `lamp.lit`, `lamp.oil > 0`, and `lamp.oil`, with values that make a condition false highlighted. A part that can't be read on its own, such as `door.open` in `door && door.open` when there's no door, says why;
 - what the player is told, for a link with a `reason:`.
 
+## Which rules ran
+
+The **Rules** tab shows, for each turn, the rulebooks and hooks that ran and every rule in them: its name, the package that added it (`game` for your own), and what it did. A decide rule *passed* or *decided*; a fold rule *changed the value*, *left it as it was*, or *settled* it; a hook's rules *ran*. The rule that settled a result is in bold.
+
+- A turn ends at each move, undo, and new or loaded game. **Start** is what ran as the game began.
+- Rulebooks and hooks that ran with no rules are listed in one line, such as "With no rules: passageLeave, turnEnd".
+- What an autosave ran is listed with the turn it saved.
+- The tab keeps the last 50 turns. It starts afresh when the page reloads, since the trace isn't part of the game's state.
+
 ## In a build
 
 An ordinary `npm run build` leaves the inspector out entirely. To include it, for example in a build for testers, run:
@@ -66,5 +75,7 @@ panels.register("where", {
 The panel's element is inside the inspector's shadow root, so the game's styles don't reach it.
 
 The Choices tab is built the same way: each kind of choice has an explainer in `explainers`, which lists the choices of that kind on offer now and says why any can't be made. Links are the first; the world model will add its actions and conversation topics.
+
+The Rules tab hears about rule runs through core's `traceRules(listener)`, which tools of your own can use too.
 
 Registering a panel imports the inspector, so a game module that does it would carry the inspector into every build. A way for games and packages to add panels only where the inspector is loaded comes with [#188](https://github.com/loominate-if/loominate-if/issues/188).

@@ -148,6 +148,7 @@ export {
 export {
   GAME_SOURCE,
   rulebook,
+  traceRules,
   type DecideRulebook,
   type Explanation,
   type FoldRule,
@@ -155,6 +156,7 @@ export {
   type RuleInfo,
   type RuleList,
   type RuleOptions,
+  type RuleRun,
   type RuleStep,
   type Stopped,
 } from "./rules/rules.js";
