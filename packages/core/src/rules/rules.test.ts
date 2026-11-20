@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { StateError } from "../state/value.js";
 import { registry } from "./registry.js";
-import { rulebook } from "./rules.js";
+import { hook } from "./hooks.js";
+import { rulebook, traceRules, type RuleRun } from "./rules.js";
 
 let count = 0;
 /** A fresh rulebook name for each test, since names are global. */
@@ -176,6 +177,73 @@ describe("rulebook mistakes", () => {
     expect(() => book.run(1)).toThrow(
       `rulebook "${name}", rule "divide" (from @loominate-if/rpg): no divisor`,
     );
+  });
+});
+
+describe("tracing rules", () => {
+  it("reports each run of a rulebook or hook, with what each rule did and its package", () => {
+    const canTake = rulebook<string, string>(fresh("can-take"), { kind: "decide" });
+    canTake.rule("fixed", (item) => (item === "statue" ? "No." : undefined), { source: "@my/kit" });
+    const damage = rulebook<number, undefined>(fresh("damage"), { kind: "fold" });
+    damage.rule("double", (v) => v * 2);
+    damage.rule("cap", (v, _, stop) => (v > 5 ? stop(5) : v));
+    hook("save").rule("note-it", () => undefined, { source: "@my/saves" });
+
+    const runs: RuleRun[] = [];
+    const stop = traceRules((run) => runs.push(run));
+    try {
+      canTake.run("statue");
+      damage.run(4, undefined);
+      hook("save").run({ slot: "a", summary: {} as never });
+      // Explaining isn't playing, so it isn't reported.
+      canTake.explain("lamp");
+    } finally {
+      stop();
+      hook("save").remove("note-it");
+    }
+    expect(runs).toEqual([
+      {
+        rulebook: canTake.name,
+        kind: "decide",
+        decidedBy: "fixed",
+        steps: [{ rule: "fixed", source: "@my/kit", outcome: "decided" }],
+      },
+      {
+        rulebook: damage.name,
+        kind: "fold",
+        decidedBy: "cap",
+        steps: [
+          { rule: "double", source: "game", outcome: "changed" },
+          { rule: "cap", source: "game", outcome: "stopped" },
+        ],
+      },
+      {
+        rulebook: "save",
+        kind: "hook",
+        steps: [{ rule: "note-it", source: "@my/saves", outcome: "ran" }],
+      },
+    ]);
+    // Stopped, the listener hears nothing more.
+    canTake.run("lamp");
+    expect(runs).toHaveLength(3);
+  });
+
+  it("never changes how the game plays, even when a listener throws", () => {
+    const book = rulebook<number, number>(fresh("score"), { kind: "decide" });
+    book.rule("one", () => 1);
+    const later: string[] = [];
+    const stops = [
+      traceRules(() => {
+        throw new Error("broken tool");
+      }),
+      traceRules((run) => later.push(run.rulebook)),
+    ];
+    try {
+      expect(book.run(0)).toBe(1);
+      expect(later).toEqual([book.name]);
+    } finally {
+      for (const s of stops) s();
+    }
   });
 });
 

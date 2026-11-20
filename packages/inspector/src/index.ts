@@ -9,4 +9,5 @@ export { panels, type InspectorPanel, type PanelContext, type PanelView } from "
 export { choices } from "./choices.js";
 export { eventLog } from "./event-log.js";
 export { explainers, linkExplainer, type Explainer, type Explanation } from "./explainers.js";
+export { rules } from "./rules.js";
 export { stateTree } from "./state-tree.js";

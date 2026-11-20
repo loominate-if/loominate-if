@@ -121,6 +121,55 @@ export interface Stopped<V> {
 
 const stops = new WeakSet<object>();
 
+/** A rulebook or hook run, as {@link traceRules} reports it. */
+export interface RuleRun {
+  /** The rulebook's or hook's name. */
+  readonly rulebook: string;
+  /** What kind it is. */
+  readonly kind: "decide" | "fold" | "hook";
+  /** Each rule that ran, in order, with the package that added it and what it did. */
+  readonly steps: readonly RuleStep[];
+  /** The rule that settled the result, if one did. */
+  readonly decidedBy?: string;
+}
+
+const tracers = new Set<(run: RuleRun) => void>();
+
+/**
+ * Calls `listener` after every rulebook and hook run, with the rules that ran
+ * and what each did, so tools such as the inspector can show which rules
+ * fired. Tracing is observation only: nothing is stored, and a listener that
+ * throws is ignored, so it never changes how a game plays. Runs started with
+ * `explain` aren't reported, since they're already being looked at.
+ * @returns A function that stops calling the listener.
+ */
+export function traceRules(listener: (run: RuleRun) => void): () => void {
+  tracers.add(listener);
+  return () => {
+    tracers.delete(listener);
+  };
+}
+
+/** @internal Reports a finished run to the tracers, if there are any. */
+export function traced<R>(kind: RuleRun["kind"], rulebook: string, explanation: Explanation<R>): R {
+  if (tracers.size > 0) {
+    const run: RuleRun = Object.freeze({
+      rulebook,
+      kind,
+      steps: explanation.steps,
+      ...(explanation.decidedBy !== undefined && { decidedBy: explanation.decidedBy }),
+    });
+    for (const listener of [...tracers]) {
+      try {
+        listener(run);
+      } catch {
+        // Tracing must never change how the game plays.
+      }
+    }
+  }
+  return explanation.result;
+}
+
 /**
  * A rulebook where each rule transforms a value in turn: base damage, plus
  * strength, times a critical hit. A rule can stop the rest with `stop(value)`.
@@ -349,7 +398,7 @@ function decideRulebook(
     replace: rules.replace,
     remove: rules.remove,
     rules: rules.rules,
-    run: (input: unknown) => explain(input).result,
+    run: (input: unknown) => traced("decide", name, explain(input)),
     explain,
   });
 }
@@ -388,7 +437,7 @@ function foldRulebook(name: string): FoldRulebook<unknown, unknown> {
     replace: rules.replace,
     remove: rules.remove,
     rules: rules.rules,
-    run: (value: unknown, input: unknown) => explain(value, input).result,
+    run: (value: unknown, input: unknown) => traced("fold", name, explain(value, input)),
     explain,
   });
 }

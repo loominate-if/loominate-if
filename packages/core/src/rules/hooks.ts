@@ -5,7 +5,14 @@
  */
 import type { EffectContext } from "../passages/story.js";
 import type { SaveSummary } from "../save/save.js";
-import { ruleList, runRule, type Explanation, type RuleList, type RuleStep } from "./rules.js";
+import {
+  ruleList,
+  runRule,
+  traced,
+  type Explanation,
+  type RuleList,
+  type RuleStep,
+} from "./rules.js";
 
 /** What hooks that run outside any one passage can see and do. */
 export type HookContext = Pick<EffectContext, "state" | "persistent" | "emit">;
@@ -89,7 +96,7 @@ export function hook<K extends keyof HookKinds & string>(name: K): Hook<HookKind
     remove: rules.remove,
     rules: rules.rules,
     run: (payload: HookKinds[K]) => {
-      explain(payload);
+      traced("hook", name, explain(payload));
     },
     explain,
   });

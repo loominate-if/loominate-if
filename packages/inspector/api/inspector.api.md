@@ -75,6 +75,9 @@ export interface PanelView {
 }
 
 // @public
+export const rules: InspectorPanel;
+
+// @public
 export const stateTree: InspectorPanel;
 
 ```
