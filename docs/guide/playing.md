@@ -42,6 +42,10 @@ layouts.replace("page", {
 });
 ```
 
+## Following the game
+
+`playGame` returns the player. `player.story`, `player.page`, and `player.store` are the game in play, and change when a game starts or loads. `player.onChange(listener)` calls the listener when a game starts or loads, after each move, and after an undo, and returns a function that stops it. The [inspector](inspector.md) uses it to keep up.
+
 ## Building your own shell
 
 `playGame` is built from parts you can use directly: `mountPage` for the page, `createBrowserStorage(gameId)` for slots in the browser, and core's `createSaves`, `createStore`, `createStory`, and `createHistory`.

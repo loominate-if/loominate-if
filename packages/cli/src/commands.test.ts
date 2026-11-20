@@ -79,6 +79,17 @@ describe("loominate build", () => {
     const code = js.map((f) => readFileSync(path.join(root, "dist/assets", f), "utf8")).join("\n");
     expect(code).toContain("You wake in the dark.");
     expect(code).toContain("test-game");
+    // The inspector is a dev tool: an ordinary build carries none of it.
+    expect(code).not.toContain("data-loominate-inspector");
+    expect(code).not.toContain("inspector panels");
+  }, 60_000);
+
+  it("includes the inspector when asked, as for testers", async () => {
+    const root = game({ "start.weft": START });
+    await build({ ...options(root), inspector: true, target: "single" });
+    const html = readFileSync(path.join(root, "dist/test-game.html"), "utf8");
+    expect(html).toContain("You wake in the dark.");
+    expect(html).toContain("inspector panels");
   }, 60_000);
 
   it("builds a static site that works from any folder on any host", async () => {
@@ -145,6 +156,8 @@ describe("loominate dev", () => {
         "You wake in the dark.",
       );
       expect(page().querySelector("h1")).toBeNull();
+      // Dev adds the inspector, from the CLI's own copy when the game hasn't installed one.
+      expect(page().querySelector("[data-loominate-inspector]")).not.toBeNull();
     } finally {
       await server.close();
       errors.mockRestore();

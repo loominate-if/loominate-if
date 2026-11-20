@@ -13,6 +13,7 @@ import { Passage } from '@loominate-if/core';
 import { PassageId } from '@loominate-if/core';
 import { Registry } from '@loominate-if/core';
 import { SaveStorage } from '@loominate-if/core';
+import { StateStore } from '@loominate-if/core';
 import { Story } from '@loominate-if/core';
 import { StoryOptions } from '@loominate-if/core';
 
@@ -97,7 +98,9 @@ export interface Player {
     destroy(): void;
     load(slot: string): Promise<void>;
     newGame(): Promise<void>;
+    onChange(listener: () => void): () => void;
     readonly page: Page | undefined;
+    readonly store: StateStore | undefined;
     readonly story: Story | undefined;
 }
 

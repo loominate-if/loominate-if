@@ -256,6 +256,50 @@ describe("playing a game", () => {
   });
 });
 
+describe("following the game", () => {
+  it("tells listeners after each move, undo, new game, and load, until they stop", async () => {
+    const storage = createMemoryStorage();
+    const { player, click } = await start({ storage });
+    const calls: string[] = [];
+    const stop = player.onChange(() => calls.push(player.story?.current ?? ""));
+    click("Walk on");
+    click("Undo");
+    await player.newGame();
+    await createSaves({ storage, game }).save("one", player.store ?? createStore());
+    click("Walk on");
+    await player.load("one");
+    expect(calls).toEqual(["Bridge", "Road", "Road", "Bridge", "Road"]);
+    stop();
+    click("Walk on");
+    expect(calls).toHaveLength(5);
+  });
+
+  it("gives the game in play's state store", async () => {
+    const { player, click } = await start({ storage: createMemoryStorage() });
+    const first = player.store;
+    expect(first?.ids().length).toBeGreaterThan(0);
+    const before = JSON.stringify(first?.snapshot());
+    click("Walk on");
+    expect(JSON.stringify(player.store?.snapshot())).not.toBe(before);
+    await player.newGame();
+    expect(player.store).not.toBe(first);
+  });
+
+  it("reports a listener that throws, and carries on", async () => {
+    const onError = vi.fn();
+    const { player, click, text } = await start({ onError, storage: createMemoryStorage() });
+    const later = vi.fn();
+    player.onChange(() => {
+      throw new Error("broken tool");
+    });
+    player.onChange(later);
+    click("Walk on");
+    expect(text()).toContain("A stone bridge.");
+    expect(later).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(new Error("broken tool"));
+  });
+});
+
 describe("the save menu", () => {
   it("saves to a named slot, lists it, and loads it", async () => {
     const { click, dialog, rows, text } = await start({

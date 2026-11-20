@@ -65,6 +65,15 @@ export interface Player {
   readonly story: Story | undefined;
   /** The page in play, once a game has started. */
   readonly page: Page | undefined;
+  /** The state store of the game in play, once a game has started. */
+  readonly store: StateStore | undefined;
+  /**
+   * Calls `listener` whenever the game in play changes: when a game starts or
+   * loads, after each move, and after an undo. Tools such as the inspector
+   * use it to keep up with the game.
+   * @returns A function that stops calling the listener.
+   */
+  onChange(listener: () => void): () => void;
   /** Starts a new game, replacing the one in play. */
   newGame(): Promise<void>;
   /** Loads a save slot, replacing the game in play. */
@@ -179,6 +188,17 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
   let history: History | undefined;
   let page: Page | undefined;
   let autosaving: Promise<unknown> = Promise.resolve();
+  const listeners = new Set<() => void>();
+  /** Tells the listeners the game changed; one that throws doesn't stop the others, or the game. */
+  const changed = (): void => {
+    for (const listener of [...listeners]) {
+      try {
+        listener();
+      } catch (error) {
+        onError(error);
+      }
+    }
+  };
 
   const autosave = (): void => {
     const current = store;
@@ -216,6 +236,7 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
       history.undo();
       page?.refresh();
       autosave();
+      changed();
     },
     open: (focus) => {
       menu.open(focus).catch(onError);
@@ -275,6 +296,7 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
           undoable.checkpoint();
           autosave();
           options.page?.onMove?.(move);
+          changed();
         },
       },
     );
@@ -283,14 +305,9 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
     playing.commit();
     page.refresh();
     autosave();
+    changed();
   };
 
-  /** The start screen for a returning player: Continue or New game. */
-  /**
-   * The start screen for a returning player: Continue or New game. It's drawn
-   * as a page, with the game's own styles, so the first thing the player sees
-   * looks like the game: the title as a heading, then choices like a passage's.
-   */
   /**
    * Resumes a saved game. When the game has changed so the save no longer
    * fits it, for example a passage it was at was renamed, the start screen
@@ -307,6 +324,11 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
     }
   };
 
+  /**
+   * The start screen for a returning player: Continue or New game. It's drawn
+   * as a page, with the game's own styles, so the first thing the player sees
+   * looks like the game: the title as a heading, then choices like a passage's.
+   */
   const offer = (autosaved: LoadedSave, problem?: string): void => {
     const el = <K extends keyof HTMLElementTagNameMap>(
       tag: K,
@@ -393,6 +415,15 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
     get page() {
       return page;
     },
+    get store() {
+      return store;
+    },
+    onChange(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
     newGame: async () => {
       await autosaving;
       start();
@@ -403,6 +434,7 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
       start(loaded.state);
     },
     destroy() {
+      listeners.clear();
       page?.destroy();
       host.remove();
     },

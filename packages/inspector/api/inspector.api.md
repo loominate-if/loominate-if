@@ -4,4 +4,47 @@
 
 ```ts
 
+import type { Player } from '@loominate-if/presentation';
+import { Registry } from '@loominate-if/core';
+
+// @public
+export function inspect(player: Player, options?: InspectOptions): Inspector;
+
+// @public
+export interface InspectOptions {
+    readonly open?: boolean;
+}
+
+// @public
+export interface Inspector {
+    close(): void;
+    destroy(): void;
+    readonly isOpen: boolean;
+    open(): void;
+    toggle(): void;
+}
+
+// @public
+export interface InspectorPanel {
+    mount(element: HTMLElement, context: PanelContext): PanelView;
+    readonly title: string;
+}
+
+// @public
+export interface PanelContext {
+    readonly player: Player;
+}
+
+// @public
+export const panels: Registry<InspectorPanel>;
+
+// @public
+export interface PanelView {
+    destroy?(): void;
+    update(): void;
+}
+
+// @public
+export const stateTree: InspectorPanel;
+
 ```

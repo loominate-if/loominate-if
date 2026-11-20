@@ -90,6 +90,9 @@ export interface DecideRulebook<In, Out> extends RuleList<(input: In) => Out | u
 }
 
 // @public
+export function describeObjects(store: StateStore): ObjectDescription[];
+
+// @public
 export interface EffectContext extends Omit<RenderContext, "state" | "persistent"> {
     readonly emit: EventRecord["emit"];
     readonly persistent: StateWriter;
@@ -362,6 +365,13 @@ export type ObjectDefinition<D> = {
 };
 
 // @public
+export interface ObjectDescription {
+    readonly id: StateId;
+    readonly properties: readonly PropertyDescription[];
+    readonly template?: string;
+}
+
+// @public
 export interface ObjectRef {
     readonly id: StateId;
 }
@@ -416,6 +426,13 @@ export interface PersistentStorage {
 // @public
 export interface PersistentStore extends Pick<StateStore, "get" | "has" | "entity" | "ids" | "set" | "delete" | "snapshot"> {
     flush(): Promise<void>;
+}
+
+// @public
+export interface PropertyDescription {
+    readonly isDefault: boolean;
+    readonly key: string;
+    readonly value: StateValue;
 }
 
 // @public

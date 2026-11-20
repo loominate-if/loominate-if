@@ -15,6 +15,8 @@ That gives you a small game, with the dev server showing it in your browser. Edi
 
 Errors in passages or code are reported against your own lines, in the terminal and over the game in the browser. Fix the last one and the terminal says the game has no problems.
 
+The **Inspector** button in the corner, or Control+\`, opens the [inspector](inspector.md) beside the game, showing every object's state as you play.
+
 ## What's in it
 
 - `start.weft` holds passages: prose, links, and the code that changes the story. Add as many `.weft` files as you like; every one in the folder is part of the game.

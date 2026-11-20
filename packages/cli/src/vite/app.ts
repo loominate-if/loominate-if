@@ -5,6 +5,7 @@
  * its own shell points `index.html` at its own module instead.
  */
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { PASSAGE_EXTENSION } from "@loominate-if/compiler";
 import type { Plugin } from "vite";
 import type { ResolvedConfig } from "../config/config.js";
@@ -13,17 +14,37 @@ import { gameFiles } from "./plugin.js";
 /** The URL `index.html` loads the generated entry point from. */
 export const MAIN = "/@loominate/main";
 const RESOLVED = "\0loominate:main";
+const INSPECTOR = "@loominate-if/inspector";
+
+/** Options for {@link loominateApp}. */
+export type AppOptions = {
+  /** Adds the inspector in a build. The dev server always adds it. */
+  readonly inspector?: boolean;
+};
 
 /** Serves the generated entry point. */
-export function loominateApp(config: ResolvedConfig): Plugin {
+export function loominateApp(config: ResolvedConfig, options: AppOptions = {}): Plugin {
+  let serving = false;
   const passageFiles = (): string[] =>
     gameFiles(config.root)
       .map((f) => f.path)
       .filter((p) => p.endsWith(PASSAGE_EXTENSION));
   return {
     name: "loominate-app",
-    resolveId(source) {
-      return source === MAIN ? RESOLVED : undefined;
+    configResolved(resolved) {
+      serving = resolved.command === "serve";
+    },
+    async resolveId(source, importer) {
+      if (source === MAIN) return RESOLVED;
+      // The game's own copy of the inspector if it installed one, so packages
+      // that register panels share it; otherwise the one the CLI depends on.
+      if (source === INSPECTOR && importer === RESOLVED) {
+        return (
+          (await this.resolve(source, path.join(config.root, "index.html"), { skipSelf: true })) ??
+          (await this.resolve(source, fileURLToPath(import.meta.url), { skipSelf: true }))
+        );
+      }
+      return undefined;
     },
     load(id) {
       if (id !== RESOLVED) return;
@@ -31,16 +52,20 @@ export function loominateApp(config: ResolvedConfig): Plugin {
       const imports = files.map(
         (file, i) => `import { passages as p${String(i)} } from ${JSON.stringify(file)};`,
       );
+      const inspector = serving || (options.inspector ?? false);
       return [
         'import { playGame } from "@loominate-if/presentation";',
+        // Only when wanted: a build without it carries none of its code.
+        ...(inspector ? [`import { inspect } from ${JSON.stringify(INSPECTOR)};`] : []),
         ...imports,
         `const passages = [${files.map((_, i) => `...p${String(i)}`).join(", ")}];`,
         'const container = document.querySelector("#app") ?? document.body;',
-        `await playGame(container, ${JSON.stringify({
+        `const player = await playGame(container, ${JSON.stringify({
           start: config.start,
           game: config.game,
           title: config.title ?? config.game.id,
         }).replace(/^\{/, "{ passages, ")});`,
+        ...(inspector ? ["inspect(player);"] : []),
         "",
       ].join("\n");
     },

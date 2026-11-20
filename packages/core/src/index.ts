@@ -27,6 +27,7 @@ export {
   type TemplateParams,
 } from "./state/instances.js";
 export {
+  describeObjects,
   instancesOf,
   mixin,
   object,
@@ -35,8 +36,10 @@ export {
   type Handle,
   type ObjectData,
   type ObjectDefinition,
+  type ObjectDescription,
   type ObjectRef,
   type ObjectTemplate,
+  type PropertyDescription,
 } from "./objects/objects.js";
 export {
   createEventRecord,
