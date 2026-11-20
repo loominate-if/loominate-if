@@ -5,6 +5,7 @@ import { createHistory } from "../state/history.js";
 import { createStore, type StateSnapshot, type StateStore } from "../state/store.js";
 import { StateError } from "../state/value.js";
 import {
+  describeObjects,
   instancesOf,
   mixin,
   object,
@@ -465,5 +466,56 @@ describe("in a story", () => {
       replay.follow(choice);
     }
     expect(replayStore.snapshot()).toEqual(final);
+  });
+});
+
+describe("describeObjects", () => {
+  it("gives every object with every data property, and whether each is still the default", () => {
+    const shed = object("shed", { name: "shed" });
+    const lamp = object("lamp", {
+      lit: false,
+      oil: 3,
+      where: shed,
+      get glowing() {
+        return this.lit;
+      },
+      light() {
+        this.lit = true;
+      },
+    });
+    const matchbox = object("matchbox", { count: 2 });
+    const match = template("match", { struck: false });
+    const { store } = play();
+    lamp.light();
+    spawn(match, matchbox).struck = true;
+    const before = store.snapshot();
+    expect(describeObjects(store)).toEqual([
+      {
+        id: "lamp",
+        properties: [
+          { key: "lit", value: true, isDefault: false },
+          { key: "oil", value: 3, isDefault: true },
+          { key: "where", value: { $ref: "shed" }, isDefault: true },
+        ],
+      },
+      { id: "matchbox", properties: [{ key: "count", value: 2, isDefault: true }] },
+      { id: "shed", properties: [{ key: "name", value: "shed", isDefault: true }] },
+      {
+        id: "gen:matchbox:match-1",
+        template: "match",
+        properties: [{ key: "struck", value: true, isDefault: false }],
+      },
+    ]);
+    // Reading changes nothing.
+    expect(store.snapshot()).toEqual(before);
+  });
+
+  it("reads the store it's given, such as a saved game's, not the story's", () => {
+    object("lamp", { lit: false });
+    play();
+    const saved = createStore({ lamp: { lit: true } });
+    expect(describeObjects(saved)).toEqual([
+      { id: "lamp", properties: [{ key: "lit", value: true, isDefault: false }] },
+    ]);
   });
 });

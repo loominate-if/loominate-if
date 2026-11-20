@@ -134,6 +134,7 @@ export function resetObjects(): void {
   binding = undefined;
   statics.clear();
   shapes.clear();
+  templateShapes.clear();
   templates.clear();
   coreTemplates.clear();
   views.clear();
@@ -244,6 +245,8 @@ function writeField(id: StateId, key: string, shape: Shape, value: StateValue): 
 
 /** Every object's shape, so views can find their field's default. */
 const shapes = new Map<StateId, Shape>();
+/** Each template's shape, for describing objects made from it before their handles are built. */
+const templateShapes = new Map<string, Shape>();
 
 function shapeOf(id: StateId): Shape {
   const shape = shapes.get(id);
@@ -534,8 +537,10 @@ export function template<D extends ObjectDefinition<D>>(
     ),
   });
   // Check the definition now, so mistakes surface where it's written.
-  build(`${GENERATED}template:${name}`, made.definition);
-  shapes.delete(`${GENERATED}template:${name}`);
+  const probe = `${GENERATED}template:${name}`;
+  build(probe, made.definition);
+  templateShapes.set(name, shapes.get(probe) as Shape);
+  shapes.delete(probe);
   templates.set(name, made as ObjectTemplate<object>);
   coreTemplates.set(name, { name });
   return made;
@@ -594,4 +599,64 @@ export function instancesOf<D>(template: ObjectTemplate<D>): Handle<D>[] {
   return instancesOfBinding(b)
     .find(core)
     .map((ref) => handleFor(ref.id, where) as Handle<D>);
+}
+
+/** One of an object's properties, as {@link describeObjects} gives it. */
+export interface PropertyDescription {
+  /** The property's name. */
+  readonly key: string;
+  /**
+   * Its value now, as stored: a reference to another object is `{ $ref: id }`,
+   * and arrays and plain objects are plain data.
+   */
+  readonly value: StateValue;
+  /** Whether the value is still the default from the object's definition, so nothing is stored for it. */
+  readonly isDefault: boolean;
+}
+
+/** An object and its state, as {@link describeObjects} gives it. */
+export interface ObjectDescription {
+  /** The object's ID. */
+  readonly id: StateId;
+  /** For an object created during play, the name of the template it was made from. */
+  readonly template?: string;
+  /** Every data property, sorted by name. Methods and getters aren't state, so they're left out. */
+  readonly properties: readonly PropertyDescription[];
+}
+
+/**
+ * Every object in a story's state, with every data property: objects defined
+ * with {@link object}, then those created during play with {@link spawn},
+ * each sorted by ID. The store holds only values that differ from the
+ * defaults, so this is how tools such as the inspector show the whole of
+ * each object. It reads `store` and changes nothing.
+ */
+export function describeObjects(store: StateStore): ObjectDescription[] {
+  const describeOne = (id: StateId, shape: Shape, template?: string): ObjectDescription => ({
+    id,
+    ...(template !== undefined && { template }),
+    properties: [...shape.defaults.keys()]
+      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+      .map((key) => {
+        const stored = store.has(id, key);
+        return {
+          key,
+          value: stored
+            ? (store.get(id, key) as StateValue)
+            : (shape.defaults.get(key) as StateValue),
+          isDefault: !stored,
+        };
+      }),
+  });
+  const byId = (a: StateId, b: StateId) => (a < b ? -1 : a > b ? 1 : 0);
+  const fixed = [...statics.keys()]
+    .sort(byId)
+    .map((id) => describeOne(id, shapes.get(id) as Shape));
+  const made = createInstances(store, [...coreTemplates.values()])
+    .find()
+    .flatMap((ref) => {
+      const shape = templateShapes.get(ref.template.name);
+      return shape ? [describeOne(ref.id, shape, ref.template.name)] : [];
+    });
+  return [...fixed, ...made];
 }

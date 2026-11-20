@@ -21,5 +21,5 @@ export {
   type TestOptions,
   type TestResult,
 } from "./commands.js";
-export { MAIN, loominateApp } from "./vite/app.js";
+export { MAIN, loominateApp, type AppOptions } from "./vite/app.js";
 export { loominateWalkthrough, WALKTHROUGH_SETUP } from "./vite/walkthrough.js";

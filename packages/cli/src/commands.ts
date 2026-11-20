@@ -39,15 +39,28 @@ export type BuildOptions = CommandOptions & {
    * everything inlined, which opens by double-click with no server.
    */
   readonly target?: BuildTarget;
+  /**
+   * Includes the inspector, which `dev` always has, for example in a build
+   * for testers. Without it, a build carries none of the inspector's code.
+   */
+  readonly inspector?: boolean;
 };
 
 /** The Vite configuration for a game, from its resolved config. */
-function viteConfig(config: ResolvedConfig, options: CommandOptions): InlineConfig {
+function viteConfig(config: ResolvedConfig, options: BuildOptions): InlineConfig {
   const conditions = options.conditions ?? [];
   const base: InlineConfig = {
     root: config.root,
     // Relative URLs, so a build works from any folder on any static host.
     base: "./",
+    // One copy of each runtime package, so the game, its extensions, and the
+    // inspector all see the same objects and registries.
+    resolve: {
+      dedupe: ["@loominate-if/core", "@loominate-if/presentation"],
+      ...(conditions.length > 0 && {
+        conditions: [...conditions, "module", "browser", "development|production"],
+      }),
+    },
     plugins: [
       loominate({
         start: config.start,
@@ -55,10 +68,9 @@ function viteConfig(config: ResolvedConfig, options: CommandOptions): InlineConf
         ...(config.scope !== undefined && { scope: config.scope }),
         ...(conditions.length > 0 && { compilerOptions: { customConditions: [...conditions] } }),
       }),
-      loominateApp(config),
+      loominateApp(config, { inspector: options.inspector ?? false }),
     ],
     ...(conditions.length > 0 && {
-      resolve: { conditions: [...conditions, "module", "browser", "development|production"] },
       ssr: { resolve: { conditions: [...conditions, "module", "node", "development|production"] } },
     }),
   };

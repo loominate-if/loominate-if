@@ -15,6 +15,7 @@ Options:
   --port <n>     The dev server's port
   --open         Open the game in a browser (dev)
   --target <t>   What to build: static (default) or single (build)
+  --inspector    Include the inspector, as dev does, e.g. for testers (build)
   --watch        Rerun tests as files change (test)
   -h, --help     Show this help`;
 
@@ -27,6 +28,7 @@ async function main(argv: readonly string[]): Promise<void> {
       port: { type: "string" },
       open: { type: "boolean" },
       target: { type: "string" },
+      inspector: { type: "boolean" },
       watch: { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
@@ -55,7 +57,11 @@ async function main(argv: readonly string[]): Promise<void> {
         `There's no build target "${target}". Use --target static or --target single.`,
       );
     }
-    await build({ ...(root !== undefined && { root }), target });
+    await build({
+      ...(root !== undefined && { root }),
+      target,
+      ...(values.inspector && { inspector: true }),
+    });
   } else if (command === "test") {
     const result = await test({
       ...(root !== undefined && { root }),

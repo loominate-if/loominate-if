@@ -15,5 +15,14 @@
   "files": [
     "dist",
     "!dist/**/*.test.*"
-  ]
+  ],
+  "dependencies": {
+    "@loominate-if/core": "workspace:*",
+    "@loominate-if/presentation": "workspace:*"
+  },
+  "devDependencies": {
+    "@testing-library/user-event": "14.6.8",
+    "axe-core": "4.14.0",
+    "jsdom": "30.1.3"
+  }
 }

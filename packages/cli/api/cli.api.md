@@ -13,11 +13,17 @@ import { ProjectFile } from '@loominate-if/compiler';
 import { ViteDevServer } from 'vite';
 
 // @public
+export type AppOptions = {
+    readonly inspector?: boolean;
+};
+
+// @public
 export function build(options?: BuildOptions): Promise<void>;
 
 // @public
 export type BuildOptions = CommandOptions & {
     readonly target?: BuildTarget;
+    readonly inspector?: boolean;
 };
 
 // @public
@@ -57,7 +63,7 @@ export type LoadConfigOptions = {
 export function loominate(options?: LoominateOptions): Plugin;
 
 // @public
-export function loominateApp(config: ResolvedConfig): Plugin;
+export function loominateApp(config: ResolvedConfig, options?: AppOptions): Plugin;
 
 // @public
 export type LoominateConfig = {
