@@ -128,6 +128,20 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 .steps .source { color: var(--muted); }
 .steps [data-decided] .outcome { font-weight: 600; }
 .idle { margin: 0.15rem 0 0; color: var(--muted); font-size: 12px; }
+.moves { list-style: none; margin: 0; padding: 0; }
+.move { padding: 0.2rem 0.25rem; border-block-end: 1px solid var(--line); border-radius: 3px; }
+.move[aria-current] { background: var(--changed); }
+.move[data-ahead] { opacity: 0.75; }
+.move-head { margin: 0; display: flex; gap: 0.4rem; align-items: baseline; flex-wrap: wrap; }
+.move-label { font-weight: 600; }
+button.move-label { background: none; border: 1px solid transparent; border-radius: 3px; padding: 0 0.25rem; margin-inline-start: -0.25rem; color: var(--accent); text-decoration: underline; }
+button.move-label:hover { border-color: var(--line); }
+.move-now { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); }
+.move-at { color: var(--muted); }
+.changes { font-size: 12px; margin-inline-start: 0.75rem; }
+.changes summary { color: var(--muted); }
+.changed { margin: 0.1rem 0 0.2rem; padding-inline-start: 1.1rem; overflow-wrap: anywhere; }
+.engine { margin: 0 0 0.2rem 1.1rem; color: var(--muted); }
 .visually-hidden { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (prefers-reduced-motion: no-preference) { .toggle { transition: box-shadow 0.15s; } }
 `;

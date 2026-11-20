@@ -9,6 +9,7 @@ import { Choice } from '@loominate-if/core';
 import type { EventRecord } from '@loominate-if/core';
 import { GameInfo } from '@loominate-if/core';
 import { Handle } from '@loominate-if/core';
+import { HistoryStep } from '@loominate-if/core';
 import { Passage } from '@loominate-if/core';
 import { PassageId } from '@loominate-if/core';
 import { Registry } from '@loominate-if/core';
@@ -96,16 +97,24 @@ export type PageOptions = {
 // @public
 export interface Player {
     destroy(): void;
+    readonly history: PlayHistory | undefined;
     load(slot: string): Promise<void>;
     newGame(): Promise<void>;
     onChange(listener: () => void): () => void;
     readonly page: Page | undefined;
     readonly store: StateStore | undefined;
     readonly story: Story | undefined;
+    travel(steps: number): void;
 }
 
 // @public
 export function playGame(container: HTMLElement, options: PlayOptions): Promise<Player>;
+
+// @public
+export interface PlayHistory {
+    readonly future: readonly HistoryStep[];
+    readonly past: readonly HistoryStep[];
+}
 
 // @public
 export type PlayOptions = {

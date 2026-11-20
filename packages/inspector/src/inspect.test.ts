@@ -354,6 +354,7 @@ describe("panels", () => {
       "Events",
       "Choices",
       "Rules",
+      "History",
       "Clock",
     ]);
     expect(mount).not.toHaveBeenCalled();
@@ -751,4 +752,103 @@ describe("the rules panel", () => {
       const results = await axe.run(document.body, { rules: { region: { enabled: false } } });
       expect(results.violations.map((v) => `${v.id}: ${v.description}`)).toEqual([]);
     }));
+});
+
+describe("the history panel", () => {
+  const showHistory = async (open: Awaited<ReturnType<typeof setup>>) => {
+    open.inspector.open();
+    open.q<HTMLButtonElement>("#loominate-inspector-tab-history")?.click();
+  };
+  /** Each move as text, marking where the game is now with `>` and moves ahead with `+`. */
+  const moves = (qa: (s: string) => HTMLElement[]) =>
+    qa(".move").map(
+      (li) =>
+        `${li.getAttribute("aria-current") === "step" ? ">" : li.dataset.ahead === undefined ? " " : "+"}${[
+          ...li.querySelectorAll(".move-head > *"),
+        ]
+          .map((n) => n.textContent)
+          .join(" ")}`,
+    );
+  const go = (qa: (s: string) => HTMLElement[], label: string) => {
+    const button = qa("button.move-label").find((b) => b.textContent === label);
+    if (!button) throw new Error(`no move "${label}" to go to`);
+    button.focus();
+    button.click();
+  };
+
+  it("lists the moves, with the passage after each, and where the game is now", async () => {
+    const game = await setup();
+    await showHistory(game);
+    expect(game.q(".count")?.textContent).toBe(
+      "No moves yet. Each move you make can be jumped back to here.",
+    );
+    expect(moves(game.qa)).toEqual([">Start now at Cottage"]);
+    game.follow("Climb");
+    game.follow("Down");
+    expect(game.q(".count")?.textContent).toBe("After move 2 of 2.");
+    expect(moves(game.qa)).toEqual([
+      " Start at Cottage",
+      " Climb at Tower",
+      ">Down now at Cottage",
+    ]);
+  });
+
+  it("jumps back to a move, and forward again to the same state", async () => {
+    const game = await setup();
+    await showHistory(game);
+    game.follow("Climb");
+    game.follow("Down");
+    const later = JSON.stringify(game.player.store?.snapshot());
+
+    go(game.qa, "Start");
+    expect(game.player.story?.current).toBe("Cottage");
+    expect(lamp.lit).toBe(false);
+    expect(game.q(".count")?.textContent).toBe(
+      "At the start of 2. A new move discards the 2 moves ahead.",
+    );
+    expect(moves(game.qa)).toEqual([
+      ">Start now at Cottage",
+      "+Climb at Tower",
+      "+Down at Cottage",
+    ]);
+    expect(game.root.activeElement?.textContent).toBe("Start");
+
+    go(game.qa, "Down");
+    expect(JSON.stringify(game.player.store?.snapshot())).toBe(later);
+    expect(game.q(".count")?.textContent).toBe("After move 2 of 2.");
+  });
+
+  it("drops the moves ahead when a new move is made after jumping back", async () => {
+    const game = await setup();
+    await showHistory(game);
+    game.follow("Climb");
+    game.follow("Down");
+    go(game.qa, "Climb");
+    game.follow("Shout");
+    expect(moves(game.qa)).toEqual([" Start at Cottage", " Climb at Tower", ">Shout now at Echo"]);
+  });
+
+  it("shows what each move changed when it's opened", async () => {
+    const game = await setup();
+    await showHistory(game);
+    game.follow("Climb");
+    const changes = game.qa<HTMLDetailsElement>(".move details")[0];
+    expect(changes?.querySelector("summary")?.textContent).toBe("1 change");
+    if (!changes) throw new Error("no changes");
+    changes.open = true;
+    changes.dispatchEvent(new Event("toggle"));
+    expect([...changes.querySelectorAll(".changed li")].map((li) => li.textContent)).toEqual([
+      "lamp.lit default → true",
+    ]);
+    expect(changes.querySelector(".engine")?.textContent).toMatch(/^Engine state too: .*\$story/);
+  });
+
+  it("passes automated accessibility checks", async () => {
+    const game = await setup();
+    await showHistory(game);
+    game.follow("Climb");
+    go(game.qa, "Start");
+    const results = await axe.run(document.body, { rules: { region: { enabled: false } } });
+    expect(results.violations.map((v) => `${v.id}: ${v.description}`)).toEqual([]);
+  });
 });
