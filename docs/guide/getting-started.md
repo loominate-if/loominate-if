@@ -4,28 +4,6 @@ This guide sets up a game and shows what's in it. To learn by writing a whole st
 
 ## Create a game
 
-Loominate isn't published to npm yet ([#257](https://github.com/loominate-if/loominate-if/issues/257)). Until it is, build it from a clone and point your game at it. With Node 22.18 or later, in the folder that will hold your game:
-
-```sh
-git clone https://github.com/loominate-if/loominate-if.git
-cd loominate-if
-npx pnpm@12.18.0 install
-npx pnpm@12.18.0 build
-cd ..
-node loominate-if/packages/create/dist/bin.js my-game
-cd my-game
-npm pkg set dependencies.@loominate-if/core=file:../loominate-if/packages/core \
-  dependencies.@loominate-if/presentation=file:../loominate-if/packages/presentation \
-  devDependencies.@loominate-if/cli=file:../loominate-if/packages/cli \
-  devDependencies.@loominate-if/testing=file:../loominate-if/packages/testing
-npm install
-npm run dev
-```
-
-`npm pkg set` points the game's Loominate packages at the clone, since npm can't find them yet. After you pull changes into the clone, run `npx pnpm@12.18.0 build` there again.
-
-Once Loominate is published, this will be:
-
 ```sh
 npm create @loominate-if my-game
 cd my-game

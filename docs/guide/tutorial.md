@@ -8,7 +8,7 @@ The finished game is in [`examples/branching-story`](../../examples/branching-st
 
 ## Create the game
 
-Set up a new game called `the-last-watch`, as in [Getting started](getting-started.md#create-a-game). Loominate isn't on npm yet, so that guide shows how to make it from a clone of the repository; once Loominate is published, it will be:
+Set up a new game as in [Getting started](getting-started.md):
 
 ```sh
 npm create @loominate-if the-last-watch
