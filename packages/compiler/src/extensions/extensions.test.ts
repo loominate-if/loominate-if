@@ -143,7 +143,7 @@ describe("package directives", () => {
       world,
     ]);
     expect(code).toContain(
-      '$rt_askEntry({ topic: ["letter"], when: { value: Boolean(letter.found), text: "letter.found" } })',
+      '$rt_askEntry({ topic: ["letter"], when: { value: Boolean(letter.found), text: "letter.found", parts: () => [\n// @ts-ignore\n$part("letter.found", () => (letter.found)),\n] } })',
     );
   });
 });

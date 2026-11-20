@@ -660,3 +660,20 @@ export function describeObjects(store: StateStore): ObjectDescription[] {
     });
   return [...fixed, ...made];
 }
+
+/**
+ * A value as the inspector writes it: JSON for data, `→ id` for an object,
+ * and arrays and plain objects with their contents.
+ * @internal
+ */
+export function describeValue(value: unknown): string {
+  if (value === undefined) return "undefined";
+  if (typeof value === "function") return "a function";
+  if (typeof value === "bigint" || typeof value === "symbol") return String(value);
+  if (typeof value !== "object" || value === null) return JSON.stringify(value);
+  const id = handles.get(value);
+  if (id !== undefined) return `→ ${id}`;
+  if (Array.isArray(value)) return `[${value.map(describeValue).join(", ")}]`;
+  const entries = Object.entries(value).map(([k, v]) => `${k}: ${describeValue(v)}`);
+  return entries.length === 0 ? "{}" : `{ ${entries.join(", ")} }`;
+}

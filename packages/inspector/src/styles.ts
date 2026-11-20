@@ -98,6 +98,23 @@ summary { cursor: pointer; padding: 1px 2px; border-radius: 3px; }
 .event dl { margin: 0.2rem 0 0.4rem 3rem; display: grid; grid-template-columns: auto 1fr; gap: 0 0.6rem; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 .event dt { color: var(--muted); }
 .event dd { margin: 0; overflow-wrap: anywhere; }
+.at { margin: 0 0 0.5rem; color: var(--muted); }
+.explainer h3 { margin: 0.5rem 0 0.25rem; font-size: 0.9rem; }
+.choices { list-style: none; margin: 0; padding: 0; }
+.choice { padding: 0.3rem 0; border-block-end: 1px solid var(--line); }
+.choice p { margin: 0.1rem 0; }
+.choice-head { display: flex; gap: 0.4rem; align-items: baseline; flex-wrap: wrap; }
+.choice-state { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); min-inline-size: 5.5em; }
+.choice.closed .choice-state { color: light-dark(#a1330b, #ffab8a); }
+.choice-label { font-weight: 600; }
+.choice-target { color: var(--muted); }
+.why, .told { padding-inline-start: 5.9em; }
+.told { color: var(--muted); font-style: italic; }
+.parts { margin: 0.15rem 0 0.15rem 5.9em; display: grid; grid-template-columns: auto 1fr; gap: 0 0.6rem; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+.parts dd { margin: 0; }
+.parts [data-falsy] { background: var(--changed); border-radius: 3px; padding: 0 3px; justify-self: start; }
+.part-error { color: light-dark(#a1330b, #ffab8a); }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
 .visually-hidden { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (prefers-reduced-motion: no-preference) { .toggle { transition: box-shadow 0.15s; } }
 `;

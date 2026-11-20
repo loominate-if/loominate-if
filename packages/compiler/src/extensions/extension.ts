@@ -22,8 +22,9 @@ export type RuntimeExport = {
 /**
  * What an argument takes, and what the generated call receives:
  * - `expression`: TypeScript, passed as its value.
- * - `condition`: TypeScript, passed as `{ value: boolean, text: string }`, so
- *   the inspector can show why something is hidden.
+ * - `condition`: TypeScript, passed as core's `ConditionArgument`: its
+ *   `value`, its source as `text`, and `parts()`, which evaluates each part
+ *   of it on its own, so the inspector can show why something is hidden.
  * - `duration`: `1.5s` or `300ms`, passed as milliseconds.
  * - `passage`: `-> Name`, checked like a link and passed as the name.
  * - `words`: plain words such as `mira smiling`, passed as an array of strings.

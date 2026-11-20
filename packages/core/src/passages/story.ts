@@ -79,6 +79,28 @@ export type LinkGuard = {
   readonly mode?: GuardMode;
   /** Shown to the player in `disabled-with-reason` mode, e.g. "It's too dark to see the steps." */
   readonly reason?: string;
+  /**
+   * While the guard is closed, the condition's parts and their values, so
+   * the inspector can show which part closed it: for
+   * `lamp.lit && !night.signalled`, `lamp.lit` and `night.signalled`.
+   */
+  readonly parts?: readonly ConditionPart[];
+};
+
+/** A part of a condition, with its value when the condition was checked. */
+export type ConditionPart = {
+  /** The part's source, e.g. `keeper.hasMatches`. */
+  readonly text: string;
+  /**
+   * Its value, written as the inspector shows it: `true`, `3`, `"Shed"`, or
+   * `→ lamp` for a reference to an object. Absent when the part threw.
+   */
+  readonly value?: string;
+  /**
+   * Why the part couldn't be evaluated on its own, for example `door.open`
+   * in `door && door.open` when there's no door.
+   */
+  readonly error?: string;
 };
 
 /** A link as rendered: whether it can be followed, and why not. */

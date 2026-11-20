@@ -68,7 +68,7 @@ describe("generatePassageModule", () => {
       ':: A\n[[Go down -> Cellar]]{when lantern.isLit, reason: "Too dark."}\n[[Up -> B]]{when player.fear < 3, disabled}\n{continue -> C, label: "On"}',
     );
     expect(code).toContain(
-      '$nodes.push({ type: "link", label: "Go down", target: "Cellar", line: "A:ajfhgp", guard: $rt_linkGuard({ condition: { value: Boolean(lantern.isLit), text: "lantern.isLit" }, reason: "Too dark." }) });',
+      '$nodes.push({ type: "link", label: "Go down", target: "Cellar", line: "A:ajfhgp", guard: $rt_linkGuard({ condition: { value: Boolean(lantern.isLit), text: "lantern.isLit", parts: () => [\n// @ts-ignore\n$part("lantern.isLit", () => (lantern.isLit)),\n] }, reason: "Too dark." }) });',
     );
     expect(code).toContain('mode: "disabled"');
     // Core's directives call core's exports, as a package's would (ADR 0015).
@@ -144,7 +144,7 @@ describe("generatePassageModule", () => {
       ":: A\nYou could [[ask -> B]]{when lantern.isLit, hidden} now, *or [[leave -> C]]*.\n[[Wait -> A]]",
     );
     expect(code).toContain(
-      '$parts.push({ type: "link", label: "ask", target: "B", guard: $rt_linkGuard({ condition: { value: Boolean(lantern.isLit), text: "lantern.isLit" }, mode: "hidden" }) });',
+      '$parts.push({ type: "link", label: "ask", target: "B", guard: $rt_linkGuard({ condition: { value: Boolean(lantern.isLit), text: "lantern.isLit", parts: () => [\n// @ts-ignore\n$part("lantern.isLit", () => (lantern.isLit)),\n] }, mode: "hidden" }) });',
     );
     expect(code).toMatch(/\$parts\d+\.push\(\{ type: "link", label: "leave", target: "C" \}\);/);
     expect(code).toMatch(
