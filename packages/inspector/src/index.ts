@@ -6,4 +6,5 @@
  */
 export { inspect, type InspectOptions, type Inspector } from "./inspect.js";
 export { panels, type InspectorPanel, type PanelContext, type PanelView } from "./panels.js";
+export { eventLog } from "./event-log.js";
 export { stateTree } from "./state-tree.js";

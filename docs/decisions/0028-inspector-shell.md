@@ -35,8 +35,16 @@ The state store holds only values that differ from an object's defaults, which l
 - What changed since the panel last updated is highlighted, and announced as "changed" to screen readers. A new or loaded game marks nothing.
 - The tree is read-only. An ID filter narrows it.
 
+### The event log
+
+Added with [#46](https://github.com/loominate-if/loominate-if/issues/46).
+
+- The **Events** panel lists the event record oldest first, reading it with `createEventRecord(player.store)`, so it needs nothing more from the player. Each row has the event's `seq`, kind, a one-line summary, and its tags; opening a row shows every field.
+- Filters choose kinds and tags. As in core's `EventQuery`, an event must have every chosen tag, and must be one of the chosen kinds. Core's own events carry no tags yet, and passage code can't record events yet ([#261](https://github.com/loominate-if/loominate-if/issues/261)), so filtering by kind is how to narrow the log for now.
+- Events added since the panel last updated are marked; after an undo, nothing is. The panel draws the latest 500 matching events and counts the rest, so a long game stays quick to inspect.
+
 ## Consequences
 
 - `describeObjects` is public, so world and kit panels can show objects the same way.
 - A game run by `loominate dev` always has the inspector; the toggle button is visible in a corner of the page during development.
-- Editing values from the tree is left for later, as is everything in the other inspector issues (#46–#50) and the explanation providers in #188.
+- Editing values from the tree is left for later (#258), as is everything in the other inspector issues (#47–#50) and the explanation providers in #188.

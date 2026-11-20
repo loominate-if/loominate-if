@@ -1,10 +1,17 @@
 // @vitest-environment jsdom
 /** The inspector shell and its state tree (#45). */
-import { createMemoryStorage, object, type Passage } from "@loominate-if/core";
+import {
+  createEventRecord,
+  createMemoryStorage,
+  createStore,
+  object,
+  type Passage,
+} from "@loominate-if/core";
 import { layouts, playGame, widgets, type Player } from "@loominate-if/presentation";
 import { userEvent } from "@testing-library/user-event";
 import axe from "axe-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { SHOWN_EVENTS } from "./event-log.js";
 import { inspect, type Inspector } from "./inspect.js";
 import { panels, type InspectorPanel } from "./panels.js";
 
@@ -30,14 +37,28 @@ const passages: Passage[] = [
     id: "Tower",
     tags: [],
     effects: {
-      enter: () => {
+      enter: ({ emit }) => {
         lamp.lit = true;
+        emit("system", { text: "The lamp is lit." }, ["lamp", "light"]);
+        emit("system", { text: "The wind rises." }, ["weather"]);
       },
     },
     body: () => [
       { type: "text", text: "The lamp burns." },
       { type: "link", label: "Down", target: "Cottage" },
+      { type: "link", label: "Shout", target: "Echo" },
     ],
+  },
+  {
+    // A move that records more events than the log draws.
+    id: "Echo",
+    tags: [],
+    effects: {
+      enter: ({ emit }) => {
+        for (let i = 0; i < 520; i++) emit("system", { text: `Echo ${String(i)}` });
+      },
+    },
+    body: () => [{ type: "text", text: "Your voice echoes." }],
   },
 ];
 
@@ -293,11 +314,11 @@ describe("panels", () => {
     panels.register("clock", { title: "Clock", mount }, { source: "@my-scope/clock" });
     const { q, qa, follow, inspector } = await setup();
     inspector.open();
-    expect(qa("[role=tab]").map((t) => t.textContent)).toEqual(["State", "Clock"]);
+    expect(qa("[role=tab]").map((t) => t.textContent)).toEqual(["State", "Events", "Clock"]);
     expect(mount).not.toHaveBeenCalled();
 
     q<HTMLButtonElement>("[role=tab][aria-selected=true]")?.focus();
-    await user.keyboard("{ArrowRight}");
+    await user.keyboard("{ArrowLeft}");
     expect(mount).toHaveBeenCalledTimes(1);
     expect(q("#loominate-inspector-panel-clock")?.textContent).toBe("At Cottage");
     expect(q("#loominate-inspector-panel-state")?.hidden).toBe(true);
@@ -305,7 +326,7 @@ describe("panels", () => {
     follow("Climb");
     expect(update).toHaveBeenCalledTimes(1);
     q<HTMLButtonElement>("#loominate-inspector-tab-clock")?.focus();
-    await user.keyboard("{ArrowLeft}");
+    await user.keyboard("{Home}");
     expect(q("[role=tab][aria-selected=true]")?.textContent).toBe("State");
     follow("Down");
     expect(update).toHaveBeenCalledTimes(1);
@@ -355,5 +376,138 @@ describe("panels", () => {
     expect(q(".tree")).not.toBeNull();
     expect(errors).toHaveBeenCalledOnce();
     errors.mockRestore();
+  });
+});
+
+describe("the event log", () => {
+  /** The log's rows: seq, kind, summary, and tags, with `*` for new ones. */
+  const rows = (qa: (s: string) => HTMLElement[]) =>
+    qa(".events > li").map(
+      (li) =>
+        `${li.dataset.changed !== undefined ? "*" : ""}${[
+          ...li.querySelectorAll("summary > span:not(.visually-hidden)"),
+        ]
+          .map((s) => s.textContent)
+          .join(" ")}`,
+    );
+  const showEvents = async (open: Awaited<ReturnType<typeof setup>>) => {
+    open.inspector.open();
+    open.q<HTMLButtonElement>("#loominate-inspector-tab-events")?.click();
+  };
+
+  it("lists everything the game recorded, in order, marking what the last move added", async () => {
+    const game = await setup();
+    await showEvents(game);
+    expect(rows(game.qa)).toEqual([
+      "0 navigation → Cottage",
+      "1 phase Cottage: firstVisit",
+      "2 narrative A cold cottage.",
+    ]);
+    expect(game.q(".count")?.textContent).toBe("3 events");
+    game.follow("Climb");
+    expect(rows(game.qa).slice(3)).toEqual([
+      "*3 navigation Cottage → Tower",
+      "*4 phase Tower: enter",
+      "*5 system The lamp is lit. #lamp #light",
+      "*6 system The wind rises. #weather",
+      "*7 narrative The lamp burns.",
+    ]);
+    expect(game.qa("[data-changed] .visually-hidden")[0]?.textContent).toBe(" (new)");
+  });
+
+  it("shows an event's fields when opened", async () => {
+    const game = await setup();
+    await showEvents(game);
+    game.follow("Climb");
+    const nav = game.qa(".events > li").findLast((li) => li.dataset.kind === "navigation");
+    expect([...(nav?.querySelectorAll("dt, dd") ?? [])].map((n) => n.textContent)).toEqual([
+      "from",
+      '"Cottage"',
+      "to",
+      '"Tower"',
+    ]);
+  });
+
+  it("filters by tag, keeping events with every chosen tag, and by kind", async () => {
+    const game = await setup();
+    await showEvents(game);
+    game.follow("Climb");
+    const chip = (value: string) => {
+      const found = game.qa<HTMLButtonElement>(".chip").find((c) => c.dataset.value === value);
+      if (!found) throw new Error(`no filter ${value}`);
+      return found;
+    };
+    expect(game.qa(".chip").map((c) => c.textContent)).toEqual([
+      "narrative",
+      "navigation",
+      "phase",
+      "system",
+      "#lamp",
+      "#light",
+      "#weather",
+    ]);
+    chip("lamp").click();
+    expect(chip("lamp").getAttribute("aria-pressed")).toBe("true");
+    expect(rows(game.qa)).toEqual(["*5 system The lamp is lit. #lamp #light"]);
+    expect(game.q(".count")?.textContent).toBe("1 of 8 events");
+    chip("weather").click();
+    expect(rows(game.qa)).toEqual([]);
+    chip("lamp").click();
+    chip("weather").click();
+    chip("phase").click();
+    expect(rows(game.qa).map((r) => r.replace("*", ""))).toEqual([
+      "1 phase Cottage: firstVisit",
+      "4 phase Tower: enter",
+    ]);
+    // Choosing two kinds shows both; filters stay as the game goes on.
+    chip("navigation").click();
+    game.follow("Down");
+    expect(rows(game.qa).slice(-2)).toEqual([
+      "4 phase Tower: enter",
+      "*8 navigation Tower → Cottage",
+    ]);
+  });
+
+  it("drops what an undo took back, and marks nothing new", async () => {
+    const game = await setup();
+    await showEvents(game);
+    game.follow("Climb");
+    const undo = [...game.container.querySelectorAll("button")].find(
+      (b) => b.textContent === "Undo",
+    );
+    undo?.click();
+    expect(rows(game.qa)).toEqual([
+      "0 navigation → Cottage",
+      "1 phase Cottage: firstVisit",
+      "2 narrative A cold cottage.",
+    ]);
+    expect(game.qa(".chip").map((c) => c.textContent)).toEqual([
+      "narrative",
+      "navigation",
+      "phase",
+    ]);
+  });
+
+  it("draws only the latest events in a long game, and says so", async () => {
+    const game = await setup();
+    await showEvents(game);
+    game.follow("Climb");
+    game.follow("Shout");
+    const total = createEventRecord(game.player.store ?? createStore()).length;
+    expect(total).toBeGreaterThan(SHOWN_EVENTS);
+    expect(game.qa(".events > li")).toHaveLength(SHOWN_EVENTS);
+    expect(game.q(".count")?.textContent).toBe(
+      `${String(total)} events, the last ${String(SHOWN_EVENTS)} shown`,
+    );
+    expect(rows(game.qa).at(-1)).toMatch(new RegExp(`^\\*${String(total - 1)} `));
+  });
+
+  it("passes automated accessibility checks", async () => {
+    const game = await setup();
+    await showEvents(game);
+    game.follow("Climb");
+    game.qa<HTMLButtonElement>(".chip")[0]?.click();
+    const results = await axe.run(document.body, { rules: { region: { enabled: false } } });
+    expect(results.violations.map((v) => `${v.id}: ${v.description}`)).toEqual([]);
   });
 });

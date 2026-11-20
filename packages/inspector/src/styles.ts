@@ -78,6 +78,26 @@ summary { cursor: pointer; padding: 1px 2px; border-radius: 3px; }
 .template { font-weight: 400; color: var(--muted); }
 .empty:empty { display: none; }
 .empty { color: var(--muted); }
+.filters { display: grid; gap: 0.35rem; margin-block-end: 0.5rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; }
+.chips[hidden] { display: none; }
+.chips-label { color: var(--muted); margin-inline-end: 0.25rem; }
+.chip { border: 1px solid var(--line); border-radius: 999px; background: none; padding: 0 0.5rem; font-size: 12px; }
+.chip[aria-pressed=true] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.count { margin: 0 0 0.35rem; color: var(--muted); }
+.events { list-style: none; margin: 0; padding: 0; font-size: 12px; }
+.event summary { display: flex; gap: 0.4rem; align-items: baseline; }
+/* A flex summary loses its disclosure marker; draw one. */
+.event summary::before { content: "▸"; color: var(--muted); }
+.event details[open] > summary::before { content: "▾"; }
+.event .seq { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; min-inline-size: 2.5ch; text-align: end; }
+.event .kind { font-weight: 600; }
+.event .summary { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.event details[open] .summary { white-space: normal; }
+.event .tag { color: var(--accent); }
+.event dl { margin: 0.2rem 0 0.4rem 3rem; display: grid; grid-template-columns: auto 1fr; gap: 0 0.6rem; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.event dt { color: var(--muted); }
+.event dd { margin: 0; overflow-wrap: anywhere; }
 .visually-hidden { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (prefers-reduced-motion: no-preference) { .toggle { transition: box-shadow 0.15s; } }
 `;
