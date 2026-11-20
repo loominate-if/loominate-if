@@ -7,9 +7,10 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "typecheck": "tsc -b && tsc -p scripts",
+    "typecheck": "tsc -b && tsc -p scripts && tsc -p examples/branching-story",
     "lint": "eslint . && prettier --check . && node scripts/check-deps.ts",
     "format": "prettier --write .",
+    "docs:update": "node scripts/snippets.ts --update",
     "test": "vitest run",
     "build": "tsc -b && pnpm --filter \"./examples/*\" build",
     "api": "tsc -b && node scripts/api-report.ts",

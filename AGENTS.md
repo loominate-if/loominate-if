@@ -105,7 +105,7 @@ Before declaring any task done, run `typecheck`, `lint`, and `test` and make sur
 ## Documentation
 
 - Public API changes update author-facing docs and examples in the same PR.
-- Code examples in docs must compile; prefer pulling them from tested example files.
+- Code examples in docs must compile; prefer pulling them from tested example files. In `docs/guide/`, a code block right after `<!-- example: path#name -->` is copied from that file (a passage in a `.weft` file, a `// #region name` in TypeScript, or the whole file without `#name`). `pnpm docs:update` refreshes them after an example changes, and `scripts/docs.test.ts` fails if they drift.
 - Decisions that resolve an open question in the design doc get a short ADR in `docs/decisions/` (`NNNN-title.md`: context, decision, consequences) and a matching update to `docs/DESIGN.md`.
 
 ## Work tracking: GitHub issues
