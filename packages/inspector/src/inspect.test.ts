@@ -46,7 +46,19 @@ const passages: Passage[] = [
     body: () => [
       { type: "text", text: "The lamp burns." },
       { type: "link", label: "Down", target: "Cottage" },
+      { type: "link", label: "Shout", target: "Echo" },
     ],
+  },
+  {
+    // A move that records more events than the log draws.
+    id: "Echo",
+    tags: [],
+    effects: {
+      enter: ({ emit }) => {
+        for (let i = 0; i < 520; i++) emit("system", { text: `Echo ${String(i)}` });
+      },
+    },
+    body: () => [{ type: "text", text: "Your voice echoes." }],
   },
 ];
 
@@ -478,16 +490,16 @@ describe("the event log", () => {
 
   it("draws only the latest events in a long game, and says so", async () => {
     const game = await setup();
-    // Closed, the inspector doesn't follow each move; it catches up when it's opened.
-    for (let i = 0; i < 160; i++) game.follow(i % 2 === 0 ? "Climb" : "Down");
     await showEvents(game);
+    game.follow("Climb");
+    game.follow("Shout");
     const total = createEventRecord(game.player.store ?? createStore()).length;
     expect(total).toBeGreaterThan(SHOWN_EVENTS);
     expect(game.qa(".events > li")).toHaveLength(SHOWN_EVENTS);
     expect(game.q(".count")?.textContent).toBe(
       `${String(total)} events, the last ${String(SHOWN_EVENTS)} shown`,
     );
-    expect(rows(game.qa).at(-1)).toMatch(new RegExp(`^${String(total - 1)} `));
+    expect(rows(game.qa).at(-1)).toMatch(new RegExp(`^\\*${String(total - 1)} `));
   });
 
   it("passes automated accessibility checks", async () => {
