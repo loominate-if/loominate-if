@@ -57,6 +57,7 @@ export {
   type BeatEffects,
   type BeatNode,
   type Choice,
+  type ConditionPart,
   type ContinueNode,
   type EffectContext,
   type EffectPhase,
@@ -89,6 +90,7 @@ export {
   namedEffect,
   pageBreak,
   wait,
+  type ConditionArgument,
 } from "./passages/directives.js";
 export {
   emphasis,

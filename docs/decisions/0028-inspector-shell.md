@@ -43,8 +43,16 @@ Added with [#46](https://github.com/loominate-if/loominate-if/issues/46).
 - Filters choose kinds and tags. As in core's `EventQuery`, an event must have every chosen tag, and must be one of the chosen kinds. Core's own events carry no tags yet, and passage code can't record events yet ([#261](https://github.com/loominate-if/loominate-if/issues/261)), so filtering by kind is how to narrow the log for now.
 - Events added since the panel last updated are marked; after an undo, nothing is. The panel draws the latest 500 matching events and counts the rest, so a long game stays quick to inspect.
 
+### Why a choice is hidden
+
+Added with [#47](https://github.com/loominate-if/loominate-if/issues/47).
+
+- The **Choices** panel lists the choices where the player is, from each explainer in the `explainers` registry ([#188](https://github.com/loominate-if/loominate-if/issues/188)). An explainer has a title and `explain({ player })`, returning each choice of its kind with whether it's available and, if not, whether it's hidden or disabled, the condition, the condition's parts, and the reason the player is told. Core's links and continue points are the first explainer; the world model and kits add theirs for actions and topics.
+- So the panel can show which part of a condition closed a link, the compiler passes each `condition` argument with a `parts()` function beside its value and text. It splits the condition at `&&`, `||`, `??`, `!`, `?:`, and parentheses, and lists each comparison with its sides that aren't literals. Core's `linkGuard` calls `parts()` only when the guard is closed, and records each part's value as the inspector writes it (`→ lamp` for an object), or the error it threw, on `LinkGuard.parts`.
+- A part on its own can fail to type-check where the whole condition doesn't: `door.open` loses the narrowing that `door &&` gave it. The condition as written is type-checked as before, and its parts' copies aren't checked again; they're evaluated with errors caught, and an error is shown as the part's explanation.
+
 ## Consequences
 
 - `describeObjects` is public, so world and kit panels can show objects the same way.
 - A game run by `loominate dev` always has the inspector; the toggle button is visible in a corner of the page during development.
-- Editing values from the tree is left for later (#258), as is everything in the other inspector issues (#47–#50) and the explanation providers in #188.
+- Editing values from the tree is left for later (#258), as is everything in the other inspector issues (#48–#50).

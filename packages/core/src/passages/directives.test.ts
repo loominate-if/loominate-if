@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createEventRecord } from "../events/record.js";
+import { object, resetObjects } from "../objects/objects.js";
 import { createStore } from "../state/store.js";
 import { continueTo, linkGuard, namedEffect } from "./directives.js";
 import { createStory } from "./story.js";
@@ -28,6 +29,48 @@ describe("core's directive functions", () => {
       mode: "disabled-with-reason",
       reason: "Too dark.",
     });
+  });
+
+  it("explain a closed guard with its parts' values, written for the inspector", () => {
+    resetObjects();
+    const shed = object("shed", { name: "shed" });
+    const reads: string[] = [];
+    const part = (text: string, value: unknown) => {
+      reads.push(text);
+      return { text, value };
+    };
+    const condition = {
+      value: false,
+      text: "lamp.where === shed && lamp.tags.length > 0",
+      parts: () => [
+        part("lamp.where", shed),
+        part("lamp.tags", ["brass", 2, null]),
+        part("lamp.opts", { bright: true, name: "lamp" }),
+        part("lamp.label", "Lamp"),
+        part("lamp.gone", undefined),
+        { text: "door.open", error: "Cannot read properties of null (reading 'open')" },
+      ],
+    };
+    expect(linkGuard({ condition }).parts).toEqual([
+      { text: "lamp.where", value: "→ shed" },
+      { text: "lamp.tags", value: '["brass", 2, null]' },
+      { text: "lamp.opts", value: '{ bright: true, name: "lamp" }' },
+      { text: "lamp.label", value: '"Lamp"' },
+      { text: "lamp.gone", value: "undefined" },
+      { text: "door.open", error: "Cannot read properties of null (reading 'open')" },
+    ]);
+    // An open guard has nothing to explain, so its parts are never evaluated.
+    reads.length = 0;
+    expect(linkGuard({ condition: { ...condition, value: true } })).not.toHaveProperty("parts");
+    expect(reads).toEqual([]);
+    // Parts that can't be listed at all are left out, and the guard still works.
+    const broken = {
+      ...condition,
+      parts: () => {
+        throw new Error("no");
+      },
+    };
+    expect(linkGuard({ condition: broken })).toEqual({ open: false, condition: condition.text });
   });
 
   it("make named effects, with a duration and options only when given", () => {

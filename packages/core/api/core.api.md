@@ -39,6 +39,24 @@ export type ChoiceRef = {
 };
 
 // @public
+export type ConditionArgument = {
+    readonly value: boolean;
+    readonly text: string;
+    readonly parts?: () => readonly {
+        readonly text: string;
+        readonly value?: unknown;
+        readonly error?: string;
+    }[];
+};
+
+// @public
+export type ConditionPart = {
+    readonly text: string;
+    readonly value?: string;
+    readonly error?: string;
+};
+
+// @public
 export type ContinueNode = {
     readonly type: "continue";
     readonly target: PassageId;
@@ -283,14 +301,12 @@ export type LinkGuard = {
     readonly condition: string;
     readonly mode?: GuardMode;
     readonly reason?: string;
+    readonly parts?: readonly ConditionPart[];
 };
 
 // @public
 export function linkGuard(args: {
-    readonly condition: {
-        readonly value: boolean;
-        readonly text: string;
-    };
+    readonly condition: ConditionArgument;
     readonly mode?: "hidden" | "disabled";
     readonly reason?: string;
 }): LinkGuard;

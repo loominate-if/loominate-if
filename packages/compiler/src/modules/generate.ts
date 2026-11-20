@@ -25,6 +25,7 @@ import type {
   PassageFileSyntax,
   PassageSyntax,
 } from "../passages/syntax.js";
+import { conditionParts } from "./condition-parts.js";
 import { standaloneLinks } from "./links.js";
 import { passageLines, type PassageLines } from "./line-ids.js";
 import { renderWriteMessage, renderWrites } from "./render-writes.js";
@@ -174,11 +175,26 @@ export function generatePassageModule(
         case "expression":
           copy(a.code);
           break;
-        case "condition":
+        case "condition": {
           write("{ value: Boolean(");
           copy(a.code);
-          write(`), text: ${str(a.code.code)} }`);
+          write(`), text: ${str(a.code.code)}`);
+          // Each part, evaluated on its own only to explain a condition that
+          // doesn't hold (#47). The condition as written is type-checked
+          // above; a part alone can lose narrowing, as \`door.open\` does
+          // without \`door &&\`, so the copies aren't checked again.
+          const parts = conditionParts(a.code.code);
+          if (parts.length > 0) {
+            write(", parts: () => [\n");
+            for (const part of parts) {
+              write("// @ts-ignore\n");
+              write(`$part(${str(part)}, () => (${part})),\n`);
+            }
+            write("]");
+          }
+          write(" }");
           break;
+        }
         case "duration":
           write(String(a.ms));
           break;
@@ -687,6 +703,19 @@ export function generatePassageModule(
       ? [
           "/** Printed values must be text or numbers (ADR 0004). */",
           "const $print = (value: string | number): string | number => value;",
+          "",
+        ]
+      : []),
+    ...(has("$part(")
+      ? [
+          "/** A condition's part and its value, or what it threw, for the inspector (#47). */",
+          "function $part(text: string, read: () => unknown): { text: string; value?: unknown; error?: string } {",
+          "  try {",
+          "    return { text, value: read() };",
+          "  } catch (error) {",
+          "    return { text, error: error instanceof Error ? error.message : String(error) };",
+          "  }",
+          "}",
           "",
         ]
       : []),

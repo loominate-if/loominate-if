@@ -419,6 +419,81 @@ describe("a compiled game", { timeout: 30_000 }, () => {
     expect(game.current).toBe("Letter");
   });
 
+  it("explains a closed guard with the value of each part of its condition (#47)", async () => {
+    const scope = [
+      "export const lamp = { lit: false, oil: 0 };",
+      "export const keeper = { box: null as { matches: number } | null };",
+      "",
+    ].join("\n");
+    const source = [
+      ":: Tower",
+      "[[Light the lamp -> Lit]]{when lamp.lit || lamp.oil > 0, disabled}",
+      "[[Strike a match -> Lit]]{when keeper.box !== null && keeper.box.matches > 0}",
+      "[[Wait -> Lit]]{when !lamp.lit}",
+      ":: Lit",
+      "Bright.",
+    ].join("\n");
+    const dir = path.join(out, "explain");
+    mkdirSync(dir);
+    const result = compileProject({
+      root: dir,
+      extensions: [world],
+      compilerOptions,
+      files: [
+        { path: "story.ts", text: scope },
+        { path: "tower.weft", text: source },
+      ],
+    });
+    // `keeper.box.matches` alone isn't narrowed by `keeper.box !== null`, but parts aren't checked again.
+    expect(show(result)).toEqual([]);
+    writeFileSync(path.join(dir, "story.ts"), scope);
+    writeFileSync(result.passageNames.path, result.passageNames.code);
+    const [module] = result.modules.values();
+    if (!module) throw new Error("no module");
+    writeFileSync(module.path, module.code);
+    const { passages } = (await import(module.path)) as { passages: Passage[] };
+    const store = createStore();
+    const game = createStory(store, createEventRecord(store), passages, { start: "Tower" });
+    game.begin();
+    const closed = game.render().unavailable.map((u) => [u.link.label, u.link.guard?.parts]);
+    expect(closed).toEqual([
+      [
+        "Light the lamp",
+        [
+          { text: "lamp.lit", value: "false" },
+          { text: "lamp.oil > 0", value: "false" },
+          { text: "lamp.oil", value: "0" },
+        ],
+      ],
+      [
+        "Strike a match",
+        [
+          { text: "keeper.box !== null", value: "false" },
+          { text: "keeper.box", value: "null" },
+          { text: "keeper.box.matches > 0", error: expect.stringMatching(/null/) as string },
+          { text: "keeper.box.matches", error: expect.stringMatching(/null/) as string },
+        ],
+      ],
+    ]);
+    // An open guard has nothing to explain, and its parts aren't evaluated.
+    expect(
+      game.render().choices.map((c) => [c.label, "guard" in c ? c.guard?.parts : undefined]),
+    ).toEqual([["Wait", undefined]]);
+  });
+
+  it("reports a mistake in a guard's condition once", () => {
+    const result = compile([
+      { path: "story.ts", text: story },
+      {
+        path: "stairs.weft",
+        text: ":: Stairs\n[[Down -> Stairs]]{when lantern.isLitt && player.fear > 0}\n",
+      },
+    ]);
+    expect(show(result)).toEqual([
+      "stairs.weft:2:33 typescript: `lantern` has no property `isLitt`. Did you mean `isLit`?",
+    ]);
+  });
+
   it("plays through beats, with effects written after them run as the player reaches them", async () => {
     const scope =
       'import { object } from "@loominate-if/core";\nexport const train = object("train", { stopped: false, beats: 0 });\n';

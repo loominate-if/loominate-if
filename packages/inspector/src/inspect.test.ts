@@ -4,6 +4,7 @@ import {
   createEventRecord,
   createMemoryStorage,
   createStore,
+  linkGuard,
   object,
   type Passage,
 } from "@loominate-if/core";
@@ -12,6 +13,7 @@ import { userEvent } from "@testing-library/user-event";
 import axe from "axe-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SHOWN_EVENTS } from "./event-log.js";
+import { explainers } from "./explainers.js";
 import { inspect, type Inspector } from "./inspect.js";
 import { panels, type InspectorPanel } from "./panels.js";
 
@@ -31,6 +33,33 @@ const passages: Passage[] = [
     body: () => [
       { type: "text", text: "A cold cottage." },
       { type: "link", label: "Climb", target: "Tower" },
+      // Guards as the compiler builds them, with their condition's parts.
+      {
+        type: "link",
+        label: "Light the stove",
+        target: "Tower",
+        guard: linkGuard({
+          condition: {
+            value: lamp.lit && lamp.oil > 0,
+            text: "lamp.lit && lamp.oil > 0",
+            parts: () => [
+              { text: "lamp.lit", value: lamp.lit },
+              { text: "lamp.oil > 0", value: lamp.oil > 0 },
+              { text: "lamp.oil", value: lamp.oil },
+            ],
+          },
+          reason: "The lamp isn't lit.",
+        }),
+      },
+      {
+        type: "link",
+        label: "Sleep",
+        target: "Tower",
+        guard: linkGuard({
+          condition: { value: lamp.lit, text: "lamp.lit" },
+          mode: "hidden",
+        }),
+      },
     ],
   },
   {
@@ -314,7 +343,12 @@ describe("panels", () => {
     panels.register("clock", { title: "Clock", mount }, { source: "@my-scope/clock" });
     const { q, qa, follow, inspector } = await setup();
     inspector.open();
-    expect(qa("[role=tab]").map((t) => t.textContent)).toEqual(["State", "Events", "Clock"]);
+    expect(qa("[role=tab]").map((t) => t.textContent)).toEqual([
+      "State",
+      "Events",
+      "Choices",
+      "Clock",
+    ]);
     expect(mount).not.toHaveBeenCalled();
 
     q<HTMLButtonElement>("[role=tab][aria-selected=true]")?.focus();
@@ -507,6 +541,86 @@ describe("the event log", () => {
     await showEvents(game);
     game.follow("Climb");
     game.qa<HTMLButtonElement>(".chip")[0]?.click();
+    const results = await axe.run(document.body, { rules: { region: { enabled: false } } });
+    expect(results.violations.map((v) => `${v.id}: ${v.description}`)).toEqual([]);
+  });
+});
+
+describe("the choices panel", () => {
+  const showChoices = async (open: Awaited<ReturnType<typeof setup>>) => {
+    open.inspector.open();
+    open.q<HTMLButtonElement>("#loominate-inspector-tab-choices")?.click();
+  };
+  /** Each choice as text: its state, label, target, and why, in order. */
+  const listed = (qa: (s: string) => HTMLElement[]) =>
+    qa(".choice").map((li) =>
+      [...li.querySelectorAll(".choice-head > span, .why, dt, dd, .told")]
+        .map(
+          (n) =>
+            `${n instanceof HTMLElement && n.dataset.falsy !== undefined ? "!" : ""}${n.textContent ?? ""}`,
+        )
+        .join(" | "),
+    );
+
+  it("lists every link, and says why each closed one can't be followed", async () => {
+    const game = await setup();
+    await showChoices(game);
+    expect(game.q(".at")?.textContent).toBe("At Cottage");
+    expect(game.qa("h3").map((h) => h.textContent)).toEqual(["Links"]);
+    expect(listed(game.qa)).toEqual([
+      "Available | Climb | → Tower",
+      "Disabled | Light the stove | → Tower | Because lamp.lit && lamp.oil > 0 doesn't hold. | lamp.lit | !false | lamp.oil > 0 | true | lamp.oil | 3 | The player is told: “The lamp isn't lit.”",
+      "Hidden | Sleep | → Tower | Because lamp.lit doesn't hold.",
+    ]);
+  });
+
+  it("follows the game", async () => {
+    const game = await setup();
+    await showChoices(game);
+    game.follow("Climb");
+    expect(game.q(".at")?.textContent).toBe("At Tower");
+    expect(listed(game.qa)).toEqual(["Available | Down | → Cottage", "Available | Shout | → Echo"]);
+    game.follow("Down");
+    // The lamp is lit now, so the stove can be lit and the bed is there.
+    expect(listed(game.qa)).toEqual([
+      "Available | Climb | → Tower",
+      "Available | Light the stove | → Tower",
+      "Available | Sleep | → Tower",
+    ]);
+  });
+
+  it("shows registered explainers too, and one that fails says so", async () => {
+    explainers.register("topics", {
+      title: "Topics",
+      explain: () => [
+        { label: "the storm", available: false, shown: "hidden", condition: "keeper.metMira" },
+      ],
+    });
+    explainers.register("broken", {
+      title: "Broken",
+      explain: () => {
+        throw new Error("no topics here");
+      },
+    });
+    try {
+      const game = await setup();
+      await showChoices(game);
+      expect(game.qa("h3").map((h) => h.textContent)).toEqual(["Links", "Topics", "Broken"]);
+      expect(listed(game.qa).at(-1)).toBe(
+        "Hidden | the storm | Because keeper.metMira doesn't hold.",
+      );
+      expect(game.qa(".part-error").map((p) => p.textContent)).toEqual([
+        "These choices couldn't be explained: no topics here",
+      ]);
+    } finally {
+      explainers.remove("topics");
+      explainers.remove("broken");
+    }
+  });
+
+  it("passes automated accessibility checks", async () => {
+    const game = await setup();
+    await showChoices(game);
     const results = await axe.run(document.body, { rules: { region: { enabled: false } } });
     expect(results.violations.map((v) => `${v.id}: ${v.description}`)).toEqual([]);
   });

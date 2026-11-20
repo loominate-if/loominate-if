@@ -4,11 +4,35 @@
 
 ```ts
 
+import { ConditionPart } from '@loominate-if/core';
 import type { Player } from '@loominate-if/presentation';
 import { Registry } from '@loominate-if/core';
 
 // @public
+export const choices: InspectorPanel;
+
+// @public
 export const eventLog: InspectorPanel;
+
+// @public
+export interface Explainer {
+    explain(context: PanelContext): readonly Explanation[];
+    readonly title: string;
+}
+
+// @public
+export const explainers: Registry<Explainer>;
+
+// @public
+export interface Explanation {
+    readonly available: boolean;
+    readonly condition?: string;
+    readonly label: string;
+    readonly parts?: readonly ConditionPart[];
+    readonly reason?: string;
+    readonly shown?: "hidden" | "disabled";
+    readonly target?: string;
+}
 
 // @public
 export function inspect(player: Player, options?: InspectOptions): Inspector;
@@ -32,6 +56,9 @@ export interface InspectorPanel {
     mount(element: HTMLElement, context: PanelContext): PanelView;
     readonly title: string;
 }
+
+// @public
+export const linkExplainer: Explainer;
 
 // @public
 export interface PanelContext {
