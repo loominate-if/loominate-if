@@ -18,6 +18,15 @@ The **State** tab lists every object in your game with every property, as it is 
 
 The tree only shows the game; it never changes it.
 
+## The event log
+
+The **Events** tab lists everything the game has recorded, oldest first: each passage's prose as the player read it, moves between passages, the effects that ran (`{on enter: …}` and the like), beats the player moved past, and anything your code `emit`s.
+
+- Each row shows the event's number, its kind, and a summary. Open a row to see all its fields.
+- What your last move added is highlighted. An undo takes its events back out of the log.
+- **Kinds** narrows the log to the kinds you choose. **Tags** shows events that have every tag you choose; tags come from code that emits events, as in `emit("system", { text: "The lamp is lit." }, ["lamp"])`.
+- A long game shows its latest 500 events, and says how many there are in all.
+
 ## In a build
 
 An ordinary `npm run build` leaves the inspector out entirely. To include it, for example in a build for testers, run:

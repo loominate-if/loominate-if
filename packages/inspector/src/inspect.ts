@@ -4,12 +4,14 @@
  * build carries it only with `loominate build --inspector`.
  */
 import type { Player } from "@loominate-if/presentation";
+import { eventLog } from "./event-log.js";
 import { panels, type PanelView } from "./panels.js";
 import { stateTree } from "./state-tree.js";
 import { STYLES } from "./styles.js";
 
 const SOURCE = "@loominate-if/inspector";
 panels.register("state", stateTree, { source: SOURCE });
+panels.register("events", eventLog, { source: SOURCE });
 
 /** The key that opens and closes the inspector, with Control. */
 const SHORTCUT_KEY = "`";

@@ -8,6 +8,9 @@ import type { Player } from '@loominate-if/presentation';
 import { Registry } from '@loominate-if/core';
 
 // @public
+export const eventLog: InspectorPanel;
+
+// @public
 export function inspect(player: Player, options?: InspectOptions): Inspector;
 
 // @public
