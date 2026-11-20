@@ -1,5 +1,6 @@
 // Gate 1's walkthroughs: the story played to each ending, with the features
 // it uses checked along the way (ADR 0027).
+// #region setup
 import { play } from "@loominate-if/testing";
 import { describe, expect, it } from "vitest";
 import { keeper, lamp, night, SHIPS } from "./story.js";
@@ -10,6 +11,7 @@ const arrive = (seed?: string) =>
     .advance()
     .advance()
     .choose("Begin");
+// #endregion
 
 describe("The Last Watch", () => {
   it("opens over two pages, with a pause before the first choice", () => {
@@ -50,6 +52,7 @@ describe("The Last Watch", () => {
     expect(game.choices).toEqual(["Light the lamp", "Go back down"]);
   });
 
+  // #region dawn
   it("ends at dawn when the keeper signals the ship", () => {
     const game = arrive().choose("supply shed").choose("Back to the cottage");
     game.choose("Climb the tower").choose("Light the lamp");
@@ -77,6 +80,7 @@ describe("The Last Watch", () => {
     expect(game.text).toContain(`${night.ship}, safe.`);
     expect(game.choices).toEqual([]);
   });
+  // #endregion
 
   it("ends in a wreck when the keeper sleeps without signalling", () => {
     const game = arrive().choose("supply shed").choose("Back to the cottage");

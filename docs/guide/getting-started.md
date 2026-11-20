@@ -1,5 +1,7 @@
 # Getting started
 
+This guide sets up a game and shows what's in it. To learn by writing a whole story, follow it with the [tutorial](tutorial.md).
+
 ## Create a game
 
 ```sh
