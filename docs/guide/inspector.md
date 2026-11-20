@@ -20,11 +20,12 @@ The tree only shows the game; it never changes it.
 
 ## The event log
 
-The **Events** tab lists everything the game has recorded, oldest first: each passage's prose as the player read it, moves between passages, the effects that ran (`{on enter: …}` and the like), beats the player moved past, and anything your code `emit`s.
+The **Events** tab lists everything the game has recorded, oldest first: each passage's prose as the player read it, moves between passages, the effects that ran (`{on enter: …}` and the like), and beats the player moved past.
 
 - Each row shows the event's number, its kind, and a summary. Open a row to see all its fields.
 - What your last move added is highlighted. An undo takes its events back out of the log.
-- **Kinds** narrows the log to the kinds you choose. **Tags** shows events that have every tag you choose; tags come from code that emits events, as in `emit("system", { text: "The lamp is lit." }, ["lamp"])`.
+- **Kinds** narrows the log to the kinds you choose.
+- **Tags** shows events that have every tag you choose. It appears once some event has tags. The events Loominate records have none yet, and passages can't record events of their own yet ([#261](https://github.com/loominate-if/loominate-if/issues/261)); until then, tags come from extensions that record events.
 - A long game shows its latest 500 events, and says how many there are in all.
 
 ## In a build
