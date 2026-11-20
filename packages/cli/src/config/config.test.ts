@@ -12,19 +12,11 @@ afterAll(() => {
 });
 
 let games = 0;
-/**
- * A game folder with `files`. A config imports only `defineConfig` from the
- * CLI, so the CLI it finds is a stand-in with just that, as JavaScript, like a
- * published build: this repository's TypeScript sources can't be loaded
- * natively from inside the test runner.
- */
+/** A game folder with `files`. */
 function game(files: Record<string, string>): string {
   const root = path.join(temp, `game-${String(++games)}`);
   const all = {
     "package.json": '{"type":"module"}',
-    "node_modules/@loominate-if/cli/package.json":
-      '{"name":"@loominate-if/cli","type":"module","exports":{".":"./index.js"}}',
-    "node_modules/@loominate-if/cli/index.js": "export const defineConfig = (config) => config;\n",
     ...files,
   };
   for (const [name, text] of Object.entries(all)) {

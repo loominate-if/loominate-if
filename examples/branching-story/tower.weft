@@ -1,0 +1,33 @@
+:: Stairs
+{effect shake}
+The spiral stair shudders as a gust hits the tower. {visits === 1 ? "A hundred and twelve steps to the top." : "The steps again, slick with damp."}
+
+[[Light the lamp -> Lamp Room]]{when keeper.hasMatches, reason: "Your pockets are empty. The matches are in the shed."}
+[[Go back down -> Cottage]]
+
+:: Lamp Room
+{on enter: lamp.lit = true}
+{on leave: lamp.oil -= 1}
+{effect typewriter}
+The wick takes the flame, and the great lens turns it into a beam that sweeps across the water.
+{if night.turned}Far to the south, {night.ship} is running for shelter.{else}Far out, a ship's lights: {night.ship}, running before the storm, straight for the rocks.{/if}
+
+[[Signal the ship -> Signal]]{when !night.signalled, disabled}
+[[Write in the log -> Log]]
+[[Sleep until morning -> Dawn]]{when night.turned, hidden}
+[[Sleep until morning -> Wreck]]{when !night.turned, hidden}
+
+:: Signal
+{on enter: night.signalled = true}
+You work the shutter: long, short, long. *Rocks. Turn back.*
+{beat 2s}
+{on enter: night.turned = true}
+For a long moment, nothing. Then, slowly, the ship's lights swing away to the south.
+{wait}
+They are safe, or they will be.
+{continue -> Lamp Room, label: "Back to the lamp"}
+
+:: Log
+{on enter: night.logEntries += 1}
+You write by the lamp's light. Entry {night.logEntries}: {if night.turned}Signalled {night.ship}; she turned south.{else}Wind north-east and rising. {night.ship} in sight.{/if} Oil for {lamp.oil} {lamp.oil === 1 ? "night" : "nights"}.
+{continue -> Lamp Room}

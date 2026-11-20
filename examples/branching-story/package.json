@@ -1,0 +1,22 @@
+{
+  "name": "@loominate-if/example-branching-story",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Gate 1: a plain branching story, with no world model.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "loominate dev",
+    "build": "loominate build && loominate build --target single",
+    "test": "loominate test"
+  },
+  "dependencies": {
+    "@loominate-if/core": "workspace:*",
+    "@loominate-if/presentation": "workspace:*"
+  },
+  "devDependencies": {
+    "@loominate-if/cli": "workspace:*",
+    "@loominate-if/testing": "workspace:*",
+    "vitest": "5.1.0"
+  }
+}

@@ -13,22 +13,10 @@ afterAll(() => {
   rmSync(temp, { recursive: true, force: true });
 });
 
-/**
- * Installs this repository's packages into a scaffolded game, as `npm install`
- * would. The config's CLI is a stand-in with `defineConfig`, since the CLI's
- * TypeScript sources can't be loaded natively from inside the test runner.
- */
+/** Installs this repository's packages into a scaffolded game, as `npm install` would. */
 function install(root: string): void {
   const scope = path.join(root, "node_modules/@loominate-if");
-  mkdirSync(path.join(scope, "cli"), { recursive: true });
-  writeFileSync(
-    path.join(scope, "cli/package.json"),
-    '{"name":"@loominate-if/cli","type":"module","exports":{".":"./index.js"}}',
-  );
-  writeFileSync(
-    path.join(scope, "cli/index.js"),
-    "export const defineConfig = (config) => config;\n",
-  );
+  mkdirSync(scope, { recursive: true });
   for (const pkg of ["core", "presentation", "testing"]) {
     symlinkSync(path.join(packages, pkg), path.join(scope, pkg), "dir");
   }

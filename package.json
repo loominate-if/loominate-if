@@ -11,7 +11,7 @@
     "lint": "eslint . && prettier --check . && node scripts/check-deps.ts",
     "format": "prettier --write .",
     "test": "vitest run",
-    "build": "tsc -b",
+    "build": "tsc -b && pnpm --filter \"./examples/*\" build",
     "api": "tsc -b && node scripts/api-report.ts",
     "api:update": "tsc -b && node scripts/api-report.ts --update"
   },

@@ -10,7 +10,7 @@ The design lists four build targets. The static site, the default, must run from
 
 ## Decision
 
-- **Choosing a target.** `loominate build --target static|single`, or `build({ target })`. The default is `static`. Both write to `dist/`, emptying it first.
+- **Choosing a target.** `loominate build --target static|single`, or `build({ target })`. The default is `static`. Both write to `dist/`. The static build empties it first. The single build writes its one file without emptying it, so running both leaves the site and the single file side by side (#2).
 - **The static site** is `index.html`, the bundled script, and assets as files. Every URL is relative (`base: "./"`), so the site works from a domain's root or any subfolder (GitHub Pages, itch.io, Netlify), and from any local static server.
 - **The single file** is `dist/<game id>.html`. Vite builds the game as one script with no code splitting, inlines assets as data URLs, and keeps CSS in one file. A small plugin then moves the script into the page as an inline module script, and any stylesheet into a `<style>`. Inline module scripts run from `file:` URLs. Text that would end the element early, such as `</script>` in prose, is escaped. If anything is left that couldn't be inlined, such as a file in `public/`, the build fails and names it, rather than producing a page that's missing a file.
 - **No new dependency.** The inlining is a few dozen lines over Vite's own options, not a plugin package.
