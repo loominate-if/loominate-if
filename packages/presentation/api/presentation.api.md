@@ -13,9 +13,12 @@ import { HistoryStep } from '@loominate-if/core';
 import { Passage } from '@loominate-if/core';
 import { PassageId } from '@loominate-if/core';
 import { Registry } from '@loominate-if/core';
+import { Replay } from '@loominate-if/core';
+import { ReplayCheck } from '@loominate-if/core';
 import { SaveStorage } from '@loominate-if/core';
 import { StateStore } from '@loominate-if/core';
 import { Story } from '@loominate-if/core';
+import { StoryAction } from '@loominate-if/core';
 import { StoryOptions } from '@loominate-if/core';
 
 // @public
@@ -95,6 +98,17 @@ export type PageOptions = {
 };
 
 // @public
+export interface PlayedReplay {
+    readonly check: ReplayCheck;
+    readonly failed?: {
+        readonly index: number;
+        readonly action: StoryAction;
+        readonly message: string;
+    };
+    readonly played: number;
+}
+
+// @public
 export interface Player {
     destroy(): void;
     readonly history: PlayHistory | undefined;
@@ -102,8 +116,10 @@ export interface Player {
     newGame(): Promise<void>;
     onChange(listener: () => void): () => void;
     readonly page: Page | undefined;
+    playReplay(replay: Replay): PlayedReplay;
     readonly store: StateStore | undefined;
     readonly story: Story | undefined;
+    toReplay(): Replay | undefined;
     travel(steps: number): void;
 }
 

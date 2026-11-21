@@ -26,4 +26,10 @@ export {
   type EffectFinish,
 } from "./page/effects.js";
 export { createBrowserStorage, type BrowserStorageOptions } from "./saves/storage.js";
-export { playGame, type Player, type PlayHistory, type PlayOptions } from "./saves/play.js";
+export {
+  playGame,
+  type Player,
+  type PlayedReplay,
+  type PlayHistory,
+  type PlayOptions,
+} from "./saves/play.js";

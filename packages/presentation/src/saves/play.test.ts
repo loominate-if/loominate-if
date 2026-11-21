@@ -5,6 +5,9 @@ import {
   createMemoryStorage,
   createSaves,
   createStore,
+  ENGINE_VERSION,
+  readReplay,
+  writeReplay,
   type Passage,
   type SaveStorage,
 } from "@loominate-if/core";
@@ -336,6 +339,71 @@ describe("following the game", () => {
     player.onChange(calls);
     player.travel(0);
     expect(calls).not.toHaveBeenCalled();
+  });
+
+  it("plays a replay as moves to step through, to the same state", async () => {
+    const first = await start({ storage: createMemoryStorage() });
+    first.click("Walk on");
+    first.click("Cross");
+    const replay = first.player.toReplay();
+    const after = JSON.stringify(first.player.store?.snapshot());
+    expect(replay?.actions).toHaveLength(2);
+    first.player.destroy();
+
+    // Another seed for new games, so the replay's own seed is the one used.
+    const second = await start({ storage: createMemoryStorage(), seed: () => "other" });
+    const calls = vi.fn();
+    second.player.onChange(calls);
+    if (!replay) throw new Error("no replay");
+    expect(second.player.playReplay(replay)).toEqual({
+      played: 2,
+      check: { sameGameVersion: true, sameEngineVersion: true },
+    });
+    expect(second.text()).toContain("A warm inn.");
+    expect(JSON.stringify(second.player.store?.snapshot())).toBe(after);
+    expect(second.player.history?.past.map((s) => s.label)).toEqual(["Walk on", "Cross"]);
+    expect(calls).toHaveBeenCalledTimes(1);
+    second.player.travel(-2);
+    expect(second.text()).toContain("A long road.");
+  });
+
+  it("stops a replay at the first action that can't be taken, and says why", async () => {
+    const { player, text } = await start({ storage: createMemoryStorage() });
+    const replay = readReplay(
+      writeReplay({
+        format: "loominate-replay",
+        version: 5,
+        game: { id: game.id, version: "0.9.0" },
+        engine: ENGINE_VERSION,
+        seed: "fixed",
+        actions: [
+          { type: "follow", choice: { type: "link", target: "Bridge", label: "Walk on" } },
+          { type: "follow", choice: { type: "link", target: "Inn", label: "Swim" } },
+          { type: "follow", choice: { type: "link", target: "Inn", label: "Cross" } },
+        ],
+      }),
+    );
+    const played = player.playReplay(replay);
+    expect(played.played).toBe(1);
+    expect(played.check).toEqual({ sameGameVersion: false, sameEngineVersion: true });
+    expect(played.failed?.index).toBe(1);
+    expect(played.failed?.message).toMatch(/Swim/);
+    expect(text()).toContain("A stone bridge.");
+    expect(player.history?.past).toHaveLength(1);
+  });
+
+  it("refuses a replay from another game", async () => {
+    const { player } = await start({ storage: createMemoryStorage() });
+    expect(() =>
+      player.playReplay({
+        format: "loominate-replay",
+        version: 5,
+        game: { id: "elsewhere", version: "1.0.0" },
+        seed: "fixed",
+        actions: [],
+      }),
+    ).toThrow('This replay is from the game "elsewhere", not "lantern-road".');
+    expect(player.story?.current).toBe("Road");
   });
 
   it("reports a listener that throws, and carries on", async () => {

@@ -79,6 +79,9 @@ export interface PanelView {
 }
 
 // @public
+export const replay: InspectorPanel;
+
+// @public
 export const rules: InspectorPanel;
 
 // @public

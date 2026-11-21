@@ -9,6 +9,7 @@ import { eventLog } from "./event-log.js";
 import { explainers, linkExplainer } from "./explainers.js";
 import { history } from "./history.js";
 import { panels, type PanelView } from "./panels.js";
+import { replay } from "./replay.js";
 import { ruleLog, rules } from "./rules.js";
 import { stateTree } from "./state-tree.js";
 import { STYLES } from "./styles.js";
@@ -19,6 +20,7 @@ panels.register("events", eventLog, { source: SOURCE });
 panels.register("choices", choices, { source: SOURCE });
 panels.register("rules", rules, { source: SOURCE });
 panels.register("history", history, { source: SOURCE });
+panels.register("replay", replay, { source: SOURCE });
 explainers.register("links", linkExplainer, { source: SOURCE });
 
 /** The key that opens and closes the inspector, with Control. */
