@@ -27,19 +27,19 @@ The [Release workflow](../.github/workflows/release.yml) checks that the tag mat
 
 npm's trusted publishing can only be set up for a package that already exists, so the first version is published by hand from a maintainer's machine. This is done once.
 
-1. Log in to npm as an owner of the `@loominate-if` organization:
+1. Turn on two-factor authentication for your npm account (npmjs.com → Account → Two-Factor Authentication, with an authenticator app). npm refuses to publish from an account without it. Then log in to npm as an owner of the `@loominate-if` organization:
 
    ```sh
    npm login
    ```
 
-2. From a clean checkout of the tagged commit, build and pack every package, then publish each one. npm asks for a one-time password if the account uses two-factor authentication.
+2. From a clean checkout of the tagged commit, build and pack every package, then publish each one. Pass a fresh one-time password from your authenticator with `--otp`; one code usually lasts for all seven. Keep the `./` in front of each tarball's path: without it, npm reads `release/x.tgz` as a GitHub repository.
 
    ```sh
    pnpm install --frozen-lockfile
    pnpm build
    node scripts/release.ts pack release
-   for tarball in release/*.tgz; do npm publish "$tarball" --access public; done
+   for tarball in ./release/*.tgz; do npm publish "$tarball" --access public --otp=123456; done
    ```
 
 3. On npmjs.com, for each of the seven packages, open **Settings → Trusted publishing**, choose GitHub Actions, and enter the organization `loominate-if`, the repository `loominate-if`, and the workflow `release.yml`. Then, under **Publishing access**, require two-factor authentication and disallow tokens, so only the workflow can publish.

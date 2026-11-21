@@ -43,9 +43,10 @@ jobs:
       - run: pnpm api
       - run: node scripts/release.ts pack release
       # A package already at this version is skipped, so a failed run can be re-run.
+      # The ./ matters: npm reads release/x.tgz as a GitHub repository, owner/repo.
       - name: Publish
         run: |
-          for tarball in release/*.tgz; do
+          for tarball in ./release/*.tgz; do
             name=$(tar -xOzf "$tarball" package/package.json | node -p 'const p = JSON.parse(require("fs").readFileSync(0)); `${p.name}@${p.version}`')
             if npm view "$name" version >/dev/null 2>&1; then
               echo "$name is already published."
