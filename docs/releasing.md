@@ -33,10 +33,11 @@ npm's trusted publishing can only be set up for a package that already exists, s
    npm login
    ```
 
-2. From a clean checkout of the tagged commit, build and pack every package, then publish each one. Pass a fresh one-time password from your authenticator with `--otp`; one code usually lasts for all seven. Keep the `./` in front of each tarball's path: without it, npm reads `release/x.tgz` as a GitHub repository.
+2. From a clean checkout of the tagged commit, build every package from scratch (`tsc -b` leaves output behind when a source file is removed, and `pack` refuses a package that has some), pack it, then publish each one. Pass a fresh one-time password from your authenticator with `--otp`; one code usually lasts for all seven. Keep the `./` in front of each tarball's path: without it, npm reads `release/x.tgz` as a GitHub repository.
 
    ```sh
    pnpm install --frozen-lockfile
+   rm -rf packages/*/dist packages/*/tsconfig.tsbuildinfo
    pnpm build
    node scripts/release.ts pack release
    for tarball in ./release/*.tgz; do npm publish "$tarball" --access public --otp=123456; done

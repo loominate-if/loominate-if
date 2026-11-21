@@ -9,6 +9,7 @@ import {
   publishedPackages,
   REPOSITORY_URL,
   setVersion,
+  staleOutput,
   tarballName,
 } from "./release.ts";
 
@@ -191,5 +192,40 @@ describe("tarballName", () => {
   it("names the file as pnpm pack does", () => {
     expect(tarballName("@loominate-if/core", "0.1.0")).toBe("loominate-if-core-0.1.0.tgz");
     expect(tarballName("plain", "1.2.3-rc.1")).toBe("plain-1.2.3-rc.1.tgz");
+  });
+});
+
+describe("staleOutput", () => {
+  const sources = new Set(["src/index.ts", "src/save/save.ts"]);
+  const exists = (path: string) => sources.has(path);
+
+  it("passes output made from source that's still there", () => {
+    expect(
+      staleOutput(
+        "@loominate-if/core",
+        [
+          "package/package.json",
+          "package/LICENSE",
+          "package/dist/index.js",
+          "package/dist/index.d.ts.map",
+          "package/dist/save/save.js.map",
+          "package/dist/api-report/core.api.md",
+        ],
+        exists,
+      ),
+    ).toEqual([]);
+  });
+
+  it("finds output left from a source file that was removed", () => {
+    expect(
+      staleOutput(
+        "@loominate-if/core",
+        ["package/dist/index.js", "package/dist/old.js", "package/dist/old.d.ts"],
+        exists,
+      ),
+    ).toEqual([
+      "@loominate-if/core: dist/old.js has no source in src/, so it's left from an old build. Delete dist and build again.",
+      "@loominate-if/core: dist/old.d.ts has no source in src/, so it's left from an old build. Delete dist and build again.",
+    ]);
   });
 });

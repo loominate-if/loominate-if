@@ -135,6 +135,32 @@ export function checkPacked(json: Record<string, unknown>, files: readonly strin
   return problems;
 }
 
+/** Build output is in `dist/` beside `dist/api-report/`, made from the same path under `src/`. */
+const OUTPUT = /^dist\/(?!api-report\/)(.+)\.(?:d\.ts|js)(?:\.map)?$/;
+
+/**
+ * Packed build output whose source is gone. `tsc -b` never deletes output when
+ * a source file is removed, so an old checkout can carry files that aren't part
+ * of the package.
+ */
+export function staleOutput(
+  name: string,
+  files: readonly string[],
+  sourceExists: (path: string) => boolean,
+): string[] {
+  const problems: string[] = [];
+  for (const file of files) {
+    const path = file.replace(/^package\//, "");
+    const built = OUTPUT.exec(path);
+    if (built && !sourceExists(`src/${built[1] ?? ""}.ts`)) {
+      problems.push(
+        `${name}: ${path} has no source in src/, so it's left from an old build. Delete dist and build again.`,
+      );
+    }
+  }
+  return problems;
+}
+
 /** The file `pnpm pack` writes for a package: `@loominate-if/core` at 0.1.0 is `loominate-if-core-0.1.0.tgz`. */
 export function tarballName(name: string, version: string): string {
   return `${name.replace(/^@/, "").replace("/", "-")}-${version}.tgz`;
@@ -168,6 +194,7 @@ export function pack(repo: string, out: string): string[] {
         readFileSync(join(unpacked, "package", "package.json"), "utf8"),
       ) as Record<string, unknown>;
       problems.push(...checkPacked(json, files));
+      problems.push(...staleOutput(p.name, files, (path) => existsSync(join(repo, p.dir, path))));
     } finally {
       rmSync(unpacked, { recursive: true, force: true });
     }
