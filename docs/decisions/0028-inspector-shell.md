@@ -68,8 +68,17 @@ Added with [#49](https://github.com/loominate-if/loominate-if/issues/49).
 - A new move after jumping back drops the moves ahead, as undo does. Keeping them as a branch would need a tree of diffs in core's history; the panel says how many moves a new move would discard instead.
 - Each move lists the object properties it changed, drawn when opened, and names the engine state it changed (such as `$events`) without listing it.
 
+### Replay files
+
+Added with [#50](https://github.com/loominate-if/loominate-if/issues/50).
+
+- `Player.playReplay(replay)` starts a new game from a replay's seed and persistent data and takes its actions one at a time, each as an undo step, labeled as the move was when played. It doesn't use core's `story.playReplay`, which plays every action at once, so the steps can be traveled through. A replay from another game is refused; an action that can't be taken stops it there, and the result says which action and why, and whether the game and engine versions match. As with core's replay, the player's own persistent data is never read or changed.
+- `Player.toReplay()` gives the game in play as a replay, so the **Replay** panel can offer Download replay as well as Open replay.
+- The panel opens a replay at its start, with every action as a move ahead, so Next and Back (or the History panel) step through it. It notices when a move of the player's own leaves the replay, by comparing the game's action log with the replay's, and forgets the replay when a new game starts or one is loaded.
+- A way for players to save a replay for a bug report without the inspector is left for #265.
+
 ## Consequences
 
 - `describeObjects` is public, so world and kit panels can show objects the same way.
 - A game run by `loominate dev` always has the inspector; the toggle button is visible in a corner of the page during development.
-- Editing values from the tree is left for later (#258), as is loading replay files (#50).
+- Editing values from the tree is left for later (#258), as is a player-facing way to save a replay (#265).

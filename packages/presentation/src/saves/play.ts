@@ -8,6 +8,7 @@ import {
   AUTOSAVE_SLOT,
   createEventRecord,
   createHistory,
+  createPersistent,
   createMemoryStorage,
   createSaves,
   createStore,
@@ -20,11 +21,15 @@ import {
   type LoadedSave,
   type Passage,
   type PassageId,
+  type Replay,
+  type ReplayCheck,
   type SaveStorage,
   type StateSnapshot,
   type StateStore,
   type Story,
+  type StoryAction,
   type StoryOptions,
+  ENGINE_VERSION,
 } from "@loominate-if/core";
 import { layouts, widget, widgets, type WidgetDefinition } from "../page/layout.js";
 import { mountPage, type Page, type PageOptions } from "../page/page.js";
@@ -90,6 +95,18 @@ export interface Player {
    * @throws RangeError if `steps` isn't a whole number, or goes past either end of the history.
    */
   travel(steps: number): void;
+  /**
+   * Starts a new game from a replay file's seed and persistent data, and takes
+   * its actions in order, each one an undo step, so {@link Player.travel} can
+   * step through them. If an action can't be taken, for example because the
+   * game changed since the replay was made, the game stays after the last one
+   * that could, and the result says which failed and why. The player's own
+   * persistent data is never read or changed by the replay.
+   * @throws Error if the replay is from another game.
+   */
+  playReplay(replay: Replay): PlayedReplay;
+  /** The game in play as a replay: its seed and every action taken so far. `undefined` before a game starts. */
+  toReplay(): Replay | undefined;
   /** Starts a new game, replacing the one in play. */
   newGame(): Promise<void>;
   /** Loads a save slot, replacing the game in play. */
@@ -104,6 +121,31 @@ export interface PlayHistory {
   readonly past: readonly HistoryStep[];
   /** The moves undone that can be made again, next first. */
   readonly future: readonly HistoryStep[];
+}
+
+/** What {@link Player.playReplay} did with a replay. */
+export interface PlayedReplay {
+  /** How many of the replay's actions were taken. */
+  readonly played: number;
+  /** Whether the replay came from the same game and engine versions. */
+  readonly check: ReplayCheck;
+  /** The first action that couldn't be taken, if one couldn't. */
+  readonly failed?: {
+    /** Its position in the replay, from 0. */
+    readonly index: number;
+    /** The action. */
+    readonly action: StoryAction;
+    /** Why it couldn't be taken. */
+    readonly message: string;
+  };
+}
+
+/** How a replayed action is labeled in the undo history, as the move would be when played. */
+function actionLabel(action: StoryAction, story: Story): string {
+  if (action.type === "goTo") return `Go to ${action.passage}`;
+  if (action.type === "follow") return action.choice.label ?? "Continue";
+  const beat = story.render().beat;
+  return beat ? moveLabel(beat) : "Continue";
 }
 
 /** How a move is labeled in the undo history. */
@@ -304,8 +346,8 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
     }
   };
 
-  /** Starts a game: a loaded one from its state, or a new one. */
-  const start = (snapshot?: StateSnapshot): void => {
+  /** Starts a game: a loaded one from its state, a new one, or a new one from a replay. */
+  const start = (snapshot?: StateSnapshot, replay?: Replay): PlayedReplay | undefined => {
     markPlaying();
     page?.destroy();
     host.querySelector(".loominate-start")?.remove();
@@ -314,7 +356,9 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
     story = createStory(store, record, options.passages, {
       ...options.story,
       start: options.start,
-      ...(snapshot === undefined && { seed: (options.seed ?? freshSeed)() }),
+      ...(snapshot === undefined && { seed: replay?.seed ?? (options.seed ?? freshSeed)() }),
+      // A replay plays against the persistent data it began with, in memory.
+      ...(replay && { persistent: createPersistent(replay.persistent ?? {}) }),
     });
     const playing = store;
     history = createHistory(playing);
@@ -335,9 +379,39 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
     // What came before the first move, the start passage's effects, isn't undoable.
     undoable.clear();
     playing.commit();
+    let played: PlayedReplay | undefined;
+    if (replay) {
+      const check: ReplayCheck = {
+        ...(replay.game && { sameGameVersion: replay.game.version === options.game.version }),
+        ...(replay.engine !== undefined && { sameEngineVersion: replay.engine === ENGINE_VERSION }),
+      };
+      let count = 0;
+      let failed: PlayedReplay["failed"];
+      for (const action of replay.actions) {
+        let label: string;
+        try {
+          // Labeled before it's taken, while the beat it moves past is still ahead.
+          label = actionLabel(action, story);
+          story.perform(action);
+        } catch (error) {
+          // A failed action rolls itself back; anything it left uncommitted goes too.
+          playing.rollback();
+          failed = {
+            index: count,
+            action,
+            message: error instanceof Error ? error.message : String(error),
+          };
+          break;
+        }
+        undoable.checkpoint(label);
+        count++;
+      }
+      played = { played: count, check, ...(failed && { failed }) };
+    }
     page.refresh();
     autosave();
     changed();
+    return played;
   };
 
   /**
@@ -470,6 +544,17 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
       page?.refresh();
       autosave();
       changed();
+    },
+    playReplay(replay) {
+      if (replay.game && replay.game.id !== options.game.id) {
+        throw new Error(
+          `This replay is from the game "${replay.game.id}", not "${options.game.id}".`,
+        );
+      }
+      return start(undefined, replay) as PlayedReplay;
+    },
+    toReplay() {
+      return story?.current === undefined ? undefined : story.toReplay(options.game);
     },
     onChange(listener) {
       listeners.add(listener);

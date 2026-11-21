@@ -55,6 +55,16 @@ The **History** tab lists every move in the game, from **Start**, with the passa
 - The game autosaves where you jump to, so a reload carries on from there. The moves ahead are gone after a reload.
 - What ran before the first move, the start passage's own effects, can't be undone, so **Start** is the earliest you can go.
 
+## Replaying a bug report
+
+The **Replay** tab plays a replay file: the game's seed and every move the player made, small enough to attach to a bug report.
+
+- **Download replay** saves the game you're playing as `<game id>-replay.json`.
+- **Open replay…** starts a new game from a replay file and goes to its start. **Next** and **Back** step through its moves, and the tab says what the next one is; the History tab lists them too.
+- If a move in the replay can't be made, for example because a link was renamed since, the replay stops before it and the tab says which move and why. It also says when the replay was made with another version of the game or engine, the likeliest cause.
+- The replay plays against the persistent data (achievements, settings) it began with, not yours.
+- Making a move of your own leaves the replay; open the file again to go back to it.
+
 ## In a build
 
 An ordinary `npm run build` leaves the inspector out entirely. To include it, for example in a build for testers, run:

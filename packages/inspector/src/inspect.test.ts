@@ -4,6 +4,9 @@ import {
   createEventRecord,
   createMemoryStorage,
   createStore,
+  ENGINE_VERSION,
+  readReplay,
+  writeReplay,
   hook,
   linkGuard,
   object,
@@ -355,6 +358,7 @@ describe("panels", () => {
       "Choices",
       "Rules",
       "History",
+      "Replay",
       "Clock",
     ]);
     expect(mount).not.toHaveBeenCalled();
@@ -848,6 +852,156 @@ describe("the history panel", () => {
     await showHistory(game);
     game.follow("Climb");
     go(game.qa, "Start");
+    const results = await axe.run(document.body, { rules: { region: { enabled: false } } });
+    expect(results.violations.map((v) => `${v.id}: ${v.description}`)).toEqual([]);
+  });
+});
+
+describe("the replay panel", () => {
+  const showReplay = async (open: Awaited<ReturnType<typeof setup>>) => {
+    open.inspector.open();
+    open.q<HTMLButtonElement>("#loominate-inspector-tab-replay")?.click();
+  };
+  const button = (qa: (s: string) => HTMLElement[], label: string) => {
+    const b = qa("button.action").find((x) => x.textContent === label);
+    if (!b) throw new Error(`no button "${label}"`);
+    return b as HTMLButtonElement;
+  };
+  /** Opens replay text as a file, as choosing it in the file dialog does. */
+  const openFile = async (game: Awaited<ReturnType<typeof setup>>, text: string) => {
+    const input = game.q<HTMLInputElement>("input[type=file]");
+    if (!input) throw new Error("no file input");
+    const before = game.q(".replay-status")?.textContent;
+    await userEvent.upload(input, new File([text], "bug.json", { type: "application/json" }));
+    await vi.waitFor(() => {
+      expect(game.q(".replay-status")?.textContent).not.toBe(before);
+    });
+  };
+  const replayOf = (actions: { label: string; target: string }[], version = "1.0.0") =>
+    writeReplay({
+      format: "loominate-replay",
+      version: 5,
+      game: { id: "inspected", version },
+      engine: ENGINE_VERSION,
+      seed: "fixed",
+      actions: actions.map(({ label, target }) => ({
+        type: "follow",
+        choice: { type: "link", label, target },
+      })),
+    });
+
+  it("opens a replay at its start, and steps through it with Next and Back", async () => {
+    const game = await setup();
+    game.follow("Climb");
+    game.follow("Down");
+    const made = game.player.toReplay();
+    if (!made) throw new Error("no replay");
+    const end = JSON.stringify(game.player.store?.snapshot());
+    await game.player.newGame();
+    await showReplay(game);
+
+    await openFile(game, writeReplay(made));
+    expect(game.q(".replay-status")?.textContent).toBe("bug.json: action 0 of 2.");
+    expect(game.player.story?.current).toBe("Cottage");
+    expect(game.q(".replay-next")?.textContent).toBe("Next: Climb");
+    expect(button(game.qa, "Back").disabled).toBe(true);
+    expect(game.root.activeElement).toBe(game.q(".replay-status"));
+
+    button(game.qa, "Next").click();
+    expect(game.player.story?.current).toBe("Tower");
+    expect(game.q(".replay-status")?.textContent).toBe("bug.json: action 1 of 2.");
+    button(game.qa, "Next").click();
+    expect(JSON.stringify(game.player.store?.snapshot())).toBe(end);
+    expect(button(game.qa, "Next").disabled).toBe(true);
+    expect(game.q(".replay-next")?.textContent).toBe("That's the end of the replay.");
+    button(game.qa, "Back").click();
+    expect(game.player.story?.current).toBe("Tower");
+  });
+
+  it("says where a replay stopped, and when it came from another version", async () => {
+    const game = await setup();
+    await showReplay(game);
+    await openFile(
+      game,
+      replayOf(
+        [
+          { label: "Climb", target: "Tower" },
+          { label: "Fly", target: "Cottage" },
+        ],
+        "0.9.0",
+      ),
+    );
+    expect(game.q(".replay-status")?.textContent).toBe("bug.json: action 0 of 1 (the file has 2).");
+    expect(game.qa(".replay-note").map((n) => n.textContent)).toEqual([
+      "It was made with version 0.9.0 of the game; this is 1.0.0.",
+    ]);
+    expect(game.q(".part-error")?.textContent).toMatch(
+      /^Action 2 of 2 couldn't be taken, so the replay stops before it: .*Fly/,
+    );
+  });
+
+  it("says when a file isn't a replay", async () => {
+    const game = await setup();
+    await showReplay(game);
+    await openFile(game, "{}");
+    expect(game.q(".replay-status")?.textContent).toBe(
+      'That file couldn\'t be opened: replay: this isn\'t a replay file; it needs "format": "loominate-replay".',
+    );
+  });
+
+  it("says when a new move leaves the replay, and forgets it in a new game", async () => {
+    const game = await setup();
+    await showReplay(game);
+    await openFile(
+      game,
+      replayOf([
+        { label: "Climb", target: "Tower" },
+        { label: "Down", target: "Cottage" },
+      ]),
+    );
+    button(game.qa, "Next").click();
+    game.follow("Shout");
+    expect(game.q(".replay-note")?.textContent).toBe(
+      "You've left the replay by making a new move. Open it again to go back.",
+    );
+    expect(game.qa("button.action").map((b) => b.textContent)).toEqual([
+      "Open replay…",
+      "Download replay",
+    ]);
+    await game.player.newGame();
+    expect(game.q(".replay-status")?.textContent).toMatch(/^Open a replay file/);
+  });
+
+  it("downloads the game in play as a replay", async () => {
+    const game = await setup();
+    await showReplay(game);
+    game.follow("Climb");
+    const blobs: Blob[] = [];
+    URL.createObjectURL = (blob: Blob) => {
+      blobs.push(blob);
+      return "blob:replay";
+    };
+    URL.revokeObjectURL = () => undefined;
+    const clicked = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => undefined);
+    button(game.qa, "Download replay").click();
+    expect(clicked).toHaveBeenCalledTimes(1);
+    expect((clicked.mock.instances[0] as unknown as HTMLAnchorElement).download).toBe(
+      "inspected-replay.json",
+    );
+    const blob = blobs[0];
+    if (!blob) throw new Error("nothing downloaded");
+    expect(readReplay(await blob.text()).actions).toEqual([
+      { type: "follow", choice: { type: "link", target: "Tower", label: "Climb" } },
+    ]);
+    clicked.mockRestore();
+  });
+
+  it("passes automated accessibility checks", async () => {
+    const game = await setup();
+    await showReplay(game);
+    await openFile(game, replayOf([{ label: "Climb", target: "Tower" }]));
     const results = await axe.run(document.body, { rules: { region: { enabled: false } } });
     expect(results.violations.map((v) => `${v.id}: ${v.description}`)).toEqual([]);
   });

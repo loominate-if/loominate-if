@@ -58,7 +58,7 @@ h2 { margin: 0; font-size: 1rem; }
   padding: 0.15rem 0.5rem;
 }
 .close:hover, .tabs button:hover { border-color: var(--line); }
-.tabs { display: flex; gap: 0.25rem; padding: 0.4rem 0.75rem 0; border-block-end: 1px solid var(--line); }
+.tabs { display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0.4rem 0.75rem 0; border-block-end: 1px solid var(--line); }
 .tabs [aria-selected=true] { border-color: var(--line); border-block-end-color: var(--bg); margin-block-end: -1px; border-end-start-radius: 0; border-end-end-radius: 0; }
 .body { flex: 1; overflow: auto; padding: 0.5rem 0.75rem 2rem; }
 .filter { box-sizing: border-box; inline-size: 100%; margin-block-end: 0.5rem; padding: 0.25rem 0.4rem; font: inherit; color: inherit; background: light-dark(#fff, #26272c); border: 1px solid var(--line); border-radius: 4px; }
@@ -142,6 +142,13 @@ button.move-label:hover { border-color: var(--line); }
 .changes summary { color: var(--muted); }
 .changed { margin: 0.1rem 0 0.2rem; padding-inline-start: 1.1rem; overflow-wrap: anywhere; }
 .engine { margin: 0 0 0.2rem 1.1rem; color: var(--muted); }
+.replay-status { margin: 0 0 0.5rem; }
+.replay-status:focus { outline: none; }
+.replay-note, .replay-next { margin: 0.25rem 0; color: var(--muted); }
+.replay-nav, .replay-actions { display: flex; gap: 0.4rem; margin: 0.4rem 0; }
+.action { border: 1px solid var(--line); border-radius: 4px; background: none; padding: 0.15rem 0.6rem; }
+.action:hover:not(:disabled) { border-color: var(--accent); }
+.action:disabled { opacity: 0.5; cursor: default; }
 .visually-hidden { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (prefers-reduced-motion: no-preference) { .toggle { transition: box-shadow 0.15s; } }
 `;
