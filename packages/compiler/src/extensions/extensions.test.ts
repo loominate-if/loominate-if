@@ -5,7 +5,7 @@ import { generatePassageModule } from "../modules/generate.js";
 import { compileProject } from "../modules/project.js";
 import { parsePassageFile } from "../passages/parse.js";
 import { coreExtension } from "./core.js";
-import type { CompilerExtension } from "./extension.js";
+import type { CompilerExtension, DirectiveDefinition } from "./extension.js";
 import { resolveExtensions } from "./resolve.js";
 
 /** A stand-in for the world model's conversation syntax. */
@@ -245,6 +245,10 @@ describe("loading extensions", () => {
     expect(one({ name: "x", kind: "content" })).toThrow(
       "give it a `runtime` export to call, or say why it's `unsupported`.",
     );
+    // A package written in JavaScript isn't type-checked, so this is checked when loading.
+    expect(one({ name: "x", kind: "arrival" } as unknown as DirectiveDefinition)).toThrow(
+      'kit: directive "x": an arrival directive needs a `runtime` export to call.',
+    );
     expect(
       one({
         name: "x",
@@ -281,6 +285,7 @@ describe("loading extensions", () => {
       "beat",
       "continue",
       "effect",
+      "emit",
       "line",
       "on enter",
       "on first visit",

@@ -1,4 +1,4 @@
-import { beat, object, randomStream, wait, type Passage } from "@loominate-if/core";
+import { beat, emit, object, randomStream, wait, type Passage } from "@loominate-if/core";
 import { afterEach, describe, expect, it } from "vitest";
 import { _setGame, play } from "./play.js";
 
@@ -42,6 +42,7 @@ const passages: Passage[] = [
     effects: {
       enter: () => {
         lamp.lit = true;
+        emit("system", { text: "The lamp is lit." }, ["lamp"]);
       },
     },
     body: () => [
@@ -141,6 +142,17 @@ describe("walkthroughs", () => {
     game.choose("Light the lamp").undo();
     expect(game.passage).toBe("Start");
     expect(lamp.lit).toBe(false);
+  });
+
+  it("check the events the game recorded, by kind and tag (#261)", () => {
+    const game = play({ passages, start: "Start" });
+    // #region events
+    game.choose("Light the lamp");
+    const lit = game.record.events({ kinds: ["system"], tags: ["lamp"] });
+    expect(lit.map((e) => e.text)).toEqual(["The lamp is lit."]);
+    // #endregion
+    game.undo();
+    expect(game.record.events({ tags: ["lamp"] })).toEqual([]);
   });
 
   it("play the same with the same seed, and replay exactly", () => {

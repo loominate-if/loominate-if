@@ -11,6 +11,7 @@ import type {
   DirectiveDefinition,
   ExtensionCheck,
   LineFormDefinition,
+  RuntimeExport,
   TagRoleDefinition,
 } from "./extension.js";
 
@@ -109,6 +110,10 @@ function checkDirective(from: string, d: DirectiveDefinition): void {
   }
   if ((d.kind === "content" || d.kind === "guard") && !d.runtime && d.unsupported === undefined) {
     fail(`${where}: give it a \`runtime\` export to call, or say why it's \`unsupported\`.`);
+  }
+  // Checked here too, since a package written in JavaScript isn't type-checked.
+  if (d.kind === "arrival" && (d.runtime as RuntimeExport | undefined) === undefined) {
+    fail(`${where}: an arrival directive needs a \`runtime\` export to call.`);
   }
 }
 

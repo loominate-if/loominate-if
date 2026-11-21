@@ -20,13 +20,58 @@ The tree only shows the game; it never changes it.
 
 ## The event log
 
-The **Events** tab lists everything the game has recorded, oldest first: each passage's prose as the player read it, moves between passages, the effects that ran (`{on enter: …}` and the like), and beats the player moved past.
+The **Events** tab lists everything the game has recorded, oldest first: each passage's prose as the player read it, moves between passages, the effects that ran (`{on enter: …}` and the like), beats the player moved past, and events you record yourself.
 
 - Each row shows the event's number, its kind, and a summary. Open a row to see all its fields.
 - What your last move added is highlighted. An undo takes its events back out of the log.
 - **Kinds** narrows the log to the kinds you choose.
-- **Tags** shows events that have every tag you choose. It appears once some event has tags. The events Loominate records have none yet, and passages can't record events of their own yet ([#261](https://github.com/loominate-if/loominate-if/issues/261)); until then, tags come from extensions that record events.
+- **Tags** shows events that have every tag you choose. Every event recorded in a passage carries the passage's tags, so choosing `scene` shows everything that happened in your `[scene]` passages.
 - A long game shows its latest 500 events, and says how many there are in all.
+
+### Recording your own
+
+Record an event to mark something in the log, such as a clue found or a ship that turned, and tag it so it's easy to find. In a passage, `{emit …}` records one when the player reaches it, and `emit(…)` does the same in effect code:
+
+<!-- example: packages/compiler/src/modules/fixtures/lamp-room.weft#Lamp Room -->
+```weft
+:: Lamp Room [scene]
+{on enter: lamp.light()}
+{emit "Wind howls.", tags: storm}
+The lamp room.
+{beat 1s}
+{emit "The ship turns.", kind: scene, tags: ship storm}
+{on enter: if (visits === 1) emit("system", { text: "First time up here." }, ["first"])}
+Far out, lights.
+```
+
+- `{emit "Wind howls.", tags: storm}` records a `system` event with the text and the tag `storm`. Give `kind:` to record another kind of text: `narrative`, `scene`, `dialogue`, or `action-result`.
+- Written after a beat, it records when the player reaches that part, just as code there runs then. It never records when the passage is only shown.
+- `emit(kind, fields, tags)` takes any kind of event, including ones a package adds, and its fields are type-checked. Use it in `{on enter: …}` and the other effect phases; in shown text it's an error, because showing a passage can't change anything.
+- Each of these events also has the passage's tags, first: the ship turning is tagged `scene`, `ship`, and `storm`.
+
+Code in `story.ts` records events with `emit` from `@loominate-if/core`, and they get the tags of the passage the player is in:
+
+<!-- example: packages/core/src/events/tags.test.ts#bell -->
+```ts
+const bell = object("bell", {
+  rung: 0,
+  ring() {
+    this.rung += 1;
+    emit("system", { text: "The bell rings." }, ["bell"]);
+  },
+});
+```
+
+A walkthrough test can check them through `game.record`:
+
+<!-- example: packages/testing/src/play.test.ts#events -->
+```ts
+game.choose("Light the lamp");
+const lit = game.record.events({ kinds: ["system"], tags: ["lamp"] });
+expect(lit.map((e) => e.text)).toEqual(["The lamp is lit."]);
+```
+
+Events are part of the game's state, so undo takes them back, saves keep them, and a replay records them again. They show in the log, not on the page; showing `system` messages to the player is [#270](https://github.com/loominate-if/loominate-if/issues/270).
 
 ## Why a choice is hidden
 

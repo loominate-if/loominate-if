@@ -1,0 +1,8 @@
+:: Lamp Room [scene]
+{on enter: lamp.light()}
+{emit "Wind howls.", tags: storm}
+The lamp room.
+{beat 1s}
+{emit "The ship turns.", kind: scene, tags: ship storm}
+{on enter: if (visits === 1) emit("system", { text: "First time up here." }, ["first"])}
+Far out, lights.

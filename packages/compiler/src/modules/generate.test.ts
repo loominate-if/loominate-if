@@ -211,3 +211,53 @@ describe("generatePassageModule", () => {
     ]);
   });
 });
+
+describe("recording events (#261)", () => {
+  it("runs {emit} with its part's {on enter: …} code, in the order they're written", () => {
+    const { code } = generate(
+      [
+        ":: A",
+        "{on enter: lantern.isLit = true}",
+        '{emit "The lamp is lit.", tags: lamp light}',
+        "Text.",
+        "{beat 1s}",
+        '{emit "Wind.", kind: scene}',
+      ].join("\n"),
+    );
+    expect(code).toContain(
+      'enter: ($context: $EffectContext): void => {\n        {\n          lantern.isLit = true\n        }\n        $rt_emitEvent({ text: "The lamp is lit.", tags: ["lamp", "light"] }, $context);\n',
+    );
+    expect(code).toContain('$rt_emitEvent({ text: "Wind.", kind: "scene" }, $context);');
+    expect(code).toMatch(
+      /^import \{ emitEvent as \$rt_emitEvent, beat as \$rt_beat \} from "@loominate-if\/core";$/m,
+    );
+  });
+
+  it("gives effect code emit from the context", () => {
+    const { code } = generate(':: A\n{on enter: emit("system", { text: "Hi." })}\n');
+    expect(code).toContain("const { emit } = $context;");
+  });
+
+  it("explains {emit} in a block, a kind it doesn't take, and missing text", () => {
+    expect(
+      errors(
+        [
+          ":: A",
+          '{if lantern.isLit}{emit "Lit."}{/if}',
+          '{emit "Odd.", kind: navigation}',
+          "{emit tags: lamp}",
+        ].join("\n"),
+      ),
+    ).toEqual([
+      "3:15 `{emit}` takes `system`, `narrative`, `scene`, `dialogue` or `action-result` here, not `navigation`.",
+      '4:1 `{emit}` needs an expression (text), like `{emit "The lamp is lit.", tags: lamp}`.',
+      "2:19 `{emit}` runs when the player reaches it, not when the passage is shown, so it goes at the top level of the passage, not inside a block.",
+    ]);
+  });
+
+  it("refuses emit in rendering code, which must be pure", () => {
+    expect(errors(':: A\n{if emit("system", { text: "Hi." })}x{/if}\n')).toEqual([
+      '2:5 Showing a passage can\'t record events, so `emit("system", { text: "Hi." })` can\'t run here. Record it when the player arrives instead, like `{on enter: emit("system", { text: "Hi." })}`, or with `{emit "…"}`.',
+    ]);
+  });
+});

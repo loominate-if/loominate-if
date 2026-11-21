@@ -59,6 +59,12 @@ export type ArgumentSpec = {
  *   returning a passage node or an array of them.
  * - `guard`: `{name args}` right after a link, like core's `{when}`. It
  *   compiles to a call of `runtime` returning the link's guard.
+ * - `arrival`: `{name args}` at the top level of a passage that runs when the
+ *   player reaches it, like core's `{emit}`: when they arrive, or, after a
+ *   beat, when they reach that part. It compiles to a call of `runtime` with
+ *   its arguments as one object and the effect context, run with the
+ *   `{on enter: …}` code of its part, in the order they're written. It never
+ *   runs when the passage is only shown, so it may change state.
  * - `annotation`: `{name args}` that generates no code, read by the compiler
  *   or by checks, like core's `{line}`.
  *
@@ -99,6 +105,13 @@ export type DirectiveDefinition = {
        * player reaches its part.
        */
       readonly beat?: boolean;
+    }
+  | {
+      readonly kind: "arrival";
+      /** The arguments it takes. */
+      readonly args?: readonly ArgumentSpec[];
+      /** The function it calls, with its arguments and the effect context. */
+      readonly runtime: RuntimeExport;
     }
   | {
       readonly kind: "annotation";

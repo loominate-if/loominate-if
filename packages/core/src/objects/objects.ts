@@ -10,6 +10,7 @@
  * Handles are created when modules load, before any store exists, so they
  * reach the store through whichever story is running: `createStory` binds them.
  */
+import type { EventRecord } from "../events/record.js";
 import { createInstances, type Instances, type Template } from "../state/instances.js";
 import type { StateId, StateStore } from "../state/store.js";
 import { freezeValue, StateError, valuesEqual, type StateValue } from "../state/value.js";
@@ -68,6 +69,8 @@ const GENERATED = "gen:";
 
 interface Binding {
   readonly store: StateStore;
+  /** Records an event in the story's record, with the tags of the passage the player is in. */
+  readonly emit: EventRecord["emit"];
   /** Created on first use, so templates defined after binding are included. */
   instances: Instances | undefined;
   instancesFor: number;
@@ -100,10 +103,14 @@ interface Location {
 const describe = (id: StateId, key: string, path: readonly (string | number)[] = []): string =>
   `${id === "" ? "" : JSON.stringify(id)}.${key}${path.map((p) => (typeof p === "number" ? `[${String(p)}]` : `.${p}`)).join("")}`;
 
-/** Binds every object to `store`. Called by `createStory`. */
-export function bindObjects(store: StateStore): void {
+/**
+ * Binds every object to `store`, and {@link emit} to the story's `emit`.
+ * Called by `createStory`.
+ */
+export function bindObjects(store: StateStore, record: EventRecord["emit"]): void {
   binding = {
     store,
+    emit: record,
     instances: undefined,
     instancesFor: -1,
     spawned: new Map(),
@@ -128,6 +135,40 @@ export function renderingObjects<T>(what: string, render: () => T): T {
     b.rendering = outer;
   }
 }
+
+/**
+ * Records an event in the event record of the story that's playing, for code
+ * outside a passage, such as an object's method in `story.ts`. The event gets
+ * the tags of the passage the player is in, then `tags`.
+ *
+ * @remarks
+ * Like changing an object, recording is an effect: call it from an effect
+ * phase such as `{on enter: …}`, or from code one calls. Passage code can also
+ * use the `{emit …}` directive, or `emit` itself, which the compiler provides.
+ *
+ * @example
+ * ```ts
+ * export const lamp = object("lamp", {
+ *   lit: false,
+ *   light() {
+ *     this.lit = true;
+ *     emit("system", { text: "The lamp is lit." }, ["lamp"]);
+ *   },
+ * });
+ * ```
+ *
+ * @throws {@link StateError} if no story is playing, if a passage is rendering,
+ * or if the fields or tags aren't valid.
+ */
+export const emit: EventRecord["emit"] = (kind, fields, tags) => {
+  const b = active(`emit ${kind}`);
+  if (b.rendering !== undefined) {
+    throw new StateError(
+      `${b.rendering}: rendering tried to record a ${kind} event. Rendering must be pure; record events in an effect phase such as {on enter: …}, or with {emit …}, instead.`,
+    );
+  }
+  return b.emit(kind, fields, tags);
+};
 
 /** Forgets every object and template. Tests only. */
 export function resetObjects(): void {

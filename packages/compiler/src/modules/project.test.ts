@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createEventRecord, createStore, createStory, type Passage } from "@loominate-if/core";
@@ -545,6 +545,66 @@ describe("a compiled game", { timeout: 30_000 }, () => {
     game.advance();
     expect(text()).toEqual(["link"]);
     expect(store.entity("train")).toEqual({ beats: 1, stopped: true });
+  });
+
+  it("records author events from {emit}, emit in effects, and story.ts, with the passage's tags (#261)", async () => {
+    const scope = [
+      'import { emit, object } from "@loominate-if/core";',
+      'export const lamp = object("lamp", {',
+      "  lit: false,",
+      "  light() {",
+      "    this.lit = true;",
+      '    emit("system", { text: "The lamp is lit." }, ["lamp"]);',
+      "  },",
+      "});",
+      "",
+    ].join("\n");
+    // The inspector guide quotes this passage.
+    const source = readFileSync(path.join(here, "fixtures", "lamp-room.weft"), "utf8");
+    const dir = path.join(out, "events");
+    mkdirSync(dir);
+    const result = compileProject({
+      root: dir,
+      compilerOptions,
+      files: [
+        { path: "story.ts", text: scope },
+        { path: "lamp.weft", text: source },
+      ],
+    });
+    expect(show(result)).toEqual([]);
+    writeFileSync(path.join(dir, "story.ts"), scope);
+    writeFileSync(result.passageNames.path, result.passageNames.code);
+    const [module] = result.modules.values();
+    if (!module) throw new Error("no module");
+    writeFileSync(module.path, module.code);
+    const { passages } = (await import(module.path)) as { passages: Passage[] };
+
+    const store = createStore();
+    const record = createEventRecord(store);
+    const game = createStory(store, record, passages, { start: "Lamp Room" });
+    const events = (since = 0) =>
+      record.events({ since }).map((e) => [e.kind, "text" in e ? e.text : "", e.tags]);
+    game.begin();
+    expect(events()).toEqual([
+      ["navigation", "", ["scene"]],
+      ["phase", "", ["scene"]],
+      ["system", "The lamp is lit.", ["scene", "lamp"]],
+      ["system", "Wind howls.", ["scene", "storm"]],
+      ["narrative", "The lamp room.", ["scene"]],
+    ]);
+    const before = record.length;
+    game.advance();
+    expect(events(before)).toEqual([
+      ["beat", "", ["scene"]],
+      ["phase", "", ["scene"]],
+      ["scene", "The ship turns.", ["scene", "ship", "storm"]],
+      ["system", "First time up here.", ["scene", "first"]],
+      ["narrative", "Far out, lights.", ["scene"]],
+    ]);
+    // Rendering again records nothing: events are recorded as the player arrives.
+    game.render();
+    expect(record.length).toBe(before + 5);
+    expect(record.events({ tags: ["storm"] }).map((e) => e.kind)).toEqual(["system", "scene"]);
   });
 
   it("gives rendered prose, links, and narrative events stable line IDs", async () => {

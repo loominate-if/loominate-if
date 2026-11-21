@@ -7,7 +7,7 @@
  * player follows a link, which moves to the next passage and records it in the
  * event record.
  */
-import type { EventRecord, LineId, TextStyle } from "../events/record.js";
+import type { EventKind, EventKinds, EventRecord, LineId, TextStyle } from "../events/record.js";
 import type { StateId, StateSnapshot, StateStore } from "../state/store.js";
 import { bindObjects, renderingObjects } from "../objects/objects.js";
 import { StateError } from "../state/value.js";
@@ -436,8 +436,17 @@ export function createStory(
   };
   lookup(options.start, "start");
   const defaultMode = options.guardMode ?? "hidden";
-  // Objects defined with object() read and write this story's store (ADR 0006).
-  bindObjects(store);
+  /** A passage's tags, which every event recorded while the player is in it carries (#261). */
+  const tagsOf = (id: PassageId | undefined): readonly string[] =>
+    id === undefined ? [] : (byId.get(id)?.tags ?? []);
+  /** Records events as being in `passage`, with its tags first. */
+  const emitIn =
+    (passage: PassageId | undefined): EventRecord["emit"] =>
+    <K extends EventKind>(kind: K, fields: EventKinds[K], tags: readonly string[] = []) =>
+      record.emit(kind, fields, [...tagsOf(passage), ...tags]);
+  // Objects defined with object() read and write this story's store (ADR 0006),
+  // and core's emit() records in this story's record, in the passage the player is in.
+  bindObjects(store, (kind, fields, tags) => emitIn(current())(kind, fields, tags));
 
   const reader: StateReader = {
     get: (id, key) => store.get(id, key),
@@ -570,7 +579,7 @@ export function createStory(
           persistent.delete(id, key);
         },
       },
-      emit: record.emit,
+      emit: emitIn(passage),
       passage,
       visits: count,
       firstVisit: count === 1,
@@ -591,7 +600,11 @@ export function createStory(
     beat?: number,
   ): void => {
     if (!effect) return;
-    record.emit("phase", { passage: passage.id, phase, ...(beat !== undefined && { beat }) });
+    emitIn(passage.id)("phase", {
+      passage: passage.id,
+      phase,
+      ...(beat !== undefined && { beat }),
+    });
     try {
       effect(contextFor(passage.id));
     } catch (error) {
@@ -608,10 +621,10 @@ export function createStory(
   };
 
   /** Records a passage's prose as the player reads it. */
-  const recordProse = (nodes: readonly RenderedNode[]): void => {
+  const recordProse = (passage: PassageId, nodes: readonly RenderedNode[]): void => {
     for (const node of nodes) {
       if (node.type !== "text") continue;
-      record.emit("narrative", {
+      emitIn(passage)("narrative", {
         text: node.text,
         ...(node.styles !== undefined && node.styles.length > 0 && { styles: node.styles }),
         ...(node.line !== undefined && { line: node.line }),
@@ -671,14 +684,14 @@ export function createStory(
         runPhase(leaving, "leave");
         hook("passageLeave").run(contextFor(leaving.id));
       }
-      record.emit("navigation", { ...(from !== undefined && { from }), to: to.id });
+      emitIn(to.id)("navigation", { ...(from !== undefined && { from }), to: to.id });
       store.set(STORY_ID, CURRENT_FIELD, to.id);
       if (store.has(STORY_ID, STEP_FIELD)) store.delete(STORY_ID, STEP_FIELD);
       store.set(VISITS_ID, to.id, visits(to.id) + 1);
       if (visits(to.id) === 1) runPhase(to, "firstVisit");
       runPhase(to, "enter");
       hook("passageEnter").run(contextFor(to.id));
-      recordProse(renderPassage(to).nodes);
+      recordProse(to.id, renderPassage(to).nodes);
       if (why === "turn") {
         hook("turnEnd").run(contextFor(to.id));
       }
@@ -708,11 +721,11 @@ export function createStory(
     transaction(() => {
       store.set(RANDOM_ID, MOVE_FIELD, `${String(n)}.${String(attempt)}`);
       store.set(STORY_ID, STEP_FIELD, step + 1);
-      record.emit("beat", { passage: id, step: step + 1, ...(beat.page && { page: true }) });
+      emitIn(id)("beat", { passage: id, step: step + 1, ...(beat.page && { page: true }) });
       const effects = passage.beats?.[step];
       if (visits(id) === 1) runEffect(passage, "firstVisit", effects?.firstVisit, step + 1);
       runEffect(passage, "enter", effects?.enter, step + 1);
-      recordProse(renderPassage(passage, step + 1, true).nodes);
+      recordProse(id, renderPassage(passage, step + 1, true).nodes);
     });
     store.set(ATTEMPTS_ID, String(n), attempt + 1);
     log({ type: "advance", ...(attempt > 0 && { attempt }) });

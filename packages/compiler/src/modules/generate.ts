@@ -31,8 +31,11 @@ import { passageLines, type PassageLines } from "./line-ids.js";
 import { renderWriteMessage, renderWrites } from "./render-writes.js";
 import { encodeSourceMap, type Mapping, type SourceMap } from "./source-map.js";
 
-/** Names inline code gets from the passage's context, with no import. */
-export const CONTEXT_NAMES: readonly string[] = ["visits", "firstVisit", "visited"];
+/**
+ * Names inline code gets from the passage's context, with no import. `emit`
+ * records an event, so it works only in effect phases (#261).
+ */
+export const CONTEXT_NAMES: readonly string[] = ["visits", "firstVisit", "visited", "emit"];
 
 /** What the generator needs to know about the rest of the project. */
 export type GenerateOptions = {
@@ -166,8 +169,8 @@ export function generatePassageModule(
     return local;
   }
 
-  /** Writes a call of `runtime` with the arguments as one object. */
-  function call(runtime: RuntimeExport, args: readonly BoundArgument[]): void {
+  /** Writes a call of `runtime` with the arguments as one object, then `extra` if given. */
+  function call(runtime: RuntimeExport, args: readonly BoundArgument[], extra?: string): void {
     write(`${runtimeName(runtime)}({`);
     for (const [i, a] of args.entries()) {
       write(`${i === 0 ? " " : ", "}${a.spec.name}: `);
@@ -210,7 +213,9 @@ export function generatePassageModule(
           break;
       }
     }
-    write(args.length > 0 ? " })" : "})");
+    write(args.length > 0 ? " }" : "}");
+    if (extra !== undefined) write(`, ${extra}`);
+    write(")");
   }
 
   /**
@@ -504,6 +509,13 @@ export function generatePassageModule(
           d.span.end,
         );
         return;
+      case "arrival":
+        error(
+          `\`{${d.name}}\` runs when the player reaches it, not when the passage is shown, so it goes at the top level of the passage, not inside a block.`,
+          d.span.start,
+          d.span.end,
+        );
+        return;
       // An annotation generates no code, and a guard away from a link was reported by the parser.
       case "annotation":
       case "guard":
@@ -533,15 +545,26 @@ export function generatePassageModule(
    * The context parameter, only when the code uses a context name, so authors
    * who enable `noUnusedParameters` get no errors in generated code (#213).
    */
-  function contextParam(names: ReadonlySet<string>, type: string): string {
-    return CONTEXT_NAMES.some((n) => names.has(n)) ? `$context: ${type}` : "";
+  function contextParam(names: ReadonlySet<string>, type: string, always = false): string {
+    const render = type === "$RenderContext";
+    const needs = CONTEXT_NAMES.some((n) => names.has(n) && !(render && n === "emit"));
+    return always || needs ? `$context: ${type}` : "";
   }
 
-  function contextLocals(names: ReadonlySet<string>, ctx: string): void {
-    const plain = ["visits", "firstVisit"].filter((n) => names.has(n));
+  /**
+   * Declares the context names `names` uses. Rendering gets no `emit` of its
+   * own: a call there was reported, and core's, which throws while rendering, keeps it typed.
+   */
+  function contextLocals(names: ReadonlySet<string>, ctx: string, render = false): void {
+    const plain = ["visits", "firstVisit", ...(render ? [] : ["emit"])].filter((n) => names.has(n));
     if (plain.length > 0) write(`${indent}const { ${plain.join(", ")} } = ${ctx};\n`);
     if (names.has("visited")) {
       write(`${indent}const visited: (passage: $PassageName) => boolean = ${ctx}.visited;\n`);
+    }
+    if (render && names.has("emit")) {
+      write(
+        `${indent}const emit = ${runtimeName({ module: "@loominate-if/core", export: "emit" })};\n`,
+      );
     }
   }
 
@@ -594,6 +617,9 @@ export function generatePassageModule(
         );
       } else if (n.type === "directive" && phase !== undefined) {
         effects.set(phase, [...(effects.get(phase) ?? []), n]);
+      } else if (n.type === "directive" && def?.kind === "arrival") {
+        // Runs with the part's {on enter: …} code, in the order they're written.
+        effects.set("enter", [...(effects.get("enter") ?? []), n]);
       } else if (n.type === "directive" && n.code !== undefined) {
         // An effect directive that doesn't apply here was reported by bind().
       } else {
@@ -612,16 +638,25 @@ export function generatePassageModule(
       for (const phase of ["firstVisit", "enter", "leave"]) {
         const list = effects.get(phase);
         if (!list) continue;
-        const names = usedIn(list.flatMap((d) => (d.code ? [d.code] : [])));
-        write(`${at}${phase}: (${contextParam(names, "$EffectContext")}): void => {\n`);
+        const names = usedIn(list.flatMap((d) => (d.code ? [d.code] : argumentCode(d))));
+        const arrives = list.some((d) => d.code === undefined);
+        write(`${at}${phase}: (${contextParam(names, "$EffectContext", arrives)}): void => {\n`);
         indent = `${at}  `;
         contextLocals(names, "$context");
         for (const d of list) {
-          if (!d.code) continue;
           mark(d.span.start);
-          write(`${indent}{\n${indent}  `);
-          copy(d.code);
-          write(`\n${indent}}\n`);
+          if (d.code) {
+            write(`${indent}{\n${indent}  `);
+            copy(d.code);
+            write(`\n${indent}}\n`);
+            continue;
+          }
+          // An arrival directive, such as {emit …}: its runtime, with its arguments and the context.
+          const b = bind(d);
+          if (b?.definition.kind !== "arrival" || !b.ok) continue;
+          write(indent);
+          call(b.definition.runtime, b.args, "$context");
+          write(";\n");
         }
         write(`${at}},\n`);
       }
@@ -648,7 +683,7 @@ export function generatePassageModule(
     const names = usedIn(bodyCode(body));
     write(`    body: (${contextParam(names, "$RenderContext")}): $PassageNode[] => {\n`);
     indent = "      ";
-    contextLocals(names, "$context");
+    contextLocals(names, "$context", true);
     write(`${indent}const $nodes: $PassageNode[] = [];\n`);
     write(`${indent}const $parts: $ProsePart[] = [];\n`);
     const first = lineIds.lineAt(p.header.end);

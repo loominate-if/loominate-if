@@ -15,6 +15,14 @@ describe("renderWrites", () => {
     expect(texts("delete bag.lamp")).toEqual(["delete bag.lamp"]);
   });
 
+  it("finds calls of emit, which record events (#261)", () => {
+    expect(renderWrites('a && emit("system", { text: "Hi." })')).toEqual([
+      { start: 5, end: 36, text: 'emit("system", { text: "Hi." })', records: true },
+    ]);
+    expect(texts("lamp.emit()")).toEqual([]);
+    expect(texts('() => emit("system", { text: "Later." })')).toEqual([]);
+  });
+
   it("reports a nested write once", () => {
     expect(texts("a = b = 1")).toEqual(["a = b = 1"]);
   });
