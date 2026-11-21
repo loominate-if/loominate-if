@@ -109,7 +109,13 @@ export default defineConfig({
 });
 ```
 
-Then register your panels in it, as above, importing `panels` from `@loominate-if/inspector`. Install the inspector as a dev dependency (`npm install -D @loominate-if/inspector`): your game's type check covers this module too, and reports the import as missing without it.
+Then create `inspector.ts` beside it, starting with this import, and put each `panels.register(...)` call from above after it:
+
+```ts
+import { panels } from "@loominate-if/inspector";
+```
+
+Install the inspector as a dev dependency (`npm install -D @loominate-if/inspector`): your game's type check covers this module too, and reports the import as missing without it.
 
 A package does the same in its package.json, beside its compiler extension if it has one, and is listed in the game's `extensions` as usual:
 
