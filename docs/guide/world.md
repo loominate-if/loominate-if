@@ -4,6 +4,8 @@ The world model is an optional package for games with places and things in them:
 
 It's `@loominate-if/world`. It isn't published to npm yet, while the rest of the world model is built ([Phase 2](https://github.com/loominate-if/loominate-if/issues/58)); this guide grows with it. [ADR 0031](../decisions/0031-containment-and-scope.md) records the decisions behind it.
 
+So far, the world model keeps track of where things are and what can be sensed. It doesn't show anything or add links by itself: a thing in a room doesn't appear in the passage, and there's no "open the box" until you write one. Your passages decide what to show, with checks such as `{if canSee(player, coin)}`, and links call methods such as `box.open()` in an `on enter` effect. Export from `story.ts` every thing a passage mentions. Room descriptions and actions come in later tasks ([#63](https://github.com/loominate-if/loominate-if/issues/63), [#69](https://github.com/loominate-if/loominate-if/issues/69), [#76](https://github.com/loominate-if/loominate-if/issues/76)).
+
 ## Places and things
 
 A **place**, such as a room, is where things are. A **thing** has a name and a `location`: the place or thing it's in or on. Define them in `story.ts`, like any object:
