@@ -50,7 +50,7 @@ Added with [#188](https://github.com/loominate-if/loominate-if/issues/188).
 Added with [#46](https://github.com/loominate-if/loominate-if/issues/46).
 
 - The **Events** panel lists the event record oldest first, reading it with `createEventRecord(player.store)`, so it needs nothing more from the player. Each row has the event's `seq`, kind, a one-line summary, and its tags; opening a row shows every field.
-- Filters choose kinds and tags. As in core's `EventQuery`, an event must have every chosen tag, and must be one of the chosen kinds. Core's own events carry no tags yet, and passage code can't record events yet ([#261](https://github.com/loominate-if/loominate-if/issues/261)), so filtering by kind is how to narrow the log for now.
+- Filters choose kinds and tags. As in core's `EventQuery`, an event must have every chosen tag, and must be one of the chosen kinds. Every event recorded in a passage carries the passage's tags, and authors record tagged events of their own ([ADR 0030](0030-recording-events.md)).
 - Events added since the panel last updated are marked; after an undo, nothing is. The panel draws the latest 500 matching events and counts the rest, so a long game stays quick to inspect.
 
 ### Why a choice is hidden

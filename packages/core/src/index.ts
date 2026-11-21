@@ -28,6 +28,7 @@ export {
 } from "./state/instances.js";
 export {
   describeObjects,
+  emit,
   instancesOf,
   mixin,
   object,
@@ -86,11 +87,13 @@ export {
 export {
   beat,
   continueTo,
+  emitEvent,
   linkGuard,
   namedEffect,
   pageBreak,
   wait,
   type ConditionArgument,
+  type TextEventKind,
 } from "./passages/directives.js";
 export {
   emphasis,

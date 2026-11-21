@@ -7,7 +7,7 @@ import type { CompilerExtension, RuntimeExport } from "./extension.js";
 
 const core = (name: string): RuntimeExport => ({ module: "@loominate-if/core", export: name });
 
-/** Core's directives: effect phases, continue points, named effects, link guards, line pins, beats, waits, and page breaks. */
+/** Core's directives: effect phases, continue points, named effects, link guards, line pins, beats, waits, page breaks, and recorded events. */
 export const coreExtension: CompilerExtension = {
   name: "@loominate-if/core",
   directives: [
@@ -73,6 +73,22 @@ export const coreExtension: CompilerExtension = {
       example: "{page}",
       runtime: core("pageBreak"),
       beat: true,
+    },
+    {
+      name: "emit",
+      kind: "arrival",
+      example: '{emit "The lamp is lit.", tags: lamp}',
+      args: [
+        { name: "text", kind: "expression", required: true },
+        {
+          name: "kind",
+          kind: "choice",
+          named: true,
+          choices: ["system", "narrative", "scene", "dialogue", "action-result"],
+        },
+        { name: "tags", kind: "words", named: true },
+      ],
+      runtime: core("emitEvent"),
     },
   ],
 };

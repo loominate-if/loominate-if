@@ -59,4 +59,5 @@ There's no choice "Go down" in passage "Stairs". "Go down" can't be followed: `l
 - Random results are the same every run: walkthroughs use the seed `"walkthrough"` unless you pass another, `play({ seed: "stormy" })`.
 - `play({ from: state })` starts from a saved state instead of a new game.
 - `game.replay()` gives the replay file for the playthrough, to attach to a bug report or to check that two runs match.
-- `game.story`, `game.store`, `game.record`, and `game.history` are there for anything else.
+- `game.record` is the event record: `game.record.events({ tags: ["lamp"] })` lists the events with a tag, such as ones your passages record ([inspector guide](inspector.md#recording-your-own)).
+- `game.story`, `game.store`, and `game.history` are there for anything else.

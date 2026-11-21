@@ -121,6 +121,16 @@ export interface EffectContext extends Omit<RenderContext, "state" | "persistent
 export type EffectPhase = "firstVisit" | "enter" | "leave";
 
 // @public
+export const emit: EventRecord["emit"];
+
+// @public
+export function emitEvent(args: {
+    readonly text: string;
+    readonly kind?: TextEventKind;
+    readonly tags?: readonly string[];
+}, context: EffectContext): void;
+
+// @public
 export function emphasis(...parts: ProsePart[]): StyledProse;
 
 // @public
@@ -842,6 +852,9 @@ export interface Text {
 export type TextContext = {
     readonly [name: string]: unknown;
 };
+
+// @public
+export type TextEventKind = "system" | "narrative" | "scene" | "dialogue" | "action-result";
 
 // @public
 export type TextNode = {

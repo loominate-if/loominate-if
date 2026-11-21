@@ -23,6 +23,7 @@ Each directive has a kind:
 - **`effect`**: `{name: code}`, statements run in a phase (`on enter`, `on first visit`, `on leave`).
 - **`content`**: `{name args}` in a passage body. It ends the paragraph, and compiles to a call of the package's runtime export, with the arguments as one object, returning a passage node or an array of them. `{show mira smiling, dissolve}` becomes `$nodes.push(...[$rt_show({ sprite: ["mira", "smiling"], transition: "dissolve" })].flat())`, with `import { show as $rt_show } from "@loominate-if/vn"`.
 - **`guard`**: `{name args}` right after a link, compiling to a call that returns the link's guard.
+- **`arrival`**: `{name args}` at the top level of a passage that runs when the player reaches it, compiling to a call of the runtime export with the arguments and the effect context, beside the `{on enter: …}` code of its part. Added with core's `{emit}` ([ADR 0030](0030-recording-events.md)).
 - **`annotation`**: `{name args}` that generates no code, read by the compiler or a package's checks.
 
 So the runtime package only exports ordinary functions, and TypeScript checks each generated call against the function's real signature, reporting errors at the directive. Core's `{continue}` and `{when}` call core's `continueTo` and `linkGuard` the same way. A `content` or `guard` directive may instead say why it's `unsupported` (`{beat}` and `{wait}`, until #41). A content directive with `beat: true` divides the passage into parts, as core's `{beat}`, `{wait}`, and `{page}` do ([ADR 0021](0021-beats.md)).
@@ -64,6 +65,6 @@ The compiler ships a catalog of which first-party package provides which syntax 
 - `coreDirectives` and `ProjectOptions.directives` are replaced by `coreExtension` and `ProjectOptions.extensions`. Core gains `continueTo` and `linkGuard`, which generated modules import.
 - Content directives and line forms end the paragraph, so they also start a new line ID (ADR 0007). Before this, only `{continue}` did, and it's the only content directive with a runtime, so existing line IDs don't change.
 - Line forms have no line IDs of their own yet. Dialogue lines need them for skip-read and voice, which belongs to the VN kit's syntax (#176).
-- A directive that changes state when shown, such as `{reveal}` in a topic entry, can't be a `content` directive, since rendering is pure. Topic entries are compiled by the world model's conversation support (#115), which will decide where their effects run.
+- A directive that changes state when shown, such as `{reveal}` in a topic entry, can't be a `content` directive, since rendering is pure. In a passage, an `arrival` directive does this when the player reaches it. Topic entries are compiled by the world model's conversation support (#115), which will decide where their effects run.
 - Checking `t` message parameter names at compile time (#235) can build on extensions, by letting packages declare their parameters.
 - The catalog has to be kept in step with the first-party packages as they add syntax.

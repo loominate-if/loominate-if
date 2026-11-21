@@ -9,10 +9,30 @@ import type {
   BeatNode,
   ConditionPart,
   ContinueNode,
+  EffectContext,
   LinkGuard,
   NamedEffectNode,
   PassageId,
 } from "./story.js";
+
+/** The kinds of event `{emit …}` records: those that are only text. */
+export type TextEventKind = "system" | "narrative" | "scene" | "dialogue" | "action-result";
+
+/**
+ * Records an event when the player reaches it, from `{emit "The lamp is lit.", tags: lamp}`
+ * or `{emit "…", kind: scene, tags: ship storm}`. The kind is `system` unless
+ * one is given. The event also carries the passage's own tags, before `tags`.
+ */
+export function emitEvent(
+  args: {
+    readonly text: string;
+    readonly kind?: TextEventKind;
+    readonly tags?: readonly string[];
+  },
+  context: EffectContext,
+): void {
+  context.emit(args.kind ?? "system", { text: args.text }, args.tags ?? []);
+}
 
 /**
  * A continue point, from `{continue -> Target}` or `{continue -> Target, label: "…"}`.
