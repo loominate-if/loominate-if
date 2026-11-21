@@ -32,7 +32,8 @@ export default defineConfig({
 
 - `extensions` lists packages by name, in load order. The order is written down by the author, not inferred, and core's own extension always loads first (ADR 0015).
 - A package provides an extension by naming its module in its package.json: `"loominate": { "extension": "./dist/extension.js" }`. The module default-exports the `CompilerExtension`. It's data, importing compiler types only, so runtime packages take no compiler dependency (ADR 0001). It's found with Node's `findPackageJSON`, so it needs no subpath export.
-- A listed package that isn't installed, one with no `loominate.extension`, or a module with no default extension is an error naming the package and the fix.
+- A listed package that isn't installed, one with neither `loominate.extension` nor `loominate.inspector`, or a module with no default extension is an error naming the package and the fix.
+- A package can also name an inspector module, `"loominate": { "inspector": "./dist/inspector.js" }`, and a game its own with `inspector: "./inspector.ts"`. These are imported only where the inspector is ([ADR 0028](0028-inspector-shell.md), #188).
 
 ### `loominate dev` and `loominate build`
 

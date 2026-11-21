@@ -92,6 +92,39 @@ describe("loominate build", () => {
     expect(html).toContain("inspector panels");
   }, 60_000);
 
+  it("includes the game's and packages' inspector modules only with the inspector", async () => {
+    const panel = (title: string) =>
+      `import { panels } from "@loominate-if/inspector";
+panels.register(${JSON.stringify(title.toLowerCase())}, { title: ${JSON.stringify(title)}, mount: () => ({ update() {} }) });
+`;
+    const files = {
+      "start.weft": START,
+      "loominate.config.ts": `import { defineConfig } from "@loominate-if/cli";
+export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, start: "Start", extensions: ["kit-panels"], inspector: "inspector.ts" });
+`,
+      "node_modules/kit-panels/package.json": JSON.stringify({
+        name: "kit-panels",
+        type: "module",
+        loominate: { inspector: "./inspector.js" },
+      }),
+      "node_modules/kit-panels/inspector.js": panel("Kit-panel-tab"),
+      "inspector.ts": panel("Game-panel-tab"),
+    };
+    const without = game(files);
+    await build({ ...options(without), target: "single" });
+    const plain = readFileSync(path.join(without, "dist/test-game.html"), "utf8");
+    expect(plain).not.toContain("Kit-panel-tab");
+    expect(plain).not.toContain("Game-panel-tab");
+
+    const root = game(files);
+    await build({ ...options(root), inspector: true, target: "single" });
+    const html = readFileSync(path.join(root, "dist/test-game.html"), "utf8");
+    expect(html).toContain("Kit-panel-tab");
+    expect(html).toContain("Game-panel-tab");
+    // One copy of the inspector, shared by the game, the package, and the entry.
+    expect(html.split("inspector panels").length - 1).toBe(1);
+  }, 60_000);
+
   it("builds a static site that works from any folder on any host", async () => {
     const root = game({ "start.weft": START });
     await build(options(root));
