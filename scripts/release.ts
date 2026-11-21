@@ -135,19 +135,27 @@ export function checkPacked(json: Record<string, unknown>, files: readonly strin
   return problems;
 }
 
+/** The file `pnpm pack` writes for a package: `@loominate-if/core` at 0.1.0 is `loominate-if-core-0.1.0.tgz`. */
+export function tarballName(name: string, version: string): string {
+  return `${name.replace(/^@/, "").replace("/", "-")}-${version}.tgz`;
+}
+
 /** Packs each published package into `out` and checks what was packed. */
 export function pack(repo: string, out: string): string[] {
   mkdirSync(out, { recursive: true });
   const problems: string[] = [];
   for (const p of publishedPackages(repo)) {
-    const before = new Set(readdirSync(out));
+    // Named as pnpm names it, so an old tarball in the folder is never mistaken for this one.
+    const tarball = tarballName(p.name, String(p.json.version));
+    rmSync(join(out, tarball), { force: true });
     execFileSync("pnpm", ["pack", "--pack-destination", out], {
       cwd: join(repo, p.dir),
       stdio: ["ignore", "ignore", "inherit"],
     });
-    const tarball = readdirSync(out).find((f) => f.endsWith(".tgz") && !before.has(f));
-    if (tarball === undefined) {
-      problems.push(`${p.name}: pnpm pack made no tarball.`);
+    if (!existsSync(join(out, tarball))) {
+      problems.push(
+        `${p.name}: pnpm pack didn't write ${tarball}; ${out} has ${readdirSync(out).join(", ") || "nothing"}.`,
+      );
       continue;
     }
     const unpacked = mkdtempSync(join(tmpdir(), "loominate-pack-"));

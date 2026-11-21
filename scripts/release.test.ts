@@ -9,6 +9,7 @@ import {
   publishedPackages,
   REPOSITORY_URL,
   setVersion,
+  tarballName,
 } from "./release.ts";
 
 const REPO = resolve(import.meta.dirname, "..");
@@ -183,5 +184,12 @@ describe("checkPacked", () => {
       "@loominate-if/cli: the package is missing dist/bin.js. Run `pnpm build` first.",
       "@loominate-if/cli: the package is missing dist/index.js. Run `pnpm build` first.",
     ]);
+  });
+});
+
+describe("tarballName", () => {
+  it("names the file as pnpm pack does", () => {
+    expect(tarballName("@loominate-if/core", "0.1.0")).toBe("loominate-if-core-0.1.0.tgz");
+    expect(tarballName("plain", "1.2.3-rc.1")).toBe("plain-1.2.3-rc.1.tgz");
   });
 });
