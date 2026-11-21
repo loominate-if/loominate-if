@@ -77,4 +77,4 @@ export default defineConfig({
 });
 ```
 
-Install each one with npm too. A package that's listed but not installed is an error naming it.
+Install each one with npm too. A package that's listed but not installed is an error naming it. Listed packages can also add tabs to the [inspector](inspector.md#adding-your-own), and so can your game, with `inspector: "inspector.ts"`.

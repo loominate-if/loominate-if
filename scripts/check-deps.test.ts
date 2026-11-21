@@ -62,6 +62,8 @@ describe("checkDependency", () => {
     expect(allowed("packages/inspector", "packages/presentation")).toBe(true);
     expect(allowed("packages/inspector", "packages/world")).toBe(false);
     expect(allowed("packages/compiler", "packages/kits/vn")).toBe(false);
+    expect(allowed("packages/inspector", "packages/kits/rpg")).toBe(false);
+    expect(allowed("packages/inspector", "packages/parser")).toBe(false);
   });
 
   it("lets other tooling and examples depend on anything but examples", () => {
@@ -130,6 +132,20 @@ describe("checkRepo", () => {
     const errors = checkRepo(root);
     expect(errors).toHaveLength(1);
     expect(errors[0]).toMatch(/^packages\/core\/package\.json: .*flow downward only/);
+  });
+
+  it("reports the inspector depending on the world model or a kit, even to test with (#188)", () => {
+    const root = repo({
+      "packages/core": {},
+      "packages/presentation": { deps: ["core"] },
+      "packages/world": { deps: ["core", "presentation"] },
+      "packages/kits/rpg": { deps: ["core", "world"] },
+      "packages/inspector": { deps: ["core", "presentation", "world", "rpg"] },
+    });
+    expect(checkRepo(root)).toEqual([
+      "packages/inspector/package.json: packages/inspector depends on optional package packages/world; it must stay usable without it. Have packages/world register into packages/inspector's extension API instead.",
+      "packages/inspector/package.json: packages/inspector depends on optional package packages/kits/rpg; it must stay usable without it. Have packages/kits/rpg register into packages/inspector's extension API instead.",
+    ]);
   });
 
   it("reports unknown packages and escaping relative imports", () => {

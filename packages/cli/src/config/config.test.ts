@@ -91,16 +91,57 @@ describe("loominate.config.ts", () => {
     );
   });
 
+  it("finds packages' inspector modules in order, then the game's own", async () => {
+    const root = game({
+      ...config(
+        '{ game: { id: "g", version: "1" }, start: "S", extensions: ["panels-only", "both"], inspector: "tools/inspector.ts" }',
+      ),
+      "node_modules/panels-only/package.json": JSON.stringify({
+        name: "panels-only",
+        loominate: { inspector: "./inspector.js" },
+      }),
+      "node_modules/both/package.json": JSON.stringify({
+        name: "both",
+        type: "module",
+        loominate: { extension: "./extension.js", inspector: "./dist/inspector.js" },
+      }),
+      "node_modules/both/extension.js": 'export default { name: "both", directives: [] };',
+      "tools/inspector.ts": "export {};\n",
+    });
+    const loaded = await loadConfig(root, options);
+    expect(loaded.loaded.map((e) => e.name)).toEqual(["both"]);
+    expect(loaded.inspectorModules).toEqual([
+      path.join(root, "node_modules/panels-only/inspector.js"),
+      path.join(root, "node_modules/both/dist/inspector.js"),
+      path.join(root, "tools/inspector.ts"),
+    ]);
+  });
+
+  it("explains a game inspector module that's missing or mistyped", async () => {
+    const root = game(
+      config('{ game: { id: "g", version: "1" }, start: "S", inspector: "inspector.ts" }'),
+    );
+    await expect(loadConfig(root, options)).rejects.toThrow(
+      `loominate.config.ts: \`inspector\` names inspector.ts, which isn't in ${root}. Create it, or remove \`inspector\`.`,
+    );
+    await expect(
+      loadConfig(
+        game(config('{ game: { id: "g", version: "1" }, start: "S", inspector: 3 } as never')),
+        options,
+      ),
+    ).rejects.toThrow("loominate.config.ts: `inspector` must name a module, like `inspector.ts`.");
+  });
+
   it("names an extension package that isn't installed, or doesn't provide one", async () => {
     const listing = (names: string) =>
       config(`{ game: { id: "g", version: "1" }, start: "S", extensions: [${names}] }`);
     await expect(loadConfig(game(listing('"@loominate-if/world"')), options)).rejects.toThrow(
-      "loominate.config.ts: the extension package @loominate-if/world isn't installed. Install it with `npm install @loominate-if/world`, or remove it from `extensions`.",
+      "loominate.config.ts: the package @loominate-if/world isn't installed. Install it with `npm install @loominate-if/world`, or remove it from `extensions`.",
     );
     await expect(
       loadConfig(game({ ...listing('"plain"'), ...extensionPackage("plain", "") }), options),
     ).rejects.toThrow(
-      'loominate.config.ts: plain doesn\'t provide a compiler extension; its package.json has no `"loominate": { "extension": "…" }`. Remove it from `extensions`.',
+      'loominate.config.ts: plain provides neither a compiler extension nor an inspector module; its package.json has no `"loominate": { "extension": "…" }` or `"loominate": { "inspector": "…" }`. Remove it from `extensions`.',
     );
     await expect(
       loadConfig(

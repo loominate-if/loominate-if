@@ -29,6 +29,16 @@ The state store holds only values that differ from an object's defaults, which l
 - A panel is drawn the first time its tab is shown and updated when the game changes while it's showing, or when it's shown again. A panel that throws shows an error in its tab, and the others carry on.
 - `Player.onChange(listener)` in presentation tells the inspector when the game changes: a new or loaded game, each move, and each undo. `Player.store` gives the store of the game in play.
 
+### Registering panels only where the inspector is
+
+Added with [#188](https://github.com/loominate-if/loominate-if/issues/188).
+
+- Registering a panel imports the inspector, so registrations can't live in a game's or package's ordinary modules without carrying the inspector into every build. They go in an **inspector module** instead, which the CLI imports only where the inspector is: in `loominate dev`, and in `loominate build --inspector`. Nothing depends on the bundler dropping dead code.
+- A package names its inspector module in its package.json, beside its compiler extension: `"loominate": { "inspector": "./dist/inspector.js" }`. It's found the same way as the extension (ADR 0023), so it needs no subpath export. A game names its own with `inspector: "./inspector.ts"` in `loominate.config.ts`.
+- Packages' modules come from the packages in the config's `extensions`, in that order, then the game's own, so the order is written down by the author. A listed package must provide a compiler extension, an inspector module, or both.
+- Every import of `@loominate-if/inspector` in the game resolves to one copy: the game's own if it installed one, otherwise the CLI's. So the panels the modules register are the ones the inspector shows, and a game can write a panel with the inspector as a dev dependency only.
+- The dependency lint already rejects the inspector depending on the world model, the parser, or a kit, in any kind of dependency; its tests now say so for the inspector as well as the compiler.
+
 ### The state tree
 
 - Core's public `describeObjects(store)` lists every object, those defined in code and those created during play, with every data property, its value, and whether it's still the default. The tree shows those objects first, sorted by ID, with values still at their default dimmed and references to other objects as arrows. The engine's own state, under IDs starting with `$`, follows in a collapsed group.

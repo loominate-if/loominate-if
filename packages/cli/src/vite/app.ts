@@ -36,9 +36,10 @@ export function loominateApp(config: ResolvedConfig, options: AppOptions = {}): 
     },
     async resolveId(source, importer) {
       if (source === MAIN) return RESOLVED;
-      // The game's own copy of the inspector if it installed one, so packages
-      // that register panels share it; otherwise the one the CLI depends on.
-      if (source === INSPECTOR && importer === RESOLVED) {
+      // Everything gets one copy of the inspector, so the panels that packages
+      // and the game register are the ones it shows: the game's own if it
+      // installed one, otherwise the one the CLI depends on.
+      if (source === INSPECTOR && importer !== undefined) {
         return (
           (await this.resolve(source, path.join(config.root, "index.html"), { skipSelf: true })) ??
           (await this.resolve(source, fileURLToPath(import.meta.url), { skipSelf: true }))
@@ -56,7 +57,13 @@ export function loominateApp(config: ResolvedConfig, options: AppOptions = {}): 
       return [
         'import { playGame } from "@loominate-if/presentation";',
         // Only when wanted: a build without it carries none of its code.
-        ...(inspector ? [`import { inspect } from ${JSON.stringify(INSPECTOR)};`] : []),
+        ...(inspector
+          ? [
+              `import { inspect } from ${JSON.stringify(INSPECTOR)};`,
+              // Packages' panels and explainers, then the game's own, before the inspector starts.
+              ...config.inspectorModules.map((m) => `import ${JSON.stringify(m)};`),
+            ]
+          : []),
         ...imports,
         `const passages = [${files.map((_, i) => `...p${String(i)}`).join(", ")}];`,
         'const container = document.querySelector("#app") ?? document.body;',

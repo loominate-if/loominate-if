@@ -74,6 +74,7 @@ export type LoominateConfig = {
     readonly title?: string;
     readonly start: string;
     readonly extensions?: readonly string[];
+    readonly inspector?: string;
     readonly scope?: string;
 };
 
@@ -95,6 +96,7 @@ export const MAIN = "/@loominate/main";
 export type ResolvedConfig = LoominateConfig & {
     readonly root: string;
     readonly loaded: readonly CompilerExtension[];
+    readonly inspectorModules: readonly string[];
 };
 
 // @public

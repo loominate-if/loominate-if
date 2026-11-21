@@ -1,7 +1,7 @@
 /**
  * A game's configuration, `loominate.config.ts` (#238, ADR 0023): its ID and
- * version, title, start passage, and the packages whose compiler extensions it
- * loads, in order. The dev server, builds, and tests all read it, so they
+ * version, title, start passage, the packages it loads, in order, for their
+ * compiler extensions and inspector modules, and its own inspector module. The dev server, builds, and tests all read it, so they
  * compile the game the same way.
  */
 import { existsSync, readFileSync } from "node:fs";
@@ -28,11 +28,19 @@ export type LoominateConfig = {
   /** The passage a new game starts in. */
   readonly start: string;
   /**
-   * Packages whose compiler extensions the game loads, by name, in the order
-   * they load. Each package says where its extension is, in its package.json:
-   * `"loominate": { "extension": "./dist/extension.js" }`.
+   * Packages the game loads, by name, in the order they load. Each package
+   * says, in its package.json, where its compiler extension is, where its
+   * inspector module is, or both:
+   * `"loominate": { "extension": "./dist/extension.js", "inspector": "./dist/inspector.js" }`.
+   * Inspector modules are loaded only where the inspector is.
    */
   readonly extensions?: readonly string[];
+  /**
+   * The game's own inspector module, such as `inspector.ts`, which registers
+   * inspector panels and explainers. It's loaded only where the inspector is:
+   * by `loominate dev`, and by `loominate build --inspector`.
+   */
+  readonly inspector?: string;
   /** The scope module, whose exports passages can use. Defaults to `story.ts`. */
   readonly scope?: string;
 };
@@ -62,6 +70,11 @@ export type ResolvedConfig = LoominateConfig & {
   readonly root: string;
   /** The extensions, loaded, in order. */
   readonly loaded: readonly CompilerExtension[];
+  /**
+   * The inspector modules to load where the inspector is, as absolute paths:
+   * the packages' in order, then the game's own.
+   */
+  readonly inspectorModules: readonly string[];
 };
 
 /** Options for {@link loadConfig}. */
@@ -113,7 +126,21 @@ export async function loadConfig(
     ],
   });
   const config = check(module.default);
-  return { ...config, root: dir, loaded: await loadExtensions(dir, config.extensions ?? []) };
+  const packages = await loadPackages(dir, config.extensions ?? []);
+  const own = config.inspector === undefined ? [] : [path.resolve(dir, config.inspector)];
+  for (const module of own) {
+    if (!existsSync(module)) {
+      throw new Error(
+        `${CONFIG_FILE}: \`inspector\` names ${config.inspector ?? ""}, which isn't in ${dir}. Create it, or remove \`inspector\`.`,
+      );
+    }
+  }
+  return {
+    ...config,
+    root: dir,
+    loaded: packages.extensions,
+    inspectorModules: [...packages.inspectorModules, ...own],
+  };
 }
 
 /** Checks a config's shape, explaining the first problem. */
@@ -129,7 +156,7 @@ function check(value: unknown): LoominateConfig {
       "export the game's configuration as the default: `export default defineConfig({ … })`.",
     );
   }
-  const { game, title, start, extensions, scope } = value;
+  const { game, title, start, extensions, scope, inspector } = value;
   if (!isRecord(game) || !text(game.id) || !text(game.version)) {
     fail(
       '`game` needs an `id` and a `version`, like `game: { id: "lantern-road", version: "1.0.0" }`.',
@@ -138,19 +165,27 @@ function check(value: unknown): LoominateConfig {
   if (!text(start)) fail('`start` names the passage a new game starts in, like `start: "Start"`.');
   if (title !== undefined && typeof title !== "string") fail("`title` must be a string.");
   if (scope !== undefined && !text(scope)) fail("`scope` must name a module, like `story.ts`.");
+  if (inspector !== undefined && !text(inspector)) {
+    fail("`inspector` must name a module, like `inspector.ts`.");
+  }
   if (extensions !== undefined && !(Array.isArray(extensions) && extensions.every(text))) {
     fail('`extensions` lists package names, like `extensions: ["@loominate-if/world"]`.');
   }
   return value as LoominateConfig;
 }
 
-/** Loads each listed package's compiler extension, in order. */
-async function loadExtensions(
+/**
+ * Finds each listed package's compiler extension and inspector module, in
+ * order, and loads the extensions. The inspector modules are only located:
+ * the game's entry imports them where the inspector is.
+ */
+async function loadPackages(
   root: string,
   names: readonly string[],
-): Promise<CompilerExtension[]> {
+): Promise<{ extensions: CompilerExtension[]; inspectorModules: string[] }> {
   const from = pathToFileURL(path.join(root, "package.json"));
-  const loaded: CompilerExtension[] = [];
+  const extensions: CompilerExtension[] = [];
+  const inspectorModules: string[] = [];
   for (const name of names) {
     let manifest: string | undefined;
     try {
@@ -160,18 +195,22 @@ async function loadExtensions(
     }
     if (manifest === undefined) {
       throw new Error(
-        `${CONFIG_FILE}: the extension package ${name} isn't installed. Install it with \`npm install ${name}\`, or remove it from \`extensions\`.`,
+        `${CONFIG_FILE}: the package ${name} isn't installed. Install it with \`npm install ${name}\`, or remove it from \`extensions\`.`,
       );
     }
     const pkg = JSON.parse(readFileSync(manifest, "utf8")) as {
-      loominate?: { extension?: unknown };
+      loominate?: { extension?: unknown; inspector?: unknown };
     };
-    const entry = pkg.loominate?.extension;
-    if (typeof entry !== "string") {
+    const { extension: entry, inspector } = pkg.loominate ?? {};
+    if (typeof entry !== "string" && typeof inspector !== "string") {
       throw new Error(
-        `${CONFIG_FILE}: ${name} doesn't provide a compiler extension; its package.json has no \`"loominate": { "extension": "…" }\`. Remove it from \`extensions\`.`,
+        `${CONFIG_FILE}: ${name} provides neither a compiler extension nor an inspector module; its package.json has no \`"loominate": { "extension": "…" }\` or \`"loominate": { "inspector": "…" }\`. Remove it from \`extensions\`.`,
       );
     }
+    if (typeof inspector === "string") {
+      inspectorModules.push(path.join(path.dirname(manifest), inspector));
+    }
+    if (typeof entry !== "string") continue;
     const mod = (await import(pathToFileURL(path.join(path.dirname(manifest), entry)).href)) as {
       default?: unknown;
     };
@@ -185,7 +224,7 @@ async function loadExtensions(
         `${CONFIG_FILE}: ${name}'s extension module, ${entry}, must export its compiler extension as the default.`,
       );
     }
-    loaded.push(extension as CompilerExtension);
+    extensions.push(extension as CompilerExtension);
   }
-  return loaded;
+  return { extensions, inspectorModules };
 }

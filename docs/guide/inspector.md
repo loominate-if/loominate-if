@@ -97,4 +97,27 @@ The Choices tab is built the same way: each kind of choice has an explainer in `
 
 The Rules tab hears about rule runs through core's `traceRules(listener)`, which tools of your own can use too.
 
-Registering a panel imports the inspector, so a game module that does it would carry the inspector into every build. A way for games and packages to add panels only where the inspector is loaded comes with [#188](https://github.com/loominate-if/loominate-if/issues/188).
+### Adding your own
+
+Registering a panel or an explainer imports the inspector, so do it in an **inspector module**, which is loaded only where the inspector is: in `loominate dev`, and in `loominate build --inspector`. A build without the inspector carries none of it. Name your game's module in `loominate.config.ts`:
+
+```ts
+export default defineConfig({
+  game: { id: "my-game", version: "0.1.0" },
+  start: "Start",
+  inspector: "inspector.ts",
+});
+```
+
+Then register your panels in it, as above, importing `panels` from `@loominate-if/inspector`. Install the inspector as a dev dependency (`npm install -D @loominate-if/inspector`): your game's type check covers this module too, and reports the import as missing without it.
+
+A package does the same in its package.json, beside its compiler extension if it has one, and is listed in the game's `extensions` as usual:
+
+```json
+"loominate": {
+  "extension": "./dist/extension.js",
+  "inspector": "./dist/inspector.js"
+}
+```
+
+Packages' modules load in the order `extensions` lists them, then the game's own.
