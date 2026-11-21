@@ -300,6 +300,12 @@ importers:
         specifier: workspace:^
         version: link:../core
 
+  packages/world:
+    dependencies:
+      '@loominate-if/core':
+        specifier: workspace:^
+        version: link:../core
+
 packages:
 
   '@asamuzakjp/css-color@7.2.0':

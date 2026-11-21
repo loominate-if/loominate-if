@@ -1,0 +1,35 @@
+{
+  "name": "@loominate-if/world",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The optional world model: things, places, containment, scope, and light.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/loominate-if/loominate-if.git",
+    "directory": "packages/world"
+  },
+  "homepage": "https://github.com/loominate-if/loominate-if#readme",
+  "bugs": "https://github.com/loominate-if/loominate-if/issues",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ],
+  "dependencies": {
+    "@loominate-if/core": "workspace:^"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

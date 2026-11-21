@@ -269,7 +269,7 @@ possess(villain.mind, mira.body);  // villain now controls Mira's body
 swapBodies(player.mind, tom.mind); // classic body swap
 ```
 
-- **Objects and containment.** Things, containers, surfaces, and locations, with a containment tree and scope (what the player can see, reach, or hear). Mixins provide the multiple-inheritance flavor of TADS classes.
+- **Objects and containment.** Things, containers, surfaces, and locations, with a containment tree and scope (what the player can see, reach, or hear). Mixins provide the multiple-inheritance flavor of TADS classes. In `@loominate-if/world`, `thing()` and `place()` build on core's `object()`; each thing stores its `location`, and contents are computed. `container`, `surface`, `openable`, `lockable`, `transparent`, and `lightSource` are mixins spread into a definition. Sight stops at closed opaque containers and needs light, reach stops at any closed container, and hearing at the edge of the place ([ADR 0031](decisions/0031-containment-and-scope.md), [guide](guide/world.md)).
 - **Rooms and regions.** Rooms group into regions for shared rules, descriptions, and ambience. A room can be linked to a passage via the `room:` tag.
 - **Exits and directions.** Rooms declare exits, optionally with distances or travel times and with doors or other obstacles. Directions are a registry, not a fixed eight: up/down/in/out and themed sets such as fore, aft, port, starboard can be added.
 - **Compass widget.** An optional widget that asks the current location for its exits and their passability, so locked doors appear disabled with the door supplying the reason. Authors choose whether unvisited exits show destination names. Fully reskinnable, keyboard-operable.
