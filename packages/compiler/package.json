@@ -1,10 +1,19 @@
 {
   "name": "@loominate-if/compiler",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "description": "Compiler: passage parser, virtual TypeScript modules, stable line IDs, diagnostics, extension API.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/loominate-if/loominate-if.git",
+    "directory": "packages/compiler"
+  },
+  "homepage": "https://github.com/loominate-if/loominate-if#readme",
+  "bugs": "https://github.com/loominate-if/loominate-if/issues",
   "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
   "exports": {
     ".": {
       "source": "./src/index.ts",
@@ -21,5 +30,8 @@
   },
   "devDependencies": {
     "@loominate-if/core": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

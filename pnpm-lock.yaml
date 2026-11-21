@@ -216,10 +216,10 @@ importers:
   packages/cli:
     dependencies:
       '@loominate-if/compiler':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../compiler
       '@loominate-if/inspector':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../inspector
       vite:
         specifier: 8.3.5
@@ -256,10 +256,10 @@ importers:
   packages/inspector:
     dependencies:
       '@loominate-if/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
       '@loominate-if/presentation':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../presentation
     devDependencies:
       '@testing-library/user-event':
@@ -275,7 +275,7 @@ importers:
   packages/presentation:
     dependencies:
       '@loominate-if/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
     devDependencies:
       '@testing-library/dom':
@@ -297,7 +297,7 @@ importers:
   packages/testing:
     dependencies:
       '@loominate-if/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
 
 packages:

@@ -15,7 +15,7 @@ import { StateError } from "../state/value.js";
 import { hook } from "../rules/hooks.js";
 
 /** This engine's version: `@loominate-if/core`'s package version. Saves record it. */
-export const ENGINE_VERSION = "0.0.0";
+export const ENGINE_VERSION = "0.1.0";
 /** The `format` field of every save file. */
 export const SAVE_FORMAT = "loominate-save";
 /** The save file version this engine reads and writes. */

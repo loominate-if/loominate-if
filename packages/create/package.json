@@ -1,10 +1,19 @@
 {
   "name": "@loominate-if/create",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "description": "Scaffold for new games: `npm create @loominate-if`.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/loominate-if/loominate-if.git",
+    "directory": "packages/create"
+  },
+  "homepage": "https://github.com/loominate-if/loominate-if#readme",
+  "bugs": "https://github.com/loominate-if/loominate-if/issues",
   "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
   "exports": {
     ".": {
       "source": "./src/index.ts",
@@ -21,5 +30,8 @@
   },
   "devDependencies": {
     "@loominate-if/cli": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
