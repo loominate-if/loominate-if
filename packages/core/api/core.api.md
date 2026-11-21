@@ -124,7 +124,7 @@ export type EffectPhase = "firstVisit" | "enter" | "leave";
 export function emphasis(...parts: ProsePart[]): StyledProse;
 
 // @public
-export const ENGINE_VERSION = "0.0.0";
+export const ENGINE_VERSION = "0.1.0";
 
 // @public
 export type EventKind = keyof EventKinds & string;

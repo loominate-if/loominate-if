@@ -1,0 +1,55 @@
+name: Release
+
+# Publishes every package to npm when a version tag is pushed (ADR 0029).
+# npm's trusted publishing authenticates this workflow, so there's no token,
+# and each package gets provenance linking it to this repository and commit.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Lets npm exchange the workflow's identity for a publish token.
+      id-token: write
+    steps:
+      # Actions are pinned to commit SHAs so a moved tag can't change what runs.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: lts/*
+          cache: pnpm
+      # Trusted publishing needs npm 11.5.1 or later.
+      - run: npm install --global npm@11.6.0
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/release.ts check --tag "$GITHUB_REF_NAME"
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm api
+      - run: node scripts/release.ts pack release
+      # A package already at this version is skipped, so a failed run can be re-run.
+      - name: Publish
+        run: |
+          for tarball in release/*.tgz; do
+            name=$(tar -xOzf "$tarball" package/package.json | node -p 'const p = JSON.parse(require("fs").readFileSync(0)); `${p.name}@${p.version}`')
+            if npm view "$name" version >/dev/null 2>&1; then
+              echo "$name is already published."
+            else
+              npm publish "$tarball" --provenance --access public
+            fi
+          done

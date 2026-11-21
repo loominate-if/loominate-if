@@ -1,10 +1,19 @@
 {
   "name": "@loominate-if/testing",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "description": "Walkthrough test API for scripted playthroughs.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/loominate-if/loominate-if.git",
+    "directory": "packages/testing"
+  },
+  "homepage": "https://github.com/loominate-if/loominate-if#readme",
+  "bugs": "https://github.com/loominate-if/loominate-if/issues",
   "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
   "exports": {
     ".": {
       "source": "./src/index.ts",
@@ -17,6 +26,9 @@
     "!dist/**/*.test.*"
   ],
   "dependencies": {
-    "@loominate-if/core": "workspace:*"
+    "@loominate-if/core": "workspace:^"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
