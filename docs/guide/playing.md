@@ -44,7 +44,7 @@ layouts.replace("page", {
 
 ## Following the game
 
-`playGame` returns the player. `player.story`, `player.page`, and `player.store` are the game in play, and change when a game starts or loads. `player.onChange(listener)` calls the listener when a game starts or loads, after each move, and after an undo, and returns a function that stops it. The [inspector](inspector.md) uses it to keep up.
+`playGame` returns the player. `player.story`, `player.page`, and `player.store` are the game in play, and change when a game starts or loads. `player.onChange(listener)` calls the listener when a game starts or loads, after each move, and after an undo, and returns a function that stops it. The [inspector](inspector.md) uses it to keep up. `player.history` lists the moves that can be undone and made again, and `player.travel(steps)` goes back that many moves when `steps` is negative, or forward again when it's positive; the inspector's History tab is built on them.
 
 ## Building your own shell
 

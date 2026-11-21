@@ -7,6 +7,7 @@ import type { Player } from "@loominate-if/presentation";
 import { choices } from "./choices.js";
 import { eventLog } from "./event-log.js";
 import { explainers, linkExplainer } from "./explainers.js";
+import { history } from "./history.js";
 import { panels, type PanelView } from "./panels.js";
 import { ruleLog, rules } from "./rules.js";
 import { stateTree } from "./state-tree.js";
@@ -17,6 +18,7 @@ panels.register("state", stateTree, { source: SOURCE });
 panels.register("events", eventLog, { source: SOURCE });
 panels.register("choices", choices, { source: SOURCE });
 panels.register("rules", rules, { source: SOURCE });
+panels.register("history", history, { source: SOURCE });
 explainers.register("links", linkExplainer, { source: SOURCE });
 
 /** The key that opens and closes the inspector, with Control. */

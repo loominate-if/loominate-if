@@ -59,8 +59,17 @@ Added with [#48](https://github.com/loominate-if/loominate-if/issues/48).
 - The trace is kept in memory by the inspector, not in the state store, so saves, undo, and replays are unchanged. The cost is that it starts afresh on each page load.
 - The **Rules** panel groups runs into turns, ending one at each `onChange`, and keeps the last 50. The inspector starts tracing when its module loads, which in `loominate dev` is before the game starts, so the start's rules are its first turn. Autosave runs the `save` hook after the turn it saves has ended, so `save` runs join the latest turn.
 
+### Time travel
+
+Added with [#49](https://github.com/loominate-if/loominate-if/issues/49).
+
+- The **History** panel moves the game through the player's own undo history rather than keeping snapshots of its own: undo already stores every move as a diff, and going back and forward through diffs lands on exactly the same state.
+- `Player.history` lists the moves that can be undone and redone, each labeled with its move (a link's label, "Continue", "Next page", "After a beat"). `Player.travel(steps)` goes back or forward that many moves as one change: one redraw, one autosave, and one `onChange`. Going past either end throws a `RangeError`.
+- A new move after jumping back drops the moves ahead, as undo does. Keeping them as a branch would need a tree of diffs in core's history; the panel says how many moves a new move would discard instead.
+- Each move lists the object properties it changed, drawn when opened, and names the engine state it changed (such as `$events`) without listing it.
+
 ## Consequences
 
 - `describeObjects` is public, so world and kit panels can show objects the same way.
 - A game run by `loominate dev` always has the inspector; the toggle button is visible in a corner of the page during development.
-- Editing values from the tree is left for later (#258), as is everything in the other inspector issues (#49 and #50).
+- Editing values from the tree is left for later (#258), as is loading replay files (#50).

@@ -41,10 +41,19 @@ The **Choices** tab lists every choice where the player is: the links and contin
 
 The **Rules** tab shows, for each turn, the rulebooks and hooks that ran and every rule in them: its name, the package that added it (`game` for your own), and what it did. A decide rule *passed* or *decided*; a fold rule *changed the value*, *left it as it was*, or *settled* it; a hook's rules *ran*. The rule that settled a result is in bold.
 
-- A turn ends at each move, undo, and new or loaded game. **Start** is what ran as the game began.
+- A turn ends at each move, undo, jump through history, and new or loaded game. **Start** is what ran as the game began.
 - Rulebooks and hooks that ran with no rules are listed in one line, such as "With no rules: passageLeave, turnEnd".
 - What an autosave ran is listed with the turn it saved.
 - The tab keeps the last 50 turns. It starts afresh when the page reloads, since the trace isn't part of the game's state.
+
+## Going back in time
+
+The **History** tab lists every move in the game, from **Start**, with the passage each one reached. Select a move to jump to just after it; select a later one to jump forward again. Jumping uses the game's undo history, so the game comes back exactly as it was.
+
+- Open a move's changes to see the properties it set, such as `lamp.lit default → true`. "default" means the property hadn't changed from its starting value.
+- After jumping back, a new move discards the moves ahead, as undo does. The tab says how many moves that would be.
+- The game autosaves where you jump to, so a reload carries on from there. The moves ahead are gone after a reload.
+- What ran before the first move, the start passage's own effects, can't be undone, so **Start** is the earliest you can go.
 
 ## In a build
 

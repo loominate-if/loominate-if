@@ -35,6 +35,10 @@ export interface Explanation {
 }
 
 // @public
+const history_2: InspectorPanel;
+export { history_2 as history }
+
+// @public
 export function inspect(player: Player, options?: InspectOptions): Inspector;
 
 // @public

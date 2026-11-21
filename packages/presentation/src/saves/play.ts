@@ -13,7 +13,10 @@ import {
   createStore,
   createStory,
   type GameInfo,
+  type BeatNode,
+  type Choice,
   type History,
+  type HistoryStep,
   type LoadedSave,
   type Passage,
   type PassageId,
@@ -69,17 +72,46 @@ export interface Player {
   readonly store: StateStore | undefined;
   /**
    * Calls `listener` whenever the game in play changes: when a game starts or
-   * loads, after each move, and after an undo. Tools such as the inspector
-   * use it to keep up with the game.
+   * loads, after each move, and after an undo or a {@link Player.travel}. Tools
+   * such as the inspector use it to keep up with the game.
    * @returns A function that stops calling the listener.
    */
   onChange(listener: () => void): () => void;
+  /**
+   * The moves of the game in play that can be undone and redone, once a game
+   * has started. Each step is labeled with its move, such as a link's label.
+   */
+  readonly history: PlayHistory | undefined;
+  /**
+   * Moves through the undo history: back that many moves when `steps` is
+   * negative, forward again when it's positive. Moving forward is only
+   * possible after moving back, until the next move discards the steps ahead.
+   * The page, autosave, and {@link Player.onChange} listeners see one change.
+   * @throws RangeError if `steps` isn't a whole number, or goes past either end of the history.
+   */
+  travel(steps: number): void;
   /** Starts a new game, replacing the one in play. */
   newGame(): Promise<void>;
   /** Loads a save slot, replacing the game in play. */
   load(slot: string): Promise<void>;
   /** Removes the game from the page. */
   destroy(): void;
+}
+
+/** The undo history of a game being played, as {@link Player.history} shows it. */
+export interface PlayHistory {
+  /** The moves that can be undone, oldest first. */
+  readonly past: readonly HistoryStep[];
+  /** The moves undone that can be made again, next first. */
+  readonly future: readonly HistoryStep[];
+}
+
+/** How a move is labeled in the undo history. */
+function moveLabel(move: Choice | BeatNode): string {
+  if (move.type === "link") return move.label;
+  if (move.type === "continue") return move.label ?? "Continue";
+  if (move.page) return "Next page";
+  return move.duration === undefined ? "Continue" : "After a beat";
 }
 
 /** The data the game menu shows. */
@@ -293,7 +325,7 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
       {
         ...options.page,
         onMove: (move) => {
-          undoable.checkpoint();
+          undoable.checkpoint(moveLabel(move));
           autosave();
           options.page?.onMove?.(move);
           changed();
@@ -417,6 +449,27 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
     },
     get store() {
       return store;
+    },
+    get history() {
+      return history && { past: history.past, future: history.future };
+    },
+    travel(steps) {
+      const moving = history;
+      const past = moving?.past.length ?? 0;
+      const future = moving?.future.length ?? 0;
+      if (!Number.isInteger(steps) || steps < -past || steps > future) {
+        throw new RangeError(
+          `travel: can go back ${String(past)} and forward ${String(future)} moves, not ${String(steps)}.`,
+        );
+      }
+      if (!moving || steps === 0) return;
+      for (let i = 0; i < Math.abs(steps); i++) {
+        if (steps < 0) moving.undo();
+        else moving.redo();
+      }
+      page?.refresh();
+      autosave();
+      changed();
     },
     onChange(listener) {
       listeners.add(listener);

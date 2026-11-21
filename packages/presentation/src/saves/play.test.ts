@@ -285,6 +285,59 @@ describe("following the game", () => {
     expect(player.store).not.toBe(first);
   });
 
+  it("travels back through the moves and forward again, as one change", async () => {
+    const storage = createMemoryStorage();
+    const { player, click, text, button } = await start({ storage });
+    expect(player.history).toEqual({ past: [], future: [] });
+    click("Walk on");
+    click("Cross");
+    expect(player.history?.past.map((s) => s.label)).toEqual(["Walk on", "Cross"]);
+    const calls: string[] = [];
+    player.onChange(() => calls.push(player.story?.current ?? ""));
+
+    player.travel(-2);
+    expect(text()).toContain("A long road.");
+    expect(button("Undo").getAttribute("aria-disabled")).toBe("true");
+    expect(player.history?.future.map((s) => s.label)).toEqual(["Walk on", "Cross"]);
+    await vi.waitFor(async () => {
+      expect(await autosaved(storage)).toBe("Road");
+    });
+
+    player.travel(2);
+    expect(text()).toContain("A warm inn.");
+    expect(player.history?.future).toEqual([]);
+    expect(calls).toEqual(["Road", "Inn"]);
+  });
+
+  it("drops the moves ahead when a new move is made after travelling back", async () => {
+    const { player, click } = await start({ storage: createMemoryStorage() });
+    click("Walk on");
+    click("Cross");
+    player.travel(-1);
+    click("Cross");
+    expect(player.history?.past.map((s) => s.label)).toEqual(["Walk on", "Cross"]);
+    expect(player.history?.future).toEqual([]);
+  });
+
+  it("refuses to travel past either end of the history", async () => {
+    const { player, click } = await start({ storage: createMemoryStorage() });
+    click("Walk on");
+    expect(() => {
+      player.travel(-2);
+    }).toThrow(new RangeError("travel: can go back 1 and forward 0 moves, not -2."));
+    expect(() => {
+      player.travel(1);
+    }).toThrow(RangeError);
+    expect(() => {
+      player.travel(0.5);
+    }).toThrow(RangeError);
+    expect(player.story?.current).toBe("Bridge");
+    const calls = vi.fn();
+    player.onChange(calls);
+    player.travel(0);
+    expect(calls).not.toHaveBeenCalled();
+  });
+
   it("reports a listener that throws, and carries on", async () => {
     const onError = vi.fn();
     const { player, click, text } = await start({ onError, storage: createMemoryStorage() });
