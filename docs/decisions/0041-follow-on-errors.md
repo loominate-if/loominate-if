@@ -18,6 +18,7 @@ A passage's inline code is TypeScript in a generated module. When one expression
 - `shownDiagnostics(diagnostics, { verbose, perFile })` gives what to show: no follow-ons, at most `perFile` (5) per file, and how many it held back. `verbose` returns every diagnostic.
 - The CLI uses it wherever it reports: `loominate build`'s failure, the dev server's terminal report, and Vite's overlay. Each ends with "…and N more, most likely following from those; run with --verbose to see them all." when it held any back.
 - `--verbose` on `dev`, `build`, and `test`, and `verbose` on the plugin and command options, show everything as before.
+- In the dev server, a passage module whose code doesn't parse isn't handed to Vite. Vite's own parser would fail on it and replace the overlay with its error, such as "Invalid Unicode escape sequence", pointing into the generated module, at a line the author never wrote. The plugin fails the module with the passage's own errors instead, the same ones the overlay shows. A module with only type errors still loads, so the game plays while they're fixed.
 
 ## Consequences
 

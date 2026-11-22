@@ -102,6 +102,10 @@ export function overlay(
   };
 }
 
+/** Whether TypeScript couldn't parse the code a diagnostic is in: its syntax errors are TS1xxx. */
+const isSyntaxError = (d: ProjectDiagnostic): boolean =>
+  d.severity === "error" && d.source === "typescript" && d.code !== undefined && d.code < 2000;
+
 /** A file's text, or "" if it's gone. */
 function readSource(file: string): string {
   try {
@@ -282,6 +286,30 @@ export function loominate(options: LoominateOptions = {}): Plugin {
       const module = active().module(file);
       if (!module) return;
       this.addWatchFile(file);
+      // Code that doesn't parse would fail in Vite's own transform, whose
+      // error points into the generated module, not the passage. Report the
+      // passage's errors instead, as the overlay does.
+      const own = active()
+        .diagnostics()
+        .filter((d) => d.file === file);
+      if (own.some(isSyntaxError)) {
+        const { shown, heldBack } = shownDiagnostics(
+          own.filter((d) => d.severity === "error"),
+          { verbose },
+        );
+        const [first] = shown;
+        const more = heldBackLine(heldBack);
+        this.error({
+          message: [...shown.map((d) => formatDiagnostic(root, d)), ...(more ? [more] : [])].join(
+            "\n",
+          ),
+          id: file,
+          ...(first && {
+            loc: { file, line: first.line, column: first.column - 1 },
+            frame: codeFrame(readSource(file), first.line, first.column),
+          }),
+        });
+      }
       const map = module.sourceMap();
       // Vite's types want mutable arrays.
       const { file: mapped, mappings, version } = map;
