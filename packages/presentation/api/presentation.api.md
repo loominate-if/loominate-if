@@ -94,6 +94,7 @@ export type PageOptions = {
     readonly skipLabel?: string;
     readonly drawerLabel?: string;
     readonly continueLabel?: string;
+    readonly reasons?: "tooltip" | "inline";
     readonly styles?: boolean;
     readonly narrow?: string;
 };

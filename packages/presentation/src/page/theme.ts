@@ -99,6 +99,30 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   font-size: 0.9em;
   font-style: italic;
 }
+/* A disabled link's reason as a tooltip, below it, while it's hovered, focused, or tapped. */
+/* An inline block, so the tooltip sits below the whole link, not its line of text. */
+.loominate-has-reason { position: relative; display: inline-block; }
+.loominate-tooltip {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  z-index: 10;
+  width: max-content;
+  max-width: min(20em, 80vw);
+  padding: 0.25em 0.5em;
+  font-family: ${v("font-ui")};
+  font-style: normal;
+  line-height: 1.4;
+  color: ${v("color-text")};
+  background: ${v("color-surface")};
+  border: 1px solid ${v("color-border")};
+  border-radius: ${v("radius")};
+  visibility: hidden;
+}
+.loominate-has-reason:hover > .loominate-tooltip,
+.loominate-has-reason:focus-within > .loominate-tooltip,
+.loominate-has-reason[data-shown] > .loominate-tooltip { visibility: visible; }
+.loominate-has-reason[data-dismissed] > .loominate-tooltip { visibility: hidden; }
 .loominate-page :focus-visible {
   outline: 2px solid ${v("color-focus")};
   outline-offset: 2px;
