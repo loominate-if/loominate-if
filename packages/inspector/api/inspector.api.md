@@ -25,6 +25,10 @@ export const explainers: Registry<Explainer>;
 
 // @public
 export interface Explanation {
+    readonly action?: {
+        readonly name: string;
+        readonly reason?: string;
+    };
     readonly available: boolean;
     readonly condition?: string;
     readonly label: string;

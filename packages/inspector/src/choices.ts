@@ -39,8 +39,18 @@ export const choices: InspectorPanel = {
         el("span", "choice-label", e.label),
       );
       if (e.target !== undefined) head.append(el("span", "choice-target", `→ ${e.target}`));
+      if (e.action) head.append(el("span", "choice-target", `takes the action ${e.action.name}`));
       li.append(head);
       if (e.available) return li;
+      if (e.action?.reason !== undefined) {
+        const why = el("p", "why");
+        why.append(
+          e.shown === "hidden"
+            ? `Because ${e.action.name} doesn't make sense here: ${e.action.reason}`
+            : `Because ${e.action.name} isn't allowed now: ${e.action.reason}`,
+        );
+        li.append(why);
+      }
       if (e.condition !== undefined) {
         const why = el("p", "why");
         why.append("Because ", code(e.condition), " doesn't hold.");

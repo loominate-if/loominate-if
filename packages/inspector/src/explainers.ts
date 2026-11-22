@@ -23,6 +23,8 @@ export interface Explanation {
   readonly reason?: string;
   /** The condition's parts and their values, to show which part doesn't hold. */
   readonly parts?: readonly ConditionPart[];
+  /** For an action link, the action it takes, and while it can't, the reason its verify or check gave. */
+  readonly action?: { readonly name: string; readonly reason?: string };
 }
 
 /** Explains the choices of one kind. */
@@ -44,13 +46,31 @@ export const linkExplainer: Explainer = {
     if (!story?.current) return [];
     const rendered = story.render();
     return [
-      ...rendered.choices.map((c): Explanation => ({
-        label: c.type === "continue" ? (c.label ?? "Continue") : c.label,
-        target: c.target,
-        available: true,
-      })),
+      ...rendered.choices.map((c): Explanation =>
+        c.type === "link" && c.guard?.act
+          ? { label: c.label, available: true, action: { name: c.guard.act.action } }
+          : {
+              label: c.type === "continue" ? (c.label ?? "Continue") : c.label,
+              target: c.target,
+              available: true,
+            },
+      ),
       ...rendered.unavailable.map(({ link, mode, condition }): Explanation => {
         const parts = link.guard?.parts;
+        const act = link.guard?.act;
+        if (act) {
+          // An action link stays on the passage; its condition is the action's own reason.
+          const prefix = `${act.action}: `;
+          const reason = condition.startsWith(prefix) ? condition.slice(prefix.length) : condition;
+          return {
+            label: link.label,
+            available: false,
+            shown: mode === "hidden" ? "hidden" : "disabled",
+            action: { name: act.action, reason },
+            ...(mode === "disabled-with-reason" &&
+              link.guard?.reason !== undefined && { reason: link.guard.reason }),
+          };
+        }
         return {
           label: link.label,
           target: link.target,
