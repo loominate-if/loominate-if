@@ -210,6 +210,59 @@ describe("{notices}", () => {
   });
 });
 
+describe("an error in the story's code", () => {
+  it("shows on the page, and the game stays where it was", () => {
+    const store = createStore();
+    const record = createEventRecord(store);
+    const story = createStory(
+      store,
+      record,
+      [
+        {
+          id: "Shelf",
+          tags: [],
+          body: () => [
+            { type: "text", text: "A dusty shelf." },
+            { type: "link", label: "Put the box in itself", target: "Box" },
+          ],
+        },
+        {
+          id: "Box",
+          tags: [],
+          effects: {
+            enter: () => {
+              throw new Error('move "box" to "box": that would put it inside itself.');
+            },
+          },
+          body: () => [{ type: "text", text: "Done." }],
+        },
+      ],
+      { start: "Shelf" },
+    );
+    document.body.replaceChildren();
+    const container = document.createElement("div");
+    document.body.append(container);
+    const errors: unknown[] = [];
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      mountPage(container, { story, record }, { onError: (e) => errors.push(e) });
+      store.commit(); // as the player shell does after each move, so a failed one rolls back
+      container.querySelector("button")?.click();
+      const alert = container.querySelector(".loominate-error");
+      expect(alert?.getAttribute("role")).toBe("alert");
+      expect(alert?.textContent).toContain(
+        'Something went wrong: passage "Box" enter effect: move "box" to "box": that would put it inside itself.',
+      );
+      expect(story.current).toBe("Shelf");
+      expect(container.textContent).toContain("A dusty shelf.");
+      expect(errors).toHaveLength(1);
+      expect(quiet).toHaveBeenCalled();
+    } finally {
+      quiet.mockRestore();
+    }
+  });
+});
+
 describe("the story-so-far drawer", () => {
   it("shows earlier moves from the event record, not the one on screen", () => {
     const { drawer, click, turns } = play();

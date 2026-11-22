@@ -26,6 +26,7 @@ await playGame(document.querySelector("#app")!, {
 - **Undo**, **Save**, **Load**, and **Restart** in the game menu, in the page's header. Restart asks once more on the same button, "Confirm restart", and moving away cancels it. It starts the story over with a fresh seed, replacing the autosave. Each button has a tooltip saying what it does, which stays clear when a game rewords the buttons ([Rewording the library](messages.md)). Saved slots are kept, but the game left behind isn't saved: save first to keep it.
 - **The save menu**, which saves under a name, loads, saves over a slot, exports a save as a file, imports one, and deletes, asking first. It's a dialog that works from the keyboard and with screen readers.
 - A note when a save was made by another version of the game.
+- **Errors shown, not swallowed.** If the story's code throws during a move, the page shows "Something went wrong: …" at the top of the passage, and the game stays where it was, as a failed move is rolled back. The next move clears it. `mountPage`'s `onError` option gets the error too. The words are the `page.error` message ([Rewording the library](messages.md)).
 
 ## Styling the start screen
 

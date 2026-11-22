@@ -13,6 +13,8 @@ npm run dev
 
 That gives you a small game, with the dev server showing it in your browser. Edit a file and the page reloads as you save, back at the passage you were on, with the game's state as it was, showing your edited text. If an edit means that can't work, for example because you renamed the passage you were at, the page says so and offers a new game.
 
+When your code throws, the page says so rather than going quiet. An error during play, such as `{on enter: move(box, box)}`, shows at the top of the passage, where the game stays, as it was before the choice. An error while the game loads, such as in `story.ts`, shows "The game couldn't start." with the error, and its stack in the dev server. Either way, the terminal running `npm run dev` prints it too.
+
 Errors in passages or code are reported against your own lines, in the terminal and over the game in the browser. Fix the last one and the terminal says the game has no problems.
 
 The **Inspector** button in the corner, or Control+\`, opens the [inspector](inspector.md) beside the game, showing every object's state as you play.
