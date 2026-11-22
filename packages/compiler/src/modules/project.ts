@@ -22,6 +22,9 @@ import {
 import { checkObjectIds, findObjectDefinitions } from "./object-ids.js";
 import { toSource } from "./source-map.js";
 
+/** Libraries a passage's undefined name may come from, beyond those `story.ts` imports. */
+const LIBRARIES = ["@loominate-if/core", "@loominate-if/world"];
+
 /** The extension of passage files. */
 export const PASSAGE_EXTENSION = ".weft";
 
@@ -205,6 +208,36 @@ export function createCompilerSession(options: ProjectOptions): CompilerSession 
       options.ambient.map((m) => `import type {} from ${JSON.stringify(m)};\n`).join(""),
     );
   }
+  /**
+   * Each name the given packages export, with the first package that does,
+   * from a small program of its own, so a game's own check never sees
+   * packages it doesn't use.
+   */
+  const exportsOfLibraries = (packages: readonly string[]): Map<string, string> => {
+    const out = new Map<string, string>();
+    const probe = resolve("$libraries.ts");
+    const code = packages
+      .map((p, i) => `import type * as $${String(i)} from ${JSON.stringify(p)};\n`)
+      .join("");
+    virtual.set(probe, code);
+    try {
+      const libs = ts.createProgram({ rootNames: [probe], options: compilerOptions, host });
+      const checker = libs.getTypeChecker();
+      const source = libs.getSourceFile(probe);
+      for (const statement of source?.statements ?? []) {
+        if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) {
+          continue;
+        }
+        const symbol = checker.getSymbolAtLocation(statement.moduleSpecifier);
+        for (const s of symbol ? checker.getExportsOfModule(symbol) : []) {
+          if (!out.has(s.name)) out.set(s.name, statement.moduleSpecifier.text);
+        }
+      }
+    } finally {
+      virtual.delete(probe);
+    }
+    return out;
+  };
   const fileExists = host.fileExists.bind(host);
   const readFile = host.readFile.bind(host);
   const getSourceFile = host.getSourceFile.bind(host);
@@ -422,14 +455,41 @@ export function createCompilerSession(options: ProjectOptions): CompilerSession 
       }
     }
     const usable = [...scopeExports, ...CONTEXT_NAMES];
+    // The names the scope module imports, and the packages it imports them from.
+    const importedByScope = new Set<string>();
+    const scopePackages = new Set<string>();
+    const scopeSource = scopeExists ? program.getSourceFile(scopePath) : undefined;
+    for (const statement of scopeSource?.statements ?? []) {
+      if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) {
+        continue;
+      }
+      const from = statement.moduleSpecifier.text;
+      if (!from.startsWith(".") && !path.isAbsolute(from)) scopePackages.add(from);
+      const clause = statement.importClause;
+      if (clause?.name) importedByScope.add(clause.name.text);
+      const bindings = clause?.namedBindings;
+      if (bindings && ts.isNamedImports(bindings)) {
+        for (const e of bindings.elements) importedByScope.add(e.name.text);
+      }
+    }
+    /** Which library exports a name, looked up only when a passage needs it. */
+    let libraryExports: Map<string, string> | undefined;
+    const libraryOf = (name: string): string | undefined => {
+      libraryExports ??= exportsOfLibraries([...scopePackages, ...LIBRARIES]);
+      return libraryExports.get(name);
+    };
     const nameHelp = (name: string): NameHelp => {
       const other = scopeExports.has(name) ? undefined : exportedBy.get(name);
+      const imported = !scopeExports.has(name) && importedByScope.has(name);
+      const library = imported || other !== undefined ? undefined : libraryOf(name);
       const suggestion = closestName(name, usable);
       return {
         scope: scopeExists ? display(scopePath) : undefined,
+        ...(imported && { importedByScope: true }),
         ...(other !== undefined && {
           exportedBy: { path: display(other), specifier: specifier(scopePath, other) },
         }),
+        ...(library !== undefined && { library }),
         ...(suggestion !== undefined && { suggestion }),
       };
     };

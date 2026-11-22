@@ -80,7 +80,7 @@ describe("compileProject", { timeout: 30_000 }, () => {
     ]);
     const { shown, heldBack } = shownDiagnostics(result.diagnostics);
     expect(shown.map((d) => `${String(d.line)}:${String(d.column)} ${d.message}`)).toEqual([
-      "3:2 `t` isn't defined. Passages can use what `story.ts` exports, and `visits`, `firstVisit`, and `visited`.",
+      '3:2 `t` comes from @loominate-if/core, but passages only see what `story.ts` exports. Add `export { t } from "@loominate-if/core";` to `story.ts`.',
       "3:3 Invalid character.",
       "3:48 This `}` doesn't close anything. Write `\\}` for a literal brace.",
     ]);
@@ -99,6 +99,42 @@ describe("compileProject", { timeout: 30_000 }, () => {
     expect(shown).toHaveLength(5);
     expect(heldBack).toBe(3);
     expect(shownDiagnostics(result.diagnostics, { perFile: 10 }).shown).toHaveLength(8);
+  });
+
+  it("explains a name story.ts imports but doesn't export, or that a library exports", () => {
+    const game = mkdtempSync(path.join(tmpdir(), "loominate-names-"));
+    try {
+      const pkg = path.join(game, "node_modules", "fake-lib");
+      mkdirSync(pkg, { recursive: true });
+      writeFileSync(
+        path.join(pkg, "package.json"),
+        JSON.stringify({ name: "fake-lib", types: "./index.d.ts" }),
+      );
+      writeFileSync(
+        path.join(pkg, "index.d.ts"),
+        "export declare function greet(): string;\nexport declare function wave(): string;\nexport declare const shout: string;\n",
+      );
+      const messages = compileProject({
+        root: game,
+        compilerOptions,
+        files: [
+          {
+            path: "story.ts",
+            text: 'import { greet, shout } from "fake-lib";\nexport const hello = greet();\nexport { shout };\n',
+          },
+          { path: "start.weft", text: ":: Start\n{greet()} {wave()}\n" },
+        ],
+      })
+        .diagnostics // This game installs no packages, so the passage's import of core is missing too.
+        .filter((d) => !d.message.startsWith("Cannot find module"))
+        .map((d) => `${String(d.line)}:${String(d.column)} ${d.message}`);
+      expect(messages).toEqual([
+        "2:2 `greet` is imported in `story.ts` but not exported, and passages only see what it exports. Add it to an export there, as in `export { greet };`.",
+        '2:12 `wave` comes from fake-lib, but passages only see what `story.ts` exports. Add `export { wave } from "fake-lib";` to `story.ts`.',
+      ]);
+    } finally {
+      rmSync(game, { recursive: true, force: true });
+    }
   });
 
   it("applies the declarations of ambient packages the game doesn't import", () => {
