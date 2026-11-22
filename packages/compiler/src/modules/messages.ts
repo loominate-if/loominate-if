@@ -273,6 +273,10 @@ export interface NameHelp {
   readonly suggestion?: string;
   /** Another module that exports the missing name, as `{ path, specifier }` relative to the scope module. */
   readonly exportedBy?: { readonly path: string; readonly specifier: string };
+  /** True if the scope module imports the name but doesn't export it. */
+  readonly importedByScope?: boolean;
+  /** A library package that exports the name, such as `@loominate-if/world`. */
+  readonly library?: string;
 }
 
 /** The name in TypeScript's "Cannot find name 'x'." messages (codes 2304 and 2552). */
@@ -283,8 +287,14 @@ export function missingName(message: string): string | undefined {
 /** Explains a name inline code uses that passages can't see (#33). */
 export function undefinedNameMessage(name: string, help: NameHelp): string {
   const scope = help.scope ?? "story.ts";
+  if (help.importedByScope === true) {
+    return `\`${name}\` is imported in \`${scope}\` but not exported, and passages only see what it exports. Add it to an export there, as in \`export { ${name} };\`.`;
+  }
   if (help.exportedBy) {
     return `\`${name}\` is exported by \`${help.exportedBy.path}\`, but passages only see what \`${scope}\` exports. Add \`export { ${name} } from "${help.exportedBy.specifier}";\` to \`${scope}\`.`;
+  }
+  if (help.library !== undefined) {
+    return `\`${name}\` comes from ${help.library}, but passages only see what \`${scope}\` exports. Add \`export { ${name} } from "${help.library}";\` to \`${scope}\`.`;
   }
   if (help.suggestion !== undefined) {
     return `\`${name}\` isn't defined. Did you mean \`${help.suggestion}\`?`;
