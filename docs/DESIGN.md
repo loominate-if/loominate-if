@@ -242,7 +242,7 @@ An optional keyboard-driven command line accepts only actions the menus would cu
 
 ### Future parser
 
-A full parser is a later optional package. To keep that possible, actions can optionally carry verb phrases and objects can optionally carry vocabulary from version one, so the parser becomes a second front end on the same pipeline with no changes to game logic.
+A full parser is a later optional package. To keep that possible, actions can optionally carry verb phrases and objects can optionally carry vocabulary from version one, so the parser becomes a second front end on the same pipeline with no changes to game logic. A thing's vocabulary is typed lists of nouns, adjectives, and plurals, and `vocabOf(thing)` adds the words of its name ([ADR 0043](decisions/0043-vocabulary.md)).
 
 ## World model library
 
