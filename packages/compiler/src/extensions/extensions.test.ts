@@ -5,7 +5,7 @@ import { generatePassageModule } from "../modules/generate.js";
 import { compileProject } from "../modules/project.js";
 import { parsePassageFile } from "../passages/parse.js";
 import { coreExtension } from "./core.js";
-import type { CompilerExtension, DirectiveDefinition } from "./extension.js";
+import type { CompilerExtension, DirectiveDefinition, RuntimeExport } from "./extension.js";
 import { resolveExtensions } from "./resolve.js";
 
 /** A stand-in for the world model's conversation syntax. */
@@ -226,6 +226,16 @@ describe("loading extensions", () => {
         { name: "y", tagRoles: [{ name: "room" }] },
       ]),
     ).toThrow("The tag role `room:` is registered by both x and y.");
+    expect(
+      fails([
+        {
+          name: "x",
+          tagRoles: [{ name: "room", arrival: { module: "x" } as unknown as RuntimeExport }],
+        },
+      ]),
+    ).toThrow(
+      'x: tag role "room" has an `arrival` that isn\'t a runtime export; give it a `module` and an `export`.',
+    );
     expect(fails([vn, { name: "y", lineForms: vn.lineForms ?? [] }])).toThrow(
       "Lines starting with `@` are registered by both @loominate-if/vn and y.",
     );

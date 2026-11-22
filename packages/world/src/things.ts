@@ -16,6 +16,7 @@ import {
   type ObjectRef,
   type StateId,
 } from "@loominate-if/core";
+import { checkRegions, roomDefaultsFor } from "./regions.js";
 
 /** How a thing holds what's in it: `in` for containers and places, `on` for surfaces. */
 export type Holding = "in" | "on";
@@ -34,6 +35,8 @@ export type PlaceFields = ThingFields & {
   holds: "in";
   /** Whether the place is dark, so nothing in it can be seen without light. */
   isDark: boolean;
+  /** The regions it's in. */
+  regions: ObjectRef[];
 };
 
 /** A thing: an object of the world model with a name and a location. */
@@ -172,6 +175,10 @@ export function thing<Id extends StateId, D extends ObjectDefinition<D> & { name
  * Defines a place, such as a room: it holds things in it, and bounds what
  * can be seen, reached, and heard. `isDark` defaults to `false`.
  *
+ * @remarks
+ * List the regions it's in as `regions`; it takes their `roomDefaults` for
+ * whatever it doesn't set itself, the nearest region's first.
+ *
  * @example
  * ```ts
  * export const cellar = place("cellar", { name: "the cellar", isDark: true });
@@ -181,11 +188,16 @@ export function thing<Id extends StateId, D extends ObjectDefinition<D> & { name
  */
 export function place<Id extends StateId, D extends ObjectDefinition<D> & { name: string }>(
   id: Id,
-  definition: D & { isDark?: boolean } & ThisType<Handle<ThingOf<D> & PlaceFields, Id>>,
+  definition: D & { isDark?: boolean; regions?: readonly ObjectRef[] } & ThisType<
+      Handle<ThingOf<D> & PlaceFields, Id>
+    >,
 ): Handle<ThingOf<D> & PlaceFields, Id> {
+  const where = `place ${JSON.stringify(id)}`;
+  const regions = checkRegions(definition.regions ?? [], where);
+  const defaults = withDefaults({ holds: "in", isDark: false }, roomDefaultsFor(regions));
   const handle = thing(
     id,
-    withDefaults({ holds: "in", isDark: false }, definition) as unknown as D,
+    withDefaults(defaults, withDefaults(definition, { regions })) as unknown as D,
   );
   places.add(id);
   return handle as unknown as Handle<ThingOf<D> & PlaceFields, Id>;
@@ -272,6 +284,7 @@ export function placeOf(t: ObjectRef): Place | undefined {
  */
 export function move(t: ObjectRef, to: ObjectRef | null): void {
   const moving = registry.get(t.id);
+  const from = moving ? placeOf(moving) : undefined;
   const where = `move ${JSON.stringify(t.id)}`;
   if (!moving) throw new StateError(`${where}: it isn't defined with thing() or place().`);
   if (places.has(t.id)) {
@@ -279,6 +292,7 @@ export function move(t: ObjectRef, to: ObjectRef | null): void {
   }
   if (to === null) {
     moving.location = null;
+    moved(moving, from);
     return;
   }
   const into = registry.get(to.id);
@@ -293,6 +307,20 @@ export function move(t: ObjectRef, to: ObjectRef | null): void {
     throw new StateError(`${target}: that would put it inside itself.`);
   }
   moving.location = into;
+  moved(moving, from);
+}
+
+/** Called after each move, with the place the thing was in. */
+type MoveListener = (moved: Thing, from: Place | undefined) => void;
+const listeners: MoveListener[] = [];
+
+/** Calls `listener` after every {@link move}. @internal */
+export function onMove(listener: MoveListener): void {
+  listeners.push(listener);
+}
+
+function moved(t: Thing, from: Place | undefined): void {
+  for (const l of listeners) l(t, from);
 }
 
 /** Sorts things by ID. */

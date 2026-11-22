@@ -191,6 +191,8 @@ export type TagSyntax = {
   readonly name: string;
   /** The role's value, for `role: value` tags. */
   readonly value?: string;
+  /** Where the role's value is, for `role: value` tags. */
+  readonly valueSpan?: Span;
   /** The whole tag. */
   readonly span: Span;
 };

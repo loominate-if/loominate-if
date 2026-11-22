@@ -2,7 +2,7 @@
   "name": "@loominate-if/world",
   "version": "0.1.0",
   "private": true,
-  "description": "The optional world model: things, places, containment, scope, and light.",
+  "description": "The optional world model: things and places, containment, scope, light, minds and bodies, rooms, and regions.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -21,6 +21,9 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
+  },
+  "loominate": {
+    "extension": "./dist/extension.js"
   },
   "files": [
     "dist",

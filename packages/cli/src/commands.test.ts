@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { build, dev, test } from "./commands.js";
 
@@ -55,6 +55,7 @@ export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, title
 type Page = {
   body: { innerHTML: string };
   querySelector(selector: string): { textContent: string | null } | null;
+  querySelectorAll(selector: string): Iterable<{ textContent: string | null; click(): void }>;
 };
 const page = (): Page => (globalThis as unknown as { document: Page }).document;
 
@@ -175,6 +176,61 @@ export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, start
 });
 
 describe("loominate dev", () => {
+  it("plays room passages with the world model's extension (#63)", async () => {
+    const root = game({
+      "loominate.config.ts": `import { defineConfig } from "@loominate-if/cli";
+export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, start: "Hall", extensions: ["world-from-source"] });
+`,
+      // The world model's own extension module, from source, so the test needs no build first.
+      "node_modules/world-from-source/package.json": JSON.stringify({
+        name: "world-from-source",
+        type: "module",
+        loominate: { extension: "./extension.js" },
+      }),
+      "node_modules/world-from-source/extension.js": `export { default } from ${JSON.stringify(
+        pathToFileURL(path.join(packages, "world/src/extension.ts")).href,
+      )};\n`,
+      "story.ts": `import { actor, place, startAs, visitsTo } from "@loominate-if/world";
+export const hall = place("hall", { name: "the hall" });
+export const cellar = place("cellar", { name: "the cellar" });
+export const you = actor("you", { body: { name: "you", location: hall } });
+startAs(you);
+export { visitsTo };
+`,
+      "rooms.weft": readFileSync(path.join(here, "fixtures/rooms.weft"), "utf8"),
+    });
+    symlinkSync(
+      path.join(packages, "world"),
+      path.join(root, "node_modules/@loominate-if/world"),
+      "dir",
+    );
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const server = await dev({
+      ...options(root),
+      vite: { ...options(root).vite, server: { middlewareMode: true } },
+    });
+    const text = () => page().querySelector(".loominate-passage")?.textContent ?? "";
+    const follow = (label: string) => {
+      const link = [...page().querySelectorAll(".loominate-passage button")].find(
+        (b) => b.textContent === label,
+      );
+      if (!link) throw new Error(`no link ${label} in: ${text()}`);
+      link.click();
+    };
+    try {
+      page().body.innerHTML = '<div id="app"></div>';
+      await server.ssrLoadModule("/@loominate/main");
+      expect(text()).toContain("A draughty hall. Hall visits: 1. You're in hall.");
+      follow("Down");
+      expect(text()).toContain("Cellar visits: 1. You're in cellar.");
+      follow("Up");
+      expect(text()).toContain("The hall again. Hall visits: 2. You're in hall.");
+    } finally {
+      await server.close();
+      errors.mockRestore();
+    }
+  }, 60_000);
+
   it("plays every passage file through the generated entry point", async () => {
     const root = game({ "start.weft": START, "scenes/lit.weft": "" });
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);

@@ -52,3 +52,13 @@ export {
   type LeaveOptions,
   type PossessOptions,
 } from "./actors.js";
+export {
+  isRegion,
+  region,
+  type Region,
+  type RegionFields,
+  type RegionHooks,
+  type RegionOf,
+  type RegionOptions,
+} from "./regions.js";
+export { enterRoom, isInRegion, regionsOf, visitsTo } from "./rooms.js";

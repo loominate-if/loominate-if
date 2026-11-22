@@ -4,6 +4,7 @@
 
 ```ts
 
+import { EffectContext } from '@loominate-if/core';
 import { Handle } from '@loominate-if/core';
 import { ObjectDefinition } from '@loominate-if/core';
 import { ObjectRef } from '@loominate-if/core';
@@ -60,6 +61,9 @@ export const container: {
 export function contents(parent: ObjectRef): Thing[];
 
 // @public
+export function enterRoom(room: Place, context?: EffectContext): void;
+
+// @public
 export type Holding = "in" | "on";
 
 // @public
@@ -75,10 +79,16 @@ export function isBody(ref: ObjectRef): boolean;
 export function isInLight(observer: ObjectRef): boolean;
 
 // @public
+export function isInRegion(t: ObjectRef, region: ObjectRef): boolean;
+
+// @public
 export function isMind(ref: ObjectRef): boolean;
 
 // @public
 export function isPlace(t: ObjectRef): boolean;
+
+// @public
+export function isRegion(ref: ObjectRef): boolean;
 
 // @public
 export function isWithin(t: ObjectRef, ancestor: ObjectRef): boolean;
@@ -148,12 +158,14 @@ export function place<Id extends StateId, D extends ObjectDefinition<D> & {
     name: string;
 }>(id: Id, definition: D & {
     isDark?: boolean;
+    regions?: readonly ObjectRef[];
 } & ThisType<Handle<ThingOf<D> & PlaceFields, Id>>): Handle<ThingOf<D> & PlaceFields, Id>;
 
 // @public
 export type PlaceFields = ThingFields & {
     holds: "in";
     isDark: boolean;
+    regions: ObjectRef[];
 };
 
 // @public
@@ -176,6 +188,38 @@ export type PossessOptions = {
     readonly as?: "controller" | "passenger";
     readonly displaced?: "passenger" | "out";
 };
+
+// @public
+export type Region = Handle<RegionFields>;
+
+// @public
+export function region<Id extends StateId, D extends ObjectDefinition<D> & {
+    name: string;
+}>(id: Id, definition: D & RegionOptions & RegionHooks & ThisType<Handle<RegionOf<D>, Id>>): Handle<RegionOf<D>, Id>;
+
+// @public
+export type RegionFields = {
+    name: string;
+    regions: ObjectRef[];
+};
+
+// @public
+export type RegionHooks = {
+    onEnter?(room: ObjectRef): void;
+    onLeave?(room: ObjectRef): void;
+};
+
+// @public
+export type RegionOf<D> = Omit<D, "roomDefaults" | "regions"> & RegionFields;
+
+// @public
+export type RegionOptions = {
+    regions?: readonly ObjectRef[];
+    roomDefaults?: object;
+};
+
+// @public
+export function regionsOf(t: ObjectRef): Region[];
 
 // @public
 export type Sense = "see" | "reach" | "hear";
@@ -219,5 +263,8 @@ export type ThingOf<D> = Omit<D, "location"> & {
 export const transparent: {
     isTransparent: boolean;
 };
+
+// @public
+export function visitsTo(room: ObjectRef): number;
 
 ```

@@ -190,7 +190,8 @@ export function parsePassageFile(source: string, options: ParseOptions = {}): Pa
         );
         continue;
       }
-      tags.push({ name: key, value, span: tag.span });
+      const valueSpan = trimmed(tag.span.start + colon + 1, tag.span.end).span;
+      tags.push({ name: key, value, span: tag.span, valueSpan });
     }
     return { name, tags };
   }

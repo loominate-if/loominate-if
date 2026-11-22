@@ -354,12 +354,14 @@ export type Span = {
 export type TagRoleDefinition = {
     readonly name: string;
     readonly entry?: boolean;
+    readonly arrival?: RuntimeExport;
 };
 
 // @public
 export type TagSyntax = {
     readonly name: string;
     readonly value?: string;
+    readonly valueSpan?: Span;
     readonly span: Span;
 };
 
