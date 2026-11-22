@@ -42,6 +42,20 @@ export type PlaceFields = ThingFields & {
   regions: ObjectRef[];
 };
 
+/**
+ * The words a player could use for a thing, for a parser to come (#73). The
+ * world model doesn't read them itself; {@link vocabOf} adds the words of
+ * the thing's name.
+ */
+export type Vocabulary = {
+  /** Words that name it, such as "lantern" and "lamp". */
+  readonly nouns?: readonly string[];
+  /** Words that describe it, such as "brass" and "old". */
+  readonly adjectives?: readonly string[];
+  /** Words for more than one of it, such as "lanterns". */
+  readonly plurals?: readonly string[];
+};
+
 /** A thing: an object of the world model with a name and a location. */
 export type Thing = Handle<ThingFields>;
 
@@ -202,7 +216,9 @@ export type ThingOf<D> = Omit<D, "location"> & {
  */
 export function thing<Id extends StateId, D extends ObjectDefinition<D> & { name: string }>(
   id: Id,
-  definition: D & { location?: ObjectRef | null } & ThisType<Handle<ThingOf<D>, Id>>,
+  definition: D & { location?: ObjectRef | null; vocab?: Vocabulary } & ThisType<
+      Handle<ThingOf<D>, Id>
+    >,
 ): Handle<ThingOf<D>, Id> {
   const handle = object(id, withDefaults({ location: null }, definition) as ObjectDefinition<D>);
   registry.set(id, handle as unknown as Thing);
@@ -228,7 +244,9 @@ export function thing<Id extends StateId, D extends ObjectDefinition<D> & { name
  */
 export function thingTemplate<D extends ObjectDefinition<D> & { name: string }>(
   name: string,
-  definition: D & { location?: ObjectRef | null } & ThisType<Handle<ThingOf<D>>>,
+  definition: D & { location?: ObjectRef | null; vocab?: Vocabulary } & ThisType<
+      Handle<ThingOf<D>>
+    >,
 ): ObjectTemplate<ThingOf<D>> {
   const made = template(name, withDefaults({ location: null }, definition) as ObjectDefinition<D>);
   thingTemplates.push(made as unknown as ObjectTemplate<object>);
@@ -252,9 +270,11 @@ export function thingTemplate<D extends ObjectDefinition<D> & { name: string }>(
  */
 export function place<Id extends StateId, D extends ObjectDefinition<D> & { name: string }>(
   id: Id,
-  definition: D & { isDark?: boolean; regions?: readonly ObjectRef[] } & ThisType<
-      Handle<ThingOf<D> & PlaceFields, Id>
-    >,
+  definition: D & {
+    isDark?: boolean;
+    regions?: readonly ObjectRef[];
+    vocab?: Vocabulary;
+  } & ThisType<Handle<ThingOf<D> & PlaceFields, Id>>,
 ): Handle<ThingOf<D> & PlaceFields, Id> {
   const where = `place ${JSON.stringify(id)}`;
   const regions = checkRegions(definition.regions ?? [], where);

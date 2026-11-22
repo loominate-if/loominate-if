@@ -183,6 +183,13 @@ export type FactSource = {
 };
 
 // @public
+export type FullVocabulary = {
+    readonly nouns: readonly string[];
+    readonly adjectives: readonly string[];
+    readonly plurals: readonly string[];
+};
+
+// @public
 export type Grammar = {
     readonly isProper?: boolean;
     readonly isPlural?: boolean;
@@ -336,6 +343,7 @@ export function place<Id extends StateId, D extends ObjectDefinition<D> & {
 }>(id: Id, definition: D & {
     isDark?: boolean;
     regions?: readonly ObjectRef[];
+    vocab?: Vocabulary;
 } & ThisType<Handle<ThingOf<D> & PlaceFields, Id>>): Handle<ThingOf<D> & PlaceFields, Id>;
 
 // @public
@@ -455,6 +463,7 @@ export function thing<Id extends StateId, D extends ObjectDefinition<D> & {
     name: string;
 }>(id: Id, definition: D & {
     location?: ObjectRef | null;
+    vocab?: Vocabulary;
 } & ThisType<Handle<ThingOf<D>, Id>>): Handle<ThingOf<D>, Id>;
 
 // @public
@@ -476,6 +485,7 @@ export function thingTemplate<D extends ObjectDefinition<D> & {
     name: string;
 }>(name: string, definition: D & {
     location?: ObjectRef | null;
+    vocab?: Vocabulary;
 } & ThisType<Handle<ThingOf<D>>>): ObjectTemplate<ThingOf<D>>;
 
 // @public
@@ -488,5 +498,15 @@ export const transparent: {
 
 // @public
 export function visitsTo(room: ObjectRef): number;
+
+// @public
+export function vocabOf(thing: ObjectRef): FullVocabulary;
+
+// @public
+export type Vocabulary = {
+    readonly nouns?: readonly string[];
+    readonly adjectives?: readonly string[];
+    readonly plurals?: readonly string[];
+};
 
 ```

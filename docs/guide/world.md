@@ -120,6 +120,30 @@ expect(t`{She subj ${sam}} {nods}; {they subj ${coins}} {clink}.`()).toBe(
 - Any word in braces that isn't a registered parameter is taken as a verb, so a misspelled parameter, such as `{teh ${door}}`, prints as a verb rather than failing. Checking names when the game compiles is [#235](https://github.com/loominate-if/loominate-if/issues/235).
 - The world model's own messages are written this way: "The cellar door is locked.", "Mira arrives from outside.", "North, to the library". A game rewords them in the message table ([Rewording the library](messages.md)), where a template names what it's about by name, as `{the door}`.
 
+### Vocabulary
+
+A thing can list the words a player might use for it, for a parser to come: nothing reads them yet, but a game written now will work with one later. Most things need nothing, since `vocabOf(thing)` takes the words of the name: the last word is a noun, the others are adjectives, and the name's plural is a plural. Add any others as `vocab`:
+
+<!-- example: packages/world/src/vocabulary.test.ts#vocab -->
+```ts
+export const lantern = thing("lantern", {
+  name: "brass lantern",
+  vocab: { nouns: ["lamp", "light"], adjectives: ["old"] },
+  location: hall,
+});
+```
+
+<!-- example: packages/world/src/vocabulary.test.ts#vocabOf -->
+```ts
+expect(vocabOf(lantern)).toEqual({
+  nouns: ["lantern", "lamp", "light"],
+  adjectives: ["brass", "old"],
+  plurals: ["lanterns"],
+});
+```
+
+Vocabulary is state, like the name, so it can change during play, as when the player learns what something really is. Each entry is one word.
+
 ### Things made during play
 
 A game that makes things as it goes, such as treasure in a chest or loot in a generated dungeon, defines a **thing template** with `thingTemplate()`, which takes what `thing()` does, mixins included. Core's `spawn()` makes one from it during play, in an effect. Its ID comes from what made it, as in `gen:chest:coin-1`, so undo, saves, and replays give the same things. From then on it's part of the world like any thing: it can be moved, it's listed in contents, sorted by ID, and it can be seen, reached, and heard, and named in text:
