@@ -483,7 +483,7 @@ happen(bedroomDoor, {
 });
 ```
 
-From the hall, below the landing, the player reads "You hear a door slam from above." on the page, above the passage, for the move it happened in. The story-so-far drawer keeps it, and a walkthrough test reads it in `game.notices`, which also starts `game.text`.
+From the hall, below the landing, the player reads "You hear a door slam from above." on the page after the passage's text and before its choices, for the move it happened in. So a passage that shoos the cat reads `"Shoo!"` and then "The cat slinks off outside.", though the cat left while the passage's effects ran, before its text was shown. The story-so-far drawer keeps it in the same place, and a walkthrough test reads it in `game.notices`, and in `game.text` where the page shows it.
 
 - Only the mind the player controls is told. Every mind that notices, the player's and NPCs', in control or riding along as a passenger, learns `reveals` and sees what it saw.
 - Without `heard`, only those who see it notice; without `far`, nothing is heard from other rooms. Sound carries through exits the way they lead, whatever's in the way.

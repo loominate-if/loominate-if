@@ -60,7 +60,8 @@ export interface Walkthrough {
   /**
    * What the player noticed during the last move, and what their actions did,
    * one per line: the perception and action-result events the page shows
-   * above the passage. They're at the start of {@link Walkthrough.text} too.
+   * after the passage's text, before its choices. They're in
+   * {@link Walkthrough.text} there too.
    */
   readonly notices: string;
   /** The labels of the choices that can be made now, in order. A continue point without a label is "Continue". */
@@ -179,10 +180,16 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
       return story.current ?? start;
     },
     get text() {
-      return [
-        ...notices(),
-        ...page().nodes.flatMap((n) => (n.type === "text" ? [n.text] : [])),
-      ].join("\n");
+      // As the page shows them: notices after the text, before the first choice.
+      const lines: string[] = [];
+      let left = notices();
+      for (const n of page().nodes) {
+        if (n.type === "link" || n.type === "continue") {
+          lines.push(...left);
+          left = [];
+        } else if (n.type === "text") lines.push(n.text);
+      }
+      return [...lines, ...left].join("\n");
     },
     get notices() {
       return notices().join("\n");

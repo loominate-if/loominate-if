@@ -156,7 +156,7 @@ describe("walkthroughs", () => {
     expect(game.record.events({ tags: ["lamp"] })).toEqual([]);
   });
 
-  it("show what the player noticed during the move, as the page does", () => {
+  it("show what the player noticed during the move after its text, as the page does", () => {
     const attic: Passage[] = [
       {
         id: "Stairs",
@@ -180,7 +180,7 @@ describe("walkthroughs", () => {
     const game = play({ passages: attic, start: "Stairs" });
     game.choose("Up");
     expect(game.notices).toBe("A draught stirs the dust.");
-    expect(game.text).toBe("A draught stirs the dust.\nBare rafters.");
+    expect(game.text).toBe("Bare rafters.\nA draught stirs the dust.");
     game.choose("Continue");
     expect(game.notices).toBe("");
   });

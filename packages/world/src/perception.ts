@@ -4,7 +4,7 @@
  * Something that happens is seen by those who can see it, heard by those who
  * can hear it, and, if it's loud, heard from rooms a few exits away, with the
  * way it came. The player's mind is told, as `perception` events the page
- * shows above the passage; every mind that notices can learn a fact from it.
+ * shows after the passage text; every mind that notices can learn a fact from it.
  * Actors coming into and leaving the player's sight are narrated the same
  * way, without the author asking.
  */

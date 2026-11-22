@@ -101,7 +101,7 @@ function regionLabel(region: string): string {
 /** Event kinds the drawer shows: prose the player read. */
 const PROSE_KINDS: readonly EventKind[] = ["narrative", "scene", "dialogue", "room-description"];
 /**
- * Events recorded during a move that the page shows above the passage: what
+ * Events recorded during a move that the page shows after the passage's text, before its choices: what
  * the player noticed, and what their actions did.
  */
 const NOTICE_KINDS: readonly EventKind[] = ["perception", "action-result"];
@@ -325,11 +325,17 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     beatControls = undefined;
     if (from === 0) passage.replaceChildren();
     const rendered = story.render();
-    for (const notice of notices(from > 0)) {
-      const p = el("p", "loominate-notice");
-      appendProse(p, notice.text, notice.styles ?? [], [], () => el("span"));
-      passage.append(p);
-    }
+    // What the player noticed follows the passage's own text and comes before
+    // its choices: the text says what the player did, the notices what came of it.
+    let noticesLeft = notices(from > 0);
+    const drawNotices = (): void => {
+      for (const notice of noticesLeft) {
+        const p = el("p", "loominate-notice");
+        appendProse(p, notice.text, notice.styles ?? [], [], () => el("span"));
+        passage.append(p);
+      }
+      noticesLeft = [];
+    };
     /** Effects waiting for the next element drawn. */
     let pending: [EffectDefinition, NamedEffectNode][] = [];
     const queue: [EffectDefinition, NamedEffectNode, HTMLElement][] = [];
@@ -338,6 +344,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
       pending = [];
     };
     for (const node of rendered.nodes.slice(from)) {
+      if (node.type === "link" || node.type === "continue") drawNotices();
       if (node.type === "effect") {
         const definition = effect(node);
         if (definition.target === "page") queue.push([definition, node, root]);
@@ -381,6 +388,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
         drawn(p);
       }
     }
+    drawNotices();
     drawnCount = rendered.nodes.length;
     if (arrived) playEffects(queue);
     if (rendered.beat) drawBeat(rendered.beat, arrived);
@@ -408,12 +416,22 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     });
     // Each move starts at a navigation, and each page of a passage at a page
     // break; the last of them is the one on screen.
+    // Within a turn, notices follow the text of their part, as on the page,
+    // though their effects ran, and recorded them, before the text.
     const turns: RecordedEvent[][] = [];
+    let noticed: RecordedEvent[] = [];
+    const endPart = (): void => {
+      turns.at(-1)?.push(...noticed);
+      noticed = [];
+    };
     for (const e of events) {
       const starts = e.kind === "navigation" || (e.kind === "beat" && e.page === true);
+      if (e.kind === "beat" || starts) endPart();
       if (starts || turns.length === 0) turns.push([]);
-      if (e.kind !== "navigation" && e.kind !== "beat") turns.at(-1)?.push(e);
+      if (NOTICE_KINDS.includes(e.kind)) noticed.push(e);
+      else if (e.kind !== "navigation" && e.kind !== "beat") turns.at(-1)?.push(e);
     }
+    endPart();
     turns.pop();
     scrollback.replaceChildren(
       ...turns

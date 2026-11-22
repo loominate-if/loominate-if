@@ -160,13 +160,15 @@ describe("the page", () => {
 });
 
 describe("what the player noticed", () => {
-  it("shows above the passage for the move it happened in", () => {
+  it("shows after the passage's text and before its choices, for the move it happened in", () => {
     const { main, click } = play();
     click("Take the lantern");
-    const notice = main().querySelector("p");
-    expect(notice?.className).toBe("loominate-notice");
-    expect(notice?.textContent).toBe("Something skitters away.");
-    expect(main().textContent).toContain("You light it.");
+    expect([...main().children].map((c) => c.className || c.tagName).slice(0, 2)).toEqual([
+      "P",
+      "loominate-notice",
+    ]);
+    expect(main().querySelector(".loominate-notice")?.textContent).toBe("Something skitters away.");
+    expect(main().lastElementChild?.querySelector("button")?.textContent).toBe("Continue");
     click("Continue");
     expect(main().querySelector(".loominate-notice")).toBeNull();
   });
@@ -182,7 +184,7 @@ describe("the story-so-far drawer", () => {
     expect(drawer().querySelector("summary")?.textContent).toBe("Story so far");
     expect(turns()).toEqual([
       ["The kitchen is warm."],
-      ["Something skitters away.", "You light it. Finally light."],
+      ["You light it. Finally light.", "Something skitters away."],
     ]);
     expect(drawer().querySelector("strong")?.textContent).toBe("Finally light");
   });
@@ -203,7 +205,7 @@ describe("the story-so-far drawer", () => {
     const loaded = play(store.snapshot());
     expect(loaded.turns()).toEqual([
       ["The kitchen is warm."],
-      ["Something skitters away.", "You light it. Finally light."],
+      ["You light it. Finally light.", "Something skitters away."],
     ]);
     expect(loaded.main().textContent).toContain("Back in the kitchen");
   });

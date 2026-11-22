@@ -251,7 +251,7 @@ describe("loominate dev", () => {
       expect(button("Down").getAttribute("aria-disabled")).toBe("true");
       expect(text()).toContain("The cellar door is locked.");
       follow("Unlock the cellar door");
-      // What the player noticed shows above the passage.
+      // What the player noticed shows after the passage text.
       expect(page().querySelector(".loominate-notice")?.textContent).toBe(
         "The cellar door creaks open.",
       );

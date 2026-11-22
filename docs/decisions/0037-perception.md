@@ -13,10 +13,10 @@ The design asks for a sense layer that decides what the player notices: NPC arri
 ### Showing what was noticed
 
 - Core gains a `perception` event kind: prose, plus the `sense` (`see` or `hear`) and the `source`.
-- The page shows the move's `perception` and `action-result` events above the passage, as `.loominate-notice` paragraphs inside its live region. The drawer keeps them in their turn.
+- The page shows the move's `perception` and `action-result` events after the passage's text and before its first choice, as `.loominate-notice` paragraphs inside its live region. Effects run, and record them, before the passage's text, but the text says what the player did and the notices what came of it: `"Shoo!"`, then "The cat slinks off outside." After a beat, they follow the part it reveals. The drawer puts them in the same place in their turn.
   - A move's events are those since its navigation or page break. After a beat, only those since the beat are added.
   - They're read from the event record, so undo, loading, and redrawing show the same.
-- A walkthrough's `game.notices` gives the same text, and `game.text` starts with it, so tests see what the player sees.
+- A walkthrough's `game.notices` gives the same text, and `game.text` has it where the page shows it, so tests see what the player sees.
 - `action-result` is shown the same way, for actions' reports (#76).
 
 ### `happen`
