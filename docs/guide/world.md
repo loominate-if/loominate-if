@@ -12,9 +12,9 @@ A **place**, such as a room, is where things are. A **thing** has a name and a `
 
 <!-- example: packages/world/src/world.test.ts#places -->
 ```ts
-const hall = place("hall", { name: "the hall" });
-const study = place("study", { name: "the study" });
-const cellar = place("cellar", { name: "the cellar", isDark: true });
+const hall = place("hall", { name: "hall" });
+const study = place("study", { name: "study" });
+const cellar = place("cellar", { name: "cellar", isDark: true });
 ```
 
 <!-- example: packages/world/src/world.test.ts#things -->
@@ -59,6 +59,66 @@ const chest = thing("chest", {
   },
 });
 ```
+
+### Writing about things
+
+A thing's `name` is its bare noun, "cellar door" rather than "the cellar door", so text can say "the cellar door", "a cellar door", or "The cellar door" as it needs. The world model registers adv3Lite-style message parameters for core's `t` templates. A thing's grammar is optional:
+
+<!-- example: packages/world/src/grammar.test.ts#grammar -->
+```ts
+export const door = thing("door", { name: "cellar door", location: hall });
+export const apple = thing("apple", { name: "apple", location: hall });
+export const coins = thing("coins", { name: "coins", isPlural: true, location: hall });
+export const hour = thing("hour", { name: "hour", article: "an" });
+export const mira = actor("mira", { body: { name: "Mira", pronoun: "she", location: hall } });
+export const sam = actor("sam", { body: { name: "Sam", location: hall } });
+```
+
+- `isProper`: a proper name takes no article. It defaults to whether the name starts with a capital, so "Mira" needs nothing.
+- `isPlural`: "some coins", and plural verbs.
+- `article`: the indefinite article when the guess from the spelling is wrong, such as `"an"` for "hour", or `"some"` for "coal".
+- `pronoun`: `"she"`, `"he"`, `"they"`, or `"it"`. A plural, or a body such as an actor, defaults to `"they"`, and anything else to `"it"`.
+
+`{the ${x}}`, `{The ${x}}`, `{a ${x}}`, and `{A ${x}}` name a thing with an article, capitalized as the parameter is:
+
+<!-- example: packages/world/src/grammar.test.ts#articles -->
+```ts
+expect(t`{The ${door}} creaks; {a ${apple}} rolls; {a ${coins}} glint.`()).toBe(
+  "The cellar door creaks; an apple rolls; some coins glint.",
+);
+expect(t`{A ${door}}, {a ${hour}}, {the ${mira}}.`()).toBe("A cellar door, an hour, Mira.");
+```
+
+**Verbs agree with their subject.** Mark the subject with `subj`, then write each verb in braces as you would for "it", `{falls}`, `{is}`, `{carries}`, and it agrees: plural for plurals and "you". The player's current body is "you", whoever the player is playing. A verb can also name its own subject, as in `{is ${door}}`:
+
+<!-- example: packages/world/src/grammar.test.ts#agreement -->
+```ts
+const falls = (who: ObjectRef) => t`{The subj ${who}} {falls} and {is} gone.`();
+expect(falls(apple)).toBe("The apple falls and is gone.");
+expect(falls(coins)).toBe("The coins fall and are gone.");
+expect(falls(mira)).toBe("Mira falls and is gone.");
+expect(falls(sam)).toBe("Sam falls and is gone.");
+expect(falls(you)).toBe("You fall and are gone.");
+```
+
+**Pronouns** refer to the subject, or to the thing given: `{he}` (or `{she}`, `{they}`, `{it}`), `{him}` (`{them}`), `{his}` (`{their}`, `{its}`), and `{himself}` (`{herself}`, `{themselves}`, `{itself}`) are the same four parameters, whichever word you write. `{her}` isn't one, being both "him" and "his". A subject pronoun becomes the subject, and verbs after it agree with the pronoun, so a "they" person reads "Sam waits. They nod.":
+
+<!-- example: packages/world/src/grammar.test.ts#pronouns -->
+```ts
+expect(t`{The subj ${mira}} {picks} up the key. {He} {pockets} it.`()).toBe(
+  "Mira picks up the key. She pockets it.",
+);
+expect(t`{The subj ${coins}} spill; you gather {him} into {his ${mira}} purse.`()).toBe(
+  "The coins spill; you gather them into her purse.",
+);
+expect(t`{The subj ${you}} {sees} {himself}.`()).toBe("You see yourself.");
+expect(t`{She subj ${sam}} {nods}; {they subj ${coins}} {clink}.`()).toBe(
+  "They nod; they clink.",
+);
+```
+
+- Any word in braces that isn't a registered parameter is taken as a verb, so a misspelled parameter, such as `{teh ${door}}`, prints as a verb rather than failing. Checking names when the game compiles is [#235](https://github.com/loominate-if/loominate-if/issues/235).
+- The world model's own messages are written this way: "The cellar door is locked.", "Mira arrives from outside.", "North, to the library".
 
 ## Moving things
 
@@ -147,7 +207,7 @@ A mind inhabits one body, in control or as a passenger. `mind()` and `body()` ma
 
 <!-- example: packages/world/src/actors.test.ts#minds -->
 ```ts
-export const ghost = mind("ghost", { name: "the ghost", malice: 2 });
+export const ghost = mind("ghost", { name: "ghost", malice: 2 });
 export const statue = body("statue", { name: "marble statue", location: hall });
 ```
 
@@ -250,9 +310,9 @@ A **region** groups rooms that share defaults and rules, such as every room in a
 
 <!-- example: packages/world/src/rooms.test.ts#regions -->
 ```ts
-export const estate = region("estate", { name: "the estate" });
+export const estate = region("estate", { name: "estate" });
 export const manor = region("manor", {
-  name: "the manor",
+  name: "manor",
   regions: [estate],
   roomDefaults: { isDark: true },
   onEnter() {
@@ -262,9 +322,9 @@ export const manor = region("manor", {
     log.entries.push("leave manor");
   },
 });
-export const hall = place("hall", { name: "the hall", regions: [manor], isDark: false });
-export const cellar = place("cellar", { name: "the cellar", regions: [manor] });
-export const garden = place("garden", { name: "the garden", regions: [estate] });
+export const hall = place("hall", { name: "hall", regions: [manor], isDark: false });
+export const cellar = place("cellar", { name: "cellar", regions: [manor] });
+export const garden = place("garden", { name: "garden", regions: [estate] });
 ```
 
 - `roomDefaults` gives each member room whatever it doesn't set itself: the cellar is dark, and the hall isn't, because it says so. A nearer region's default wins over one around it.
@@ -288,10 +348,10 @@ A room's exits are declared with `connect()` in `story.ts`, after the rooms, sin
 
 <!-- example: packages/world/src/exits.test.ts#connect -->
 ```ts
-export const hall = place("hall", { name: "the hall" });
-export const library = place("library", { name: "the library" });
-export const cellar = place("cellar", { name: "the cellar" });
-export const cellarDoor = thing("cellarDoor", { ...door, ...lockable, name: "the cellar door" });
+export const hall = place("hall", { name: "hall" });
+export const library = place("library", { name: "library" });
+export const cellar = place("cellar", { name: "cellar" });
+export const cellarDoor = thing("cellarDoor", { ...door, ...lockable, name: "cellar door" });
 
 connect(hall, {
   north: library,
@@ -325,7 +385,7 @@ Anything else can stand in the way with `obstacle` and a `blocks()` method of it
 ```ts
 export const rubble = thing("rubble", {
   ...obstacle,
-  name: "a heap of rubble",
+  name: "heap of rubble",
   isCleared: false,
   blocks() {
     return this.isCleared ? undefined : "Rubble blocks the way.";
@@ -403,7 +463,7 @@ Arriving at a room passage marks everything the player's body can see there as s
 
 <!-- example: packages/world/src/knowledge.test.ts#familiar -->
 ```ts
-export const portrait = thing("portrait", { name: "the late duke's portrait", isFamiliar: true });
+export const portrait = thing("portrait", { name: "late duke's portrait", isFamiliar: true });
 ```
 
 <!-- example: packages/world/src/knowledge.test.ts#knowsAbout -->
@@ -463,16 +523,16 @@ expect(story.visits("Study")).toBe(2); // one before, one during
 
 <!-- example: packages/world/src/perception.test.ts#house -->
 ```ts
-export const landing = place("landing", { name: "the landing" });
-export const hall = place("hall", { name: "the hall" });
-export const cellar = place("cellar", { name: "the cellar", isDark: true });
-export const garden = place("garden", { name: "the garden" });
+export const landing = place("landing", { name: "landing" });
+export const hall = place("hall", { name: "hall" });
+export const cellar = place("cellar", { name: "cellar", isDark: true });
+export const garden = place("garden", { name: "garden" });
 connect(landing, { down: hall });
 connect(hall, { up: landing, down: cellar, out: garden });
 connect(cellar, { up: hall });
 connect(garden, { in: hall });
 
-export const bedroomDoor = thing("bedroomDoor", { name: "the bedroom door", location: landing });
+export const bedroomDoor = thing("bedroomDoor", { name: "bedroom door", location: landing });
 ```
 
 <!-- example: packages/world/src/perception.test.ts#slam -->
@@ -513,7 +573,7 @@ An actor moving into or out of the player's room, while the player can see, is n
 ```ts
 export const cat = actor("cat", {
   body: {
-    name: "the cat",
+    name: "cat",
     location: hall,
     leaves(toward: string | undefined) {
       return `The cat slinks off ${toward ?? "somewhere"}.`;

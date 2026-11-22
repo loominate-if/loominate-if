@@ -28,8 +28,8 @@ import {
   thing,
 } from "./index.js";
 
-const hall = place("hall", { name: "the hall" });
-const attic = place("attic", { name: "the attic" });
+const hall = place("hall", { name: "hall" });
+const attic = place("attic", { name: "attic" });
 
 // #region actor
 export const mira = actor("mira", {
@@ -56,7 +56,7 @@ const tom = actor("tom", {
   },
 });
 // #region minds
-export const ghost = mind("ghost", { name: "the ghost", malice: 2 });
+export const ghost = mind("ghost", { name: "ghost", malice: 2 });
 export const statue = body("statue", { name: "marble statue", location: hall });
 // #endregion
 const coin = thing("coin", { name: "silver coin", location: mira });
@@ -203,7 +203,7 @@ describe("possession", () => {
   });
 
   it("unwinds stacked possession in order", () => {
-    const wraith = mind("wraith", { name: "the wraith" });
+    const wraith = mind("wraith", { name: "wraith" });
     possess(ghost, mira);
     possess(wraith, mira);
     expect(ids(passengersOf(mira))).toEqual(["ghost", "mira:mind"]);
@@ -214,7 +214,7 @@ describe("possession", () => {
   });
 
   it("restores the right mind after casting out a possessor", () => {
-    const wraith = mind("wraith2", { name: "the wraith" });
+    const wraith = mind("wraith2", { name: "wraith" });
     possess(ghost, mira);
     possess(wraith, mira, { displaced: "out" });
     expect(bodyOf(ghost)).toBeUndefined();

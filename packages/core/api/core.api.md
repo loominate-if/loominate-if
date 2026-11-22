@@ -354,8 +354,15 @@ export interface MessageCall {
     readonly args: readonly MessageArg[];
     readonly context: TextContext;
     readonly name: string;
+    readonly shared: Map<string, unknown>;
     readonly text: Text;
 }
+
+// @public
+export type MessageFallback = (call: MessageCall) => string | undefined;
+
+// @public
+export const messageFallbacks: Registry<MessageFallback>;
 
 // @public
 export type MessageParameter = (call: MessageCall) => string;

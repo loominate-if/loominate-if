@@ -23,9 +23,9 @@ import {
 } from "./index.js";
 
 const facts = defineFacts({ secret: "The heir is an impostor." });
-const study = place("study", { name: "the study" });
-const lobby = place("lobby", { name: "the lobby" });
-const globe = thing("globe", { name: "a globe", location: study });
+const study = place("study", { name: "study" });
+const lobby = place("lobby", { name: "lobby" });
+const globe = thing("globe", { name: "globe", location: study });
 const you = actor("you", { body: { name: "you", location: lobby } });
 const mira = actor("mira", { body: { name: "Mira", location: lobby } });
 startAs(you);

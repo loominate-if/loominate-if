@@ -24,26 +24,26 @@ import {
 const facts = defineFacts({ someoneUpstairs: "Someone is upstairs." });
 
 // #region house
-export const landing = place("landing", { name: "the landing" });
-export const hall = place("hall", { name: "the hall" });
-export const cellar = place("cellar", { name: "the cellar", isDark: true });
-export const garden = place("garden", { name: "the garden" });
+export const landing = place("landing", { name: "landing" });
+export const hall = place("hall", { name: "hall" });
+export const cellar = place("cellar", { name: "cellar", isDark: true });
+export const garden = place("garden", { name: "garden" });
 connect(landing, { down: hall });
 connect(hall, { up: landing, down: cellar, out: garden });
 connect(cellar, { up: hall });
 connect(garden, { in: hall });
 
-export const bedroomDoor = thing("bedroomDoor", { name: "the bedroom door", location: landing });
+export const bedroomDoor = thing("bedroomDoor", { name: "bedroom door", location: landing });
 // #endregion
-const chest = thing("chest", { ...container, ...openable, name: "a chest", location: hall });
-const bell = thing("bell", { name: "a bell", location: chest });
+const chest = thing("chest", { ...container, ...openable, name: "chest", location: hall });
+const bell = thing("bell", { name: "bell", location: chest });
 
 const you = actor("you", { body: { name: "you", location: hall } });
 const mira = actor("mira", { body: { name: "Mira", location: garden } });
 // #region leaves
 export const cat = actor("cat", {
   body: {
-    name: "the cat",
+    name: "cat",
     location: hall,
     leaves(toward: string | undefined) {
       return `The cat slinks off ${toward ?? "somewhere"}.`;

@@ -110,7 +110,7 @@ export const station = place("station house", {
 - Objects created during play come from templates: `spawn(match, matchbox)` creates `gen:matchbox:match-1`.
 - Core provides `object()`; the world model's `place()`, `thing()`, and `actor()` build on it.
 
-Printed text uses tagged templates (`t`) that support adv3Lite-style message parameters for articles, pronouns, plurals, and verb agreement. A `t` text is a pure function that renders each time it's called, so functions in `${}` read current state, and parameters such as `{The ${door}}` are looked up by name in a registry that the world model and kits fill. [ADR 0013](decisions/0013-text-templates.md) defines it.
+Printed text uses tagged templates (`t`) that support adv3Lite-style message parameters for articles, pronouns, plurals, and verb agreement. A `t` text is a pure function that renders each time it's called, so functions in `${}` read current state, and parameters such as `{The ${door}}` are looked up by name in a registry that the world model and kits fill. [ADR 0013](decisions/0013-text-templates.md) defines it. The world model registers English parameters: articles (`{the ${x}}`, `{A ${x}}`), pronouns (`{he}`, `{him}`, `{his}`, `{himself}`, by any of their words), and verbs, any other word, which agree with the subject marked with `subj`, as in `{The subj ${cat}} {sleeps}`. Names are bare nouns, with optional grammar (`isProper`, `isPlural`, `article`, `pronoun`), and the player's current body is "you" ([ADR 0038](decisions/0038-message-parameters.md), [guide](guide/world.md#writing-about-things)).
 
 ### Compilation and checking
 

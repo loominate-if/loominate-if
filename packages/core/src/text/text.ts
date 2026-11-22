@@ -74,6 +74,12 @@ export interface MessageCall {
   readonly context: TextContext;
   /** The text being rendered, for error messages. */
   readonly text: Text;
+  /**
+   * Values the parameters of one rendering share, in order, such as the
+   * subject that later verbs agree with in `{The subj ${cat}} {sleeps}`.
+   * Each rendering starts with it empty.
+   */
+  readonly shared: Map<string, unknown>;
 }
 
 /**
@@ -97,6 +103,20 @@ export type MessageParameter = (call: MessageCall) => string;
  */
 export const messageParameters: Registry<MessageParameter> =
   registry<MessageParameter>("message-parameters");
+
+/**
+ * Renders a message parameter no name in {@link messageParameters} matched,
+ * or returns `undefined` to leave it to the next.
+ */
+export type MessageFallback = (call: MessageCall) => string | undefined;
+
+/**
+ * Parameters for names nobody registered, tried in the order they're
+ * registered, such as the world model's verbs: `{opens}` agrees with its
+ * subject whatever the verb. A name none of them renders is an error.
+ */
+export const messageFallbacks: Registry<MessageFallback> =
+  registry<MessageFallback>("message-fallbacks");
 
 type Segment =
   | { readonly kind: "literal"; readonly text: string }
@@ -221,26 +241,35 @@ function render(
     return typeof value === "function" && !isText(value) ? value(context) : value;
   };
   let out = "";
+  const shared = new Map<string, unknown>();
   for (const segment of segments) {
     if (segment.kind === "literal") {
       out += segment.text;
     } else if (segment.kind === "value") {
       out += print(resolve(segment.index), segment.index, context, where);
     } else {
-      const parameter = messageParameters.get(segment.name);
-      if (!parameter) {
-        throw new StateError(
-          `${where}: there's no message parameter {${segment.name}}. The world model and kits register them; check the name, or write "{{" to print a brace.`,
-        );
-      }
-      const result: unknown = parameter({
+      const call: MessageCall = {
         name: segment.name,
         args: segment.args.map((a) =>
           "word" in a ? { kind: "word", word: a.word } : { kind: "value", value: resolve(a.index) },
         ),
         context,
         text,
-      });
+        shared,
+      };
+      const parameter = messageParameters.get(segment.name);
+      let result: unknown = parameter?.(call);
+      if (!parameter) {
+        for (const fallback of messageFallbacks.entries()) {
+          result = fallback.value(call);
+          if (result !== undefined) break;
+        }
+        if (result === undefined) {
+          throw new StateError(
+            `${where}: there's no message parameter {${segment.name}}. The world model and kits register them; check the name, or write "{{" to print a brace.`,
+          );
+        }
+      }
       if (typeof result !== "string") {
         throw new StateError(
           `${where}: the message parameter {${segment.name}} returned ${describe(result)}, not a string.`,

@@ -29,9 +29,9 @@ import {
 
 // Defined out of ID order, to show that results are sorted by ID, not by definition.
 // #region places
-const hall = place("hall", { name: "the hall" });
-const study = place("study", { name: "the study" });
-const cellar = place("cellar", { name: "the cellar", isDark: true });
+const hall = place("hall", { name: "hall" });
+const study = place("study", { name: "study" });
+const cellar = place("cellar", { name: "cellar", isDark: true });
 // #endregion
 
 const player = thing("player", { ...container, name: "you", location: study });

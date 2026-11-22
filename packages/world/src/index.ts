@@ -4,6 +4,8 @@
  * what can be seen, reached, and heard. A game imports it only when it needs
  * them; a plain branching story never pays for it.
  */
+// Registers the message parameters `t` templates use: articles, pronouns, and verbs.
+import "./grammar.js";
 export {
   container,
   contents,
@@ -105,3 +107,4 @@ export {
   type RevealArguments,
 } from "./knowledge.js";
 export { happen, type HappenOptions } from "./perception.js";
+export { type Grammar, type Pronoun } from "./grammar.js";

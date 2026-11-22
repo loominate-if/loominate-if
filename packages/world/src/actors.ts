@@ -110,7 +110,7 @@ export function body<Id extends StateId, D extends ObjectDefinition<D> & { name:
  *
  * @example
  * ```ts
- * export const ghost = mind("ghost", { name: "the ghost", malice: 2 });
+ * export const ghost = mind("ghost", { name: "ghost", malice: 2 });
  * ```
  *
  * @throws StateError if the ID is taken or invalid, a property isn't valid

@@ -170,10 +170,12 @@ export { hook, type Hook, type HookContext, type HookKinds } from "./rules/hooks
 export { registry, type Registry, type RegistryEntry } from "./rules/registry.js";
 export {
   isText,
+  messageFallbacks,
   messageParameters,
   t,
   type MessageArg,
   type MessageCall,
+  type MessageFallback,
   type MessageParameter,
   type Text,
   type TextContext,
