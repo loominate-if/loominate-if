@@ -23,12 +23,16 @@ export type LinkProblem = {
 };
 
 /** Every passage named after `->`, in links and directive arguments, in source order. */
-export function passageTargets(content: readonly ContentSyntax[]): NameSyntax[] {
+export function passageTargets(
+  content: readonly ContentSyntax[],
+  stays: ReadonlySet<string> = new Set(),
+): NameSyntax[] {
   const out: NameSyntax[] = [];
   const visit = (nodes: readonly ContentSyntax[]): void => {
     for (const n of nodes) {
       if (n.type === "link") {
-        out.push(n.target);
+        // A link that takes an action stays on its passage: it has no target.
+        if (!(n.guard && stays.has(n.guard.name))) out.push(n.target);
         visit(n.label);
       } else if (n.type === "directive") {
         for (const a of n.args) if (a.type === "target") out.push(a.target);
@@ -198,6 +202,7 @@ export function checkLinks(
   named: ReadonlySet<string>,
   start: string | undefined,
   entryRoles: ReadonlySet<string> = new Set(),
+  stays: ReadonlySet<string> = new Set(),
 ): LinkProblem[] {
   const problems: LinkProblem[] = [];
   const byName = new Map<string, FilePassage>();
@@ -206,7 +211,7 @@ export function checkLinks(
 
   const edges = new Map<string, string[]>();
   for (const { file, passage } of passages) {
-    const targets = passageTargets(passage.content);
+    const targets = passageTargets(passage.content, stays);
     edges.set(
       passage.name.name,
       targets.map((t) => t.name),

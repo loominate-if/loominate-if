@@ -419,7 +419,15 @@ export function createCompilerSession(options: ProjectOptions): CompilerSession 
         });
       }
     }
-    for (const problem of checkLinks(allPassages, named, options.start, entryRoles)) {
+    // Guards whose links take an action and stay on the passage, like `{act …}`.
+    const stays = new Set(
+      [...syntax.directives].flatMap(([name, defs]) =>
+        defs.some((d) => d.definition.kind === "guard" && d.definition.stays === true)
+          ? [name]
+          : [],
+      ),
+    );
+    for (const problem of checkLinks(allPassages, named, options.start, entryRoles, stays)) {
       const at = problem.at.span.start;
       diagnostics.push({
         severity: problem.severity,

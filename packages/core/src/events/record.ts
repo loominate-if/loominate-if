@@ -86,6 +86,13 @@ export interface EventKinds {
     /** The thing that was noticed, if any. */
     readonly source?: StateId;
   };
+  /** The player took an action, such as from an `{act …}` link: a move that stays on the passage. */
+  action: {
+    /** The action's name. */
+    readonly action: string;
+    /** The label of the link it came from, if any. */
+    readonly label?: string;
+  };
   /** Moving between passages or locations. */
   navigation: {
     /** Where the move started, if anywhere. */

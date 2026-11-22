@@ -46,6 +46,11 @@ export interface HookKinds {
   passageLeave: EffectContext;
   /** After each action (following a choice, or `goTo`) and its prose. Not after beginning. */
   turnEnd: EffectContext;
+  /**
+   * When an action takes time, with how many minutes, after its action
+   * stage. Core has no clock: the world model's clock (#84) handles it.
+   */
+  actionTime: { readonly action: string; readonly minutes: number };
   /** After a save is written to a slot. */
   save: { readonly slot: string; readonly summary: SaveSummary };
   /** After a save is read from a slot, before the host loads it. */

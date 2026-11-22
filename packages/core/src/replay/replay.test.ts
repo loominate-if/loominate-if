@@ -7,7 +7,7 @@ import { createHistory } from "../state/history.js";
 import { createStore, type StateSnapshot } from "../state/store.js";
 import { StateError } from "../state/value.js";
 import { ENGINE_VERSION } from "../save/save.js";
-import { readReplay, writeReplay, type Replay } from "./replay.js";
+import { readReplay, REPLAY_VERSION, writeReplay, type Replay } from "./replay.js";
 
 const game = { id: "lantern-road", version: "1.0.0" };
 
@@ -123,7 +123,7 @@ describe("replays", () => {
     const text = writeReplay(replay);
     expect(text).toBe(`{
   "format": "loominate-replay",
-  "version": 5,
+  "version": ${String(REPLAY_VERSION)},
   "game": {"id":"lantern-road","version":"1.0.0"},
   "engine": "${ENGINE_VERSION}",
   "seed": "fog-bound",
@@ -141,7 +141,7 @@ describe("replays", () => {
     expect(writeReplay(readReplay(text))).toBe(text);
     const empty: Replay = {
       format: "loominate-replay",
-      version: 5,
+      version: 6,
       engine: "1",
       seed: "",
       actions: [],
@@ -151,7 +151,7 @@ describe("replays", () => {
 
   it("record the engine always, and the game when given", () => {
     const { story } = playthrough();
-    expect(story.toReplay()).toMatchObject({ version: 5, engine: ENGINE_VERSION });
+    expect(story.toReplay()).toMatchObject({ version: REPLAY_VERSION, engine: ENGINE_VERSION });
     expect(story.toReplay()).not.toHaveProperty("game");
     expect(story.toReplay(game).game).toEqual(game);
   });
@@ -172,7 +172,7 @@ describe("replays", () => {
     // Nothing to compare: a version 1 file, played without saying which game.
     const v1: Replay = {
       format: replay.format,
-      version: 5,
+      version: 6,
       seed: replay.seed,
       actions: replay.actions,
     };
@@ -186,7 +186,7 @@ describe("replays", () => {
     const v2 = `{"format":"loominate-replay","version":2,"engine":"1","seed":"s","actions":[]}`;
     expect(readReplay(v2)).toEqual({
       format: "loominate-replay",
-      version: 5,
+      version: REPLAY_VERSION,
       engine: "1",
       seed: "s",
       actions: [],
@@ -200,7 +200,7 @@ describe("replays", () => {
     const v1 = `{"format":"loominate-replay","version":1,"seed":"s","actions":[{"type":"goTo","passage":"Inn"}]}`;
     expect(readReplay(v1)).toEqual({
       format: "loominate-replay",
-      version: 5,
+      version: REPLAY_VERSION,
       seed: "s",
       actions: [{ type: "goTo", passage: "Inn" }],
     });
@@ -266,11 +266,11 @@ describe("reading replay files", () => {
     expect(() => readReplay("[]")).toThrow(
       `replay: this isn't a replay file; it needs "format": "loominate-replay".`,
     );
-    expect(() => readReplay(file({ version: 6 }))).toThrow(
-      "replay: the file is version 6, made by a newer engine; this one reads versions 1 to 5.",
+    expect(() => readReplay(file({ version: 7 }))).toThrow(
+      "replay: the file is version 7, made by a newer engine; this one reads versions 1 to 6.",
     );
     expect(() => readReplay(file({ version: "3" }))).toThrow(
-      `replay: "version" must be 1, 2, 3, 4, or 5.`,
+      `replay: "version" must be a whole number from 1 to 6.`,
     );
     // "advance" arrived in version 5.
     expect(() => readReplay(action({ type: "advance" }))).toThrow(

@@ -6,6 +6,7 @@
  * store, beside the event record, so undo trims it and saves carry it. A replay
  * file is that seed and log as JSON, small enough to attach to a bug report.
  */
+import type { LoggedCall } from "../actions/actions.js";
 import type { PassageId } from "../passages/story.js";
 import type { GameInfo } from "../save/save.js";
 import { createStore, type StateSnapshot } from "../state/store.js";
@@ -42,6 +43,15 @@ export type StoryAction = (
   | { readonly type: "follow"; readonly choice: ChoiceRef }
   | { readonly type: "goTo"; readonly passage: PassageId }
   | { readonly type: "advance" }
+  | {
+      readonly type: "act";
+      /** The action's name. */
+      readonly action: string;
+      /** Its things, as plain data: objects as `{ $ref: id }`. */
+      readonly args: LoggedCall["args"];
+      /** The link's label, when it came from one. */
+      readonly label?: string;
+    }
 ) & {
   /**
    * How many times an action was taken here before and then undone, when it
@@ -55,10 +65,11 @@ export const REPLAY_FORMAT = "loominate-replay";
 /**
  * The replay file version this engine writes. It also reads version 1 files,
  * which don't record the game or engine, version 2 files, which don't record
- * persistent data, version 3 files, which don't record attempts, and version 4
- * files, which have no `advance` actions.
+ * persistent data, version 3 files, which don't record attempts, version 4
+ * files, which have no `advance` actions, and version 5 files, which have no
+ * `act` actions.
  */
-export const REPLAY_VERSION = 5;
+export const REPLAY_VERSION = 6;
 
 /** A replay file: the master seed and every action since the story began. */
 export type Replay = {
@@ -121,6 +132,20 @@ function canonical(action: StoryAction): StoryAction {
   const attempt = action.attempt ? { attempt: action.attempt } : {};
   if (action.type === "goTo") return { type: "goTo", passage: action.passage, ...attempt };
   if (action.type === "advance") return { type: "advance", ...attempt };
+  if (action.type === "act") {
+    const args = Object.fromEntries(
+      Object.keys(action.args)
+        .sort()
+        .map((k) => [k, action.args[k]] as const),
+    ) as typeof action.args;
+    return {
+      type: "act",
+      action: action.action,
+      args,
+      ...(action.label !== undefined && { label: action.label }),
+      ...attempt,
+    };
+  }
   return { type: "follow", choice: choiceRef(action.choice), ...attempt };
 }
 
@@ -149,20 +174,15 @@ export function readReplay(text: string): Replay {
       `replay: this isn't a replay file; it needs "format": "${REPLAY_FORMAT}".`,
     );
   }
-  if (
-    data.version !== 1 &&
-    data.version !== 2 &&
-    data.version !== 3 &&
-    data.version !== 4 &&
-    data.version !== 5
-  ) {
+  const version = data.version;
+  if (!(typeof version === "number" && isVersion(version))) {
     throw new StateError(
       typeof data.version === "number" && data.version > REPLAY_VERSION
         ? `replay: the file is version ${String(data.version)}, made by a newer engine; this one reads versions 1 to ${String(REPLAY_VERSION)}.`
-        : `replay: "version" must be 1, 2, 3, 4, or ${String(REPLAY_VERSION)}.`,
+        : `replay: "version" must be a whole number from 1 to ${String(REPLAY_VERSION)}.`,
     );
   }
-  onlyFields(data, FIELDS[data.version], "the file");
+  onlyFields(data, FIELDS[version], "the file");
   let game: GameInfo | undefined;
   if (data.game !== undefined) {
     const g = data.game;
@@ -200,6 +220,9 @@ export function readReplay(text: string): Replay {
   };
 }
 
+/** Whether `n` is a file version this engine reads. */
+const isVersion = (n: number): n is keyof typeof FIELDS => Object.hasOwn(FIELDS, n);
+
 /** The fields each file version may have. */
 const FIELDS = {
   1: ["format", "version", "seed", "actions"],
@@ -207,6 +230,7 @@ const FIELDS = {
   3: ["format", "version", "game", "engine", "seed", "persistent", "actions"],
   4: ["format", "version", "game", "engine", "seed", "persistent", "actions"],
   5: ["format", "version", "game", "engine", "seed", "persistent", "actions"],
+  6: ["format", "version", "game", "engine", "seed", "persistent", "actions"],
 } as const;
 
 function readAction(value: unknown, index: number, version: keyof typeof FIELDS): StoryAction {
@@ -224,6 +248,33 @@ function readAction(value: unknown, index: number, version: keyof typeof FIELDS)
   if (value.type === "advance" && version >= 5) {
     onlyFields(value, ["type", ...extra], where);
     return { type: "advance", ...tried };
+  }
+  // Version 6 added "act", for an action taken from a link.
+  if (value.type === "act" && version >= 6) {
+    onlyFields(value, ["type", "action", "args", "label", ...extra], where);
+    if (!isName(value.action)) throw bad(`needs an "action" name`);
+    if (value.label !== undefined && typeof value.label !== "string") {
+      throw bad(`has a "label" that isn't a string`);
+    }
+    const args = value.args;
+    if (!isRecord(args)) throw bad(`needs an "args" object`);
+    const read: Record<string, string | number | boolean | { readonly $ref: string }> = {};
+    for (const [key, v] of Object.entries(args)) {
+      if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") read[key] = v;
+      else if (isRecord(v) && isName(v.$ref) && Object.keys(v).length === 1)
+        read[key] = { $ref: v.$ref };
+      else
+        throw bad(
+          `has an argument "${key}" that isn't a string, number, boolean, or { "$ref": id }`,
+        );
+    }
+    return {
+      type: "act",
+      action: value.action,
+      args: read,
+      ...(value.label !== undefined && { label: value.label }),
+      ...tried,
+    };
   }
   if (value.type === "goTo") {
     onlyFields(value, ["type", "passage", ...extra], where);

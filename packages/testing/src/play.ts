@@ -162,10 +162,15 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
   const notices = (): string[] => {
     const out: string[] = [];
     for (const e of record.events({
-      kinds: ["perception", "action-result", "navigation", "beat"],
+      kinds: ["perception", "action-result", "navigation", "action", "beat"],
     })) {
-      if (e.kind === "navigation" || (e.kind === "beat" && e.page === true)) out.length = 0;
-      else if (e.kind !== "beat") out.push((e as { text: string }).text);
+      if (
+        e.kind === "navigation" ||
+        e.kind === "action" ||
+        (e.kind === "beat" && e.page === true)
+      ) {
+        out.length = 0;
+      } else if (e.kind !== "beat") out.push((e as { text: string }).text);
     }
     return out;
   };

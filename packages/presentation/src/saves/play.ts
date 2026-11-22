@@ -146,6 +146,7 @@ export interface PlayedReplay {
 function actionLabel(action: StoryAction, story: Story): string {
   if (action.type === "goTo") return message("history.goTo", { passage: action.passage });
   if (action.type === "follow") return action.choice.label ?? message("page.continue");
+  if (action.type === "act") return action.label ?? action.action;
   const beat = story.render().beat;
   return beat ? moveLabel(beat) : message("page.continue");
 }

@@ -447,11 +447,13 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
    * began, or with `sinceBeat`, since the last beat moved past.
    */
   const notices = (sinceBeat: boolean): (RecordedEvent & ProseFields)[] => {
-    const events = record.events({ kinds: [...NOTICE_KINDS, "navigation", "beat"] });
+    const events = record.events({ kinds: [...NOTICE_KINDS, "navigation", "action", "beat"] });
     const out: (RecordedEvent & ProseFields)[] = [];
     for (const e of events) {
       const starts =
-        e.kind === "navigation" || (e.kind === "beat" && (sinceBeat || e.page === true));
+        e.kind === "navigation" ||
+        e.kind === "action" ||
+        (e.kind === "beat" && (sinceBeat || e.page === true));
       if (starts) out.length = 0;
       else if (e.kind !== "beat") out.push(e as RecordedEvent & ProseFields);
     }
@@ -460,10 +462,10 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
 
   const drawDrawer = (): void => {
     const events = record.events({
-      kinds: [...NOTICE_KINDS, ...PROSE_KINDS, "navigation", "beat"],
+      kinds: [...NOTICE_KINDS, ...PROSE_KINDS, "navigation", "action", "beat"],
     });
-    // Each move starts at a navigation, and each page of a passage at a page
-    // break; the last of them is the one on screen.
+    // Each move starts at a navigation or an action, and each page of a
+    // passage at a page break; the last of them is the one on screen.
     // Within a turn, notices follow the text of their part, as on the page,
     // though their effects ran, and recorded them, before the text.
     const turns: RecordedEvent[][] = [];
@@ -473,11 +475,14 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
       noticed = [];
     };
     for (const e of events) {
-      const starts = e.kind === "navigation" || (e.kind === "beat" && e.page === true);
+      const starts =
+        e.kind === "navigation" || e.kind === "action" || (e.kind === "beat" && e.page === true);
       if (e.kind === "beat" || starts) endPart();
       if (starts || turns.length === 0) turns.push([]);
       if (NOTICE_KINDS.includes(e.kind)) noticed.push(e);
-      else if (e.kind !== "navigation" && e.kind !== "beat") turns.at(-1)?.push(e);
+      else if (e.kind !== "navigation" && e.kind !== "action" && e.kind !== "beat") {
+        turns.at(-1)?.push(e);
+      }
     }
     endPart();
     turns.pop();

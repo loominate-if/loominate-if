@@ -221,6 +221,8 @@ Every action, whether from a menu, a passage link, an NPC, or a future parser, r
 3. **Action:** perform it, including its time cost.
 4. **Report:** describe the outcome into the event record.
 
+Core defines actions with `action(name, { label, verify, check, run, report, minutes })`, each stage a rulebook seeded with the definition, plus `everyAction` rules for all. `[[Open the door]]{act open({ thing: door })}` offers one from a passage: hidden when verify fails, disabled with check's reason, and taken as an `act` move that stays on the passage, so undo, saves, and replays cover it. Time goes to the `actionTime` hook for the clock. The world model records the acting mind and body, and adds the rules that the actor has a body and its things are in reach ([ADR 0044](decisions/0044-action-pipeline.md), [guide](guide/actions.md)).
+
 ### Dynamic context menus
 
 Opening an object's menu gathers candidate actions from every relevant source: the object, carried items, the player's knowledge, the location, active scenes, and extensions. Each action decides whether it is hidden, shown, or disabled with a reason, and can compute its own label.

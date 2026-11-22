@@ -169,6 +169,22 @@ export {
 export { hook, type Hook, type HookContext, type HookKinds } from "./rules/hooks.js";
 export { registry, type Registry, type RegistryEntry } from "./rules/registry.js";
 export {
+  action,
+  actLink,
+  everyAction,
+  perform,
+  statusOf,
+  useActor,
+  type Action,
+  type ActionCall,
+  type ActionContext,
+  type ActionDefinition,
+  type ActionOutcome,
+  type ActionStage,
+  type ActionStatus,
+  type LoggedCall,
+} from "./actions/actions.js";
+export {
   message,
   messages,
   type MessageKey,

@@ -5,6 +5,67 @@
 ```ts
 
 // @public
+export type Action<A> = ((args: A) => ActionCall<A>) & {
+    readonly actionName: string;
+    readonly verify: DecideRulebook<ActionContext<A>, string | undefined>;
+    readonly check: DecideRulebook<ActionContext<A>, string | undefined>;
+    readonly perform: ActionStage<ActionContext<A>>;
+    readonly report: DecideRulebook<ActionContext<A>, string | undefined>;
+    readonly minutes: FoldRulebook<number, ActionContext<A>>;
+    label(args: A): string;
+};
+
+// @public
+export function action<A extends Readonly<Record<string, unknown>>>(name: string, definition?: ActionDefinition<A>): Action<A>;
+
+// @public
+export type ActionCall<A = Readonly<Record<string, unknown>>> = {
+    readonly action: Action<A>;
+    readonly args: A;
+};
+
+// @public
+export type ActionContext<A> = A & {
+    readonly action: string;
+    readonly actor?: ObjectRef;
+    readonly body?: ObjectRef;
+};
+
+// @public
+export type ActionDefinition<A> = {
+    readonly label?: string | ((context: ActionContext<A>) => string);
+    readonly verify?: (context: ActionContext<A>) => string | undefined;
+    readonly check?: (context: ActionContext<A>) => string | undefined;
+    readonly run?: (context: ActionContext<A>) => void;
+    readonly report?: string | ((context: ActionContext<A>) => string);
+    readonly minutes?: number | ((context: ActionContext<A>) => number);
+};
+
+// @public
+export type ActionOutcome = {
+    readonly done: boolean;
+    readonly reason?: string;
+};
+
+// @public
+export interface ActionStage<P> extends RuleList<(context: P) => void> {
+    explain(context: P): Explanation<undefined>;
+    run(context: P): void;
+}
+
+// @public
+export type ActionStatus = {
+    readonly label: string;
+    readonly hidden?: string;
+    readonly disabled?: string;
+};
+
+// @public
+export function actLink<A>(args: {
+    readonly call: ActionCall<A>;
+}): LinkGuard;
+
+// @public
 export const AUTOSAVE_SLOT = "autosave";
 
 // @public
@@ -145,6 +206,10 @@ export interface EventKinds {
     "room-description": ProseFields & {
         readonly room: StateId;
     };
+    action: {
+        readonly action: string;
+        readonly label?: string;
+    };
     beat: {
         readonly passage: StateId;
         readonly step: number;
@@ -184,6 +249,12 @@ export interface EventRecord {
     events<K extends EventKind = EventKind>(query?: EventQuery<K>): RecordedEvent<K>[];
     readonly length: number;
 }
+
+// @public
+export const everyAction: {
+    readonly verify: DecideRulebook<ActionContext<Readonly<Record<string, unknown>>>, string | undefined>;
+    readonly check: DecideRulebook<ActionContext<Readonly<Record<string, unknown>>>, string | undefined>;
+};
 
 // @public
 export interface Explanation<R> {
@@ -258,6 +329,10 @@ export type HookContext = Pick<EffectContext, "state" | "persistent" | "emit">;
 
 // @public
 export interface HookKinds {
+    actionTime: {
+        readonly action: string;
+        readonly minutes: number;
+    };
     gameStart: HookContext;
     load: {
         readonly slot: string;
@@ -315,6 +390,7 @@ export type LinkGuard = {
     readonly condition: string;
     readonly mode?: GuardMode;
     readonly reason?: string;
+    readonly act?: LoggedCall;
     readonly parts?: readonly ConditionPart[];
 };
 
@@ -338,6 +414,14 @@ export type LinkNode = {
 export type LoadedSave = {
     readonly summary: SaveSummary;
     readonly state: StateSnapshot;
+};
+
+// @public
+export type LoggedCall = {
+    readonly action: string;
+    readonly args: Readonly<Record<string, string | number | boolean | {
+        readonly $ref: string;
+    }>>;
 };
 
 // @public
@@ -483,6 +567,9 @@ export type PassageId = StateId;
 
 // @public
 export type PassageNode = TextNode | LinkNode | ContinueNode | NamedEffectNode | NoticesNode | BeatNode;
+
+// @public
+export function perform<A>(call: ActionCall<A>): ActionOutcome;
 
 // @public
 export const PERSISTENT_FORMAT = "loominate-persistent";
@@ -647,7 +734,7 @@ export type Replay = {
 export const REPLAY_FORMAT = "loominate-replay";
 
 // @public
-export const REPLAY_VERSION = 5;
+export const REPLAY_VERSION = 6;
 
 // @public
 export type ReplayCheck = {
@@ -821,6 +908,9 @@ export type StateValue = null | boolean | number | string | readonly StateValue[
 export type StateWriter = StateReader & Pick<StateStore, "set" | "delete">;
 
 // @public
+export function statusOf<A>(call: ActionCall<A>): ActionStatus;
+
+// @public
 export interface Stopped<V> {
     readonly stopped: V;
 }
@@ -852,6 +942,11 @@ export type StoryAction = ({
     readonly passage: PassageId;
 } | {
     readonly type: "advance";
+} | {
+    readonly type: "act";
+    readonly action: string;
+    readonly args: LoggedCall["args"];
+    readonly label?: string;
 }) & {
     readonly attempt?: number;
 };
@@ -941,6 +1036,12 @@ export type UnreadableSave = {
     readonly slot: string;
     readonly problem: string;
 };
+
+// @public
+export function useActor(who: (() => {
+    readonly actor?: ObjectRef;
+    readonly body?: ObjectRef;
+} | undefined) | undefined): void;
 
 // @public
 export function useVisitMemory(visitMemory: VisitMemory | undefined): void;

@@ -430,7 +430,7 @@ describe("following the game", () => {
     const replay = readReplay(
       writeReplay({
         format: "loominate-replay",
-        version: 5,
+        version: 6,
         game: { id: game.id, version: "0.9.0" },
         engine: ENGINE_VERSION,
         seed: "fixed",
@@ -455,7 +455,7 @@ describe("following the game", () => {
     expect(() =>
       player.playReplay({
         format: "loominate-replay",
-        version: 5,
+        version: 6,
         game: { id: "elsewhere", version: "1.0.0" },
         seed: "fixed",
         actions: [],

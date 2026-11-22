@@ -343,6 +343,7 @@ A **room** is a place a passage describes. Tag the passage with `room:` and the 
 {if visitsTo(hall) === 1}A draughty hall.{else}The hall again.{/if} You're in {you.location?.id ?? "nowhere"}.
 {exits}
 [[Unlock the cellar door -> Unlock]]{when cellarDoor.isLocked, hidden}
+[[Knock on the door]]{act knock({ thing: cellarDoor })}
 
 :: Unlock
 {on enter: cellarDoor.unlock(); cellarDoor.open(); happen(cellarDoor, { seen: "The cellar door creaks open." })}
