@@ -23,6 +23,7 @@ export {
   placeOf,
   surface,
   thing,
+  thingTemplate,
   transparent,
   type Holding,
   type Place,

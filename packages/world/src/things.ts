@@ -8,9 +8,12 @@
  * definition, not from a class hierarchy.
  */
 import {
+  instancesOf,
   mixin,
   object,
   StateError,
+  template,
+  type ObjectTemplate,
   type Handle,
   type ObjectDefinition,
   type ObjectRef,
@@ -56,6 +59,31 @@ type Features = {
 
 /** Every thing and place defined with {@link thing} and {@link place}, by ID. */
 const registry = new Map<StateId, Thing>();
+/** The templates of things made during play, from {@link thingTemplate}. */
+const thingTemplates: ObjectTemplate<object>[] = [];
+
+/** The things made during play in the running story, or none when no story is running. */
+function spawned(): Thing[] {
+  if (thingTemplates.length === 0) return [];
+  try {
+    return thingTemplates.flatMap((t) => instancesOf(t) as unknown as Thing[]);
+  } catch {
+    // No story is running, as while the game loads: nothing has been made yet.
+    return [];
+  }
+}
+
+/** The thing with `id`: defined, or made during play, whose IDs start `gen:`. */
+function lookup(id: StateId): Thing | undefined {
+  return (
+    registry.get(id) ?? (id.startsWith("gen:") ? spawned().find((t) => t.id === id) : undefined)
+  );
+}
+
+/** Every thing and place, defined or made during play. */
+function everything(): Thing[] {
+  return [...registry.values(), ...spawned()];
+}
 /** The IDs of places, which bound sight, reach, and hearing. */
 const places = new Set<StateId>();
 
@@ -172,6 +200,32 @@ export function thing<Id extends StateId, D extends ObjectDefinition<D> & { name
 }
 
 /**
+ * Defines a template for things made during play, such as the coins in a
+ * treasure chest or the rooms of a generated dungeon's loot. It takes what
+ * {@link thing} does, mixins included. Make one with core's `spawn()`,
+ * whose ID derives from what made it (`gen:chest:coin-1`), so undo, saves,
+ * and replays give the same things; it's then part of the world like any
+ * thing: it can be moved, listed in contents, and sensed.
+ *
+ * @example
+ * ```ts
+ * export const coin = thingTemplate("coin", { name: "gold coin" });
+ * // in an effect:
+ * move(spawn(coin, chest), chest);
+ * ```
+ *
+ * @throws StateError if the name is taken or invalid, or a property isn't valid state.
+ */
+export function thingTemplate<D extends ObjectDefinition<D> & { name: string }>(
+  name: string,
+  definition: D & { location?: ObjectRef | null } & ThisType<Handle<ThingOf<D>>>,
+): ObjectTemplate<ThingOf<D>> {
+  const made = template(name, withDefaults({ location: null }, definition) as ObjectDefinition<D>);
+  thingTemplates.push(made as unknown as ObjectTemplate<object>);
+  return made as unknown as ObjectTemplate<ThingOf<D>>;
+}
+
+/**
  * Defines a place, such as a room: it holds things in it, and bounds what
  * can be seen, reached, and heard. `isDark` defaults to `false`.
  *
@@ -217,12 +271,12 @@ export function withDefaults<D extends object>(defaults: object, definition: D):
 
 /** The thing defined with `id`, for code that has only a reference. @internal */
 export function thingFor(ref: ObjectRef): Thing | undefined {
-  return registry.get(ref.id);
+  return lookup(ref.id);
 }
 
 /** A thing's mixin state, for containment and scope. @internal */
 export function features(t: ObjectRef): Features {
-  return (registry.get(t.id) ?? {}) as Features;
+  return (lookup(t.id) ?? {}) as Features;
 }
 
 /** Whether `t` is a place. */
@@ -237,8 +291,8 @@ export function holding(t: ObjectRef): Holding | undefined {
 
 /** What `t` is in or on, or `undefined` when it's nowhere. */
 export function parentOf(t: ObjectRef): Thing | undefined {
-  const at = registry.get(t.id)?.location;
-  return at ? registry.get(at.id) : undefined;
+  const at = lookup(t.id)?.location;
+  return at ? lookup(at.id) : undefined;
 }
 
 /**
@@ -247,7 +301,7 @@ export function parentOf(t: ObjectRef): Thing | undefined {
  */
 export function contents(parent: ObjectRef): Thing[] {
   const out: Thing[] = [];
-  for (const t of registry.values()) if (t.location?.id === parent.id) out.push(t);
+  for (const t of everything()) if (t.location?.id === parent.id) out.push(t);
   return out.sort(byId);
 }
 
@@ -264,7 +318,7 @@ export function isWithin(t: ObjectRef, ancestor: ObjectRef): boolean {
 /** The place `t` is in, however deep, or `undefined` if it isn't in one. A place is its own. */
 export function placeOf(t: ObjectRef): Place | undefined {
   const seen = new Set<StateId>();
-  for (let at: Thing | undefined = registry.get(t.id); at && !seen.has(at.id); at = parentOf(at)) {
+  for (let at: Thing | undefined = lookup(t.id); at && !seen.has(at.id); at = parentOf(at)) {
     if (places.has(at.id)) return at as Place;
     seen.add(at.id);
   }
@@ -283,7 +337,7 @@ export function placeOf(t: ObjectRef): Place | undefined {
  * `place()`, `to` can't hold things, `t` is a place, or the move would put `t` inside itself.
  */
 export function move(t: ObjectRef, to: ObjectRef | null): void {
-  const moving = registry.get(t.id);
+  const moving = lookup(t.id);
   const from = moving ? placeOf(moving) : undefined;
   const where = `move ${JSON.stringify(t.id)}`;
   if (!moving) throw new StateError(`${where}: it isn't defined with thing() or place().`);
@@ -295,7 +349,7 @@ export function move(t: ObjectRef, to: ObjectRef | null): void {
     moved(moving, from);
     return;
   }
-  const into = registry.get(to.id);
+  const into = lookup(to.id);
   const target = `${where} to ${JSON.stringify(to.id)}`;
   if (!into) throw new StateError(`${target}: it isn't defined with thing() or place().`);
   if (holding(into) === undefined) {
@@ -329,5 +383,5 @@ export const byId = (a: ObjectRef, b: ObjectRef): number =>
 
 /** Every thing and place, sorted by ID. @internal */
 export function allThings(): Thing[] {
-  return [...registry.values()].sort(byId);
+  return everything().sort(byId);
 }

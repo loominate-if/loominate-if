@@ -52,3 +52,9 @@ Each sense spreads through the containment tree from the observer until somethin
 - Scope looks at every thing for each question. That's fast enough for hand-written games; a game with thousands of things may need an index later, kept out of the state store.
 - Perception (#69) decides what the player notices; it builds on these senses, and may add how far each reaches.
 - `location` is an ordinary data property, so code can assign it directly, bypassing `move`'s checks. The containment functions guard against cycles all the same.
+
+## Addendum: things made during play (#272)
+
+- `thingTemplate(name, definition)` defines a template for things made during play, taking what `thing()` does, mixins included. It wraps core's `template()`, so core's `spawn()` makes them, with IDs derived from their origin (`gen:chest:coin-1`), and undo, saves, and replays restore them in place.
+- The world model looks things up among those defined with `thing()` and `place()` and, for IDs starting `gen:`, among instances of thing templates in the running story. So `move`, `contents`, `placeOf`, scope, and message parameters treat a made thing like a defined one, and contents stay sorted by ID.
+- Places, bodies, and actors made during play aren't covered yet: generated rooms come with procedural generation (#167) and generated NPCs with NPCs.
