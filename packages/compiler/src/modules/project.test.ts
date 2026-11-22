@@ -15,7 +15,7 @@ const compilerOptions = { customConditions: ["source"] };
 const story = `
 import { object, type Handle } from "@loominate-if/core";
 
-export const lantern = object("lantern", { isLit: false, name: "the lantern" });
+export const lantern = object("lantern", { isLit: false, name: "lantern" });
 export const player = object("player", {
   fear: 0,
   carrying: [] as Handle<object>[],

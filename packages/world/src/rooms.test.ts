@@ -28,9 +28,9 @@ const log = object("log", { entries: [] as string[] });
 const power = object("power", { isOut: false });
 
 // #region regions
-export const estate = region("estate", { name: "the estate" });
+export const estate = region("estate", { name: "estate" });
 export const manor = region("manor", {
-  name: "the manor",
+  name: "manor",
   regions: [estate],
   roomDefaults: { isDark: true },
   onEnter() {
@@ -40,13 +40,13 @@ export const manor = region("manor", {
     log.entries.push("leave manor");
   },
 });
-export const hall = place("hall", { name: "the hall", regions: [manor], isDark: false });
-export const cellar = place("cellar", { name: "the cellar", regions: [manor] });
-export const garden = place("garden", { name: "the garden", regions: [estate] });
+export const hall = place("hall", { name: "hall", regions: [manor], isDark: false });
+export const cellar = place("cellar", { name: "cellar", regions: [manor] });
+export const garden = place("garden", { name: "garden", regions: [estate] });
 // #endregion
-const lane = place("lane", { name: "the lane" });
+const lane = place("lane", { name: "lane" });
 const wing = region("wing", {
-  name: "the east wing",
+  name: "east wing",
   regions: [manor],
   // #region dynamic-default
   roomDefaults: {
@@ -62,7 +62,7 @@ const wing = region("wing", {
     log.entries.push("leave wing");
   },
 });
-const gallery = place("gallery", { name: "the gallery", regions: [wing] });
+const gallery = place("gallery", { name: "gallery", regions: [wing] });
 const chair = thing("chair", { ...surface, name: "armchair", location: hall });
 const cart = thing("cart", { ...container, name: "garden cart", location: garden });
 
@@ -105,10 +105,10 @@ describe("regions", () => {
   });
 
   it("explain what isn't a region", () => {
-    expect(() => place("shed", { name: "the shed", regions: [hall] })).toThrow(
+    expect(() => place("shed", { name: "shed", regions: [hall] })).toThrow(
       'place "shed": "hall" isn\'t a region. Define it with region().',
     );
-    expect(() => region("annex", { name: "the annex", regions: [garden] })).toThrow(
+    expect(() => region("annex", { name: "annex", regions: [garden] })).toThrow(
       'region "annex": "garden" isn\'t a region. Define it with region().',
     );
   });

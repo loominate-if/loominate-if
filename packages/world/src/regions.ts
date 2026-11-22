@@ -66,13 +66,13 @@ const definedParents = new Map<StateId, readonly StateId[]>();
  * @example
  * ```ts
  * export const manor = region("manor", {
- *   name: "the manor",
+ *   name: "manor",
  *   roomDefaults: { isDark: true },
  *   onEnter() {
  *     emit("narrative", { text: "The door booms shut behind you." });
  *   },
  * });
- * export const hall = place("hall", { name: "the hall", regions: [manor] });
+ * export const hall = place("hall", { name: "hall", regions: [manor] });
  * ```
  *
  * @throws StateError if the ID is taken or invalid, a property isn't valid

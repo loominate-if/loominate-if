@@ -88,14 +88,14 @@ export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, start
       pathToFileURL(path.join(packages, "world/src/extension.ts")).href,
     )};\n`,
     "story.ts": `import { actor, connect, defineFacts, door, happen, lockable, place, player, startAs, thing, visitsTo } from "@loominate-if/world";
-export const hall = place("hall", { name: "the hall" });
-export const cellar = place("cellar", { name: "the cellar" });
-export const cellarDoor = thing("cellarDoor", { ...door, ...lockable, name: "the cellar door" });
+export const hall = place("hall", { name: "hall" });
+export const cellar = place("cellar", { name: "cellar" });
+export const cellarDoor = thing("cellarDoor", { ...door, ...lockable, name: "cellar door" });
 connect(hall, { down: { to: cellar, via: cellarDoor } });
 connect(cellar, { up: { to: hall, via: cellarDoor } });
 export const you = actor("you", { body: { name: "you", location: hall } });
 startAs(you);
-export const note = thing("note", { name: "a note", location: cellar });
+export const note = thing("note", { name: "note", location: cellar });
 export const facts = defineFacts({ culprit: "The butler did it." });
 export { happen, player, visitsTo };
 `,

@@ -34,20 +34,20 @@ export const facts = defineFacts({
 export const affair = fact("affair", { text: "The colonel and the cook are lovers." });
 // #endregion
 
-const study = place("study", { name: "the study" });
-const cellar = place("cellar", { name: "the cellar", isDark: true });
-const desk = thing("desk", { name: "the desk", location: study });
-const box = thing("box", { ...container, ...openable, name: "a box", location: study });
-const ring = thing("ring", { name: "a ring", location: box });
-const coal = thing("coal", { name: "some coal", location: cellar });
+const study = place("study", { name: "study" });
+const cellar = place("cellar", { name: "cellar", isDark: true });
+const desk = thing("desk", { name: "desk", location: study });
+const box = thing("box", { ...container, ...openable, name: "box", location: study });
+const ring = thing("ring", { name: "ring", location: box });
+const coal = thing("coal", { name: "coal", article: "some", location: cellar });
 // #region familiar
-export const portrait = thing("portrait", { name: "the late duke's portrait", isFamiliar: true });
+export const portrait = thing("portrait", { name: "late duke's portrait", isFamiliar: true });
 // #endregion
-const diary = thing("diary", { name: "the diary", location: study });
+const diary = thing("diary", { name: "diary", location: study });
 
 const you = actor("you", { body: { name: "you", location: null } });
-const maid = actor("maid", { body: { name: "the maid", location: study } });
-const ghost = mind("ghost", { name: "the ghost" });
+const maid = actor("maid", { body: { name: "maid", location: study } });
+const ghost = mind("ghost", { name: "ghost" });
 startAs(you);
 
 let store: StateStore;
@@ -140,11 +140,11 @@ describe("what a mind knows", () => {
     // An actor's mind half and body half are checked too, at compile time and when the game loads.
     expect(() =>
       // @ts-expect-error `knows` is every mind's own.
-      actor("cook", { body: { name: "the cook" }, mind: { knows: "stuff" } }),
+      actor("cook", { body: { name: "cook" }, mind: { knows: "stuff" } }),
     ).toThrow('actor "cook": "knows" is what every mind does with what it knows');
     expect(() =>
       // @ts-expect-error `learn` is every mind's own.
-      actor("valet", { body: { name: "the valet", learn: 1 } }),
+      actor("valet", { body: { name: "valet", learn: 1 } }),
     ).toThrow('actor "valet": "learn" is what every mind does with what it knows');
   });
 });

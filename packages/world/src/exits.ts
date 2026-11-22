@@ -11,6 +11,7 @@ import {
   mixin,
   object,
   StateError,
+  t,
   type Handle,
   type LinkNode,
   type ObjectRef,
@@ -65,7 +66,7 @@ type Blocker = { blocks?(traveler: ObjectRef): string | undefined };
  * ```ts
  * export const rubble = thing("rubble", {
  *   ...obstacle,
- *   name: "a heap of rubble",
+ *   name: "heap of rubble",
  *   isCleared: false,
  *   blocks() {
  *     return this.isCleared ? undefined : "Rubble blocks the tunnel.";
@@ -81,9 +82,6 @@ export const obstacle = mixin({
   },
 });
 
-/** "The cellar door" from "the cellar door". */
-const capital = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
-
 /**
  * A door: it opens and closes, and blocks the way while it's closed. Spread
  * {@link lockable} in too for a door that locks. Both rooms' exits name the
@@ -92,7 +90,7 @@ const capital = (text: string): string => text.charAt(0).toUpperCase() + text.sl
  *
  * @example
  * ```ts
- * export const cellarDoor = thing("cellarDoor", { ...door, ...lockable, name: "the cellar door" });
+ * export const cellarDoor = thing("cellarDoor", { ...door, ...lockable, name: "cellar door" });
  * ```
  */
 export const door = mixin({
@@ -100,9 +98,9 @@ export const door = mixin({
   /** "The cellar door is locked." or "… is closed.", or `undefined` when it's open. */
   blocks(traveler: ObjectRef): string | undefined {
     void traveler;
-    const self = this as unknown as { name: string; isOpen: boolean; isLocked?: boolean };
-    if (self.isLocked === true) return `${capital(self.name)} is locked.`;
-    if (!self.isOpen) return `${capital(self.name)} is closed.`;
+    const self = this as unknown as ObjectRef & { isOpen: boolean; isLocked?: boolean };
+    if (self.isLocked === true) return t`{The subj ${self}} {is} locked.`();
+    if (!self.isOpen) return t`{The subj ${self}} {is} closed.`();
     return undefined;
   },
 });
@@ -261,7 +259,8 @@ export function exitLinks(args: Readonly<Record<string, never>> = {}): LinkNode[
         `{exits}: the ${e.direction.name} exit from ${JSON.stringify(here.id)} leads to ${JSON.stringify(e.to.id)}, which no passage describes. Tag one [room: …] for it.`,
       );
     }
-    const label = visitsTo(e.to) > 0 ? `${e.direction.label}, to ${e.to.name}` : e.direction.label;
+    const label =
+      visitsTo(e.to) > 0 ? t`${e.direction.label}, to {the ${e.to}}`() : e.direction.label;
     const reason = blockedReason(e, body);
     return {
       type: "link",

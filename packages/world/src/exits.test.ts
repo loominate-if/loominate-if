@@ -41,10 +41,10 @@ direction("aft", { opposite: "fore", label: "Aft" });
 // #endregion
 
 // #region connect
-export const hall = place("hall", { name: "the hall" });
-export const library = place("library", { name: "the library" });
-export const cellar = place("cellar", { name: "the cellar" });
-export const cellarDoor = thing("cellarDoor", { ...door, ...lockable, name: "the cellar door" });
+export const hall = place("hall", { name: "hall" });
+export const library = place("library", { name: "library" });
+export const cellar = place("cellar", { name: "cellar" });
+export const cellarDoor = thing("cellarDoor", { ...door, ...lockable, name: "cellar door" });
 
 connect(hall, {
   north: library,
@@ -54,13 +54,13 @@ connect(library, { south: { to: hall, minutes: 1 } });
 connect(cellar, { up: { to: hall, via: cellarDoor } });
 // #endregion
 
-const deck = place("deck", { name: "the deck" });
-const hold = place("hold", { name: "the hold" });
-const bow = place("bow", { name: "the bow" });
+const deck = place("deck", { name: "deck" });
+const hold = place("hold", { name: "hold" });
+const bow = place("bow", { name: "bow" });
 // #region obstacle
 export const rubble = thing("rubble", {
   ...obstacle,
-  name: "a heap of rubble",
+  name: "heap of rubble",
   isCleared: false,
   blocks() {
     return this.isCleared ? undefined : "Rubble blocks the way.";
@@ -106,7 +106,7 @@ describe("exits", () => {
       "down cellar cellarDoor",
     ]);
     expect(exitsOf(library)[0]?.minutes).toBe(1);
-    expect(exitsOf(place("attic", { name: "the attic" }))).toEqual([]);
+    expect(exitsOf(place("attic", { name: "attic" }))).toEqual([]);
   });
 
   it("become links, disabled with a locked door's reason", () => {
@@ -156,10 +156,10 @@ describe("exits", () => {
     }).toThrow('connect "you": it isn\'t a place. Define it with place().');
     expect(() => {
       // @ts-expect-error `sideways` isn't a direction.
-      connect(place("loft", { name: "the loft" }), { sideways: hall });
+      connect(place("loft", { name: "loft" }), { sideways: hall });
     }).toThrow('connect "loft": there\'s no direction "sideways". Register it with direction().');
     expect(() => {
-      setExit(place("shed", { name: "the shed" }), "north", hall);
+      setExit(place("shed", { name: "shed" }), "north", hall);
     }).toThrow(
       'setExit "shed" north: the room was never connected. Call connect(shed, {…}) in story.ts, even with no exits.',
     );

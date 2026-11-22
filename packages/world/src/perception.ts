@@ -8,7 +8,7 @@
  * Actors coming into and leaving the player's sight are narrated the same
  * way, without the author asking.
  */
-import { emit, StateError, type ObjectRef } from "@loominate-if/core";
+import { emit, StateError, t, type ObjectRef } from "@loominate-if/core";
 import { allBodies, currentPlayerBody, currentPlayerMind, isBody, mindsIn } from "./actors.js";
 import { type Direction } from "./directions.js";
 import { connectedRooms, exitsOf } from "./exits.js";
@@ -130,9 +130,6 @@ function tell(body: Thing, source: Thing, noticed: Noticed, reveals: Fact | unde
   }
 }
 
-/** "Mira" from "Mira", "The cat" from "the cat". */
-const capital = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
-
 /** What a body may say about its own comings and goings, in place of the defaults. */
 type Narrated = {
   name: string;
@@ -153,7 +150,7 @@ onMove((moved, from) => {
     const way = to ? exitsOf(here).find((e) => e.to.id === to.id)?.direction.toward : undefined;
     const text = self.leaves
       ? self.leaves(way)
-      : `${capital(self.name)} leaves${way ? ` ${way}` : ""}.`;
+      : t`{The subj ${moved}} {leaves}${way ? ` ${way}` : ""}.`();
     if (text) emit("perception", { text, sense: "see", source: moved.id });
   } else if (to?.id === here.id) {
     // Everyone here who can see the newcomer sees it, and the player is told.
@@ -164,7 +161,7 @@ onMove((moved, from) => {
     const way = from ? exitsOf(here).find((e) => e.to.id === from.id)?.direction.from : undefined;
     const text = self.arrives
       ? self.arrives(way)
-      : `${capital(self.name)} arrives${way ? ` ${way}` : ""}.`;
+      : t`{The subj ${moved}} {arrives}${way ? ` ${way}` : ""}.`();
     if (text) emit("perception", { text, sense: "see", source: moved.id });
   }
 });

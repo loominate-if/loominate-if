@@ -181,7 +181,7 @@ export function thing<Id extends StateId, D extends ObjectDefinition<D> & { name
  *
  * @example
  * ```ts
- * export const cellar = place("cellar", { name: "the cellar", isDark: true });
+ * export const cellar = place("cellar", { name: "cellar", isDark: true });
  * ```
  *
  * @throws StateError if the ID is taken or invalid, or a property isn't valid state.

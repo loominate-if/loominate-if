@@ -4,7 +4,7 @@ import { object, resetObjects, type ObjectRef } from "../objects/objects.js";
 import { createStory, type Passage } from "../passages/story.js";
 import { createStore } from "../state/store.js";
 import { StateError } from "../state/value.js";
-import { isText, messageParameters, t, type MessageArg } from "./text.js";
+import { isText, messageFallbacks, messageParameters, t, type MessageArg } from "./text.js";
 
 /** Parameters registered by a test, removed after it, since the registry is global. */
 const registered: string[] = [];
@@ -94,6 +94,29 @@ describe("message parameters", () => {
       args[0]?.kind === "word" ? String(context[args[0].word]) : "?",
     );
     expect(t`{subj actor} waits.`({ actor: "Bob" })).toBe("Bob waits.");
+  });
+
+  it("share values within one rendering, such as a subject", () => {
+    parameter("subj", ({ args, shared }) => {
+      shared.set("subject", args[0]?.kind === "word" ? args[0].word : "?");
+      return "";
+    });
+    parameter("who", ({ shared }) => String(shared.get("subject") ?? "nobody"));
+    const text = t`{subj Bob}{who} waits; {who} again.`;
+    expect(text()).toBe("Bob waits; Bob again.");
+    expect(t`{who} waits.`()).toBe("nobody waits."); // each rendering starts afresh
+  });
+
+  it("fall back for names nobody registered, such as verbs", () => {
+    messageFallbacks.register("shouting", ({ name }) =>
+      name === name.toLowerCase() ? name.toUpperCase() : undefined,
+    );
+    try {
+      expect(t`It {opens}.`()).toBe("It OPENS.");
+      expect(() => t`{Opens}`()).toThrow("there's no message parameter {Opens}");
+    } finally {
+      messageFallbacks.remove("shouting");
+    }
   });
 
   it("explain a missing or broken parameter", () => {

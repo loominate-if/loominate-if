@@ -182,6 +182,14 @@ export type FactSource = {
 };
 
 // @public
+export type Grammar = {
+    readonly isProper?: boolean;
+    readonly isPlural?: boolean;
+    readonly article?: string;
+    readonly pronoun?: Pronoun;
+};
+
+// @public
 export function happen(source: ObjectRef, options: HappenOptions): void;
 
 // @public
@@ -355,6 +363,9 @@ export type PossessOptions = {
     readonly as?: "controller" | "passenger";
     readonly displaced?: "passenger" | "out";
 };
+
+// @public
+export type Pronoun = "she" | "he" | "they" | "it";
 
 // @public
 export type Region = Handle<RegionFields>;
