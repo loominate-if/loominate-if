@@ -2,7 +2,7 @@
  * The player shell (#230): one call that plays a game in the browser. It
  * creates the store, story, undo history, and page; keeps saves in the
  * browser; autosaves after each move; offers Continue when the player comes
- * back; and puts Undo, Save, and Load in a `game-menu` widget.
+ * back; and puts Undo, Save, Load, and Restart in a `game-menu` widget.
  */
 import {
   AUTOSAVE_SLOT,
@@ -164,9 +164,10 @@ type MenuActions = {
   readonly canUndo: () => boolean;
   readonly undo: () => void;
   readonly open: (focus: "save" | "load") => void;
+  readonly restart: () => void;
 };
 
-/** The game menu widget: Undo, Save, and Load buttons. */
+/** The game menu widget: Undo, Save, Load, and Restart buttons. */
 function gameMenu(actions: MenuActions): WidgetDefinition<MenuData> {
   return widget({
     data: () => ({ canUndo: actions.canUndo() }),
@@ -192,6 +193,26 @@ function gameMenu(actions: MenuActions): WidgetDefinition<MenuData> {
         });
         make("Load", () => {
           actions.open("load");
+        });
+        // Restart abandons the game in play, so it asks once more on the same
+        // button, as the save menu's Delete does; leaving the button cancels.
+        let confirming = false;
+        const restart = make("Restart", () => {
+          if (!confirming) {
+            confirming = true;
+            restart.textContent = "Confirm restart";
+            restart.setAttribute(
+              "aria-label",
+              "Confirm restart: start the story over. Saves are kept.",
+            );
+            return;
+          }
+          actions.restart();
+        });
+        restart.addEventListener("blur", () => {
+          confirming = false;
+          restart.textContent = "Restart";
+          restart.removeAttribute("aria-label");
         });
         element.append(bar);
         const show = (d: MenuData) => {
@@ -223,7 +244,7 @@ function freshSeed(): string {
 /**
  * Plays a game in `container`. A reload in the same tab carries on from the
  * autosave; a player who comes back after closing the tab is offered
- * Continue or New game. Then it shows the page, with Undo, Save, and Load in the `game-menu` widget,
+ * Continue or New game. Then it shows the page, with Undo, Save, Load, and Restart in the `game-menu` widget,
  * which goes in the `page` layout's header unless the game has changed that
  * layout.
  *
@@ -314,6 +335,14 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
     },
     open: (focus) => {
       menu.open(focus).catch(onError);
+    },
+    restart: () => {
+      autosaving
+        .then(() => {
+          start();
+          host.querySelector<HTMLElement>(".loominate-passage")?.focus({ preventScroll: true });
+        })
+        .catch(onError);
     },
   });
   if (widgets.get("game-menu")) widgets.replace("game-menu", menuWidget, { source: SOURCE });
