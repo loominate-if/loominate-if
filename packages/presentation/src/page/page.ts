@@ -71,6 +71,13 @@ export type PageOptions = {
   /** The label for a continue point that has none. Defaults to "Continue". */
   readonly continueLabel?: string;
   /**
+   * How a disabled link's reason is shown. `tooltip`, the default, shows it
+   * beside the link when it's hovered, focused, or tapped, and Escape hides
+   * it. `inline` shows it after the link, always. Either way, screen readers
+   * hear it as the link's description.
+   */
+  readonly reasons?: "tooltip" | "inline";
+  /**
    * Whether to add the default styles to the document. They sit in the
    * `loominate` cascade layer, so a game's own CSS overrides them without
    * this. Pass `false` to style the page from nothing. Defaults to `true`.
@@ -227,6 +234,46 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     b.setAttribute("aria-describedby", r.id);
     return r;
   };
+  const tooltips = (options.reasons ?? "tooltip") === "tooltip";
+  /**
+   * A disabled link with its reason as a tooltip: shown while the link is
+   * hovered or focused, or after it's tapped, and hidden by Escape. The
+   * reason stays in the page, so screen readers hear it as the description.
+   */
+  const withTooltip = (b: HTMLElement, r: HTMLElement): HTMLElement => {
+    const holder = el("span", "loominate-has-reason");
+    r.classList.add("loominate-tooltip");
+    r.setAttribute("role", "tooltip");
+    holder.append(b, r);
+    b.addEventListener("click", () => {
+      if (holder.hasAttribute("data-shown")) holder.removeAttribute("data-shown");
+      else holder.setAttribute("data-shown", "");
+      holder.removeAttribute("data-dismissed");
+    });
+    // Escape hides it until the pointer or focus leaves and comes back.
+    const reset = (): void => {
+      holder.removeAttribute("data-dismissed");
+    };
+    holder.addEventListener("pointerleave", reset);
+    holder.addEventListener("focusout", reset);
+    return holder;
+  };
+  // Escape hides any reason on show; a tap elsewhere hides tapped ones.
+  root.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    // Only the reasons on show, so one hovered later still appears.
+    for (const h of root.querySelectorAll(".loominate-has-reason")) {
+      if (!h.matches(":hover, :focus-within, [data-shown]")) continue;
+      h.removeAttribute("data-shown");
+      h.setAttribute("data-dismissed", "");
+    }
+  });
+  root.ownerDocument.addEventListener("click", (event) => {
+    const inside = (event.target as Element | null)?.closest(".loominate-has-reason");
+    for (const h of root.querySelectorAll(".loominate-has-reason[data-shown]")) {
+      if (h !== inside) h.removeAttribute("data-shown");
+    }
+  });
 
   // ---- Named effects ----------------------------------------------------
 
@@ -404,6 +451,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
           (link: RenderedInlineLink, label) => {
             const b = button(link, label, "loominate-link loominate-inline");
             const r = reason(b, link.reason);
+            if (r && tooltips) return withTooltip(b, r);
             if (r) after.push(r);
             return b;
           },
@@ -428,9 +476,9 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
           );
         } else {
           const b = button(node, node.label, "loominate-link");
-          p.append(b);
           const r = reason(b, node.reason);
-          if (r) p.append(" ", r);
+          if (r && tooltips) p.append(withTooltip(b, r));
+          else p.append(b, ...(r ? [" ", r] : []));
         }
         passage.append(p);
         drawn(p);

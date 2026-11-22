@@ -147,15 +147,59 @@ describe("the page", () => {
     const { main, click } = play();
     click("Go to the stairs");
     const paragraph = main().querySelector("p");
-    expect(paragraph?.textContent).toBe("The steps go down. You could go back or feel your way.");
+    // What reads on screen: the reason is a tooltip, hidden until it's wanted.
+    const visible = paragraph?.cloneNode(true) as HTMLElement;
+    for (const t of visible.querySelectorAll(".loominate-tooltip")) t.remove();
+    expect(visible.textContent).toBe("The steps go down. You could go back or feel your way.");
     const inline = paragraph?.querySelectorAll<HTMLButtonElement>("button.loominate-inline");
     expect([...(inline ?? [])].map((b) => [b.textContent, b.ariaDisabled])).toEqual([
       ["go back", null],
       ["feel your way", "true"],
     ]);
-    expect(main().querySelector(".loominate-note")?.textContent).toBe("Too risky.");
+    const feel = [...(inline ?? [])].at(-1);
+    const tooltip = document.getElementById(feel?.getAttribute("aria-describedby") ?? "");
+    expect(tooltip?.textContent).toBe("Too risky.");
+    expect(tooltip?.getAttribute("role")).toBe("tooltip");
+    expect(main().querySelector(".loominate-note")).toBeNull();
     click("go back");
     expect(main().textContent).toContain("Back in the kitchen");
+  });
+});
+
+describe("a disabled link's reason", () => {
+  it("is a tooltip, shown on a tap and hidden by Escape or a tap elsewhere", () => {
+    const { main, click } = play();
+    click("Go to the stairs");
+    const down = [...main().querySelectorAll("button")].find((b) => b.textContent === "Go down");
+    const holder = down?.closest(".loominate-has-reason");
+    expect(holder?.querySelector(".loominate-tooltip")?.textContent).toBe(
+      "It's too dark to see the steps.",
+    );
+    expect(holder?.hasAttribute("data-shown")).toBe(false);
+    down?.click();
+    expect(holder?.hasAttribute("data-shown")).toBe(true);
+    main().dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(holder?.hasAttribute("data-shown")).toBe(false);
+    expect(holder?.hasAttribute("data-dismissed")).toBe(true);
+    holder?.dispatchEvent(new Event("pointerleave"));
+    expect(holder?.hasAttribute("data-dismissed")).toBe(false);
+    down?.click();
+    document.body.click();
+    expect(holder?.hasAttribute("data-shown")).toBe(false);
+  });
+
+  it("stays after the link with reasons: inline", () => {
+    const store = createStore();
+    const record = createEventRecord(store);
+    const story = createStory(store, record, passages, { start: "Stairs" });
+    document.body.replaceChildren();
+    const container = document.createElement("div");
+    document.body.append(container);
+    mountPage(container, { story, record }, { reasons: "inline" });
+    expect(container.querySelector(".loominate-tooltip")).toBeNull();
+    expect(container.querySelector(".loominate-choice .loominate-reason")?.textContent).toBe(
+      "It's too dark to see the steps.",
+    );
   });
 });
 
