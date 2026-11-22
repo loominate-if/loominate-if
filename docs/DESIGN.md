@@ -260,7 +260,7 @@ The world model is an optional library inspired by adv3Lite; a game imports it w
 - **Perceived identity.** NPCs see bodies, not minds; who they think they are addressing is a belief in their knowledge. Relationships are keyed by minds, but NPC responses depend on who they believe is present.
 - **Narration.** "You" follows the player's mind; descriptions come from the body.
 - **Simple by default.** `actor(...)` creates a permanently linked mind and body and routes properties to the right half, so games that never use possession or swaps never see the split. The definition names each half; the actor is its body and reads its mind's properties through.
-- **The player.** `startAs(you)` in `story.ts` names the mind the player starts as, and `playAs(mind)` switches during play. Possessing a body keeps the displaced mind as a passenger unless it's pushed out ([ADR 0032](decisions/0032-minds-and-bodies.md), [guide](guide/world.md#minds-and-bodies)).
+- **The player.** `startAs(you)` in `story.ts` names the mind the player starts as, and `playAs(mind)` switches during play. Possessing a body keeps the displaced mind as a passenger unless it's pushed out, and that mind takes control again when the possessor leaves, unless the author says not to ([ADR 0032](decisions/0032-minds-and-bodies.md), [guide](guide/world.md#minds-and-bodies)).
 
 ```ts
 export const mira = actor("mira", {

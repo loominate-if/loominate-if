@@ -82,7 +82,12 @@ export function isPlace(t: ObjectRef): boolean;
 export function isWithin(t: ObjectRef, ancestor: ObjectRef): boolean;
 
 // @public
-export function leaveBody(m: ObjectRef): void;
+export function leaveBody(m: ObjectRef, options?: LeaveOptions): void;
+
+// @public
+export type LeaveOptions = {
+    readonly restore?: boolean;
+};
 
 // @public
 export const lightSource: {
@@ -108,6 +113,7 @@ export function mind<Id extends StateId, D extends ObjectDefinition<D>>(id: Id, 
 export type MindFields = {
     inhabits: ObjectRef | null;
     isPassenger: boolean;
+    displaced: ObjectRef | null;
 };
 
 // @public

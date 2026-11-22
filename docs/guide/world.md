@@ -151,7 +151,7 @@ export const ghost = mind("ghost", { name: "the ghost", malice: 2 });
 export const statue = body("statue", { name: "marble statue", location: hall });
 ```
 
-`possess(mind, body)` puts a mind in control of a body. The mind that was in control stays as a passenger, watching, so it can be restored later:
+`possess(mind, body)` puts a mind in control of a body. The mind that was in control stays as a passenger, watching:
 
 <!-- example: packages/world/src/actors.test.ts#possess -->
 ```ts
@@ -163,8 +163,27 @@ expect(mira.courage).toBe(3); // still Mira's own
 
 - `possess(ghost, mira, { displaced: "out" })` casts Mira's mind out of any body instead.
 - `possess(ghost, mira, { as: "passenger" })` has the ghost ride along, with Mira still in control.
-- `leaveBody(mind)` leaves a body empty: `mindOf(body)` is then `undefined`.
-- `swapBodies(a, b)` exchanges two minds' bodies:
+
+When the possessor leaves, with `leaveBody(mind)` or by possessing another body, the mind it displaced takes control again:
+
+<!-- example: packages/world/src/actors.test.ts#leave -->
+```ts
+leaveBody(ghost);
+expect(mindOf(mira)?.id).toBe("mira:mind");
+```
+
+To leave the body empty instead, such as in a trance, say so. The displaced mind stays inside as a passenger, without control, until something gives it back with `possess(mira.mind, mira)`:
+
+<!-- example: packages/world/src/actors.test.ts#trance -->
+```ts
+leaveBody(ghost, { restore: false });
+expect(mindOf(mira)).toBeUndefined();
+expect(ids(passengersOf(mira))).toEqual(["mira:mind"]);
+```
+
+Only a mind that was displaced takes control back. One that rode along as a passenger never does, and possessors stacked on one body unwind in order.
+
+`swapBodies(a, b)` exchanges two minds' bodies:
 
 <!-- example: packages/world/src/actors.test.ts#swap -->
 ```ts

@@ -49,5 +49,6 @@ export {
   type Mind,
   type MindFields,
   type MindOf,
+  type LeaveOptions,
   type PossessOptions,
 } from "./actors.js";

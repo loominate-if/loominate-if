@@ -165,6 +165,63 @@ describe("possession", () => {
     expect(mindOf(statue)).toBeUndefined();
   });
 
+  it("hands control back to the displaced mind when the possessor leaves", () => {
+    const history = createHistory(store);
+    possess(ghost, mira);
+    history.checkpoint("possess");
+    // #region leave
+    leaveBody(ghost);
+    expect(mindOf(mira)?.id).toBe("mira:mind");
+    // #endregion
+    expect(passengersOf(mira)).toEqual([]);
+    history.checkpoint("leave");
+    history.undo();
+    expect(mindOf(mira)?.id).toBe("ghost");
+  });
+
+  it("leaves the body empty when told not to restore", () => {
+    possess(ghost, mira);
+    // #region trance
+    leaveBody(ghost, { restore: false });
+    expect(mindOf(mira)).toBeUndefined();
+    expect(ids(passengersOf(mira))).toEqual(["mira:mind"]);
+    // #endregion
+  });
+
+  it("hands control back when the possessor moves on to another body", () => {
+    possess(ghost, mira);
+    possess(ghost, statue);
+    expect(mindOf(mira)?.id).toBe("mira:mind");
+    expect(mindOf(statue)?.id).toBe("ghost");
+  });
+
+  it("never hands control to a passenger that rode along of its own accord", () => {
+    possess(ghost, mira, { as: "passenger" });
+    leaveBody(mira.mind);
+    expect(mindOf(mira)).toBeUndefined();
+    expect(ids(passengersOf(mira))).toEqual(["ghost"]);
+  });
+
+  it("unwinds stacked possession in order", () => {
+    const wraith = mind("wraith", { name: "the wraith" });
+    possess(ghost, mira);
+    possess(wraith, mira);
+    expect(ids(passengersOf(mira))).toEqual(["ghost", "mira:mind"]);
+    leaveBody(wraith);
+    expect(mindOf(mira)?.id).toBe("ghost");
+    leaveBody(ghost);
+    expect(mindOf(mira)?.id).toBe("mira:mind");
+  });
+
+  it("restores the right mind after casting out a possessor", () => {
+    const wraith = mind("wraith2", { name: "the wraith" });
+    possess(ghost, mira);
+    possess(wraith, mira, { displaced: "out" });
+    expect(bodyOf(ghost)).toBeUndefined();
+    leaveBody(wraith);
+    expect(mindOf(mira)?.id).toBe("mira:mind");
+  });
+
   it("swaps two minds' bodies", () => {
     // #region swap
     swapBodies(you, tom);

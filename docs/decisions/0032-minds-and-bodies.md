@@ -26,9 +26,11 @@ The design makes an actor two linked objects: a mind, with knowledge, traits, an
 
 ### Transfers
 
-- `possess(mind, body)` takes control. The mind that was in control stays in the body as a passenger, so nothing is lost unless the author asks for it.
+- `possess(mind, body)` takes control. The mind that was in control stays in the body as a passenger, so nothing is lost unless the author asks for it. The possessor records it in `displaced`, state on the possessor's mind.
 - `{ displaced: "out" }` pushes the displaced mind out of any body, and `{ as: "passenger" }` rides along without control, leaving the body's mind in control.
-- `swapBodies(a, b)` exchanges two minds' places, control or passenger as each was. `leaveBody(mind)` leaves its body.
+- When the possessor leaves, with `leaveBody(mind)` or by possessing another body, the mind it displaced takes control again, if it's still a passenger there. That's what authors expect of possession ending. `leaveBody(mind, { restore: false })` leaves the body empty instead, with the displaced mind still a passenger, for a trance or a body held for later.
+- Only the displaced mind takes control back. A passenger that rode along with `{ as: "passenger" }` never does, so riding along can't become a takeover by accident. Possessors stacked on one body unwind in order, since each records whom it displaced; one cast out passes its record to the mind that cast it out.
+- `swapBodies(a, b)` exchanges two minds' places, control or passenger as each was, and their `displaced` records with them, since a record belongs to the place in the body.
 - Each is one change for undo, saves, and replays.
 
 ### The player

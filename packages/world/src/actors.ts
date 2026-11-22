@@ -31,6 +31,11 @@ export type MindFields = {
   inhabits: ObjectRef | null;
   /** Whether it rides in its body as a passenger, without control. */
   isPassenger: boolean;
+  /**
+   * The mind it took control from, kept in its body as a passenger, or
+   * `null`. When this mind leaves, that one takes control again.
+   */
+  displaced: ObjectRef | null;
 };
 
 /** A mind: what an actor knows and thinks. It inhabits a body, or none. */
@@ -128,6 +133,7 @@ export function mind<Id extends StateId, D extends ObjectDefinition<D>>(
     withDefaults(definition, {
       inhabits: start,
       isPassenger: passenger,
+      displaced: null,
     }) as unknown as ObjectDefinition<D>,
   );
   minds.set(id, handle as unknown as Mind);
@@ -177,7 +183,7 @@ export function actor<
   const where = `actor ${JSON.stringify(id)}`;
   const bodyDef = definition.body as object;
   const mindDef = (definition.mind ?? {}) as object;
-  const mindKeys = [...Object.keys(mindDef), "inhabits", "isPassenger"];
+  const mindKeys = [...Object.keys(mindDef), "inhabits", "isPassenger", "displaced"];
   for (const key of [...mindKeys, "mind", "body"]) {
     if (Object.hasOwn(bodyDef, key)) {
       throw new StateError(
@@ -284,9 +290,10 @@ export type PossessOptions = {
  *
  * @remarks
  * By default `m` takes control, and the mind that was in control stays in the
- * body as a passenger. `{ displaced: "out" }` pushes it out of any body
- * instead, and `{ as: "passenger" }` has `m` ride along without control. Each
- * is one change for undo.
+ * body as a passenger, to take control again when `m` leaves.
+ * `{ displaced: "out" }` pushes it out of any body instead, and
+ * `{ as: "passenger" }` has `m` ride along without control. Leaving another
+ * body hands it back, as {@link leaveBody} does. Each is one change for undo.
  *
  * @example
  * ```ts
@@ -301,31 +308,69 @@ export function possess(m: ObjectRef, b: ObjectRef, options: PossessOptions = {}
   const where = `possess ${JSON.stringify(m.id)} into ${JSON.stringify(b.id)}`;
   const moving = mindFor(m, where);
   const into = bodyFor(b, where);
+  if (moving.inhabits?.id === into.id && !moving.isPassenger) return; // already in control
+  vacate(moving, true);
   if (options.as === "passenger") {
-    if (moving.inhabits?.id === into.id && !moving.isPassenger) return;
     moving.inhabits = into;
     moving.isPassenger = true;
     return;
   }
   const holder = mindOf(into);
-  if (holder && holder.id !== moving.id) {
-    if (options.displaced === "out") holder.inhabits = null;
-    holder.isPassenger = options.displaced !== "out";
+  if (holder && options.displaced === "out") {
+    // Cast out, it can't take control back; whoever it displaced still can.
+    moving.displaced = holder.displaced;
+    holder.inhabits = null;
+    holder.isPassenger = false;
+    holder.displaced = null;
+  } else if (holder) {
+    moving.displaced = holder;
+    holder.isPassenger = true;
   }
   moving.inhabits = into;
   moving.isPassenger = false;
 }
 
+/** How {@link leaveBody} leaves a body. */
+export type LeaveOptions = {
+  /**
+   * Whether the mind the leaving one displaced takes control again, as it
+   * does by default. `false` leaves the body empty, with that mind still a
+   * passenger, such as a body left in a trance.
+   */
+  readonly restore?: boolean;
+};
+
 /**
- * Has mind `m` leave its body, so it inhabits none. A body left with no mind
- * in control is empty.
+ * Has mind `m` leave its body, so it inhabits none.
+ *
+ * @remarks
+ * If `m` was in control, the mind it displaced with {@link possess} takes
+ * control again, if it's still a passenger there. `{ restore: false }` leaves
+ * the body empty instead. A passenger that rode along of its own accord never
+ * takes control this way.
+ *
+ * @example
+ * ```ts
+ * leaveBody(ghost);                     // Mira is herself again
+ * leaveBody(ghost, { restore: false }); // Mira's body stands empty, her mind trapped inside
+ * ```
  *
  * @throws StateError if `m` isn't a mind.
  */
-export function leaveBody(m: ObjectRef): void {
-  const leaving = mindFor(m, "leaveBody");
+export function leaveBody(m: ObjectRef, options: LeaveOptions = {}): void {
+  vacate(mindFor(m, "leaveBody"), options.restore ?? true);
+}
+
+/** Takes `leaving` out of its body, handing control back to the mind it displaced if `restore`. */
+function vacate(leaving: Mind, restore: boolean): void {
+  const at = leaving.inhabits;
+  const was = leaving.displaced ? minds.get(leaving.displaced.id) : undefined;
+  if (restore && at && !leaving.isPassenger && was?.inhabits?.id === at.id && was.isPassenger) {
+    was.isPassenger = false;
+  }
   leaving.inhabits = null;
   leaving.isPassenger = false;
+  leaving.displaced = null;
 }
 
 /**
@@ -342,11 +387,14 @@ export function leaveBody(m: ObjectRef): void {
 export function swapBodies(a: ObjectRef, b: ObjectRef): void {
   const first = mindFor(a, "swapBodies");
   const second = mindFor(b, "swapBodies");
-  const [at, passenger] = [first.inhabits, first.isPassenger];
+  // What each displaced goes with its place: it's that body's mind to restore.
+  const [at, passenger, displaced] = [first.inhabits, first.isPassenger, first.displaced];
   first.inhabits = second.inhabits;
   first.isPassenger = second.isPassenger;
+  first.displaced = second.displaced;
   second.inhabits = at;
   second.isPassenger = passenger;
+  second.displaced = displaced;
 }
 
 /**
