@@ -150,7 +150,10 @@ describe("the loominate Vite plugin", () => {
       read: () => hall("on"),
       server,
     });
-    expect(logged).toEqual([{ level: "info", message: "The game has no problems now." }]);
+    // Vite logs things of its own on its own schedule, such as re-optimizing
+    // dependencies, so check for this report and for no errors, not an exact log.
+    expect(logged).toContainEqual({ level: "info", message: "The game has no problems now." });
+    expect(logged.filter((l) => l.level === "error")).toEqual([]);
   });
 
   it("shows the game's errors in Vite's overlay on each page that connects", async () => {

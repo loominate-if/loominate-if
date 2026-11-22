@@ -251,6 +251,15 @@ export const lightSource: {
 };
 
 // @public
+export function listContents(holder: ObjectRef): string;
+
+// @public
+export type ListingFields = {
+    readonly pluralName?: string;
+    readonly isEquivalent?: boolean;
+};
+
+// @public
 export const lockable: {
     isLocked: boolean;
     lock(): boolean;
@@ -355,6 +364,12 @@ export function playerBody(): Thing | undefined;
 
 // @public
 export function playerMind(): Mind;
+
+// @public
+export function pluralize(name: string): string;
+
+// @public
+export function pluralOf(thing: ObjectRef): string;
 
 // @public
 export function possess(m: ObjectRef, b: ObjectRef, options?: PossessOptions): void;

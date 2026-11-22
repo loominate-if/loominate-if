@@ -138,6 +138,42 @@ move(spawn(coin, chest), chest); // gen:chest:coin-1
 move(spawn(coin, chest), chest); // gen:chest:coin-2
 ```
 
+### Listing what's here
+
+`listContents(holder)` lists what's directly in or on something, as the player would see it: "a brass key, a map, and two mice", or "nothing". Alike things are listed once, with a count: things made from the same template, or marked `isEquivalent`, with the same name. A name's plural adds "s" or "es" to its last word, or comes from `pluralName`:
+
+<!-- example: packages/world/src/listing.test.ts#things -->
+```ts
+export const chest = thing("chest", { ...container, ...openable, name: "chest", location: vault });
+export const table = thing("table", { ...surface, name: "table", location: vault });
+export const coin = thingTemplate("coin", { name: "gold coin" });
+export const key = thing("key", { name: "brass key", location: table });
+export const map = thing("map", { name: "map", location: table });
+export const mouse1 = thing("mouse1", {
+  name: "mouse",
+  pluralName: "mice",
+  isEquivalent: true,
+  location: table,
+});
+export const mouse2 = thing("mouse2", {
+  name: "mouse",
+  pluralName: "mice",
+  isEquivalent: true,
+  location: table,
+});
+```
+
+<!-- example: packages/world/src/listing.test.ts#listing -->
+```ts
+expect(listContents(chest)).toBe("three gold coins");
+expect(listContents(table)).toBe("a brass key, a map, and two mice");
+```
+
+- Only what the player can see is listed, so nothing in a closed box or in the dark, but what the player carries always is. The player is never listed, so `listContents(cellar)` lists what's in the room around them.
+- Things are listed in ID order, so a listing is the same every time.
+- Export it from `story.ts` to use it in passages, `export { listContents } from "@loominate-if/world";`, then write `The chest holds {listContents(chest)}.`
+- The words come from the message table: `list.empty` ("nothing"), `list.join` ("a, b, and c"), `list.group` ("three gold coins"), and `number.words` ("three", up to twelve, then digits) ([Rewording the library](messages.md)).
+
 ## Moving things
 
 `move(thing, to)` moves a thing into or onto another, or out of the world with `move(thing, null)`. It's one change, so one undo takes it back. It refuses a move that makes no sense: into something that can't hold things, or into the thing itself or something inside it. Whether the player may make the move, such as into a locked chest, is for actions to decide.
@@ -292,7 +328,7 @@ You step back as it swings wide.
 {continue -> Hall}
 
 :: Cellar [room: cellar]
-Cellar visits: {visitsTo(cellar)}. You're in {you.location?.id ?? "nowhere"}.
+Cellar visits: {visitsTo(cellar)}. You're in {you.location?.id ?? "nowhere"}. You see {listContents(cellar)}.
 {exits}
 {if player.hasSeen(note)}A note lies on the floor.{/if}
 {if player.knows(facts.culprit)}You know who did it, from {player.sourceOf(facts.culprit)?.from?.id ?? "nowhere"}.{/if}
