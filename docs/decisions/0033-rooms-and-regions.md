@@ -1,6 +1,6 @@
 # 0033. Rooms, regions, and tag roles that run on arrival
 
-- **Status:** Accepted, 2026-11-21
+- **Status:** Accepted, 2026-11-21. How a role's value is evaluated is revised by [ADR 0034](0034-exits-and-directions.md).
 - **Issue:** [#63](https://github.com/loominate-if/loominate-if/issues/63)
 - **Design:** [World model library](../DESIGN.md#world-model-library), [ADR 0015](0015-compiler-extensions.md), [ADR 0031](0031-containment-and-scope.md), [ADR 0032](0032-minds-and-bodies.md)
 

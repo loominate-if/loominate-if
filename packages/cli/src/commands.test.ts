@@ -55,7 +55,11 @@ export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, title
 type Page = {
   body: { innerHTML: string };
   querySelector(selector: string): { textContent: string | null } | null;
-  querySelectorAll(selector: string): Iterable<{ textContent: string | null; click(): void }>;
+  querySelectorAll(selector: string): Iterable<{
+    textContent: string | null;
+    click(): void;
+    getAttribute(name: string): string | null;
+  }>;
 };
 const page = (): Page => (globalThis as unknown as { document: Page }).document;
 
@@ -68,7 +72,50 @@ const options = (root: string) => ({
 const START =
   ":: Start\n{if lamp.lit}Light.{else}You wake in the dark.{/if}\n[[Light the lamp -> Lit]]\n:: Lit\n{on enter: lamp.lit = true}\nIt glows.\n";
 
+/** A game using the world model's rooms, exits, and doors, with its extension from source. */
+function worldGame(): string {
+  const root = game({
+    "loominate.config.ts": `import { defineConfig } from "@loominate-if/cli";
+export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, start: "Hall", extensions: ["world-from-source"] });
+`,
+    // The world model's own extension module, from source, so the test needs no build first.
+    "node_modules/world-from-source/package.json": JSON.stringify({
+      name: "world-from-source",
+      type: "module",
+      loominate: { extension: "./extension.js" },
+    }),
+    "node_modules/world-from-source/extension.js": `export { default } from ${JSON.stringify(
+      pathToFileURL(path.join(packages, "world/src/extension.ts")).href,
+    )};\n`,
+    "story.ts": `import { actor, connect, door, lockable, place, startAs, thing, visitsTo } from "@loominate-if/world";
+export const hall = place("hall", { name: "the hall" });
+export const cellar = place("cellar", { name: "the cellar" });
+export const cellarDoor = thing("cellarDoor", { ...door, ...lockable, name: "the cellar door" });
+connect(hall, { down: { to: cellar, via: cellarDoor } });
+connect(cellar, { up: { to: hall, via: cellarDoor } });
+export const you = actor("you", { body: { name: "you", location: hall } });
+startAs(you);
+export { visitsTo };
+`,
+    "rooms.weft": readFileSync(path.join(here, "fixtures/rooms.weft"), "utf8"),
+  });
+  symlinkSync(
+    path.join(packages, "world"),
+    path.join(root, "node_modules/@loominate-if/world"),
+    "dir",
+  );
+  return root;
+}
+
 describe("loominate build", () => {
+  it("builds a game using the world model's syntax, type-checking it", async () => {
+    const root = worldGame();
+    await build({ ...options(root), target: "single" });
+    expect(readFileSync(path.join(root, "dist/test-game.html"), "utf8")).toContain(
+      "A draughty hall.",
+    );
+  }, 60_000);
+
   it("builds the game as a static site, with relative URLs", async () => {
     const root = game({ "start.weft": START });
     await build(options(root));
@@ -176,55 +223,39 @@ export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, start
 });
 
 describe("loominate dev", () => {
-  it("plays room passages with the world model's extension (#63)", async () => {
-    const root = game({
-      "loominate.config.ts": `import { defineConfig } from "@loominate-if/cli";
-export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, start: "Hall", extensions: ["world-from-source"] });
-`,
-      // The world model's own extension module, from source, so the test needs no build first.
-      "node_modules/world-from-source/package.json": JSON.stringify({
-        name: "world-from-source",
-        type: "module",
-        loominate: { extension: "./extension.js" },
-      }),
-      "node_modules/world-from-source/extension.js": `export { default } from ${JSON.stringify(
-        pathToFileURL(path.join(packages, "world/src/extension.ts")).href,
-      )};\n`,
-      "story.ts": `import { actor, place, startAs, visitsTo } from "@loominate-if/world";
-export const hall = place("hall", { name: "the hall" });
-export const cellar = place("cellar", { name: "the cellar" });
-export const you = actor("you", { body: { name: "you", location: hall } });
-startAs(you);
-export { visitsTo };
-`,
-      "rooms.weft": readFileSync(path.join(here, "fixtures/rooms.weft"), "utf8"),
-    });
-    symlinkSync(
-      path.join(packages, "world"),
-      path.join(root, "node_modules/@loominate-if/world"),
-      "dir",
-    );
+  it("plays room passages and exits with the world model's extension (#63, #64)", async () => {
+    const root = worldGame();
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const server = await dev({
       ...options(root),
       vite: { ...options(root).vite, server: { middlewareMode: true } },
     });
     const text = () => page().querySelector(".loominate-passage")?.textContent ?? "";
-    const follow = (label: string) => {
-      const link = [...page().querySelectorAll(".loominate-passage button")].find(
-        (b) => b.textContent === label,
+    const button = (label: string) => {
+      const link = [...page().querySelectorAll(".loominate-passage button")].find((b) =>
+        b.textContent?.startsWith(label),
       );
       if (!link) throw new Error(`no link ${label} in: ${text()}`);
-      link.click();
+      return link;
+    };
+    const follow = (label: string) => {
+      button(label).click();
     };
     try {
       page().body.innerHTML = '<div id="app"></div>';
       await server.ssrLoadModule("/@loominate/main");
-      expect(text()).toContain("A draughty hall. Hall visits: 1. You're in hall.");
+      expect(text()).toContain("A draughty hall. You're in hall.");
+      // The locked door disables the way down, with its reason.
+      expect(button("Down").getAttribute("aria-disabled")).toBe("true");
+      expect(text()).toContain("The cellar door is locked.");
+      follow("Unlock the cellar door");
+      follow("Continue");
+      expect(text()).toContain("The hall again.");
       follow("Down");
       expect(text()).toContain("Cellar visits: 1. You're in cellar.");
-      follow("Up");
-      expect(text()).toContain("The hall again. Hall visits: 2. You're in hall.");
+      // The hall's been visited, so the way back names it.
+      follow("Up, to the hall");
+      expect(text()).toContain("The hall again. You're in hall.");
     } finally {
       await server.close();
       errors.mockRestore();

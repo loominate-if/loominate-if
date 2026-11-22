@@ -355,6 +355,7 @@ export type TagRoleDefinition = {
     readonly name: string;
     readonly entry?: boolean;
     readonly arrival?: RuntimeExport;
+    readonly register?: RuntimeExport;
 };
 
 // @public

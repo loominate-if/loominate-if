@@ -568,6 +568,15 @@ export function generatePassageModule(
     }
   }
 
+  /** Tag roles' values in this file, in order: each becomes a constant of the module. */
+  const roleValues: {
+    readonly local: string;
+    readonly code: CodeSyntax;
+    readonly typedBy: RuntimeExport;
+    readonly register: RuntimeExport | undefined;
+    readonly passage: PassageSyntax;
+  }[] = [];
+
   function passage(p: PassageSyntax): void {
     roles = new Set(p.tags.filter((t) => t.value !== undefined).map((t) => t.name));
     for (const t of p.tags) {
@@ -591,14 +600,19 @@ export function generatePassageModule(
         });
       }
     }
-    // Roles that run code on arrival, such as the world model's `room: cellar`.
-    const arrivals: { runtime: RuntimeExport; code: CodeSyntax }[] = [];
+    // Roles whose value is code, such as the world model's `room: cellar`: the
+    // value becomes a constant of the module, registered when the game loads
+    // and passed to the role's arrival runtime.
+    const arrivals: { runtime: RuntimeExport; local: string }[] = [];
     for (const t of p.tags) {
-      const runtime =
-        t.value === undefined ? undefined : syntax.tagRoles.get(t.name)?.definition.arrival;
-      if (runtime && t.value !== undefined && t.valueSpan) {
-        arrivals.push({ runtime, code: { code: t.value, span: t.valueSpan } });
-      }
+      const def = t.value === undefined ? undefined : syntax.tagRoles.get(t.name)?.definition;
+      const runtime = def?.arrival ?? def?.register;
+      if (!def || !runtime || t.value === undefined || !t.valueSpan) continue;
+      const code = { code: t.value, span: t.valueSpan };
+      usedIn([code]);
+      const local = `$role_${String(roleValues.length)}`;
+      roleValues.push({ local, code, typedBy: runtime, register: def.register, passage: p });
+      if (def.arrival) arrivals.push({ runtime: def.arrival, local });
     }
     checkClashes(p.content);
     standalone = standaloneLinks(p.content, source);
@@ -649,25 +663,19 @@ export function generatePassageModule(
     const phases = (
       effects: Map<string, DirectiveSyntax[]>,
       at: string,
-      roleArrivals: readonly { runtime: RuntimeExport; code: CodeSyntax }[] = [],
+      roleArrivals: readonly { runtime: RuntimeExport; local: string }[] = [],
     ): void => {
       for (const phase of ["firstVisit", "enter", "leave"]) {
         const fromRoles = phase === "enter" ? roleArrivals : [];
         const list = effects.get(phase) ?? [];
         if (list.length === 0 && fromRoles.length === 0) continue;
-        const names = usedIn([
-          ...fromRoles.map((r) => r.code),
-          ...list.flatMap((d) => (d.code ? [d.code] : argumentCode(d))),
-        ]);
+        const names = usedIn(list.flatMap((d) => (d.code ? [d.code] : argumentCode(d))));
         const arrives = fromRoles.length > 0 || list.some((d) => d.code === undefined);
         write(`${at}${phase}: (${contextParam(names, "$EffectContext", arrives)}): void => {\n`);
         indent = `${at}  `;
         contextLocals(names, "$context");
         for (const r of fromRoles) {
-          mark(r.code.span.start);
-          write(`${indent}${runtimeName(r.runtime)}(`);
-          copy(r.code);
-          write(", $context);\n");
+          write(`${indent}${runtimeName(r.runtime)}(${r.local}, $context);\n`);
         }
         for (const d of list) {
           mark(d.span.start);
@@ -726,6 +734,26 @@ export function generatePassageModule(
   // ---- Module -------------------------------------------------------------
 
   for (const p of file.passages) passage(p);
+  write("];\n");
+  if (roleValues.length > 0) write("\n// Tag roles' values, checked where they're written.\n");
+  for (const r of roleValues) {
+    // Passed as the argument the role's runtime takes, so a value of the
+    // wrong kind is an error on the copied code, which maps to the tag.
+    write(
+      `const ${r.local} = ((value: Parameters<typeof ${runtimeName(r.typedBy)}>[0]) => value)(`,
+    );
+    copy(r.code);
+    write(");\n");
+  }
+  for (const r of roleValues) {
+    if (!r.register) continue;
+    const tags = r.passage.tags.map((t) =>
+      str(t.value === undefined ? t.name : `${t.name}: ${t.value}`),
+    );
+    write(
+      `${runtimeName(r.register)}(${r.local}, { id: ${str(r.passage.name.name)}, tags: [${tags.join(", ")}] });\n`,
+    );
+  }
   const passagesCode = out;
 
   // Written after the passages, so the imports list only what they use.
@@ -804,7 +832,7 @@ export function generatePassageModule(
     "export const passages: readonly $Passage[] = [",
     "",
   ].join("\n");
-  const code = `${preamble}${passagesCode}];\n`;
+  const code = `${preamble}${passagesCode}`;
   const shifted = mappings.map((m) => ({ ...m, generated: m.generated + preamble.length }));
 
   return {

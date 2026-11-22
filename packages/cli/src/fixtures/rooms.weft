@@ -1,7 +1,13 @@
 :: Hall [room: hall]
-{if visitsTo(hall) === 1}A draughty hall.{else}The hall again.{/if} Hall visits: {visitsTo(hall)}. You're in {you.location?.id}.
-[[Down -> Cellar]]
+{if visitsTo(hall) === 1}A draughty hall.{else}The hall again.{/if} You're in {you.location?.id ?? "nowhere"}.
+{exits}
+[[Unlock the cellar door -> Unlock]]{when cellarDoor.isLocked, hidden}
+
+:: Unlock
+{on enter: cellarDoor.unlock(); cellarDoor.open()}
+The key turns, and the door swings open.
+{continue -> Hall}
 
 :: Cellar [room: cellar]
-Cellar visits: {visitsTo(cellar)}. You're in {you.location?.id}.
-[[Up -> Hall]]
+Cellar visits: {visitsTo(cellar)}. You're in {you.location?.id ?? "nowhere"}.
+{exits}

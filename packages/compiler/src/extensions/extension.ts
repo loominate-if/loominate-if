@@ -133,11 +133,19 @@ export type TagRoleDefinition = {
    * A function called when the player arrives at a passage with this role,
    * before the passage's own `{on enter: …}` code, as
    * `runtime(value, context)`. The role's value is code in the game's scope,
-   * such as an export of `story.ts`, so TypeScript checks it and its errors
-   * point at the tag. The world model's `room: cellar` moves the player into
-   * `cellar` this way.
+   * such as an export of `story.ts`, evaluated once when the game loads, so
+   * TypeScript checks it against the function's first parameter and its
+   * errors point at the tag. The world model's `room: cellar` moves the
+   * player into `cellar` this way.
    */
   readonly arrival?: RuntimeExport;
+  /**
+   * A function called once when the game loads, for each passage with this
+   * role, as `runtime(value, { id, tags })`, with the value as for
+   * `arrival`. The world model's `room:` uses it to know which passage
+   * describes each room before the player gets there.
+   */
+  readonly register?: RuntimeExport;
 };
 
 /**

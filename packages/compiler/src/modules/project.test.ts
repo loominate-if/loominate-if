@@ -667,7 +667,12 @@ describe("a tag role that runs on arrival", { timeout: 30_000 }, () => {
   const rooms: CompilerExtension = {
     name: "rooms",
     tagRoles: [
-      { name: "room", entry: true, arrival: { module: "./story.js", export: "enterRoom" } },
+      {
+        name: "room",
+        entry: true,
+        arrival: { module: "./story.js", export: "enterRoom" },
+        register: { module: "./story.js", export: "noteRoom" },
+      },
     ],
   };
   const scope = [
@@ -676,6 +681,11 @@ describe("a tag role that runs on arrival", { timeout: 30_000 }, () => {
     'export const cellar = object("vault", { isRoom: true as const });',
     'export const lamp = object("torch", { lit: false });',
     'export const log = object("trail", { entries: [] as string[] });',
+    "/** Rooms' passages, noted when the game loads, before any story runs. */",
+    "export const notes: string[] = [];",
+    "export function noteRoom(room: Room, passage: { id: string; tags: readonly string[] }): void {",
+    '  notes.push(`${room.id} ${passage.id} ${passage.tags.join(",")}`);',
+    "}",
     "export function enterRoom(room: Room, context: EffectContext): void {",
     "  log.entries.push(`arrive ${room.id} ${String(context.visits)}`);",
     "}",
@@ -695,12 +705,12 @@ describe("a tag role that runs on arrival", { timeout: 30_000 }, () => {
       (d) => `${path.relative(dir, d.file)}:${String(d.line)}:${String(d.column)} ${d.message}`,
     );
 
-  it("calls the role's runtime with its value, before the passage's own enter code", async () => {
+  it("registers each passage at load, and calls the role's runtime before the passage's own enter code", async () => {
     const dir = path.join(out, "arrive");
     mkdirSync(dir);
     const result = build(
       dir,
-      ':: Start [room: cellar]\n{on enter: log.entries.push("enter")}\nDamp.\n',
+      ':: Start [room: cellar, arrive]\n{on enter: log.entries.push("enter")}\nDamp.\n',
     );
     expect(where(result, dir)).toEqual([]);
     writeFileSync(path.join(dir, "story.ts"), scope);
@@ -709,6 +719,8 @@ describe("a tag role that runs on arrival", { timeout: 30_000 }, () => {
     if (!module) throw new Error("no module");
     writeFileSync(module.path, module.code);
     const { passages } = (await import(module.path)) as { passages: Passage[] };
+    const { notes } = (await import(path.join(dir, "story.ts"))) as { notes: string[] };
+    expect(notes).toEqual(["vault Start room: cellar,arrive"]);
     const store = createStore();
     createStory(store, createEventRecord(store), passages, { start: "Start" }).begin();
     expect(store.entity("trail")).toEqual({ entries: ["arrive vault 1", "enter"] });
