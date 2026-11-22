@@ -1,6 +1,6 @@
 /**
  * The world model's compiler extension (ADR 0015, ADR 0023): the `room:` tag
- * role, the `{exits}` directive, and a check that every room's exits know
+ * role, the `{exits}` and `{reveal}` directives, and a check that every room's exits know
  * which passage to lead to. It's plain data, so the world model takes no
  * dependency on the compiler, which checks it when it loads.
  *
@@ -84,6 +84,16 @@ const extension = {
       example: "{exits}",
       args: [],
       runtime: { module: WORLD, export: "exitLinks" },
+    },
+    {
+      name: "reveal",
+      kind: "arrival",
+      example: "{reveal facts.butlerTookLetter, from: maid}",
+      args: [
+        { name: "fact", kind: "expression", required: true },
+        { name: "from", kind: "expression", named: true },
+      ],
+      runtime: { module: WORLD, export: "reveal" },
     },
   ],
   checks: [{ name: "room passages", run: checkRoomPassages }],

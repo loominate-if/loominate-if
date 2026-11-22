@@ -7,7 +7,8 @@
  * a region's edge runs the region's `onEnter` and `onLeave`.
  */
 import { object, StateError, type EffectContext, type ObjectRef } from "@loominate-if/core";
-import { currentPlayerBody, playerBody } from "./actors.js";
+import { currentPlayerBody, mindOf, passengersOf, playerBody } from "./actors.js";
+import { noteSights } from "./knowledge.js";
 import { nearestRegions, regionFor, type Region, type RegionHooks } from "./regions.js";
 import { byId, isPlace, isWithin, move, onMove, placeOf, type Place } from "./things.js";
 
@@ -16,8 +17,9 @@ const visits = object("world:visits", { counts: {} as Record<string, number> });
 
 /**
  * What a passage tagged `[room: cellar]` calls when the player arrives: it
- * moves the player's body into `room`, unless it's already there, and counts
- * a visit to it.
+ * moves the player's body into `room`, unless it's already there, counts
+ * a visit to it, and marks what the body can see there as seen by the minds
+ * in it.
  *
  * @remarks
  * It runs before the passage's own `{on enter: …}` code, so that code sees
@@ -42,6 +44,9 @@ export function enterRoom(room: Place, context?: EffectContext): void {
   }
   if (placeOf(body)?.id !== room.id) move(body, room);
   visits.counts[room.id] = visitsTo(room) + 1;
+  // Every mind in the body sees the room, the one in control and its passengers.
+  const controller = mindOf(body);
+  noteSights(body, [...(controller ? [controller] : []), ...passengersOf(body)]);
 }
 
 /** The passages that describe each room, by the room's ID, in the order the game loaded them. */

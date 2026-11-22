@@ -87,7 +87,7 @@ export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, start
     "node_modules/world-from-source/extension.js": `export { default } from ${JSON.stringify(
       pathToFileURL(path.join(packages, "world/src/extension.ts")).href,
     )};\n`,
-    "story.ts": `import { actor, connect, door, lockable, place, startAs, thing, visitsTo } from "@loominate-if/world";
+    "story.ts": `import { actor, connect, defineFacts, door, lockable, place, player, startAs, thing, visitsTo } from "@loominate-if/world";
 export const hall = place("hall", { name: "the hall" });
 export const cellar = place("cellar", { name: "the cellar" });
 export const cellarDoor = thing("cellarDoor", { ...door, ...lockable, name: "the cellar door" });
@@ -95,7 +95,9 @@ connect(hall, { down: { to: cellar, via: cellarDoor } });
 connect(cellar, { up: { to: hall, via: cellarDoor } });
 export const you = actor("you", { body: { name: "you", location: hall } });
 startAs(you);
-export { visitsTo };
+export const note = thing("note", { name: "a note", location: cellar });
+export const facts = defineFacts({ culprit: "The butler did it." });
+export { player, visitsTo };
 `,
     "rooms.weft": readFileSync(path.join(here, "fixtures/rooms.weft"), "utf8"),
   });
@@ -223,7 +225,7 @@ export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, start
 });
 
 describe("loominate dev", () => {
-  it("plays room passages and exits with the world model's extension (#63, #64)", async () => {
+  it("plays room passages, exits, and revealed facts with the world model's extension (#63, #64, #67)", async () => {
     const root = worldGame();
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const server = await dev({
@@ -253,6 +255,13 @@ describe("loominate dev", () => {
       expect(text()).toContain("The hall again.");
       follow("Down");
       expect(text()).toContain("Cellar visits: 1. You're in cellar.");
+      // Arriving saw the note; reading it reveals a fact, sourced to the note.
+      expect(text()).toContain("A note lies on the floor.");
+      follow("Read the note");
+      expect(text()).toContain("The note says the butler did it.");
+      follow("Continue");
+      expect(text()).toContain("You know who did it, from note.");
+      expect(text()).not.toContain("Read the note");
       // The hall's been visited, so the way back names it.
       follow("Up, to the hall");
       expect(text()).toContain("The hall again. You're in hall.");

@@ -11,3 +11,11 @@ The key turns, and the door swings open.
 :: Cellar [room: cellar]
 Cellar visits: {visitsTo(cellar)}. You're in {you.location?.id ?? "nowhere"}.
 {exits}
+{if player.hasSeen(note)}A note lies on the floor.{/if}
+{if player.knows(facts.culprit)}You know who did it, from {player.sourceOf(facts.culprit)?.from?.id ?? "nowhere"}.{/if}
+[[Read the note -> Note]]{when !player.knows(facts.culprit), hidden}
+
+:: Note
+{reveal facts.culprit, from: note}
+The note says the butler did it.
+{continue -> Cellar}

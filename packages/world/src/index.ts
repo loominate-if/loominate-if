@@ -83,3 +83,17 @@ export {
   type ExitsDefinition,
   type ExitSpec,
 } from "./exits.js";
+export {
+  defineFacts,
+  fact,
+  factNamed,
+  player,
+  reveal,
+  type Fact,
+  type FactOptions,
+  type FactSource,
+  type LearnOptions,
+  type MindKnowledge,
+  type Player,
+  type RevealArguments,
+} from "./knowledge.js";

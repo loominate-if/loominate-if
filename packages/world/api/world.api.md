@@ -20,10 +20,14 @@ export function actor<Id extends StateId, B extends ObjectDefinition<B> & {
 }, M extends ObjectDefinition<M> = Record<never, never>>(id: Id, definition: {
     body: B & {
         location?: ObjectRef | null;
+    } & {
+        [K in keyof B & keyof MindKnowledge]: {
+            error: `"${K & string}" is what every mind does with what it knows; give the property another name.`;
+        };
     } & ThisType<Actor<B, M, Id>>;
     mind?: M & {
-        [K in keyof M & keyof B]: {
-            error: `"${K & string}" is in both the body and the mind; give one of them another name.`;
+        [K in keyof M & (keyof B | keyof MindKnowledge)]: {
+            error: K extends keyof MindKnowledge ? `"${K & string}" is what every mind does with what it knows; give the property another name.` : `"${K & string}" is in both the body and the mind; give one of them another name.`;
         };
     } & ThisType<Actor<B, M, Id>>;
 }): Actor<B, M, Id>;
@@ -66,6 +70,11 @@ export const container: {
 
 // @public
 export function contents(parent: ObjectRef): Thing[];
+
+// @public
+export function defineFacts<D extends Record<string, string | FactOptions>>(definitions: D): {
+    readonly [K in keyof D & string]: Fact<K>;
+};
 
 // @public
 export type Direction = {
@@ -146,6 +155,29 @@ export type ExitSpec = {
 };
 
 // @public
+export type Fact<Id extends string = string> = {
+    readonly id: Id;
+    readonly text: string;
+};
+
+// @public
+export function fact<Id extends string>(id: Id, options: FactOptions): Fact<Id>;
+
+// @public
+export function factNamed(id: string): Fact | undefined;
+
+// @public
+export type FactOptions = {
+    readonly text: string;
+};
+
+// @public
+export type FactSource = {
+    readonly from?: ObjectRef;
+    readonly passage?: string;
+};
+
+// @public
 export type Holding = "in" | "on";
 
 // @public
@@ -176,6 +208,9 @@ export function isRegion(ref: ObjectRef): boolean;
 export function isWithin(t: ObjectRef, ancestor: ObjectRef): boolean;
 
 // @public
+export type LearnOptions = FactSource;
+
+// @public
 export function leaveBody(m: ObjectRef, options?: LeaveOptions): void;
 
 // @public
@@ -198,10 +233,14 @@ export const lockable: {
 };
 
 // @public
-export type Mind = Handle<MindFields>;
+export type Mind = Handle<MindFields> & MindKnowledge;
 
 // @public
-export function mind<Id extends StateId, D extends ObjectDefinition<D>>(id: Id, definition: D & Partial<MindFields> & ThisType<Handle<MindOf<D>, Id>>): Handle<MindOf<D>, Id>;
+export function mind<Id extends StateId, D extends ObjectDefinition<D>>(id: Id, definition: D & Partial<MindFields> & {
+    [K in keyof D & keyof MindKnowledge]: {
+        error: `"${K & string}" is what every mind does with what it knows; give the property another name.`;
+    };
+} & ThisType<Handle<MindOf<D>, Id>>): Handle<MindOf<D>, Id>;
 
 // @public
 export type MindFields = {
@@ -211,7 +250,20 @@ export type MindFields = {
 };
 
 // @public
-export type MindOf<D> = Omit<D, keyof MindFields> & MindFields;
+export type MindKnowledge = {
+    knows(fact: Fact): boolean;
+    learn(fact: Fact, options?: LearnOptions): void;
+    sourceOf(fact: Fact): FactSource | undefined;
+    knownFacts(): Fact[];
+    see(thing: ObjectRef): void;
+    hasSeen(thing: ObjectRef): boolean;
+    learnAbout(thing: ObjectRef): void;
+    knowsAbout(thing: ObjectRef): boolean;
+    forget(what: Fact | ObjectRef): void;
+};
+
+// @public
+export type MindOf<D> = Omit<D, keyof MindFields | keyof MindKnowledge> & MindFields & MindKnowledge;
 
 // @public
 export function mindOf(b: ObjectRef): Mind | undefined;
@@ -260,6 +312,14 @@ export function placeOf(t: ObjectRef): Place | undefined;
 
 // @public
 export function playAs(m: ObjectRef): void;
+
+// @public
+export type Player = MindKnowledge & {
+    readonly mind: ObjectRef;
+};
+
+// @public
+export const player: Player;
 
 // @public
 export function playerBody(): Thing | undefined;
@@ -313,6 +373,15 @@ export function registerRoom(room: Place, passage: {
     id: string;
     tags: readonly string[];
 }): void;
+
+// @public
+export function reveal(args: RevealArguments, context?: EffectContext): void;
+
+// @public
+export type RevealArguments = {
+    readonly fact: Fact;
+    readonly from?: ObjectRef;
+};
 
 // @public
 export type Sense = "see" | "reach" | "hear";
