@@ -87,7 +87,7 @@ export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, start
     "node_modules/world-from-source/extension.js": `export { default } from ${JSON.stringify(
       pathToFileURL(path.join(packages, "world/src/extension.ts")).href,
     )};\n`,
-    "story.ts": `import { actor, connect, defineFacts, door, happen, lockable, place, player, startAs, thing, visitsTo } from "@loominate-if/world";
+    "story.ts": `import { actor, connect, defineFacts, door, happen, listContents, lockable, place, player, startAs, thing, visitsTo } from "@loominate-if/world";
 export const hall = place("hall", { name: "hall" });
 export const cellar = place("cellar", { name: "cellar" });
 export const cellarDoor = thing("cellarDoor", { ...door, ...lockable, name: "cellar door" });
@@ -97,7 +97,7 @@ export const you = actor("you", { body: { name: "you", location: hall } });
 startAs(you);
 export const note = thing("note", { name: "note", location: cellar });
 export const facts = defineFacts({ culprit: "The butler did it." });
-export { happen, player, visitsTo };
+export { happen, listContents, player, visitsTo };
 `,
     "rooms.weft": readFileSync(path.join(here, "fixtures/rooms.weft"), "utf8"),
   });
@@ -283,7 +283,7 @@ describe("loominate dev", () => {
       follow("Continue");
       expect(text()).toContain("The hall again.");
       follow("Down");
-      expect(text()).toContain("Cellar visits: 1. You're in cellar.");
+      expect(text()).toContain("Cellar visits: 1. You're in cellar. You see a note.");
       // Arriving saw the note; reading it reveals a fact, sourced to the note.
       expect(text()).toContain("A note lies on the floor.");
       follow("Read the note");

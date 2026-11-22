@@ -73,6 +73,16 @@ function spawned(): Thing[] {
   }
 }
 
+/** The name of the thing template `t` was made from, or `undefined` for a defined thing. @internal */
+export function templateOf(t: ObjectRef): string | undefined {
+  if (!t.id.startsWith("gen:")) return undefined;
+  try {
+    return thingTemplates.find((tpl) => instancesOf(tpl).some((i) => i.id === t.id))?.name;
+  } catch {
+    return undefined;
+  }
+}
+
 /** The thing with `id`: defined, or made during play, whose IDs start `gen:`. */
 function lookup(id: StateId): Thing | undefined {
   return (

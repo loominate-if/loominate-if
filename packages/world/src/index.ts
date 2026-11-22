@@ -111,3 +111,4 @@ export {
 } from "./knowledge.js";
 export { happen, type HappenOptions } from "./perception.js";
 export { type Grammar, type Pronoun } from "./grammar.js";
+export { listContents, pluralize, pluralOf, type ListingFields } from "./listing.js";

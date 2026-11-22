@@ -11,7 +11,7 @@ You step back as it swings wide.
 {continue -> Hall}
 
 :: Cellar [room: cellar]
-Cellar visits: {visitsTo(cellar)}. You're in {you.location?.id ?? "nowhere"}.
+Cellar visits: {visitsTo(cellar)}. You're in {you.location?.id ?? "nowhere"}. You see {listContents(cellar)}.
 {exits}
 {if player.hasSeen(note)}A note lies on the floor.{/if}
 {if player.knows(facts.culprit)}You know who did it, from {player.sourceOf(facts.culprit)?.from?.id ?? "nowhere"}.{/if}
