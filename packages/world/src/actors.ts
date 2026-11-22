@@ -16,6 +16,12 @@ import {
   type StateId,
 } from "@loominate-if/core";
 import {
+  createKnowledge,
+  KNOWLEDGE_METHODS,
+  mindKnowledge,
+  type MindKnowledge,
+} from "./knowledge.js";
+import {
   byId,
   container,
   thing,
@@ -39,10 +45,12 @@ export type MindFields = {
 };
 
 /** A mind: what an actor knows and thinks. It inhabits a body, or none. */
-export type Mind = Handle<MindFields>;
+export type Mind = Handle<MindFields> & MindKnowledge;
 
 /** A mind as {@link mind} defines it from definition `D`. */
-export type MindOf<D> = Omit<D, keyof MindFields> & MindFields;
+export type MindOf<D> = Omit<D, keyof MindFields | keyof MindKnowledge> &
+  MindFields &
+  MindKnowledge;
 
 /** What an actor adds to its body: its two halves. */
 export type ActorHalves<M> = {
@@ -67,7 +75,7 @@ const startingControllers = new Map<StateId, StateId>();
 /** Each actor's mind, by the actor's ID. */
 const actorMinds = new Map<StateId, Mind>();
 /** The world's record of who the player is, once {@link startAs} names them. */
-let player: Handle<{ mind: ObjectRef }> | undefined;
+let chosenPlayer: Handle<{ mind: ObjectRef }> | undefined;
 
 /**
  * The ID under which the world keeps the player's mind. It has a colon, which
@@ -110,9 +118,19 @@ export function body<Id extends StateId, D extends ObjectDefinition<D> & { name:
  */
 export function mind<Id extends StateId, D extends ObjectDefinition<D>>(
   id: Id,
-  definition: D & Partial<MindFields> & ThisType<Handle<MindOf<D>, Id>>,
+  definition: D &
+    Partial<MindFields> & { readonly [K in keyof MindKnowledge]?: never } & ThisType<
+      Handle<MindOf<D>, Id>
+    >,
 ): Handle<MindOf<D>, Id> {
   const where = `mind ${JSON.stringify(id)}`;
+  for (const key of KNOWLEDGE_METHODS) {
+    if (Object.hasOwn(definition, key)) {
+      throw new StateError(
+        `${where}: "${key}" is what every mind does with what it knows; give the property another name.`,
+      );
+    }
+  }
   const start = definition.inhabits ?? null;
   const passenger = start !== null && definition.isPassenger === true;
   if (start !== null) {
@@ -134,9 +152,11 @@ export function mind<Id extends StateId, D extends ObjectDefinition<D>>(
       inhabits: start,
       isPassenger: passenger,
       displaced: null,
+      ...mindKnowledge,
     }) as unknown as ObjectDefinition<D>,
   );
   minds.set(id, handle as unknown as Mind);
+  createKnowledge(handle);
   if (start !== null && !passenger) startingControllers.set(id, start.id);
   return handle as unknown as Handle<MindOf<D>, Id>;
 }
@@ -190,7 +210,13 @@ export function actor<
   const where = `actor ${JSON.stringify(id)}`;
   const bodyDef = definition.body as object;
   const mindDef = (definition.mind ?? {}) as object;
-  const mindKeys = [...Object.keys(mindDef), "inhabits", "isPassenger", "displaced"];
+  const mindKeys = [
+    ...Object.keys(mindDef),
+    "inhabits",
+    "isPassenger",
+    "displaced",
+    ...KNOWLEDGE_METHODS,
+  ];
   for (const key of [...mindKeys, "mind", "body"]) {
     if (Object.hasOwn(bodyDef, key)) {
       throw new StateError(
@@ -226,8 +252,8 @@ export function actor<
   return handle as unknown as Actor<B, M, Id>;
 }
 
-/** The mind `ref` names: a mind, or an actor's mind. */
-function mindFor(ref: ObjectRef, where: string): Mind {
+/** The mind `ref` names: a mind, or an actor's mind. @internal */
+export function mindFor(ref: ObjectRef, where: string): Mind {
   const found = minds.get(ref.id) ?? actorMinds.get(ref.id);
   if (!found) {
     throw new StateError(
@@ -418,12 +444,12 @@ export function swapBodies(a: ObjectRef, b: ObjectRef): void {
  */
 export function startAs(m: ObjectRef): void {
   const chosen = mindFor(m, "startAs");
-  if (player) {
+  if (chosenPlayer) {
     throw new StateError(
-      `startAs ${JSON.stringify(m.id)}: the player already starts as ${JSON.stringify(player.mind.id)}. Call startAs() once; switch during play with playAs().`,
+      `startAs ${JSON.stringify(m.id)}: the player already starts as ${JSON.stringify(chosenPlayer.mind.id)}. Call startAs() once; switch during play with playAs().`,
     );
   }
-  player = object(PLAYER_ID, { mind: chosen as ObjectRef });
+  chosenPlayer = object(PLAYER_ID, { mind: chosen as ObjectRef });
 }
 
 /**
@@ -455,15 +481,15 @@ export function playerBody(): Thing | undefined {
 }
 
 function playerRecord(where: string): Handle<{ mind: ObjectRef }> {
-  if (!player) {
+  if (!chosenPlayer) {
     throw new StateError(
       `${where}: nobody is the player yet. Call startAs() in story.ts with the mind or actor the player starts as.`,
     );
   }
-  return player;
+  return chosenPlayer;
 }
 
 /** The player's body, or `undefined` if there's no player yet or it's in no body. @internal */
 export function currentPlayerBody(): Thing | undefined {
-  return player ? bodyOf(player.mind) : undefined;
+  return chosenPlayer ? bodyOf(chosenPlayer.mind) : undefined;
 }

@@ -214,6 +214,14 @@ The key turns, and the door swings open.
 :: Cellar [room: cellar]
 Cellar visits: {visitsTo(cellar)}. You're in {you.location?.id ?? "nowhere"}.
 {exits}
+{if player.hasSeen(note)}A note lies on the floor.{/if}
+{if player.knows(facts.culprit)}You know who did it, from {player.sourceOf(facts.culprit)?.from?.id ?? "nowhere"}.{/if}
+[[Read the note -> Note]]{when !player.knows(facts.culprit), hidden}
+
+:: Note
+{reveal facts.culprit, from: note}
+The note says the butler did it.
+{continue -> Cellar}
 ```
 
 - The `room:` tag comes from the world model's compiler extension, so list the package in `loominate.config.ts`: `extensions: ["@loominate-if/world"]`.
@@ -338,3 +346,72 @@ declare module "@loominate-if/world" {
 direction("fore", { opposite: "aft", label: "Fore" });
 direction("aft", { opposite: "fore", label: "Aft" });
 ```
+
+## Knowledge and facts
+
+A **fact** is something a mind can know, such as who took the letter. Define facts in `story.ts`, one at a time with `fact()`, or several at once with `defineFacts()`, whose keys are their IDs. Minds remember facts by ID, so keep each ID stable once players have saves:
+
+<!-- example: packages/world/src/knowledge.test.ts#facts -->
+```ts
+export const facts = defineFacts({
+  missingLetter: "The letter is missing from the desk.",
+  butlerHandledLetter: "The butler handled the letter before supper.",
+});
+export const affair = fact("affair", { text: "The colonel and the cook are lovers." });
+```
+
+Every mind can learn facts, and remembers where it first learned each one: a thing or mind it came `from`, the passage it was revealed in, or both. An actor answers for its mind:
+
+<!-- example: packages/world/src/knowledge.test.ts#learn -->
+```ts
+expect(maid.knows(affair)).toBe(false);
+maid.learn(affair, { from: diary });
+maid.learn(affair, { from: you });
+expect(maid.knows(affair)).toBe(true);
+expect(maid.sourceOf(affair)?.from?.id).toBe("diary");
+```
+
+`{reveal}` in a passage teaches the player a fact when they reach it, recording the passage, and `from:` names where it came from. Like `{emit}`, it never runs when the passage is only shown:
+
+<!-- example: packages/cli/src/fixtures/rooms.weft#Note -->
+```weft
+:: Note
+{reveal facts.culprit, from: note}
+The note says the butler did it.
+{continue -> Cellar}
+```
+
+### The player
+
+`player` stands for whichever mind the player controls now. Write `player.knows(…)` for what the player knows: it follows the player through `playAs()`, possession, and body swaps, while `you.knows(…)` always asks the `you` actor's own mind:
+
+<!-- example: packages/world/src/knowledge.test.ts#player -->
+```ts
+you.learn(affair);
+playAs(maid);
+expect(player.knows(affair)).toBe(false); // the player is the maid now
+expect(you.knows(affair)).toBe(true);
+```
+
+### Seen and familiar
+
+Arriving at a room passage marks everything the player's body can see there as seen, by the mind in control and by any passenger, so nothing is seen in the dark or inside a closed box. `see(thing)` marks one by hand, such as when a box is opened. A thing a mind knows of without seeing it is **familiar**: `learnAbout(thing)` makes it familiar to one mind, and `isFamiliar: true` on a thing makes it familiar to everyone:
+
+<!-- example: packages/world/src/knowledge.test.ts#familiar -->
+```ts
+export const portrait = thing("portrait", { name: "the late duke's portrait", isFamiliar: true });
+```
+
+<!-- example: packages/world/src/knowledge.test.ts#knowsAbout -->
+```ts
+expect(you.knowsAbout(portrait)).toBe(true); // isFamiliar: everyone knows of it
+expect(you.knowsAbout(diary)).toBe(false);
+you.learnAbout(diary); // the maid mentioned it
+expect(you.knowsAbout(diary)).toBe(true);
+expect(you.hasSeen(diary)).toBe(false);
+```
+
+- `knows(fact)`, `sourceOf(fact)`, and `knownFacts()` ask about facts; `hasSeen(thing)` and `knowsAbout(thing)` about things.
+- `forget(fact)` or `forget(thing)` takes one back.
+- Knowledge is state, so undo and saves cover it, and the inspector shows each mind's on the object `world:knowledge:<mind>`.
+- The names of these methods belong to every mind, so a mind's own properties can't use them.
