@@ -83,6 +83,14 @@ export const coreExtension: CompilerExtension = {
       stays: true,
     },
     {
+      name: "menu",
+      kind: "guard",
+      example: "[[brass bell]]{menu bell}",
+      args: [{ name: "thing", kind: "expression", required: true }],
+      runtime: core("menuLink"),
+      stays: true,
+    },
+    {
       name: "notices",
       kind: "content",
       example: "{notices}",

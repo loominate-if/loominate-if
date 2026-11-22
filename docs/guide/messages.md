@@ -37,6 +37,13 @@ A message's text is one of three things:
 | `direction.toward` | `direction` | "to the north", "upstairs" |
 | `direction.from` | `direction` | "from the north", "from above" |
 
+| `examine.label`, `take.label`, `drop.label`, `open.label`, `close.label`, `lock.label`, `unlock.label` | `thing` | The standard actions' labels: "Take the iron key" |
+| `take.done`, `drop.done`, `open.done`, `close.done`, `lock.done`, `unlock.done` | `thing` | What they report: "You take the iron key." |
+| `examine.nothing` | `thing` | "You see nothing special about the statue." |
+| `take.held`, `drop.notHeld`, `open.already`, `close.already`, `lock.already`, `unlock.notLocked` | `thing` | Why they aren't offered |
+| `open.locked`, `lock.open` | `thing` | "The oak chest is locked.", "You'll have to close the oak chest first." |
+| `lock.noKey` | `thing`, `key` | "You need the iron key." |
+| `inventory.title` | | "You carry" |
 | `action.noBody` | | "You have no body to act with." |
 | `action.outOfReach` | `thing` | "The barrel is out of reach." |
 | `list.empty` | | "nothing" |
@@ -57,6 +64,8 @@ An actor can still give its own `arrives` and `leaves`, which win over these.
 | `history.goTo` | `passage` | "Go to Cellar" |
 | `status.moves` | `count` | "Moves: 3" |
 | `menu.undo`, `menu.save`, `menu.load`, `menu.restart` | | "Undo", "Save", "Load", "Restart" |
+| `menu.nothing` | | A thing's menu with nothing in it: "Nothing to do with it." |
+| `things.nothing` | | An empty inventory: "nothing" |
 | `menu.confirmRestart`, `menu.confirmRestartLabel` | | "Confirm restart", and what a screen reader hears for it |
 | `menu.undoTip`, `menu.cannotUndoTip`, `menu.saveTip`, `menu.loadTip`, `menu.restartTip`, `menu.confirmRestartTip` | | Each button's tooltip, which says what it does whatever it's called, such as "Start the story over from the beginning. Your saves are kept." Screen readers read it as the button's description. |
 | `start.continue`, `start.newGame` | | "Continue", "New game" |

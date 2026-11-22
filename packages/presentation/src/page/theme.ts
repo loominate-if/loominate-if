@@ -99,6 +99,45 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   font-size: 0.9em;
   font-style: italic;
 }
+/* A things widget, such as the inventory. */
+.loominate-things { font-family: ${v("font-ui")}; font-size: 0.9em; }
+.loominate-things-title { color: ${v("color-muted")}; }
+/* A thing's menu, under its name. */
+.loominate-has-menu { position: relative; display: inline-block; }
+.loominate-menu {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  z-index: 20;
+  min-width: 12em;
+  margin: 0;
+  padding: 0.25em 0;
+  list-style: none;
+  font-family: ${v("font-ui")};
+  font-style: normal;
+  background: ${v("color-surface")};
+  border: 1px solid ${v("color-border")};
+  border-radius: ${v("radius")};
+}
+.loominate-menu-item {
+  display: block;
+  width: 100%;
+  padding: 0.25em 0.75em;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.loominate-menu-item[aria-disabled="true"] { color: ${v("color-muted")}; cursor: default; }
+.loominate-menu-item:focus-visible { outline-offset: -2px; }
+.loominate-menu-reason {
+  display: block;
+  padding: 0 0.75em 0.25em 1.5em;
+  color: ${v("color-muted")};
+  font-size: 0.85em;
+  font-style: italic;
+}
 /* A disabled link's reason as a tooltip, below it, while it's hovered, focused, or tapped. */
 /* An inline block, so the tooltip sits below the whole link, not its line of text. */
 .loominate-has-reason { position: relative; display: inline-block; }

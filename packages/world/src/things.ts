@@ -152,6 +152,11 @@ type LockableFields = { isLocked: boolean };
 export const lockable = mixin({
   /** Whether it's locked. */
   isLocked: true,
+  /**
+   * The key that locks and unlocks it, which the player must carry, or
+   * `null` if it needs none, such as a bolt.
+   */
+  key: null as ObjectRef | null,
   /** Locks it. It must be closed, if it opens: returns whether it's locked now. */
   lock(): boolean {
     if ((this as Partial<Pick<Features, "isOpen">>).isOpen === true) return false;

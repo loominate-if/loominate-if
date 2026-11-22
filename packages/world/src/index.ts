@@ -116,3 +116,15 @@ export { happen, type HappenOptions } from "./perception.js";
 export { type Grammar, type Pronoun } from "./grammar.js";
 export { listContents, pluralize, pluralOf, type ListingFields } from "./listing.js";
 export { vocabOf, type FullVocabulary } from "./vocabulary.js";
+export {
+  close,
+  drop,
+  examine,
+  isPortable,
+  lock,
+  open,
+  take,
+  unlock,
+  type ActingOn,
+} from "./standard.js";
+export { inventory } from "./inventory.js";

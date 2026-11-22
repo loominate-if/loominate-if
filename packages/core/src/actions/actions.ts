@@ -59,6 +59,16 @@ export type ActionDefinition<A> = {
   readonly report?: string | ((context: ActionContext<A>) => string);
   /** How many minutes it takes, for a game clock. Defaults to 0. */
   readonly minutes?: number | ((context: ActionContext<A>) => number);
+  /**
+   * The thing, or things, whose menu offers it, with the thing as its
+   * `thing`, as in `on: radio`.
+   */
+  readonly on?: ObjectRef | readonly ObjectRef[];
+  /**
+   * Which things' menus offer it, with the thing as its `thing`: every
+   * thing this says yes to, as in `for: (thing) => "isOpen" in thing`.
+   */
+  readonly for?: (thing: ObjectRef) => boolean;
 };
 
 /** One action taken, with its things: what a link or menu offers, and what's performed. */
@@ -88,6 +98,8 @@ export type Action<A> = ((args: A) => ActionCall<A>) & {
   readonly minutes: FoldRulebook<number, ActionContext<A>>;
   /** What the player sees for it. */
   label(args: A): string;
+  /** Whether a menu for `thing` offers it: it's `on` the thing, or `for` it. */
+  offeredFor(thing: ObjectRef): boolean;
 };
 
 /**
@@ -184,7 +196,7 @@ export function action<A extends Readonly<Record<string, unknown>>>(
 ): Action<A> {
   if (actions.has(name)) {
     throw new StateError(
-      `action ${JSON.stringify(name)}: another action has this name. Give each its own.`,
+      `action ${JSON.stringify(name)}: another action has this name, perhaps one a package such as the world model defines. Give yours another name, or change that one with its rules, as in ${name}.check.rule(…).`,
     );
   }
   type C = ActionContext<A>;
@@ -223,6 +235,14 @@ export function action<A extends Readonly<Record<string, unknown>>>(
     perform,
     report,
     minutes,
+    offeredFor: (thing: ObjectRef): boolean => {
+      const on = d.on;
+      if (on !== undefined) {
+        const list: readonly ObjectRef[] = Array.isArray(on) ? on : [on as ObjectRef];
+        if (list.some((t) => t.id === thing.id)) return true;
+      }
+      return d.for?.(thing) ?? false;
+    },
     label: (args: A): string => {
       const l = d.label;
       return l === undefined
@@ -245,6 +265,34 @@ function contextFor<A>(call: ActionCall<A>): ActionContext<A> {
     ...(who?.actor !== undefined && { actor: who.actor }),
     ...(who?.body !== undefined && { body: who.body }),
   }) as ActionContext<A>;
+}
+
+/**
+ * The actions a menu for `thing` offers, in the order they were defined,
+ * each called with the thing as its `thing`: those `on` it, and those `for`
+ * things like it. Whether each is shown, and allowed, is up to
+ * {@link statusOf}.
+ */
+export function actionsFor(thing: ObjectRef): ActionCall[] {
+  // The object itself, so a `for` rule can read its properties, given only its ID.
+  thing = handleFor(thing.id, "actionsFor") as ObjectRef;
+  const out: ActionCall[] = [];
+  for (const a of actions.values()) {
+    const offered = a as unknown as Action<{ thing: ObjectRef }>;
+    if (offered.offeredFor(thing)) {
+      out.push(offered({ thing }) as unknown as ActionCall);
+    }
+  }
+  return out;
+}
+
+/**
+ * What `{menu …}` after a link calls, with the thing as `thing`: an open
+ * guard marking the link as the thing's menu, so the page opens the menu
+ * instead of following it.
+ */
+export function menuLink(args: { readonly thing: ObjectRef }): LinkGuard {
+  return { open: true, condition: `menu for ${args.thing.id}`, menu: args.thing.id };
 }
 
 /** Whether an action is offered, and allowed, and why not. */

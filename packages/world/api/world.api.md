@@ -4,13 +4,31 @@
 
 ```ts
 
+import { Action } from '@loominate-if/core';
 import { EffectContext } from '@loominate-if/core';
 import { Handle } from '@loominate-if/core';
 import { LinkNode } from '@loominate-if/core';
+import { ListedThing } from '@loominate-if/presentation';
 import { ObjectDefinition } from '@loominate-if/core';
 import { ObjectRef } from '@loominate-if/core';
 import { ObjectTemplate } from '@loominate-if/core';
 import { StateId } from '@loominate-if/core';
+import { Text } from '@loominate-if/core';
+import { WidgetDefinition } from '@loominate-if/presentation';
+
+// @public
+export type ActingOn = Thing & {
+    readonly description?: string | Text;
+    readonly isFixed?: boolean;
+    readonly isOpen?: boolean;
+    readonly isLocked?: boolean;
+    readonly key?: ObjectRef | null;
+    readonly blocks?: unknown;
+    open?(): boolean;
+    close?(): void;
+    lock?(): boolean;
+    unlock?(): void;
+};
 
 // @public
 export type Actor<B, M, Id extends StateId = StateId> = Handle<ThingOf<B> & MindOf<M> & ActorHalves<M>, Id>;
@@ -60,6 +78,11 @@ export function canReach(observer: ObjectRef, target: ObjectRef): boolean;
 
 // @public
 export function canSee(observer: ObjectRef, target: ObjectRef): boolean;
+
+// @public
+export const close: Action<    {
+thing: ActingOn;
+}>;
 
 // @public
 export function connect(from: ObjectRef, exits: ExitsDefinition): void;
@@ -131,7 +154,17 @@ export const door: {
 };
 
 // @public
+export const drop: Action<    {
+thing: ActingOn;
+}>;
+
+// @public
 export function enterRoom(room: Place, context?: EffectContext): void;
+
+// @public
+export const examine: Action<    {
+thing: ActingOn;
+}>;
 
 // @public
 export type Exit = {
@@ -219,6 +252,12 @@ export function holding(t: ObjectRef): Holding | undefined;
 export function inScope(observer: ObjectRef, sense: Sense): Thing[];
 
 // @public
+export const inventory: WidgetDefinition<    {
+readonly title: string;
+readonly things: readonly ListedThing[];
+}>;
+
+// @public
 export function isBody(ref: ObjectRef): boolean;
 
 // @public
@@ -232,6 +271,9 @@ export function isMind(ref: ObjectRef): boolean;
 
 // @public
 export function isPlace(t: ObjectRef): boolean;
+
+// @public
+export function isPortable(t: ObjectRef): boolean;
 
 // @public
 export function isRegion(ref: ObjectRef): boolean;
@@ -267,8 +309,14 @@ export type ListingFields = {
 };
 
 // @public
+export const lock: Action<    {
+thing: ActingOn;
+}>;
+
+// @public
 export const lockable: {
     isLocked: boolean;
+    key: ObjectRef | null;
     lock(): boolean;
     unlock(): void;
 };
@@ -320,6 +368,11 @@ export function move(t: ObjectRef, to: ObjectRef | null): void;
 export const obstacle: {
     blocks(traveler: ObjectRef): string | undefined;
 };
+
+// @public
+export const open: Action<    {
+thing: ActingOn;
+}>;
 
 // @public
 export const openable: {
@@ -456,6 +509,11 @@ export const surface: {
 export function swapBodies(a: ObjectRef, b: ObjectRef): void;
 
 // @public
+export const take: Action<    {
+thing: ActingOn;
+}>;
+
+// @public
 export type Thing = Handle<ThingFields>;
 
 // @public
@@ -495,6 +553,11 @@ export function totalVisitsTo(room: ObjectRef): number;
 export const transparent: {
     isTransparent: boolean;
 };
+
+// @public
+export const unlock: Action<    {
+thing: ActingOn;
+}>;
 
 // @public
 export function visitsTo(room: ObjectRef): number;

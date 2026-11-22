@@ -2,7 +2,13 @@
  * @packageDocumentation
  * Presentation: layouts, regions, widgets, themes, beats, effects, audio, accessibility.
  */
-export { mountPage, type Page, type PageGame, type PageOptions } from "./page/page.js";
+export {
+  mountPage,
+  type ActionMove,
+  type Page,
+  type PageGame,
+  type PageOptions,
+} from "./page/page.js";
 export {
   display,
   layouts,
@@ -33,3 +39,9 @@ export {
   type PlayHistory,
   type PlayOptions,
 } from "./saves/play.js";
+export {
+  addToHeader,
+  thingsWidget,
+  type ListedThing,
+  type ThingsWidgetOptions,
+} from "./page/things.js";

@@ -6,6 +6,7 @@
  * changing the record.
  */
 import type {
+  ActionCall,
   BeatNode,
   Choice,
   EventKind,
@@ -31,6 +32,7 @@ import {
 import { message } from "@loominate-if/core";
 import "../messages.js";
 import { appendProse } from "./prose.js";
+import { createMenus } from "./menus.js";
 import { effects, type EffectDefinition, type EffectFinish } from "./effects.js";
 import { addStyles } from "./theme.js";
 
@@ -42,6 +44,14 @@ export type PageGame = {
   readonly record: EventRecord;
 };
 
+/** A move taken from a thing's menu, as `onMove` hears of it. */
+export type ActionMove = {
+  /** Always `action`. */
+  readonly type: "action";
+  /** The action's label, as the menu showed it. */
+  readonly label: string;
+};
+
 /** Options for {@link mountPage}. */
 export type PageOptions = {
   /**
@@ -49,7 +59,7 @@ export type PageOptions = {
    * followed or the beat moved past: a place to checkpoint undo history or
    * autosave, so undo and saves stop at beat boundaries too.
    */
-  readonly onMove?: (move: Choice | BeatNode) => void;
+  readonly onMove?: (move: Choice | BeatNode | ActionMove) => void;
   /**
    * Called with an error the story's code threw during play, such as an
    * `{on enter: …}` effect, after the page has shown it to the player. A
@@ -202,6 +212,17 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     passage.focus({ preventScroll: true });
   });
 
+  /** Things' menus, whose actions are moves like following a link. */
+  const menus = createMenus({
+    doc,
+    act: guarded((call: ActionCall, label: string): void => {
+      story.act(call);
+      options.onMove?.({ type: "action", label });
+      draw(true);
+      passage.focus({ preventScroll: true });
+    }),
+  });
+
   /**
    * A button for a link or continue point. One that can't be followed is
    * marked `aria-disabled` rather than `disabled`, so it stays in the tab
@@ -218,6 +239,13 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     if (node.type === "link" && !node.available) {
       b.setAttribute("aria-disabled", "true");
       return b;
+    }
+    // A thing's name opens its menu, instead of being followed.
+    if (node.type === "link" && node.guard?.menu !== undefined) {
+      const holder = el("span", "loominate-has-menu");
+      holder.append(b);
+      menus.trigger(b, node.guard.menu);
+      return holder;
     }
     b.addEventListener("click", () => {
       follow(node);
@@ -562,7 +590,14 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
   };
   let layout: { readonly name: string; readonly definition: LayoutDefinition } | undefined;
   let mounted: Mounted[] = [];
-  const host: WidgetHost = { story, record, follow };
+  const host: WidgetHost = {
+    story,
+    record,
+    follow,
+    menu: (anchor, thing) => {
+      menus.trigger(anchor, thing);
+    },
+  };
 
   const mount = (region: HTMLElement, name: string): Mounted => {
     const definition = widgets.get(name);
