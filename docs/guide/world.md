@@ -233,7 +233,7 @@ The note says the butler did it.
 
 `{exits}` shows the room's exits as links, and `cellarDoor` is a door; [Exits](#exits) explains both.
 
-`visitsTo(room)` counts the player's arrivals at a room's passages, including this one, so `visitsTo(hall) === 1` is the first visit. It's state, so undo and saves keep it:
+`visitsTo(room)` counts the player's arrivals at a room's passages, including this one, so `visitsTo(hall) === 1` is the first visit. It's what the player's mind remembers, as passages' own `visits` are ([Remembering visits](#remembering-visits)); `totalVisitsTo(room)` counts every arrival, whoever made it. It's state, so undo and saves keep it:
 
 <!-- example: packages/world/src/rooms.test.ts#enter -->
 ```ts
@@ -415,3 +415,40 @@ expect(you.hasSeen(diary)).toBe(false);
 - `forget(fact)` or `forget(thing)` takes one back.
 - Knowledge is state, so undo and saves cover it, and the inspector shows each mind's on the object `world:knowledge:<mind>`.
 - The names of these methods belong to every mind, so a mind's own properties can't use them.
+
+### Remembering visits
+
+With the world model, where the player has been is a memory of the player's mind. A passage's `visits`, `firstVisit`, and `visited()`, `{on first visit: …}`, and `visitsTo(room)` all answer for the mind the player controls now, so after `playAs()` a new character's first visit reads, and runs, as a first visit. The story still counts every real visit, for the story map, coverage, and the inspector, as `story.totalVisits(passage)` and `totalVisitsTo(room)`:
+
+<!-- example: packages/world/src/memory.test.ts#switch -->
+```ts
+playAs(mira);
+expect(go(story, "Study")).toBe("A study you don't know.");
+expect(story.visits("Study")).toBe(1); // Mira's
+expect(story.totalVisits("Study")).toBe(2); // everyone's
+expect(visitsTo(study)).toBe(1);
+expect(totalVisitsTo(study)).toBe(2);
+```
+
+One-time changes to the world, which should happen once whoever arrives, belong in a flag on an object rather than in `{on first visit: …}`.
+
+- `forget(room)` forgets visiting a room and its passages, as well as seeing it.
+- `forgetVisits(passage)` forgets one passage's visits, and `forgetVisits()` every passage's and room's.
+- The inspector's State panel shows the real counts under `$visits`, and each mind's under `world:knowledge:<mind>`.
+
+### Amnesia
+
+`forget()` is for good. `loseMemory()` blocks everything a mind remembers, facts, things seen and familiar, and visits, until `regainMemory()` lifts it. New memories still form meanwhile, and when it lifts they join the old ones: visits add up, and a fact learned both times keeps its first source. `hasAmnesia` says whether it's in effect, and forgetting during it reaches the blocked memories too:
+
+<!-- example: packages/world/src/memory.test.ts#amnesia -->
+```ts
+you.loseMemory();
+expect(you.hasAmnesia).toBe(true);
+expect(you.knows(facts.secret)).toBe(false);
+expect(you.hasSeen(globe)).toBe(false);
+go(story, "Lobby");
+expect(go(story, "Study")).toBe("A study you don't know.");
+you.regainMemory();
+expect(you.knows(facts.secret)).toBe(true);
+expect(story.visits("Study")).toBe(2); // one before, one during
+```

@@ -61,7 +61,14 @@ export {
   type RegionOf,
   type RegionOptions,
 } from "./regions.js";
-export { enterRoom, isInRegion, registerRoom, regionsOf, visitsTo } from "./rooms.js";
+export {
+  enterRoom,
+  isInRegion,
+  registerRoom,
+  regionsOf,
+  totalVisitsTo,
+  visitsTo,
+} from "./rooms.js";
 export {
   direction,
   directionNamed,
