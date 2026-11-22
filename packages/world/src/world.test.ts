@@ -57,7 +57,15 @@ const wardrobe = thing("wardrobe", {
   location: study,
 });
 const coat = thing("coat", { name: "old coat", location: wardrobe });
-const lamp = thing("lamp", { ...lightSource, name: "brass lamp", location: hall });
+const lamp = thing("lamp", {
+  ...lightSource,
+  name: "brass lamp",
+  location: hall,
+  /** A getter stays derived, never stored. */
+  get glow(): string {
+    return this.isLit ? "bright" : "dark";
+  },
+});
 // #region chest
 const chest = thing("chest", {
   ...container,
@@ -153,7 +161,9 @@ describe("mixins", () => {
     expect("isOpen" in table).toBe(false);
     expect(box.isOpen).toBe(false);
     expect(lamp.isLit).toBe(false);
+    expect(lamp.glow).toBe("dark");
     lamp.light();
+    expect(lamp.glow).toBe("bright");
     expect(store.entity("lamp")).toEqual({ isLit: true });
   });
 });

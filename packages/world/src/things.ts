@@ -163,7 +163,7 @@ export function thing<Id extends StateId, D extends ObjectDefinition<D> & { name
   id: Id,
   definition: D & { location?: ObjectRef | null } & ThisType<Handle<ThingOf<D>, Id>>,
 ): Handle<ThingOf<D>, Id> {
-  const handle = object(id, { location: null, ...definition } as ObjectDefinition<D>);
+  const handle = object(id, withDefaults({ location: null }, definition) as ObjectDefinition<D>);
   registry.set(id, handle as unknown as Thing);
   return handle as unknown as Handle<ThingOf<D>, Id>;
 }
@@ -183,13 +183,24 @@ export function place<Id extends StateId, D extends ObjectDefinition<D> & { name
   id: Id,
   definition: D & { isDark?: boolean } & ThisType<Handle<ThingOf<D> & PlaceFields, Id>>,
 ): Handle<ThingOf<D> & PlaceFields, Id> {
-  const handle = thing(id, {
-    holds: "in" as const,
-    isDark: false,
-    ...definition,
-  } as unknown as D);
+  const handle = thing(
+    id,
+    withDefaults({ holds: "in", isDark: false }, definition) as unknown as D,
+  );
   places.add(id);
   return handle as unknown as Handle<ThingOf<D> & PlaceFields, Id>;
+}
+
+/**
+ * `definition` with `defaults` for what it leaves out. It copies property
+ * descriptors rather than spreading, which would read each getter once and
+ * store its value. @internal
+ */
+export function withDefaults<D extends object>(defaults: object, definition: D): D {
+  return Object.defineProperties(
+    Object.defineProperties({}, Object.getOwnPropertyDescriptors(defaults)),
+    Object.getOwnPropertyDescriptors(definition),
+  ) as D;
 }
 
 /** The thing defined with `id`, for code that has only a reference. @internal */

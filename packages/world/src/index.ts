@@ -28,3 +28,26 @@ export {
   type ThingOf,
 } from "./things.js";
 export { canHear, canReach, canSee, inScope, isInLight, type Sense } from "./scope.js";
+export {
+  actor,
+  body,
+  bodyOf,
+  isBody,
+  isMind,
+  leaveBody,
+  mind,
+  mindOf,
+  passengersOf,
+  playAs,
+  playerBody,
+  playerMind,
+  possess,
+  startAs,
+  swapBodies,
+  type Actor,
+  type ActorHalves,
+  type Mind,
+  type MindFields,
+  type MindOf,
+  type PossessOptions,
+} from "./actors.js";

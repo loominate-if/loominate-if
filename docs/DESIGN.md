@@ -259,14 +259,18 @@ The world model is an optional library inspired by adv3Lite; a game imports it w
 - **Perception** goes to the inhabiting mind, and optionally to a passenger mind.
 - **Perceived identity.** NPCs see bodies, not minds; who they think they are addressing is a belief in their knowledge. Relationships are keyed by minds, but NPC responses depend on who they believe is present.
 - **Narration.** "You" follows the player's mind; descriptions come from the body.
-- **Simple by default.** `actor(...)` creates a permanently linked mind and body and routes properties to the right half, so games that never use possession or swaps never see the split.
+- **Simple by default.** `actor(...)` creates a permanently linked mind and body and routes properties to the right half, so games that never use possession or swaps never see the split. The definition names each half; the actor is its body and reads its mind's properties through.
+- **The player.** `startAs(you)` in `story.ts` names the mind the player starts as, and `playAs(mind)` switches during play. Possessing a body keeps the displaced mind as a passenger unless it's pushed out ([ADR 0032](decisions/0032-minds-and-bodies.md), [guide](guide/world.md#minds-and-bodies)).
 
 ```ts
-export const mira = actor("Mira", { courage: 3, strength: 2 });
-// courage → mind, strength → body; permanently linked by default
+export const mira = actor("mira", {
+  body: { name: "Mira", location: hall, strength: 2 },
+  mind: { courage: 3 },
+});
+// mira.courage → mind, mira.strength → body; permanently linked
 
-possess(villain.mind, mira.body);  // villain now controls Mira's body
-swapBodies(player.mind, tom.mind); // classic body swap
+possess(villain, mira);  // villain controls Mira's body; Mira's mind watches as a passenger
+swapBodies(you, tom);    // classic body swap
 ```
 
 - **Objects and containment.** Things, containers, surfaces, and locations, with a containment tree and scope (what the player can see, reach, or hear). Mixins provide the multiple-inheritance flavor of TADS classes. In `@loominate-if/world`, `thing()` and `place()` build on core's `object()`; each thing stores its `location`, and contents are computed. `container`, `surface`, `openable`, `lockable`, `transparent`, and `lightSource` are mixins spread into a definition. Sight stops at closed opaque containers and needs light, reach stops at any closed container, and hearing at the edge of the place ([ADR 0031](decisions/0031-containment-and-scope.md), [guide](guide/world.md)).
