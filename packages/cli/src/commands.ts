@@ -23,6 +23,8 @@ export type CommandOptions = {
   readonly root?: string;
   /** Package export conditions, such as `source` in this repository's tests. */
   readonly conditions?: readonly string[];
+  /** Report every diagnostic, including errors that follow from others, with no limit per file. */
+  readonly verbose?: boolean;
   /** More Vite configuration, merged over the command's. */
   readonly vite?: InlineConfig;
 };
@@ -67,6 +69,7 @@ function viteConfig(config: ResolvedConfig, options: BuildOptions): InlineConfig
         extensions: config.loaded,
         ...(config.scope !== undefined && { scope: config.scope }),
         ...(conditions.length > 0 && { compilerOptions: { customConditions: [...conditions] } }),
+        ...(options.verbose && { verbose: true }),
       }),
       loominateApp(config, { inspector: options.inspector ?? false }),
     ],

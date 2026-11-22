@@ -123,6 +123,8 @@ Optional packages add their syntax through compiler extensions: directives with 
 - passages tagged as rooms that aren't connected to one
 - type errors inside inline code
 
+One broken expression can make TypeScript report dozens of errors as it recovers. The compiler marks the ones that likely follow from another, every error after a file's first syntax error among them, and `loominate` shows the rest, at most five per file, saying how many it held back; `--verbose` shows them all ([ADR 0041](decisions/0041-follow-on-errors.md)).
+
 ### Stable line IDs
 
 The compiler assigns every authored line of prose and dialogue a stable ID that survives edits to surrounding text (Phase 1). Line IDs enable skipping only previously read text across playthroughs, mapping voice files to lines, and line-by-line localization.

@@ -13,6 +13,7 @@ import path from "node:path";
 import {
   createCompilerSession,
   PASSAGE_EXTENSION,
+  shownDiagnostics,
   type CompilerExtension,
   type CompilerSession,
   type ProjectDiagnostic,
@@ -31,7 +32,19 @@ export type LoominateOptions = {
   readonly extensions?: readonly CompilerExtension[];
   /** TypeScript options for type-checking, on top of the compiler's defaults. */
   readonly compilerOptions?: Parameters<typeof createCompilerSession>[0]["compilerOptions"];
+  /**
+   * Report every diagnostic, including errors that likely follow from
+   * another, and with no limit per file. Off by default, so one broken line
+   * doesn't bury the error that matters.
+   */
+  readonly verbose?: boolean;
 };
+
+/** The line saying how many diagnostics were held back, if any. */
+export function heldBackLine(heldBack: number): string | undefined {
+  if (heldBack === 0) return undefined;
+  return `…and ${String(heldBack)} more, most likely following from those; run with --verbose to see them all.`;
+}
 
 /** The suffix of a passage file's generated module: `cellar.weft` → `cellar.weft.ts`. */
 const MODULE_SUFFIX = ".ts";
@@ -68,15 +81,18 @@ export function gameFiles(root: string): ProjectFile[] {
 export function overlay(
   root: string,
   diagnostics: readonly ProjectDiagnostic[],
+  verbose = false,
 ): ErrorPayload | undefined {
-  const errors = diagnostics.filter((d) => d.severity === "error");
+  const all = diagnostics.filter((d) => d.severity === "error");
+  const { shown: errors, heldBack } = shownDiagnostics(all, { verbose });
   const [first] = errors;
   if (!first) return undefined;
-  const count = errors.length === 1 ? "an error" : `${String(errors.length)} errors`;
+  const count = all.length === 1 ? "an error" : `${String(all.length)} errors`;
+  const more = heldBackLine(heldBack);
   return {
     type: "error",
     err: {
-      message: `The game has ${count}:\n${errors.map((d) => formatDiagnostic(root, d)).join("\n")}`,
+      message: `The game has ${count}:\n${[...errors.map((d) => formatDiagnostic(root, d)), ...(more ? [more] : [])].join("\n")}`,
       stack: "",
       id: first.file,
       plugin: "loominate",
@@ -85,6 +101,10 @@ export function overlay(
     },
   };
 }
+
+/** Whether TypeScript couldn't parse the code a diagnostic is in: its syntax errors are TS1xxx. */
+const isSyntaxError = (d: ProjectDiagnostic): boolean =>
+  d.severity === "error" && d.source === "typescript" && d.code !== undefined && d.code < 2000;
 
 /** A file's text, or "" if it's gone. */
 function readSource(file: string): string {
@@ -126,6 +146,7 @@ export function formatDiagnostic(root: string, d: ProjectDiagnostic): string {
  * ```
  */
 export function loominate(options: LoominateOptions = {}): Plugin {
+  const verbose = options.verbose ?? false;
   let root = "";
   let session: CompilerSession | undefined;
   let logger: Logger | undefined;
@@ -148,11 +169,14 @@ export function loominate(options: LoominateOptions = {}): Plugin {
    */
   const report = (): void => {
     const diagnostics = active().diagnostics();
-    for (const d of diagnostics) {
+    const { shown, heldBack } = shownDiagnostics(diagnostics, { verbose });
+    for (const d of shown) {
       const line = formatDiagnostic(root, d);
       if (d.severity === "error") logger?.error(line, { timestamp: true });
       else logger?.warn(line, { timestamp: true });
     }
+    const more = heldBackLine(heldBack);
+    if (more) logger?.warn(more, { timestamp: true });
     if (diagnostics.length === 0 && hadProblems) {
       logger?.info("The game has no problems now.", { timestamp: true });
     }
@@ -211,7 +235,7 @@ export function loominate(options: LoominateOptions = {}): Plugin {
       // Each page that connects, including after the reload an edit causes,
       // sees the game's errors in Vite's overlay as well as in the terminal.
       server.ws.on("vite:client:connect", (_data, client) => {
-        const payload = overlay(root, active().diagnostics());
+        const payload = overlay(root, active().diagnostics(), verbose);
         if (payload) client.send(payload);
       });
     },
@@ -220,15 +244,21 @@ export function loominate(options: LoominateOptions = {}): Plugin {
       // A build fails on errors; the dev server only reports them.
       if (this.meta.watchMode) return;
       const diagnostics = active().diagnostics();
-      for (const d of diagnostics) {
-        if (d.severity === "warning") this.warn(formatDiagnostic(root, d));
+      for (const d of shownDiagnostics(
+        diagnostics.filter((d) => d.severity === "warning"),
+        { verbose },
+      ).shown) {
+        this.warn(formatDiagnostic(root, d));
       }
       const errors = diagnostics.filter((d) => d.severity === "error");
       if (errors.length > 0) {
+        const { shown, heldBack } = shownDiagnostics(errors, { verbose });
+        const more = heldBackLine(heldBack);
         this.error(
-          `the game has ${String(errors.length)} error${errors.length === 1 ? "" : "s"}:\n${errors
-            .map((d) => formatDiagnostic(root, d))
-            .join("\n")}`,
+          `the game has ${String(errors.length)} error${errors.length === 1 ? "" : "s"}:\n${[
+            ...shown.map((d) => formatDiagnostic(root, d)),
+            ...(more ? [more] : []),
+          ].join("\n")}`,
         );
       }
     },
@@ -256,6 +286,30 @@ export function loominate(options: LoominateOptions = {}): Plugin {
       const module = active().module(file);
       if (!module) return;
       this.addWatchFile(file);
+      // Code that doesn't parse would fail in Vite's own transform, whose
+      // error points into the generated module, not the passage. Report the
+      // passage's errors instead, as the overlay does.
+      const own = active()
+        .diagnostics()
+        .filter((d) => d.file === file);
+      if (own.some(isSyntaxError)) {
+        const { shown, heldBack } = shownDiagnostics(
+          own.filter((d) => d.severity === "error"),
+          { verbose },
+        );
+        const [first] = shown;
+        const more = heldBackLine(heldBack);
+        this.error({
+          message: [...shown.map((d) => formatDiagnostic(root, d)), ...(more ? [more] : [])].join(
+            "\n",
+          ),
+          id: file,
+          ...(first && {
+            loc: { file, line: first.line, column: first.column - 1 },
+            frame: codeFrame(readSource(file), first.line, first.column),
+          }),
+        });
+      }
       const map = module.sourceMap();
       // Vite's types want mutable arrays.
       const { file: mapped, mappings, version } = map;

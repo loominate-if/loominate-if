@@ -17,6 +17,7 @@ Options:
   --target <t>   What to build: static (default) or single (build)
   --inspector    Include the inspector, as dev does, e.g. for testers (build)
   --watch        Rerun tests as files change (test)
+  --verbose      Show every error, including those that likely follow from another
   -h, --help     Show this help`;
 
 async function main(argv: readonly string[]): Promise<void> {
@@ -30,6 +31,7 @@ async function main(argv: readonly string[]): Promise<void> {
       target: { type: "string" },
       inspector: { type: "boolean" },
       watch: { type: "boolean" },
+      verbose: { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
   });
@@ -40,11 +42,13 @@ async function main(argv: readonly string[]): Promise<void> {
     return;
   }
   const root = values.root;
+  const verbose = values.verbose === true ? { verbose: true } : {};
   if (command === "dev") {
     const port = values.port === undefined ? undefined : Number(values.port);
     if (port !== undefined && !Number.isInteger(port)) throw new Error("--port must be a number.");
     const server = await dev({
       ...(root !== undefined && { root }),
+      ...verbose,
       vite: { server: { ...(port !== undefined && { port }), ...(values.open && { open: true }) } },
     });
     await server.listen();
@@ -59,12 +63,14 @@ async function main(argv: readonly string[]): Promise<void> {
     }
     await build({
       ...(root !== undefined && { root }),
+      ...verbose,
       target,
       ...(values.inspector && { inspector: true }),
     });
   } else if (command === "test") {
     const result = await test({
       ...(root !== undefined && { root }),
+      ...verbose,
       filters: positionals.slice(1),
       ...(values.watch && { watch: true }),
     });

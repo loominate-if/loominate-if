@@ -33,6 +33,7 @@ export type BuildTarget = "static" | "single";
 export type CommandOptions = {
     readonly root?: string;
     readonly conditions?: readonly string[];
+    readonly verbose?: boolean;
     readonly vite?: InlineConfig;
 };
 
@@ -84,6 +85,7 @@ export type LoominateOptions = {
     readonly start?: string;
     readonly extensions?: readonly CompilerExtension[];
     readonly compilerOptions?: Parameters<typeof createCompilerSession>[0]["compilerOptions"];
+    readonly verbose?: boolean;
 };
 
 // @public
