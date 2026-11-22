@@ -26,7 +26,7 @@ Core has saves, slots, autosave, and export and import over a `SaveStorage` the 
 
 ### The game menu and save menu
 
-- A `game-menu` widget has Undo, Save, and Load. The shell registers it and adds it to the `page` layout's header, unless the game has replaced that layout, in which case the game places it.
+- A `game-menu` widget has Undo, Save, Load, and Restart ([#284](https://github.com/loominate-if/loominate-if/issues/284)). Restart asks once more on the same button, as Delete does, and leaving the button cancels. It starts a new game with a fresh seed, as New game does, replacing the autosave, and moves focus to the passage. The abandoned game isn't kept: the player saves first if they want it, so the save list doesn't fill with automatic slots. The shell registers it and adds it to the `page` layout's header, unless the game has replaced that layout, in which case the game places it.
 - Undo stays focusable when there's nothing to undo, marked `aria-disabled`, as disabled links are (#43).
 - Save and Load open the save menu, a native modal `<dialog>`, which brings focus trapping, Escape to close, and the right semantics. It lists slots newest first, with the autosave and unreadable slots. It saves under a name to a new slot (`save-1`, `save-2`, …), and each slot can be loaded, saved over, exported as a `.json` download, or deleted. Delete asks once more on the same button. Imports come from a file picker into a new slot, never over an existing one. Outcomes and failures are announced in a status line.
 

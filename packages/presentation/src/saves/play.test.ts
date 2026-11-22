@@ -104,6 +104,7 @@ describe("playing a game", () => {
       "Undo",
       "Save",
       "Load",
+      "Restart",
     ]);
     await vi.waitFor(async () => {
       expect(await autosaved(storage)).toBe("Road");
@@ -112,6 +113,35 @@ describe("playing a game", () => {
     await vi.waitFor(async () => {
       expect(await autosaved(storage)).toBe("Bridge");
     });
+  });
+
+  it("restarts from the menu after asking again, with a fresh seed, keeping saves", async () => {
+    const storage = createMemoryStorage();
+    const seeds = ["first", "second"];
+    const { container, player, click, button, text } = await start({
+      storage,
+      seed: () => seeds.shift() ?? "more",
+    });
+    click("Walk on");
+    await createSaves({ storage, game }).save("save-1", createStore());
+    const restart = button("Restart");
+    click("Restart");
+    expect(restart.textContent).toBe("Confirm restart");
+    expect(text()).toContain("A stone bridge."); // nothing yet
+    restart.dispatchEvent(new FocusEvent("blur")); // moving away cancels
+    expect(restart.textContent).toBe("Restart");
+    click("Restart");
+    click("Confirm restart: start the story over. Saves are kept.");
+    await vi.waitFor(() => {
+      expect(text()).toContain("A long road.");
+    });
+    expect(player.toReplay()?.seed).toBe("second");
+    expect(button("Undo").getAttribute("aria-disabled")).toBe("true");
+    expect(document.activeElement).toBe(container.querySelector(".loominate-passage"));
+    await vi.waitFor(async () => {
+      expect(await autosaved(storage)).toBe("Road");
+    });
+    expect((await createSaves({ storage, game }).list()).map((x) => x.slot)).toContain("save-1");
   });
 
   it("undoes from the menu, and autosaves what's left", async () => {
