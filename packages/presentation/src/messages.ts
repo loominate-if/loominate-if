@@ -14,6 +14,8 @@ type Failure = { readonly error: string };
 
 declare module "@loominate-if/core" {
   interface Messages {
+    /** An error the story's code threw during play, shown at the top of the passage. */
+    "page.error": { readonly error: string };
     /** A continue point's label, when it has none. */
     "page.continue": None;
     /** The button that moves past every remaining beat. */
@@ -103,6 +105,7 @@ const register: typeof messages.register = (key, text) => {
   messages.register(key, text, { source: SOURCE });
 };
 
+register("page.error", ({ error }) => `Something went wrong: ${error}`);
 register("page.continue", "Continue");
 register("page.skip", "Skip");
 register("page.storySoFar", "Story so far");

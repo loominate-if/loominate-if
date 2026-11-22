@@ -45,6 +45,11 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
 }
 .loominate-passage:focus { outline: none; }
 .loominate-notice { font-style: italic; }
+.loominate-error {
+  font-family: ${v("font-ui")};
+  padding-inline-start: ${v("space")};
+  border-inline-start: 3px solid currentColor;
+}
 .loominate-page button {
   font: inherit;
   color: inherit;

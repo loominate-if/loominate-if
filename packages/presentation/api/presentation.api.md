@@ -89,6 +89,7 @@ export type PageGame = {
 // @public
 export type PageOptions = {
     readonly onMove?: (move: Choice | BeatNode) => void;
+    readonly onError?: (error: unknown) => void;
     readonly pacing?: "paced" | "immediate";
     readonly skipLabel?: string;
     readonly drawerLabel?: string;

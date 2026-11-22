@@ -51,6 +51,12 @@ export type PageOptions = {
    */
   readonly onMove?: (move: Choice | BeatNode) => void;
   /**
+   * Called with an error the story's code threw during play, such as an
+   * `{on enter: …}` effect, after the page has shown it to the player. A
+   * move whose effect throws is rolled back, so the game stays where it was.
+   */
+  readonly onError?: (error: unknown) => void;
+  /**
    * How timed beats (`{beat 1.5s}`) play. `paced`, the default, waits out
    * each one; `immediate` moves past them at once, so the text appears
    * without pauses, as it also does when the player prefers reduced motion.
@@ -156,12 +162,38 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
   container.append(root);
 
   let reasons = 0;
-  const follow = (choice: Choice): void => {
+  /**
+   * Shows an error the story's code threw, at the top of the passage, where
+   * it's announced, and passes it on. The next move clears it.
+   */
+  const failed = (error: unknown): void => {
+    passage.querySelector(".loominate-error")?.remove();
+    const p = el("p", "loominate-error");
+    p.setAttribute("role", "alert");
+    p.textContent = message("page.error", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    passage.prepend(p);
+    console.error(error);
+    options.onError?.(error);
+  };
+  /** Runs a step of play, showing what goes wrong instead of failing silently. */
+  const guarded =
+    <A extends unknown[]>(step: (...args: A) => void) =>
+    (...args: A): void => {
+      try {
+        step(...args);
+      } catch (error) {
+        failed(error);
+      }
+    };
+
+  const follow = guarded((choice: Choice): void => {
     story.follow(choice);
     options.onMove?.(choice);
     draw(true);
     passage.focus({ preventScroll: true });
-  };
+  });
 
   /**
    * A button for a link or continue point. One that can't be followed is
@@ -256,7 +288,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
   const immediate = (): boolean => options.pacing === "immediate" || reducedMotion();
 
   /** Moves past the pending beat, and shows the part it reveals. */
-  const advance = (): void => {
+  const advance = guarded((): void => {
     const beat = story.render().beat;
     if (!beat) return;
     const focused = beatControls?.contains(doc.activeElement) ?? false;
@@ -265,10 +297,10 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     // A page break clears the screen; otherwise the new part follows what's shown.
     draw(true, beat.page ? 0 : drawnCount);
     if (focused) passage.focus({ preventScroll: true });
-  };
+  });
 
   /** Moves past every remaining beat at once, without their effects. */
-  const skip = (): void => {
+  const skip = guarded((): void => {
     const focused = beatControls?.contains(doc.activeElement) ?? false;
     let from = drawnCount;
     for (let beat = story.render().beat; beat; beat = story.render().beat) {
@@ -278,7 +310,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     }
     draw(false, from);
     if (focused) passage.focus({ preventScroll: true });
-  };
+  });
 
   /** Shows the controls for a pending beat, and starts its timer when it's timed. */
   const drawBeat = (beat: BeatNode, arrived: boolean): void => {
