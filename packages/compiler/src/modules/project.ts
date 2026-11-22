@@ -88,6 +88,16 @@ export type ProjectDiagnostic = {
   readonly column: number;
   /** The TypeScript error code, for TypeScript diagnostics. */
   readonly code?: number;
+  /**
+   * True if it likely follows from another error rather than being one of
+   * its own, as when TypeScript recovers from a broken expression: any error
+   * after the file's first syntax error, an error in generated code with no
+   * author position while the file has others, or, in a file with a syntax
+   * error, one about the generated code around it, such as a passage body
+   * that no longer returns or a compiler-generated `$` name. {@link shownDiagnostics}
+   * holds these back unless asked for every diagnostic.
+   */
+  readonly followOn?: true;
 };
 
 /** The result of {@link compileProject}. */
@@ -433,6 +443,9 @@ export function createCompilerSession(options: ProjectOptions): CompilerSession 
       scope: scopeExists ? display(scopePath) : "story.ts",
     });
 
+    // Syntax errors, so the type errors that follow from them can be told apart.
+    const syntactic = new Set<ts.Diagnostic>(program.getSyntacticDiagnostics());
+    const typescript: { d: ProjectDiagnostic; syntax: boolean; unmapped: boolean }[] = [];
     for (const d of ts.getPreEmitDiagnostics(program)) {
       if (!d.file || d.start === undefined) continue;
       const fileName = path.resolve(d.file.fileName);
@@ -443,33 +456,44 @@ export function createCompilerSession(options: ProjectOptions): CompilerSession 
         missing !== undefined
           ? undefinedNameMessage(missing, nameHelp(missing))
           : authorMessage(text, generated ? passageContext(generated.code, d.start, d.length) : {});
+      const syntax = syntactic.has(d);
       if (generated) {
-        const at = toSource(generated.mappings, d.start) ?? 0;
+        const mapped = toSource(generated.mappings, d.start);
+        const at = mapped ?? 0;
         const end = toSource(generated.mappings, d.start + (d.length ?? 0)) ?? at;
         const lines = locator(sources.get(generated.file) ?? "");
-        diagnostics.push({
-          severity: "error",
-          source: "typescript",
-          file: generated.file,
-          message,
-          span: { start: at, end: Math.max(end, at) },
-          ...lines.locate(at),
-          code: d.code,
+        typescript.push({
+          d: {
+            severity: "error",
+            source: "typescript",
+            file: generated.file,
+            message,
+            span: { start: at, end: Math.max(end, at) },
+            ...lines.locate(at),
+            code: d.code,
+          },
+          syntax,
+          unmapped: mapped === undefined,
         });
       } else if (memory.has(fileName)) {
         const { line, character } = d.file.getLineAndCharacterOfPosition(d.start);
-        diagnostics.push({
-          severity: "error",
-          source: "typescript",
-          file: fileName,
-          message,
-          span: { start: d.start, end: d.start + (d.length ?? 0) },
-          line: line + 1,
-          column: character + 1,
-          code: d.code,
+        typescript.push({
+          d: {
+            severity: "error",
+            source: "typescript",
+            file: fileName,
+            message,
+            span: { start: d.start, end: d.start + (d.length ?? 0) },
+            line: line + 1,
+            column: character + 1,
+            code: d.code,
+          },
+          syntax,
+          unmapped: false,
         });
       }
     }
+    diagnostics.push(...markFollowOns(typescript));
 
     // 4. Object IDs must be unique and not reserved.
     const sites = findObjectDefinitions(program, userFiles);
@@ -521,6 +545,77 @@ export function createCompilerSession(options: ProjectOptions): CompilerSession 
       return checked;
     },
   };
+}
+
+/** TypeScript's "A function whose declared type is neither … must return a value." */
+const MUST_RETURN = 2355;
+
+/**
+ * Marks the TypeScript errors that likely follow from others. Once a file's
+ * parse breaks, TypeScript's view of everything after the first syntax error
+ * is unreliable, so every error after it is held back; errors before it
+ * stand. In a file with a syntax error, those about the generated code
+ * around it, a passage body that no longer returns or a compiler-generated
+ * `$` name, are held back too, and in a file with other errors, those in
+ * generated code with no author position.
+ */
+function markFollowOns(
+  found: readonly { d: ProjectDiagnostic; syntax: boolean; unmapped: boolean }[],
+): ProjectDiagnostic[] {
+  /** Each file's first syntax error. */
+  const firstSyntax = new Map<string, number>();
+  for (const f of found) {
+    if (!f.syntax || f.unmapped) continue;
+    const known = firstSyntax.get(f.d.file);
+    if (known === undefined || f.d.span.start < known) firstSyntax.set(f.d.file, f.d.span.start);
+  }
+  const withMapped = new Set(found.filter((f) => !f.unmapped).map((f) => f.d.file));
+  return found.map((f) => {
+    const first = firstSyntax.get(f.d.file);
+    const after = first !== undefined && f.d.span.start > first;
+    const aroundBreak =
+      first !== undefined &&
+      !f.syntax &&
+      (f.d.code === MUST_RETURN || f.d.message.startsWith("`$"));
+    const orphan = f.unmapped && withMapped.has(f.d.file);
+    return after || aroundBreak || orphan ? { ...f.d, followOn: true as const } : f.d;
+  });
+}
+
+/** What {@link shownDiagnostics} shows, and how many it held back. */
+export type ShownDiagnostics = {
+  /** The diagnostics to show, in order. */
+  readonly shown: readonly ProjectDiagnostic[];
+  /** How many it held back: follow-on errors, and those past the limit per file. */
+  readonly heldBack: number;
+};
+
+/**
+ * The diagnostics worth showing an author: without the errors that likely
+ * follow from others, and at most `perFile` per file, so one broken line
+ * doesn't bury the error that matters. `verbose` shows every one.
+ *
+ * @example
+ * ```ts
+ * const { shown, heldBack } = shownDiagnostics(project.diagnostics);
+ * // heldBack > 0: "and 58 more; run with --verbose to see them all"
+ * ```
+ */
+export function shownDiagnostics(
+  diagnostics: readonly ProjectDiagnostic[],
+  options: { readonly verbose?: boolean; readonly perFile?: number } = {},
+): ShownDiagnostics {
+  if (options.verbose === true) return { shown: diagnostics, heldBack: 0 };
+  const perFile = options.perFile ?? 5;
+  const counts = new Map<string, number>();
+  const shown: ProjectDiagnostic[] = [];
+  for (const d of diagnostics) {
+    if (d.followOn) continue;
+    const n = counts.get(d.file) ?? 0;
+    counts.set(d.file, n + 1);
+    if (n < perFile) shown.push(d);
+  }
+  return { shown, heldBack: diagnostics.length - shown.length };
 }
 
 /**

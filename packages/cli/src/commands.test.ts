@@ -217,6 +217,26 @@ export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, start
     );
   });
 
+  it("names the errors that matter, holding back what follows from them, unless verbose", async () => {
+    const broken = ":: Start\n{t\\{The subj ${coins}} {glints}.}}\nMore.\n\n:: Next\nAnd more.\n";
+    const root = game({ "start.weft": broken });
+    const failure = async (verbose: boolean) => {
+      try {
+        await build({ ...options(root), ...(verbose && { verbose }) });
+      } catch (error) {
+        return error instanceof Error ? error.message : String(error);
+      }
+      throw new Error("the build should fail");
+    };
+    const quiet = await failure(false);
+    expect(quiet).toContain("start.weft:2:3 error: Invalid character.");
+    expect(quiet).toMatch(/…and \d+ more, most likely following from those; run with --verbose/);
+    expect(quiet).not.toContain("expected.");
+    const all = await failure(true);
+    expect(all).toContain("expected.");
+    expect(all).not.toContain("--verbose");
+  }, 60_000);
+
   it("fails on errors in the game, naming them", async () => {
     const root = game({ "start.weft": ":: Start\n{nope}\n" });
     await expect(build(options(root))).rejects.toThrow(/start\.weft:2:2 error: .*nope/);

@@ -304,6 +304,7 @@ export type ProjectDiagnostic = {
     readonly line: number;
     readonly column: number;
     readonly code?: number;
+    readonly followOn?: true;
 };
 
 // @public
@@ -334,6 +335,18 @@ export type SessionChange = {
     readonly modules: readonly string[];
     readonly passageNames: boolean;
 };
+
+// @public
+export type ShownDiagnostics = {
+    readonly shown: readonly ProjectDiagnostic[];
+    readonly heldBack: number;
+};
+
+// @public
+export function shownDiagnostics(diagnostics: readonly ProjectDiagnostic[], options?: {
+    readonly verbose?: boolean;
+    readonly perFile?: number;
+}): ShownDiagnostics;
 
 // @public
 export type SourceMap = {

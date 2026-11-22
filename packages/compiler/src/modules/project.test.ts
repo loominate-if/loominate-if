@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createEventRecord, createStore, createStory, type Passage } from "@loominate-if/core";
 import { afterAll, describe, expect, it } from "vitest";
 import type { CompilerExtension } from "../extensions/extension.js";
-import { compileProject, type ProjectFile } from "./project.js";
+import { compileProject, shownDiagnostics, type ProjectFile } from "./project.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 /** A game root inside the package, so `@loominate-if/core` resolves through its node_modules. */
@@ -63,6 +63,44 @@ const show = (r: ReturnType<typeof compile>): string[] =>
 
 // These tests build real TypeScript programs, which takes seconds, longer under load from parallel test files.
 describe("compileProject", { timeout: 30_000 }, () => {
+  it("holds back the errors that follow from one broken expression", () => {
+    // A backslash where a backtick belongs, as copied from a mangled page.
+    const broken = [
+      ":: Shelf",
+      "A dusty shelf.",
+      "{t\\{The subj ${coins}} {glints} and {is} gone.}}",
+      "[[Look closer -> Closer]]",
+      "",
+      ":: Closer",
+      "Nothing else here.",
+    ].join("\n");
+    const result = compile([
+      { path: "story.ts", text: "export const coins = 3;\n" },
+      { path: "shelf.weft", text: broken },
+    ]);
+    const { shown, heldBack } = shownDiagnostics(result.diagnostics);
+    expect(shown.map((d) => `${String(d.line)}:${String(d.column)} ${d.message}`)).toEqual([
+      "3:2 `t` isn't defined. Passages can use what `story.ts` exports, and `visits`, `firstVisit`, and `visited`.",
+      "3:3 Invalid character.",
+      "3:48 This `}` doesn't close anything. Write `\\}` for a literal brace.",
+    ]);
+    expect(heldBack).toBeGreaterThan(10);
+    expect(result.diagnostics.filter((d) => d.followOn).length).toBe(heldBack);
+    // Verbose shows every one, as before.
+    expect(shownDiagnostics(result.diagnostics, { verbose: true }).shown).toEqual(
+      result.diagnostics,
+    );
+  });
+
+  it("shows at most a few errors per file", () => {
+    const many = Array.from({ length: 8 }, (_, i) => `export const n${String(i)}: number = "x";`);
+    const result = compile([{ path: "story.ts", text: `${many.join("\n")}\n` }]);
+    const { shown, heldBack } = shownDiagnostics(result.diagnostics);
+    expect(shown).toHaveLength(5);
+    expect(heldBack).toBe(3);
+    expect(shownDiagnostics(result.diagnostics, { perFile: 10 }).shown).toHaveLength(8);
+  });
+
   it("applies the declarations of ambient packages the game doesn't import", () => {
     // A package on disk that declares something for the whole game, as
     // presentation declares its message keys.
