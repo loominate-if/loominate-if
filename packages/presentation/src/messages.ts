@@ -33,6 +33,15 @@ declare module "@loominate-if/core" {
     "menu.save": None;
     "menu.load": None;
     "menu.restart": None;
+    /** The game menu's tooltips, which say what each button does, whatever its label. */
+    "menu.undoTip": None;
+    /** Undo's tooltip when there's nothing to undo. */
+    "menu.cannotUndoTip": None;
+    "menu.saveTip": None;
+    "menu.loadTip": None;
+    "menu.restartTip": None;
+    /** Restart's tooltip while it asks once more. */
+    "menu.confirmRestartTip": None;
     /** Restart, asking once more. */
     "menu.confirmRestart": None;
     /** What a screen reader says for the Confirm restart button. */
@@ -106,6 +115,12 @@ register("menu.save", "Save");
 register("menu.load", "Load");
 register("menu.restart", "Restart");
 register("menu.confirmRestart", "Confirm restart");
+register("menu.undoTip", "Take back your last move.");
+register("menu.cannotUndoTip", "Nothing to undo yet.");
+register("menu.saveTip", "Save the game in a slot, to come back to.");
+register("menu.loadTip", "Load a saved game, leaving this one.");
+register("menu.restartTip", "Start the story over from the beginning. Your saves are kept.");
+register("menu.confirmRestartTip", "Click again to start over. Moving away cancels.");
 register("menu.confirmRestartLabel", "Confirm restart: start the story over. Saves are kept.");
 register("start.continue", "Continue");
 register("start.newGame", "New game");

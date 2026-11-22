@@ -178,31 +178,34 @@ function gameMenu(actions: MenuActions): WidgetDefinition<MenuData> {
         const doc = element.ownerDocument;
         const bar = doc.createElement("div");
         bar.className = "loominate-game-menu";
-        const make = (text: string, onClick: () => void) => {
+        // Each button's tooltip says what it does, since a game may reword its label.
+        const make = (text: string, tip: string, onClick: () => void) => {
           const b = doc.createElement("button");
           b.type = "button";
           b.textContent = text;
+          b.title = tip;
           b.addEventListener("click", onClick);
           bar.append(b);
           return b;
         };
         let canUndo = data.canUndo;
-        const undo = make(message("menu.undo"), () => {
+        const undo = make(message("menu.undo"), message("menu.undoTip"), () => {
           if (canUndo) actions.undo();
         });
-        make(message("menu.save"), () => {
+        make(message("menu.save"), message("menu.saveTip"), () => {
           actions.open("save");
         });
-        make(message("menu.load"), () => {
+        make(message("menu.load"), message("menu.loadTip"), () => {
           actions.open("load");
         });
         // Restart abandons the game in play, so it asks once more on the same
         // button, as the save menu's Delete does; leaving the button cancels.
         let confirming = false;
-        const restart = make(message("menu.restart"), () => {
+        const restart = make(message("menu.restart"), message("menu.restartTip"), () => {
           if (!confirming) {
             confirming = true;
             restart.textContent = message("menu.confirmRestart");
+            restart.title = message("menu.confirmRestartTip");
             restart.setAttribute("aria-label", message("menu.confirmRestartLabel"));
             return;
           }
@@ -211,6 +214,7 @@ function gameMenu(actions: MenuActions): WidgetDefinition<MenuData> {
         restart.addEventListener("blur", () => {
           confirming = false;
           restart.textContent = message("menu.restart");
+          restart.title = message("menu.restartTip");
           restart.removeAttribute("aria-label");
         });
         element.append(bar);
@@ -218,6 +222,7 @@ function gameMenu(actions: MenuActions): WidgetDefinition<MenuData> {
           canUndo = d.canUndo;
           // Still focusable when there's nothing to undo, so it's found and explained.
           undo.setAttribute("aria-disabled", String(!d.canUndo));
+          undo.title = message(d.canUndo ? "menu.undoTip" : "menu.cannotUndoTip");
         };
         show(data);
         return {

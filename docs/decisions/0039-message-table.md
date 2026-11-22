@@ -33,6 +33,7 @@ The design routes every built-in message through an overridable table, for themi
   - the history's move labels and the status line;
   - the game menu, the start screen, and the save menu, including its announcements and screen-reader labels.
 - `mountPage`'s `continueLabel`, `skipLabel`, and `drawerLabel` options stay, and win for their page.
+- Since a game can reword the game menu's buttons, each has a tooltip from the table saying what it does ("Start the story over from the beginning. Your saves are kept."), as its `title`, which screen readers also read as its description. Undo's says when there's nothing to undo, and Restart's changes while it asks once more.
 - Author-facing error messages, such as a mistake in `story.ts`, stay in English and out of the table.
 - Grammar itself, English articles and verb agreement, is the world model's English parameters, not messages. A translation registers its own parameters (ADR 0038).
 

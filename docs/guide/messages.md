@@ -51,6 +51,7 @@ An actor can still give its own `arrives` and `leaves`, which win over these.
 | `status.moves` | `count` | "Moves: 3" |
 | `menu.undo`, `menu.save`, `menu.load`, `menu.restart` | | "Undo", "Save", "Load", "Restart" |
 | `menu.confirmRestart`, `menu.confirmRestartLabel` | | "Confirm restart", and what a screen reader hears for it |
+| `menu.undoTip`, `menu.cannotUndoTip`, `menu.saveTip`, `menu.loadTip`, `menu.restartTip`, `menu.confirmRestartTip` | | Each button's tooltip, which says what it does whatever it's called, such as "Start the story over from the beginning. Your saves are kept." Screen readers read it as the button's description. |
 | `start.continue`, `start.newGame` | | "Continue", "New game" |
 | `start.inProgress`, `start.inProgressAt` | `where` | "You have a game in progress, at the cellar." |
 | `start.cannotContinue` | | "Your game in progress can't be continued with this version of the game." |

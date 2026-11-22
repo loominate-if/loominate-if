@@ -157,8 +157,13 @@ describe("playing a game", () => {
         "Load",
         "Walk the plank",
       ]);
+      // The tooltips still say what the reworded buttons do.
+      expect(button("Walk the plank").title).toBe(
+        "Start the story over from the beginning. Your saves are kept.",
+      );
+      expect(button("Undo").title).toBe("Nothing to undo yet.");
       click("Walk the plank");
-      expect(button("Aye, walk it")).toBeTruthy();
+      expect(button("Aye, walk it").title).toBe("Click again to start over. Moving away cancels.");
     } finally {
       messages.replace("menu.restart", "Restart", { source: "@loominate-if/presentation" });
       messages.replace("menu.confirmRestart", "Confirm restart", {
