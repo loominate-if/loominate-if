@@ -20,10 +20,14 @@ export function actor<Id extends StateId, B extends ObjectDefinition<B> & {
 }, M extends ObjectDefinition<M> = Record<never, never>>(id: Id, definition: {
     body: B & {
         location?: ObjectRef | null;
+    } & {
+        [K in keyof B & keyof MindKnowledge]: {
+            error: `"${K & string}" is what every mind does with what it knows; give the property another name.`;
+        };
     } & ThisType<Actor<B, M, Id>>;
     mind?: M & {
-        [K in keyof M & keyof B]: {
-            error: `"${K & string}" is in both the body and the mind; give one of them another name.`;
+        [K in keyof M & (keyof B | keyof MindKnowledge)]: {
+            error: K extends keyof MindKnowledge ? `"${K & string}" is what every mind does with what it knows; give the property another name.` : `"${K & string}" is in both the body and the mind; give one of them another name.`;
         };
     } & ThisType<Actor<B, M, Id>>;
 }): Actor<B, M, Id>;
@@ -233,7 +237,9 @@ export type Mind = Handle<MindFields> & MindKnowledge;
 
 // @public
 export function mind<Id extends StateId, D extends ObjectDefinition<D>>(id: Id, definition: D & Partial<MindFields> & {
-    readonly [K in keyof MindKnowledge]?: never;
+    [K in keyof D & keyof MindKnowledge]: {
+        error: `"${K & string}" is what every mind does with what it knows; give the property another name.`;
+    };
 } & ThisType<Handle<MindOf<D>, Id>>): Handle<MindOf<D>, Id>;
 
 // @public

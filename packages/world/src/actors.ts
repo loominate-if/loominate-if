@@ -119,9 +119,11 @@ export function body<Id extends StateId, D extends ObjectDefinition<D> & { name:
 export function mind<Id extends StateId, D extends ObjectDefinition<D>>(
   id: Id,
   definition: D &
-    Partial<MindFields> & { readonly [K in keyof MindKnowledge]?: never } & ThisType<
-      Handle<MindOf<D>, Id>
-    >,
+    Partial<MindFields> & {
+      [K in keyof D & keyof MindKnowledge]: {
+        error: `"${K & string}" is what every mind does with what it knows; give the property another name.`;
+      };
+    } & ThisType<Handle<MindOf<D>, Id>>,
 ): Handle<MindOf<D>, Id> {
   const where = `mind ${JSON.stringify(id)}`;
   for (const key of KNOWLEDGE_METHODS) {
@@ -196,13 +198,19 @@ export function actor<
 >(
   id: Id,
   definition: {
-    body: B & { location?: ObjectRef | null } & ThisType<Actor<B, M, Id>>;
-    // A key in both halves gets a type no value has, which carries the
+    // A key that can't be used gets a type no value has, which carries the
     // explanation into the compiler's message. A bare message type would
     // collapse the definition to `never` against a literal value instead.
+    body: B & { location?: ObjectRef | null } & {
+      [K in keyof B & keyof MindKnowledge]: {
+        error: `"${K & string}" is what every mind does with what it knows; give the property another name.`;
+      };
+    } & ThisType<Actor<B, M, Id>>;
     mind?: M & {
-      [K in keyof M & keyof B]: {
-        error: `"${K & string}" is in both the body and the mind; give one of them another name.`;
+      [K in keyof M & (keyof B | keyof MindKnowledge)]: {
+        error: K extends keyof MindKnowledge
+          ? `"${K & string}" is what every mind does with what it knows; give the property another name.`
+          : `"${K & string}" is in both the body and the mind; give one of them another name.`;
       };
     } & ThisType<Actor<B, M, Id>>;
   },
@@ -217,6 +225,13 @@ export function actor<
     "displaced",
     ...KNOWLEDGE_METHODS,
   ];
+  for (const key of KNOWLEDGE_METHODS) {
+    if (Object.hasOwn(bodyDef, key) || Object.hasOwn(mindDef, key)) {
+      throw new StateError(
+        `${where}: "${key}" is what every mind does with what it knows; give the property another name.`,
+      );
+    }
+  }
   for (const key of [...mindKeys, "mind", "body"]) {
     if (Object.hasOwn(bodyDef, key)) {
       throw new StateError(

@@ -137,6 +137,15 @@ describe("what a mind knows", () => {
       // @ts-expect-error `knows` is every mind's own.
       mind("sage", { knows: true }),
     ).toThrow('mind "sage": "knows" is what every mind does with what it knows');
+    // An actor's mind half and body half are checked too, at compile time and when the game loads.
+    expect(() =>
+      // @ts-expect-error `knows` is every mind's own.
+      actor("cook", { body: { name: "the cook" }, mind: { knows: "stuff" } }),
+    ).toThrow('actor "cook": "knows" is what every mind does with what it knows');
+    expect(() =>
+      // @ts-expect-error `learn` is every mind's own.
+      actor("valet", { body: { name: "the valet", learn: 1 } }),
+    ).toThrow('actor "valet": "learn" is what every mind does with what it knows');
   });
 });
 
