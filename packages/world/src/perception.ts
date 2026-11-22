@@ -8,7 +8,7 @@
  * Actors coming into and leaving the player's sight are narrated the same
  * way, without the author asking.
  */
-import { emit, StateError, t, type ObjectRef } from "@loominate-if/core";
+import { emit, message, StateError, type ObjectRef } from "@loominate-if/core";
 import { allBodies, currentPlayerBody, currentPlayerMind, isBody, mindsIn } from "./actors.js";
 import { type Direction } from "./directions.js";
 import { connectedRooms, exitsOf } from "./exits.js";
@@ -114,7 +114,10 @@ function notices(
   const at = placeOf(body);
   const way = at ? far.get(at.id) : undefined;
   if (!way || options.far === undefined) return undefined;
-  const text = typeof options.far === "string" ? options.far : options.far(way.from, way);
+  const text =
+    typeof options.far === "string"
+      ? options.far
+      : options.far(message("direction.from", { direction: way.name }), way);
   return { sense: "hear", text };
 }
 
@@ -147,10 +150,11 @@ onMove((moved, from) => {
   if (!here || from?.id === to?.id) return;
   const self = moved as Thing & Narrated;
   if (from?.id === here.id && isInLight(player)) {
-    const way = to ? exitsOf(here).find((e) => e.to.id === to.id)?.direction.toward : undefined;
+    const d = to ? exitsOf(here).find((e) => e.to.id === to.id)?.direction : undefined;
+    const way = d ? message("direction.toward", { direction: d.name }) : undefined;
     const text = self.leaves
       ? self.leaves(way)
-      : t`{The subj ${moved}} {leaves}${way ? ` ${way}` : ""}.`();
+      : message("actor.leaves", { actor: moved, ...(way !== undefined && { toward: way }) });
     if (text) emit("perception", { text, sense: "see", source: moved.id });
   } else if (to?.id === here.id) {
     // Everyone here who can see the newcomer sees it, and the player is told.
@@ -158,10 +162,11 @@ onMove((moved, from) => {
       if (b.id !== moved.id && canSee(b, moved)) for (const m of mindsIn(b)) m.see(moved);
     }
     if (!canSee(player, moved)) return;
-    const way = from ? exitsOf(here).find((e) => e.to.id === from.id)?.direction.from : undefined;
+    const d = from ? exitsOf(here).find((e) => e.to.id === from.id)?.direction : undefined;
+    const way = d ? message("direction.from", { direction: d.name }) : undefined;
     const text = self.arrives
       ? self.arrives(way)
-      : t`{The subj ${moved}} {arrives}${way ? ` ${way}` : ""}.`();
+      : message("actor.arrives", { actor: moved, ...(way !== undefined && { from: way }) });
     if (text) emit("perception", { text, sense: "see", source: moved.id });
   }
 });

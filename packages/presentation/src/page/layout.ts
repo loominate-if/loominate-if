@@ -10,7 +10,8 @@
  * `view` draws it through a small mount/update/unmount contract that any UI
  * framework can meet (ADR 0003).
  */
-import { object, registry, type Choice, type Registry } from "@loominate-if/core";
+import { message, object, registry, type Choice, type Registry } from "@loominate-if/core";
+import "../messages.js";
 import type { PageGame } from "./page.js";
 
 /** The package that registers presentation's built-in layouts and widgets. */
@@ -166,7 +167,7 @@ export function statusLine(options: StatusLineOptions = {}): WidgetDefinition<St
   return {
     data: (game) => ({
       left: options.left?.(game) ?? game.story.current ?? "",
-      right: options.right?.(game) ?? `Moves: ${String(game.story.actions.length)}`,
+      right: options.right?.(game) ?? message("status.moves", { count: game.story.actions.length }),
     }),
     view: statusLineView,
   };

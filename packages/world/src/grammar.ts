@@ -12,7 +12,6 @@ import {
   messageFallbacks,
   messageParameters,
   StateError,
-  type MessageArg,
   type MessageCall,
   type ObjectRef,
 } from "@loominate-if/core";
@@ -122,13 +121,24 @@ const SUBJECT = "world:subject";
 function referentOf(call: MessageCall): Referent {
   const where = `{${call.name}}`;
   let marks = false;
-  let value: Extract<MessageArg, { kind: "value" }> | undefined;
+  let value: { readonly value: unknown } | undefined;
   for (const a of call.args) {
-    if (a.kind === "word" && a.word === "subj") marks = true;
-    else if (a.kind === "value" && value === undefined) value = a;
-    else {
+    if (a.kind === "word" && a.word === "subj") {
+      marks = true;
+    } else if (value !== undefined) {
       throw new StateError(
         `${where} takes \`subj\` and one thing, as in {${call.name} subj \${cat}}; it was given ${a.kind === "word" ? `"${a.word}"` : "a second value"}.`,
+      );
+    } else if (a.kind === "value") {
+      value = a;
+    } else if (Object.hasOwn(call.context, a.word)) {
+      // A word names something the text is rendered with, as a library
+      // message names what it's about: {The subj door} with { door }.
+      value = { value: call.context[a.word] };
+    } else {
+      const names = Object.keys(call.context);
+      throw new StateError(
+        `${where}: "${a.word}" isn't something this text is about. ${names.length > 0 ? `It can name ${names.map((n) => `"${n}"`).join(", ")}.` : "It's rendered with nothing to name; give the thing as ${…}."}`,
       );
     }
   }
@@ -189,7 +199,8 @@ for (const [form, index] of Object.entries(forms)) {
       const r = referentOf(call);
       // A subject pronoun is the subject from here on, and verbs agree with
       // the pronoun: "Sam waits. They nod."
-      const marks = call.args.length === 0 || call.args.some((a) => a.kind === "word");
+      const marks =
+        call.args.length === 0 || call.args.some((a) => a.kind === "word" && a.word === "subj");
       if (index === 0 && marks) call.shared.set(SUBJECT, { ...r, plain: r.plainAsPronoun });
       return cased(call, r.pronouns[index] ?? "");
     });

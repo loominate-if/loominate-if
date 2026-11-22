@@ -341,6 +341,9 @@ export type LoadedSave = {
 };
 
 // @public
+export function message<K extends MessageKey>(key: K, ...context: Record<string, never> extends Messages[K] ? [Messages[K]?] : [Messages[K]]): string;
+
+// @public
 export type MessageArg = {
     readonly kind: "word";
     readonly word: string;
@@ -365,10 +368,35 @@ export type MessageFallback = (call: MessageCall) => string | undefined;
 export const messageFallbacks: Registry<MessageFallback>;
 
 // @public
+export type MessageKey = keyof Messages & string;
+
+// @public
 export type MessageParameter = (call: MessageCall) => string;
 
 // @public
 export const messageParameters: Registry<MessageParameter>;
+
+// @public
+export interface Messages {
+}
+
+// @public
+export const messages: MessageTable;
+
+// @public
+export interface MessageTable {
+    entries(): readonly RegistryEntry<MessageText<never>>[];
+    get<K extends MessageKey>(key: K): MessageText<Messages[K]> | undefined;
+    register<K extends MessageKey>(key: K, text: MessageText<Messages[K]>, options?: {
+        readonly source?: string;
+    }): void;
+    replace<K extends MessageKey>(key: K, text: MessageText<Messages[K]>, options?: {
+        readonly source?: string;
+    }): void;
+}
+
+// @public
+export type MessageText<C> = string | ((context: C) => string);
 
 // @public
 export function mixin<M extends ObjectDefinition<M>>(definition: M & ThisType<Handle<M>>): M;

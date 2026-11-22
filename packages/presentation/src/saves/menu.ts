@@ -4,6 +4,8 @@
  * and delete. A native modal dialog gives focus trapping, Escape to close,
  * and the right semantics for screen readers.
  */
+import { message } from "@loominate-if/core";
+import "../messages.js";
 import {
   AUTOSAVE_SLOT,
   type SaveSummary,
@@ -56,17 +58,17 @@ export function createSaveMenu(
 
   const dialog = el("dialog", "loominate-saves");
   dialog.setAttribute("aria-labelledby", `${id}-title`);
-  const title = el("h2", undefined, "Saves");
+  const title = el("h2", undefined, message("saves.title"));
   title.id = `${id}-title`;
 
   const form = el("form", "loominate-saves-new");
-  const nameLabel = el("label", undefined, "Name ");
+  const nameLabel = el("label", undefined, `${message("saves.name")} `);
   const name = el("input");
   name.type = "text";
   name.id = `${id}-name`;
   name.autocomplete = "off";
   nameLabel.htmlFor = name.id;
-  const saveNew = el("button", undefined, "Save");
+  const saveNew = el("button", undefined, message("saves.save"));
   saveNew.type = "submit";
   form.append(nameLabel, name, " ", saveNew);
 
@@ -75,13 +77,13 @@ export function createSaveMenu(
   const list = el("ul", "loominate-saves-list");
   list.setAttribute("aria-labelledby", `${id}-title`);
 
-  const importLabel = el("label", undefined, "Import a save file ");
+  const importLabel = el("label", undefined, `${message("saves.import")} `);
   const file = el("input");
   file.type = "file";
   file.accept = ".json,application/json";
   file.id = `${id}-import`;
   importLabel.htmlFor = file.id;
-  const closeButton = button("Close", "Close the save menu", () => {
+  const closeButton = button(message("saves.close"), message("saves.closeLabel"), () => {
     close();
   });
   const importing = el("p", "loominate-saves-import");
@@ -92,12 +94,20 @@ export function createSaveMenu(
   const say = (text: string) => {
     status.textContent = text;
   };
-  const failed = (what: string, error: unknown) => {
-    say(`${what} failed: ${error instanceof Error ? error.message : String(error)}`);
+  const failed = (
+    key:
+      | "saves.loadFailed"
+      | "saves.saveFailed"
+      | "saves.exportFailed"
+      | "saves.deleteFailed"
+      | "saves.importFailed",
+    error: unknown,
+  ) => {
+    say(message(key, { error: error instanceof Error ? error.message : String(error) }));
   };
   const isUnreadable = (s: SaveSummary | UnreadableSave): s is UnreadableSave => "problem" in s;
   const nameOf = (s: SaveSummary) =>
-    s.slot === AUTOSAVE_SLOT ? "Autosave" : (s.label ?? s.passage ?? s.slot);
+    s.slot === AUTOSAVE_SLOT ? message("saves.autosave") : (s.label ?? s.passage ?? s.slot);
   const when = (s: SaveSummary) => {
     const at = Date.parse(s.savedAt);
     return Number.isNaN(at)
@@ -124,14 +134,17 @@ export function createSaveMenu(
     a.download = `${gameId}-${nameOf(s).replace(/[^\w-]+/g, "-")}.json`;
     a.click();
     view?.URL.revokeObjectURL(url);
-    say(`Exported “${nameOf(s)}”.`);
+    say(message("saves.exported", { name: nameOf(s) }));
   };
 
   const row = (s: SaveSummary | UnreadableSave): HTMLLIElement => {
     const item = el("li", "loominate-saves-slot");
     if (isUnreadable(s)) {
       item.append(el("span", "loominate-saves-name", s.slot), " ");
-      item.append(el("span", "loominate-saves-problem", `Can't be loaded: ${s.problem}`), " ");
+      item.append(
+        el("span", "loominate-saves-problem", message("saves.cantLoad", { problem: s.problem })),
+        " ",
+      );
       item.append(confirmDelete(s.slot, s.slot));
       return item;
     }
@@ -142,28 +155,32 @@ export function createSaveMenu(
     if (!s.sameGameVersion) {
       item.append(
         " ",
-        el("span", "loominate-saves-version", `Saved by version ${s.game.version} of the game.`),
+        el(
+          "span",
+          "loominate-saves-version",
+          message("saves.savedByVersion", { version: s.game.version }),
+        ),
       );
     }
     const controls = el("span", "loominate-saves-actions");
     controls.append(
-      button("Load", `Load “${label}”`, () => {
+      button(message("saves.load"), message("saves.loadLabel", { name: label }), () => {
         actions.load(s.slot).then(close, (e: unknown) => {
-          failed("Loading", e);
+          failed("saves.loadFailed", e);
         });
       }),
     );
     if (s.slot !== AUTOSAVE_SLOT) {
       controls.append(
         " ",
-        button("Save here", `Save over “${label}”`, () => {
+        button(message("saves.saveHere"), message("saves.saveHereLabel", { name: label }), () => {
           actions.save(s.slot, s.label ?? label).then(
             () => {
-              say(`Saved over “${label}”.`);
+              say(message("saves.savedOver", { name: label }));
               return refresh();
             },
             (e: unknown) => {
-              failed("Saving", e);
+              failed("saves.saveFailed", e);
             },
           );
         }),
@@ -171,9 +188,9 @@ export function createSaveMenu(
     }
     controls.append(
       " ",
-      button("Export", `Export “${label}” as a file`, () => {
+      button(message("saves.export"), message("saves.exportLabel", { name: label }), () => {
         download(s).catch((e: unknown) => {
-          failed("Exporting", e);
+          failed("saves.exportFailed", e);
         });
       }),
     );
@@ -185,20 +202,20 @@ export function createSaveMenu(
   /** A delete button that asks once more before deleting. */
   const confirmDelete = (slot: string, label: string): HTMLButtonElement => {
     let armed = false;
-    const b = button("Delete", `Delete “${label}”`, () => {
+    const b = button(message("saves.delete"), message("saves.deleteLabel", { name: label }), () => {
       if (!armed) {
         armed = true;
-        b.textContent = "Confirm delete";
-        b.setAttribute("aria-label", `Confirm deleting “${label}”`);
+        b.textContent = message("saves.confirmDelete");
+        b.setAttribute("aria-label", message("saves.confirmDeleteLabel", { name: label }));
         return;
       }
       saves.delete(slot).then(
         () => {
-          say(`Deleted “${label}”.`);
+          say(message("saves.deleted", { name: label }));
           return refresh();
         },
         (e: unknown) => {
-          failed("Deleting", e);
+          failed("saves.deleteFailed", e);
         },
       );
     });
@@ -208,7 +225,7 @@ export function createSaveMenu(
   const refresh = async (): Promise<void> => {
     const all = await saves.list();
     list.replaceChildren(...all.map(row));
-    if (all.length === 0) list.append(el("li", "loominate-saves-empty", "No saves yet."));
+    if (all.length === 0) list.append(el("li", "loominate-saves-empty", message("saves.empty")));
   };
 
   form.addEventListener("submit", (event) => {
@@ -218,11 +235,11 @@ export function createSaveMenu(
       .then(async (slot) => {
         await actions.save(slot, label);
         name.value = "";
-        say(label === "" ? "Saved." : `Saved “${label}”.`);
+        say(label === "" ? message("saves.saved") : message("saves.savedNamed", { name: label }));
         await refresh();
       })
       .catch((e: unknown) => {
-        failed("Saving", e);
+        failed("saves.saveFailed", e);
       });
   });
 
@@ -232,11 +249,11 @@ export function createSaveMenu(
     Promise.all([chosen.text(), freeSlot()])
       .then(async ([text, slot]) => {
         const summary = await saves.import(slot, text);
-        say(`Imported “${nameOf(summary)}”. Load it from the list.`);
+        say(message("saves.imported", { name: nameOf(summary) }));
         await refresh();
       })
       .catch((e: unknown) => {
-        failed("Importing", e);
+        failed("saves.importFailed", e);
       })
       .finally(() => {
         file.value = "";

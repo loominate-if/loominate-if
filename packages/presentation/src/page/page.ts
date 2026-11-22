@@ -28,6 +28,8 @@ import {
   type WidgetDefinition,
   type WidgetHost,
 } from "./layout.js";
+import { message } from "@loominate-if/core";
+import "../messages.js";
 import { appendProse } from "./prose.js";
 import { effects, type EffectDefinition, type EffectFinish } from "./effects.js";
 import { addStyles } from "./theme.js";
@@ -147,7 +149,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
   passage.setAttribute("aria-live", "polite");
   const drawer = el("details", "loominate-drawer");
   const summary = el("summary");
-  summary.textContent = options.drawerLabel ?? "Story so far";
+  summary.textContent = options.drawerLabel ?? message("page.storySoFar");
   const scrollback = el("div", "loominate-drawer-content");
   drawer.append(summary, scrollback);
   main.append(passage, drawer);
@@ -289,13 +291,13 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     if (!timed || immediate()) {
       const next = el("button", "loominate-continue");
       next.type = "button";
-      next.textContent = options.continueLabel ?? "Continue";
+      next.textContent = options.continueLabel ?? message("page.continue");
       next.addEventListener("click", advance);
       controls.append(next);
     }
     const skipping = el("button", "loominate-skip");
     skipping.type = "button";
-    skipping.textContent = options.skipLabel ?? "Skip";
+    skipping.textContent = options.skipLabel ?? message("page.skip");
     skipping.addEventListener("click", skip);
     controls.append(" ", skipping);
     passage.append(controls);
@@ -386,7 +388,11 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
         const p = el("p", "loominate-choice");
         if (node.type === "continue") {
           p.append(
-            button(node, node.label ?? options.continueLabel ?? "Continue", "loominate-continue"),
+            button(
+              node,
+              node.label ?? options.continueLabel ?? message("page.continue"),
+              "loominate-continue",
+            ),
           );
         } else {
           const b = button(node, node.label, "loominate-link");

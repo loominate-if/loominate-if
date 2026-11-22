@@ -169,6 +169,14 @@ export {
 export { hook, type Hook, type HookContext, type HookKinds } from "./rules/hooks.js";
 export { registry, type Registry, type RegistryEntry } from "./rules/registry.js";
 export {
+  message,
+  messages,
+  type MessageKey,
+  type Messages,
+  type MessageTable,
+  type MessageText,
+} from "./text/messages.js";
+export {
   isText,
   messageFallbacks,
   messageParameters,

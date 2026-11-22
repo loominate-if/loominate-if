@@ -31,6 +31,8 @@ import {
   type StoryOptions,
   ENGINE_VERSION,
 } from "@loominate-if/core";
+import { message } from "@loominate-if/core";
+import "../messages.js";
 import { layouts, widget, widgets, type WidgetDefinition } from "../page/layout.js";
 import { mountPage, type Page, type PageOptions } from "../page/page.js";
 import { addStyles } from "../page/theme.js";
@@ -142,18 +144,18 @@ export interface PlayedReplay {
 
 /** How a replayed action is labeled in the undo history, as the move would be when played. */
 function actionLabel(action: StoryAction, story: Story): string {
-  if (action.type === "goTo") return `Go to ${action.passage}`;
-  if (action.type === "follow") return action.choice.label ?? "Continue";
+  if (action.type === "goTo") return message("history.goTo", { passage: action.passage });
+  if (action.type === "follow") return action.choice.label ?? message("page.continue");
   const beat = story.render().beat;
-  return beat ? moveLabel(beat) : "Continue";
+  return beat ? moveLabel(beat) : message("page.continue");
 }
 
 /** How a move is labeled in the undo history. */
 function moveLabel(move: Choice | BeatNode): string {
   if (move.type === "link") return move.label;
-  if (move.type === "continue") return move.label ?? "Continue";
-  if (move.page) return "Next page";
-  return move.duration === undefined ? "Continue" : "After a beat";
+  if (move.type === "continue") return move.label ?? message("page.continue");
+  if (move.page) return message("history.nextPage");
+  return move.duration === undefined ? message("page.continue") : message("history.afterBeat");
 }
 
 /** The data the game menu shows. */
@@ -185,33 +187,30 @@ function gameMenu(actions: MenuActions): WidgetDefinition<MenuData> {
           return b;
         };
         let canUndo = data.canUndo;
-        const undo = make("Undo", () => {
+        const undo = make(message("menu.undo"), () => {
           if (canUndo) actions.undo();
         });
-        make("Save", () => {
+        make(message("menu.save"), () => {
           actions.open("save");
         });
-        make("Load", () => {
+        make(message("menu.load"), () => {
           actions.open("load");
         });
         // Restart abandons the game in play, so it asks once more on the same
         // button, as the save menu's Delete does; leaving the button cancels.
         let confirming = false;
-        const restart = make("Restart", () => {
+        const restart = make(message("menu.restart"), () => {
           if (!confirming) {
             confirming = true;
-            restart.textContent = "Confirm restart";
-            restart.setAttribute(
-              "aria-label",
-              "Confirm restart: start the story over. Saves are kept.",
-            );
+            restart.textContent = message("menu.confirmRestart");
+            restart.setAttribute("aria-label", message("menu.confirmRestartLabel"));
             return;
           }
           actions.restart();
         });
         restart.addEventListener("blur", () => {
           confirming = false;
-          restart.textContent = "Restart";
+          restart.textContent = message("menu.restart");
           restart.removeAttribute("aria-label");
         });
         element.append(bar);
@@ -489,10 +488,10 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
         "p",
         undefined,
         problem !== undefined
-          ? "Your game in progress can't be continued with this version of the game."
+          ? message("start.cannotContinue")
           : where === undefined
-            ? "You have a game in progress."
-            : `You have a game in progress, at ${where}.`,
+            ? message("start.inProgress")
+            : message("start.inProgressAt", { where }),
       ),
     );
     if (problem !== undefined) passage.append(el("p", "loominate-note", problem));
@@ -501,7 +500,7 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
         el(
           "p",
           "loominate-note",
-          `It was saved by version ${autosaved.summary.game.version} of the game.`,
+          message("start.savedByVersion", { version: autosaved.summary.game.version }),
         ),
       );
     }
@@ -516,12 +515,12 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
     };
     const first =
       problem === undefined
-        ? choice("Continue", "loominate-continue", () => {
+        ? choice(message("start.continue"), "loominate-continue", () => {
             host.querySelector(".loominate-start")?.remove();
             resume(autosaved);
           })
         : undefined;
-    const fresh = choice("New game", "loominate-link", () => {
+    const fresh = choice(message("start.newGame"), "loominate-link", () => {
       start();
     });
     main.append(passage);
