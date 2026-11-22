@@ -19,9 +19,7 @@ export function actor<Id extends StateId, B extends ObjectDefinition<B> & {
     body: B & {
         location?: ObjectRef | null;
     } & ThisType<Actor<B, M, Id>>;
-    mind?: M & {
-        [K in keyof M & keyof B]: never;
-    } & ThisType<Actor<B, M, Id>>;
+    mind?: M & InBothHalves<keyof M & keyof B> & ThisType<Actor<B, M, Id>>;
 }): Actor<B, M, Id>;
 
 // @public
