@@ -591,6 +591,15 @@ export function generatePassageModule(
         });
       }
     }
+    // Roles that run code on arrival, such as the world model's `room: cellar`.
+    const arrivals: { runtime: RuntimeExport; code: CodeSyntax }[] = [];
+    for (const t of p.tags) {
+      const runtime =
+        t.value === undefined ? undefined : syntax.tagRoles.get(t.name)?.definition.arrival;
+      if (runtime && t.value !== undefined && t.valueSpan) {
+        arrivals.push({ runtime, code: { code: t.value, span: t.valueSpan } });
+      }
+    }
     checkClashes(p.content);
     standalone = standaloneLinks(p.content, source);
     lineIds = passageLines(p, source, syntax.paragraphEnds);
@@ -633,16 +642,33 @@ export function generatePassageModule(
     write(
       `    tags: [${p.tags.map((t) => str(t.value === undefined ? t.name : `${t.name}: ${t.value}`)).join(", ")}],\n`,
     );
-    /** Writes one part's effect phases as an object's properties, at `at` indentation. */
-    const phases = (effects: Map<string, DirectiveSyntax[]>, at: string): void => {
+    /**
+     * Writes one part's effect phases as an object's properties, at `at`
+     * indentation. A role's arrival code runs first on entering the passage.
+     */
+    const phases = (
+      effects: Map<string, DirectiveSyntax[]>,
+      at: string,
+      roleArrivals: readonly { runtime: RuntimeExport; code: CodeSyntax }[] = [],
+    ): void => {
       for (const phase of ["firstVisit", "enter", "leave"]) {
-        const list = effects.get(phase);
-        if (!list) continue;
-        const names = usedIn(list.flatMap((d) => (d.code ? [d.code] : argumentCode(d))));
-        const arrives = list.some((d) => d.code === undefined);
+        const fromRoles = phase === "enter" ? roleArrivals : [];
+        const list = effects.get(phase) ?? [];
+        if (list.length === 0 && fromRoles.length === 0) continue;
+        const names = usedIn([
+          ...fromRoles.map((r) => r.code),
+          ...list.flatMap((d) => (d.code ? [d.code] : argumentCode(d))),
+        ]);
+        const arrives = fromRoles.length > 0 || list.some((d) => d.code === undefined);
         write(`${at}${phase}: (${contextParam(names, "$EffectContext", arrives)}): void => {\n`);
         indent = `${at}  `;
         contextLocals(names, "$context");
+        for (const r of fromRoles) {
+          mark(r.code.span.start);
+          write(`${indent}${runtimeName(r.runtime)}(`);
+          copy(r.code);
+          write(", $context);\n");
+        }
         for (const d of list) {
           mark(d.span.start);
           if (d.code) {
@@ -665,9 +691,9 @@ export function generatePassageModule(
       Map<string, DirectiveSyntax[]>,
       ...Map<string, DirectiveSyntax[]>[],
     ];
-    if (effects.size > 0) {
+    if (effects.size > 0 || arrivals.length > 0) {
       write("    effects: {\n");
-      phases(effects, "      ");
+      phases(effects, "      ", arrivals);
       write("    },\n");
     }
     if (later.some((m) => m.size > 0)) {

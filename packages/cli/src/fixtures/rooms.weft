@@ -1,0 +1,7 @@
+:: Hall [room: hall]
+{if visitsTo(hall) === 1}A draughty hall.{else}The hall again.{/if} Hall visits: {visitsTo(hall)}. You're in {you.location?.id}.
+[[Down -> Cellar]]
+
+:: Cellar [room: cellar]
+Cellar visits: {visitsTo(cellar)}. You're in {you.location?.id}.
+[[Up -> Hall]]

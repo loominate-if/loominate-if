@@ -2,9 +2,9 @@
 
 The world model is an optional package for games with places and things in them: rooms to move between, boxes to open, and lamps to light. A plain branching story doesn't need it, and pays nothing for it.
 
-It's `@loominate-if/world`. It isn't published to npm yet, while the rest of the world model is built ([Phase 2](https://github.com/loominate-if/loominate-if/issues/58)); this guide grows with it. [ADR 0031](../decisions/0031-containment-and-scope.md) records the decisions behind it.
+It's `@loominate-if/world`. It isn't published to npm yet, while the rest of the world model is built ([Phase 2](https://github.com/loominate-if/loominate-if/issues/58)); this guide grows with it. ADRs [0031](../decisions/0031-containment-and-scope.md), [0032](../decisions/0032-minds-and-bodies.md), and [0033](../decisions/0033-rooms-and-regions.md) record the decisions behind it.
 
-So far, the world model keeps track of where things are, what can be sensed, and which mind is in which body. It doesn't show anything or add links by itself: a thing in a room doesn't appear in the passage, and there's no "open the box" until you write one. Your passages decide what to show, with checks such as `{if canSee(player, coin)}`, and links call methods such as `box.open()` in an `on enter` effect. Export from `story.ts` every thing a passage mentions. Room descriptions and actions come in later tasks ([#63](https://github.com/loominate-if/loominate-if/issues/63), [#69](https://github.com/loominate-if/loominate-if/issues/69), [#76](https://github.com/loominate-if/loominate-if/issues/76)).
+So far, the world model keeps track of where things are, what can be sensed, which mind is in which body, and which room the player is in. It doesn't show anything or add links by itself: a thing in a room doesn't appear in the passage, and there's no "open the box" until you write one. Your passages decide what to show, with checks such as `{if canSee(player, coin)}`, and links call methods such as `box.open()` in an `on enter` effect. Export from `story.ts` every thing a passage mentions. Exits, listing what's in a room, and actions come in later tasks ([#64](https://github.com/loominate-if/loominate-if/issues/64), [#69](https://github.com/loominate-if/loominate-if/issues/69), [#76](https://github.com/loominate-if/loominate-if/issues/76)).
 
 ## Places and things
 
@@ -194,3 +194,71 @@ expect(tom.mood).toBe("sleepy"); // the actor's own mind, wherever it is
 ```
 
 `bodyOf(mind)`, `mindOf(body)`, and `passengersOf(body)` say who's where. Every change is state, so undo, saves, and the inspector see it.
+
+## Rooms and regions
+
+A **room** is a place a passage describes. Tag the passage with `room:` and the place it describes, and arriving at the passage moves the player there and counts a visit:
+
+<!-- example: packages/cli/src/fixtures/rooms.weft -->
+```weft
+:: Hall [room: hall]
+{if visitsTo(hall) === 1}A draughty hall.{else}The hall again.{/if} Hall visits: {visitsTo(hall)}. You're in {you.location?.id}.
+[[Down -> Cellar]]
+
+:: Cellar [room: cellar]
+Cellar visits: {visitsTo(cellar)}. You're in {you.location?.id}.
+[[Up -> Hall]]
+```
+
+- The `room:` tag comes from the world model's compiler extension, so list the package in `loominate.config.ts`: `extensions: ["@loominate-if/world"]`.
+- The value is an export of `story.ts`, checked like any other code: a typo, or something that isn't a place, is an error on the tag.
+- The move happens before the passage's own `{on enter: …}` code, so that code sees the player in the room. A player already there, even sitting in a chair there, stays put.
+- The player needs a body: call `startAs()` in `story.ts` ([Minds and bodies](#minds-and-bodies)).
+- Room passages are never reported as unreachable, since exits will lead to them as well as links.
+
+`visitsTo(room)` counts the player's arrivals at a room's passages, including this one, so `visitsTo(hall) === 1` is the first visit. It's state, so undo and saves keep it:
+
+<!-- example: packages/world/src/rooms.test.ts#enter -->
+```ts
+enterRoom(cellar);
+expect(you.location?.id).toBe("cellar");
+expect(visitsTo(cellar)).toBe(1);
+```
+
+### Regions
+
+A **region** groups rooms that share defaults and rules, such as every room in a manor. Rooms list the regions they're in, and regions can be in other regions:
+
+<!-- example: packages/world/src/rooms.test.ts#regions -->
+```ts
+export const estate = region("estate", { name: "the estate" });
+export const manor = region("manor", {
+  name: "the manor",
+  regions: [estate],
+  roomDefaults: { isDark: true },
+  onEnter() {
+    log.entries.push("enter manor");
+  },
+  onLeave() {
+    log.entries.push("leave manor");
+  },
+});
+export const hall = place("hall", { name: "the hall", regions: [manor], isDark: false });
+export const cellar = place("cellar", { name: "the cellar", regions: [manor] });
+export const garden = place("garden", { name: "the garden", regions: [estate] });
+```
+
+- `roomDefaults` gives each member room whatever it doesn't set itself: the cellar is dark, and the hall isn't, because it says so. A nearer region's default wins over one around it.
+- A default can be a getter, with `this` the room, so it follows state. Every room in the east wing goes dark when the power fails:
+
+<!-- example: packages/world/src/rooms.test.ts#dynamic-default -->
+```ts
+roomDefaults: {
+  get isDark(): boolean {
+    return power.isOut;
+  },
+},
+```
+
+- `onEnter(room)` and `onLeave(room)` run when the player moves into or out of the region: from the hall into the gallery runs only the east wing's `onEnter`, since the player was already in the manor. Regions around others are entered first and left last. They run for the player's moves, including being carried in something, but not for where the player starts, or for a change of bodies.
+- `regionsOf(t)` lists the regions a place, thing, or region is in, and `isInRegion(t, region)` asks about one.

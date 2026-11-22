@@ -129,6 +129,15 @@ export type TagRoleDefinition = {
    * links (rooms, actors), so they're never reported as unreachable.
    */
   readonly entry?: boolean;
+  /**
+   * A function called when the player arrives at a passage with this role,
+   * before the passage's own `{on enter: …}` code, as
+   * `runtime(value, context)`. The role's value is code in the game's scope,
+   * such as an export of `story.ts`, so TypeScript checks it and its errors
+   * point at the tag. The world model's `room: cellar` moves the player into
+   * `cellar` this way.
+   */
+  readonly arrival?: RuntimeExport;
 };
 
 /**

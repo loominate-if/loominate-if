@@ -462,3 +462,8 @@ function playerRecord(where: string): Handle<{ mind: ObjectRef }> {
   }
   return player;
 }
+
+/** The player's body, or `undefined` if there's no player yet or it's in no body. @internal */
+export function currentPlayerBody(): Thing | undefined {
+  return player ? bodyOf(player.mind) : undefined;
+}
