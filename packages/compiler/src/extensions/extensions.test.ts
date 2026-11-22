@@ -292,6 +292,7 @@ describe("loading extensions", () => {
   it("always loads core's first, and lists core's directives through the same API", () => {
     const syntax = resolveExtensions([coreExtension]);
     expect(syntax.parserDirectives.map((d) => d.name).sort()).toEqual([
+      "act",
       "beat",
       "continue",
       "effect",

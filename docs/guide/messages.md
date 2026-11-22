@@ -37,6 +37,8 @@ A message's text is one of three things:
 | `direction.toward` | `direction` | "to the north", "upstairs" |
 | `direction.from` | `direction` | "from the north", "from above" |
 
+| `action.noBody` | | "You have no body to act with." |
+| `action.outOfReach` | `thing` | "The barrel is out of reach." |
 | `list.empty` | | "nothing" |
 | `list.join` | `items` | "a brass key, a map, and two mice" |
 | `list.group` | `count`, `plural` | "three gold coins" |

@@ -87,7 +87,8 @@ export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, start
     "node_modules/world-from-source/extension.js": `export { default } from ${JSON.stringify(
       pathToFileURL(path.join(packages, "world/src/extension.ts")).href,
     )};\n`,
-    "story.ts": `import { actor, connect, defineFacts, door, happen, listContents, lockable, place, player, startAs, thing, visitsTo } from "@loominate-if/world";
+    "story.ts": `import { action } from "@loominate-if/core";
+import { actor, connect, defineFacts, door, happen, listContents, lockable, place, player, startAs, thing, visitsTo } from "@loominate-if/world";
 export const hall = place("hall", { name: "hall" });
 export const cellar = place("cellar", { name: "cellar" });
 export const cellarDoor = thing("cellarDoor", { ...door, ...lockable, name: "cellar door" });
@@ -98,6 +99,10 @@ startAs(you);
 export const note = thing("note", { name: "note", location: cellar });
 export const facts = defineFacts({ culprit: "The butler did it." });
 export { happen, listContents, player, visitsTo };
+export const knock = action<{ thing: typeof cellarDoor }>("knock", {
+  check: ({ thing }) => (thing.isOpen ? "It's open; there's nothing to knock on." : undefined),
+  report: "Nobody answers.",
+});
 `,
     "rooms.weft": readFileSync(path.join(here, "fixtures/rooms.weft"), "utf8"),
   });
@@ -267,6 +272,10 @@ describe("loominate dev", () => {
       page().body.innerHTML = '<div id="app"></div>';
       await server.ssrLoadModule("/@loominate/main");
       expect(text()).toContain("A draughty hall. You're in hall.");
+      // An action link stays on the passage, and its report shows as a notice.
+      follow("Knock on the door");
+      expect(text()).toContain("Nobody answers.");
+      expect(text()).toContain("A draughty hall.");
       // The locked door disables the way down, with its reason.
       expect(button("Down").getAttribute("aria-disabled")).toBe("true");
       expect(text()).toContain("The cellar door is locked.");

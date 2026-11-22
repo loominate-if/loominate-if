@@ -246,8 +246,8 @@ function refIn(value: StateValue): StateId | undefined {
   return keys.length === 1 && typeof id === "string" ? id : undefined;
 }
 
-/** Returns the handle for `id`, a static object or one created during play. */
-function handleFor(id: StateId, where: string): object {
+/** Returns the handle for `id`, a static object or one created during play. @internal */
+export function handleFor(id: StateId, where: string): object {
   const found = statics.get(id);
   if (found) return found;
   const b = active(where);

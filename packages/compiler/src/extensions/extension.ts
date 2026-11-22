@@ -99,6 +99,12 @@ export type DirectiveDefinition = {
       /** Why it can't be used yet, when it has no `runtime`. */
       readonly unsupported?: string;
       /**
+       * True for a guard directive whose link takes an action and stays on
+       * the passage, like core's `{act …}`: the link's target isn't a
+       * passage, so `[[Open the door]]` needs no `->`, and it isn't checked.
+       */
+      readonly stays?: boolean;
+      /**
        * True for a content directive whose node is a beat, like core's
        * `{beat}`, `{wait}`, and `{page}`: it divides the passage into parts, so
        * it must be at the top level, and effect phases after it run when the

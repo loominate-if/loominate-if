@@ -880,7 +880,7 @@ describe("the replay panel", () => {
   const replayOf = (actions: { label: string; target: string }[], version = "1.0.0") =>
     writeReplay({
       format: "loominate-replay",
-      version: 5,
+      version: 6,
       game: { id: "inspected", version },
       engine: ENGINE_VERSION,
       seed: "fixed",

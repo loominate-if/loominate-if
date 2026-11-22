@@ -75,6 +75,14 @@ export const coreExtension: CompilerExtension = {
       beat: true,
     },
     {
+      name: "act",
+      kind: "guard",
+      example: "[[Open the door]]{act open({ thing: cellarDoor })}",
+      args: [{ name: "call", kind: "expression", required: true }],
+      runtime: core("actLink"),
+      stays: true,
+    },
+    {
       name: "notices",
       kind: "content",
       example: "{notices}",

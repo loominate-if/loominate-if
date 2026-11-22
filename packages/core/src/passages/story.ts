@@ -30,6 +30,7 @@ import {
 import { checkInlineLinks, checkStyles } from "./prose.js";
 import { hook } from "../rules/hooks.js";
 import { visitMemory } from "./memory.js";
+import { callOf, perform, type LoggedCall } from "../actions/actions.js";
 
 /** A passage's ID: its name from `:: Name`. */
 export type PassageId = StateId;
@@ -80,6 +81,11 @@ export type LinkGuard = {
   readonly mode?: GuardMode;
   /** Shown to the player in `disabled-with-reason` mode, e.g. "It's too dark to see the steps." */
   readonly reason?: string;
+  /**
+   * The action an `{act …}` link takes, as logged: following the link
+   * performs it and stays on the passage, instead of going to a target.
+   */
+  readonly act?: LoggedCall;
   /**
    * While the guard is closed, the condition's parts and their values, so
    * the inspector can show which part closed it: for
@@ -774,10 +780,47 @@ export function createStory(
     log({ ...action, ...(attempt > 0 && { attempt }) });
   };
 
+  /**
+   * Takes an action from a link's `{act …}`, through the action pipeline,
+   * staying on the passage, and logs it (ADR 0044).
+   */
+  const takeAction = (logged: LoggedCall, label: string | undefined, replayed?: number): void => {
+    const id = current();
+    if (id === undefined) throw new StateError("an action: call begin() first.");
+    if (navigating) {
+      throw new StateError(
+        "can't take an action while an effect phase is running; perform() it in the effect instead.",
+      );
+    }
+    const call = callOf(logged);
+    const n = logLength();
+    const tried = store.get(ATTEMPTS_ID, String(n));
+    const attempt = replayed ?? (typeof tried === "number" ? tried : 0);
+    transaction(() => {
+      store.set(RANDOM_ID, MOVE_FIELD, `${String(n)}.${String(attempt)}`);
+      emitIn(id)("action", { action: logged.action, ...(label !== undefined && { label }) });
+      perform(call);
+      hook("turnEnd").run(contextFor(id));
+    });
+    store.set(ATTEMPTS_ID, String(n), attempt + 1);
+    log({
+      type: "act",
+      action: logged.action,
+      args: logged.args,
+      ...(label !== undefined && { label }),
+      ...(attempt > 0 && { attempt }),
+    });
+  };
+
   const follow = (choice: Choice, attempt?: number): void => {
     const page = story.render();
     const same = (c: Choice): boolean =>
       c.type === choice.type && c.target === choice.target && c.label === choice.label;
+    const chosen = page.choices.find(same);
+    if (chosen?.type === "link" && chosen.guard?.act) {
+      takeAction(chosen.guard.act, chosen.label, attempt);
+      return;
+    }
     if (!page.choices.some(same)) {
       const closed = page.unavailable.find((u) => same(u.link));
       const name = JSON.stringify(choice.label ?? choice.target);
@@ -843,7 +886,9 @@ export function createStory(
     perform(action) {
       if (action.type === "follow") follow(action.choice, action.attempt);
       else if (action.type === "advance") advance(action.attempt);
-      else
+      else if (action.type === "act") {
+        takeAction({ action: action.action, args: action.args }, action.label, action.attempt);
+      } else
         act(
           lookup(action.passage, "goTo"),
           { type: "goTo", passage: action.passage },
@@ -917,6 +962,8 @@ export function createStory(
 function describe(action: StoryAction): string {
   if (action.type === "goTo") return `go to ${JSON.stringify(action.passage)}`;
   if (action.type === "advance") return "move past a beat";
+  if (action.type === "act")
+    return `take the action ${JSON.stringify(action.label ?? action.action)}`;
   const { type, label, target } = action.choice;
   const verb = type === "link" ? "follow" : "continue";
   const name = label === undefined ? "" : ` ${JSON.stringify(label)}`;
