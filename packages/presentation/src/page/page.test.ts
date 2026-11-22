@@ -26,7 +26,12 @@ const passages: Passage[] = [
   {
     id: "Lantern",
     tags: [],
-    effects: { enter: ({ state }) => state.set("lantern", "lit", true) },
+    effects: {
+      enter: ({ state, emit }) => {
+        state.set("lantern", "lit", true);
+        emit("perception", { text: "Something skitters away.", sense: "hear" });
+      },
+    },
     body: () => [
       prose(["You light it. ", strong("Finally", emphasis(" light")), "."]),
       { type: "continue", target: "Kitchen" },
@@ -112,7 +117,7 @@ describe("the page", () => {
       "Go to the stairs",
     ]);
     click("Take the lantern");
-    expect(main().querySelector("p")?.innerHTML).toBe(
+    expect(main().querySelector("p:not(.loominate-notice)")?.innerHTML).toBe(
       "You light it. <strong>Finally<em> light</em></strong>.",
     );
     expect(main().querySelector("button.loominate-continue")?.textContent).toBe("Continue");
@@ -154,6 +159,57 @@ describe("the page", () => {
   });
 });
 
+describe("what the player noticed", () => {
+  it("shows after the passage's text and before its choices, for the move it happened in", () => {
+    const { main, click } = play();
+    click("Take the lantern");
+    expect([...main().children].map((c) => c.className || c.tagName).slice(0, 2)).toEqual([
+      "P",
+      "loominate-notice",
+    ]);
+    expect(main().querySelector(".loominate-notice")?.textContent).toBe("Something skitters away.");
+    expect(main().lastElementChild?.querySelector("button")?.textContent).toBe("Continue");
+    click("Continue");
+    expect(main().querySelector(".loominate-notice")).toBeNull();
+  });
+});
+
+describe("{notices}", () => {
+  it("puts what the player noticed where the passage says", () => {
+    const store = createStore();
+    const record = createEventRecord(store);
+    const story = createStory(
+      store,
+      record,
+      [
+        { id: "Porch", tags: [], body: () => [{ type: "link", label: "In", target: "Hall" }] },
+        {
+          id: "Hall",
+          tags: [],
+          effects: {
+            enter: ({ emit }) => {
+              emit("perception", { text: "A clock strikes.", sense: "hear" });
+            },
+          },
+          body: () => [
+            { type: "text", text: "The hall." },
+            { type: "link", label: "Out", target: "Porch" },
+            { type: "notices" },
+          ],
+        },
+      ],
+      { start: "Porch" },
+    );
+    document.body.replaceChildren();
+    const container = document.createElement("div");
+    document.body.append(container);
+    mountPage(container, { story, record });
+    container.querySelector("button")?.click();
+    const shown = [...(container.querySelector(".loominate-passage")?.children ?? [])];
+    expect(shown.map((c) => c.textContent)).toEqual(["The hall.", "Out", "A clock strikes."]);
+  });
+});
+
 describe("the story-so-far drawer", () => {
   it("shows earlier moves from the event record, not the one on screen", () => {
     const { drawer, click, turns } = play();
@@ -162,7 +218,10 @@ describe("the story-so-far drawer", () => {
     click("Continue");
     expect(drawer().hidden).toBe(false);
     expect(drawer().querySelector("summary")?.textContent).toBe("Story so far");
-    expect(turns()).toEqual([["The kitchen is warm."], ["You light it. Finally light."]]);
+    expect(turns()).toEqual([
+      ["The kitchen is warm."],
+      ["You light it. Finally light.", "Something skitters away."],
+    ]);
     expect(drawer().querySelector("strong")?.textContent).toBe("Finally light");
   });
 
@@ -180,7 +239,10 @@ describe("the story-so-far drawer", () => {
     // A page over a loaded game shows the story so far from its record.
     click("Continue");
     const loaded = play(store.snapshot());
-    expect(loaded.turns()).toEqual([["The kitchen is warm."], ["You light it. Finally light."]]);
+    expect(loaded.turns()).toEqual([
+      ["The kitchen is warm."],
+      ["You light it. Finally light.", "Something skitters away."],
+    ]);
     expect(loaded.main().textContent).toContain("Back in the kitchen");
   });
 

@@ -62,6 +62,16 @@ export type DirectionOptions = {
   readonly label?: string;
   /** The direction that leads back, such as `south` for `north`. */
   readonly opposite?: DirectionName;
+  /**
+   * How to say going this way, as in "Mira leaves to the north". Defaults to
+   * "to the " and the name.
+   */
+  readonly toward?: string;
+  /**
+   * How to say coming from this way, as in "Mira arrives from the north" or
+   * "You hear a door slam from above". Defaults to "from the " and the name.
+   */
+  readonly from?: string;
 };
 
 /** A registered direction. */
@@ -72,6 +82,10 @@ export type Direction = {
   readonly label: string;
   /** The direction that leads back, if it has one. */
   readonly opposite?: DirectionName;
+  /** How to say going this way: "to the north", "upstairs". */
+  readonly toward: string;
+  /** How to say coming from this way: "from the north", "from above". */
+  readonly from: string;
 };
 
 /** Registered directions, in the order they were registered, which is the order exits are listed in. */
@@ -91,6 +105,8 @@ export function direction(name: DirectionName, options: DirectionOptions = {}): 
     name,
     label: options.label ?? name.charAt(0).toUpperCase() + name.slice(1),
     ...(options.opposite !== undefined && { opposite: options.opposite }),
+    toward: options.toward ?? `to the ${name}`,
+    from: options.from ?? `from the ${name}`,
   };
   registry.set(name, d);
   return d;
@@ -110,7 +126,14 @@ const pairs: [DirectionName, DirectionName][] = [
   ["in", "out"],
   ["out", "in"],
 ];
-for (const [name, opposite] of pairs) direction(name, { opposite });
+/** How to say the ways that aren't compass points. */
+const phrases: Partial<Record<DirectionName, { toward: string; from: string }>> = {
+  up: { toward: "upstairs", from: "from above" },
+  down: { toward: "downstairs", from: "from below" },
+  in: { toward: "inside", from: "from inside" },
+  out: { toward: "outside", from: "from outside" },
+};
+for (const [name, opposite] of pairs) direction(name, { opposite, ...phrases[name] });
 
 /** The direction named `name`, if it's registered. */
 export function directionNamed(name: string): Direction | undefined {

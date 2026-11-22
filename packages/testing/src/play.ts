@@ -57,6 +57,13 @@ export interface Walkthrough {
   readonly passage: PassageId;
   /** The prose on screen, one paragraph per line, with links inside paragraphs as their labels. */
   readonly text: string;
+  /**
+   * What the player noticed during the last move, and what their actions did,
+   * one per line: the perception and action-result events the page shows
+   * where the passage's `{notices}` is, or else after its text, before its
+   * choices. They're in {@link Walkthrough.text} there too.
+   */
+  readonly notices: string;
   /** The labels of the choices that can be made now, in order. A continue point without a label is "Continue". */
   readonly choices: readonly string[];
   /** Links on screen or hidden that can't be followed now, with why. */
@@ -151,6 +158,17 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
   store.commit();
 
   const page = (): RenderedPassage => story.render();
+  /** The texts of the perception and action-result events since the move on screen began. */
+  const notices = (): string[] => {
+    const out: string[] = [];
+    for (const e of record.events({
+      kinds: ["perception", "action-result", "navigation", "beat"],
+    })) {
+      if (e.kind === "navigation" || (e.kind === "beat" && e.page === true)) out.length = 0;
+      else if (e.kind !== "beat") out.push((e as { text: string }).text);
+    }
+    return out;
+  };
   const labelOf = (c: RenderedPassage["choices"][number]): string =>
     c.type === "continue" ? (c.label ?? CONTINUE) : c.label;
   const moved = (): void => {
@@ -162,9 +180,22 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
       return story.current ?? start;
     },
     get text() {
-      return page()
-        .nodes.flatMap((n) => (n.type === "text" ? [n.text] : []))
-        .join("\n");
+      // As the page shows them: where `{notices}` puts them, or else after the
+      // text, before the first choice.
+      const lines: string[] = [];
+      const nodes = page().nodes;
+      const placed = nodes.some((n) => n.type === "notices");
+      let left = notices();
+      for (const n of nodes) {
+        if (n.type === "notices" || (!placed && (n.type === "link" || n.type === "continue"))) {
+          lines.push(...left);
+          left = [];
+        } else if (n.type === "text") lines.push(n.text);
+      }
+      return [...lines, ...left].join("\n");
+    },
+    get notices() {
+      return notices().join("\n");
     },
     get choices() {
       return page().choices.map(labelOf);
@@ -190,7 +221,16 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
     },
     get transcript() {
       return record
-        .events({ kinds: ["narrative", "scene", "dialogue", "room-description", "action-result"] })
+        .events({
+          kinds: [
+            "perception",
+            "narrative",
+            "scene",
+            "dialogue",
+            "room-description",
+            "action-result",
+          ],
+        })
         .map((e) => (e as { text: string }).text)
         .join("\n");
     },

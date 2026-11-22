@@ -7,14 +7,7 @@
  * a region's edge runs the region's `onEnter` and `onLeave`.
  */
 import { object, StateError, type EffectContext, type ObjectRef } from "@loominate-if/core";
-import {
-  currentPlayerBody,
-  currentPlayerMind,
-  mindOf,
-  passengersOf,
-  playerBody,
-  playerMind,
-} from "./actors.js";
+import { currentPlayerBody, currentPlayerMind, mindsIn, playerBody, playerMind } from "./actors.js";
 import { noteSights, rememberedRoomVisits, rememberRoomVisit } from "./knowledge.js";
 import { nearestRegions, regionFor, type Region, type RegionHooks } from "./regions.js";
 import { byId, isPlace, isWithin, move, onMove, placeOf, type Place } from "./things.js";
@@ -53,8 +46,7 @@ export function enterRoom(room: Place, context?: EffectContext): void {
   visits.counts[room.id] = totalVisitsTo(room) + 1;
   rememberRoomVisit(playerMind(), room);
   // Every mind in the body sees the room, the one in control and its passengers.
-  const controller = mindOf(body);
-  noteSights(body, [...(controller ? [controller] : []), ...passengersOf(body)]);
+  noteSights(body, mindsIn(body));
 }
 
 /** The passages that describe each room, by the room's ID, in the order the game loaded them. */

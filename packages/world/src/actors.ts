@@ -288,6 +288,20 @@ function bodyFor(ref: ObjectRef, where: string): Thing {
   return found;
 }
 
+/** Every body, sorted by ID. @internal */
+export function allBodies(): Thing[] {
+  return [...bodies].sort().flatMap((id) => {
+    const b = thingFor({ id });
+    return b ? [b] : [];
+  });
+}
+
+/** The minds in `b`: the one in control, then its passengers. @internal */
+export function mindsIn(b: ObjectRef): Mind[] {
+  const controller = mindOf(b);
+  return [...(controller ? [controller] : []), ...passengersOf(b)];
+}
+
 /** Whether `ref` is a mind, or an actor. */
 export function isMind(ref: ObjectRef): boolean {
   return minds.has(ref.id) || actorMinds.has(ref.id);

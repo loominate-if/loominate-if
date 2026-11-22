@@ -166,8 +166,20 @@ export type BeatNode = {
   readonly page?: true;
 };
 
+/**
+ * Where the move's notices go, from `{notices}`: what the player noticed
+ * and what their actions did, the `perception` and `action-result` events
+ * recorded during the move. Without one, presentation shows them after the
+ * passage's text, before its first choice. It changes nothing in the story.
+ */
+export type NoticesNode = {
+  /** Node type. */
+  readonly type: "notices";
+};
+
 /** One piece of a rendered passage, in reading order. */
-export type PassageNode = TextNode | LinkNode | ContinueNode | NamedEffectNode | BeatNode;
+export type PassageNode =
+  TextNode | LinkNode | ContinueNode | NamedEffectNode | NoticesNode | BeatNode;
 
 /**
  * A link inside a paragraph, from `You could [[ask about it -> Hall]] now.`
@@ -208,7 +220,8 @@ export type RenderedText = Omit<TextNode, "links"> & {
 };
 
 /** One piece of a rendered passage. Hidden links are left out; disabled ones stay in. */
-export type RenderedNode = RenderedText | RenderedLink | ContinueNode | NamedEffectNode;
+export type RenderedNode =
+  RenderedText | RenderedLink | ContinueNode | NamedEffectNode | NoticesNode;
 
 /** Read-only access to state, which is all a passage body gets. */
 export type StateReader = Pick<StateStore, "get" | "has" | "entity" | "ids">;
@@ -565,7 +578,7 @@ export function createStory(
       } else if (node.type === "continue") {
         shown.push(node);
         choices.push(node);
-      } else if (node.type === "effect") {
+      } else if (node.type === "effect" || node.type === "notices") {
         shown.push(Object.freeze(node));
       } else {
         const link = place(node);
