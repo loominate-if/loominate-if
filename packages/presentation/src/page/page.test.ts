@@ -174,6 +174,42 @@ describe("what the player noticed", () => {
   });
 });
 
+describe("{notices}", () => {
+  it("puts what the player noticed where the passage says", () => {
+    const store = createStore();
+    const record = createEventRecord(store);
+    const story = createStory(
+      store,
+      record,
+      [
+        { id: "Porch", tags: [], body: () => [{ type: "link", label: "In", target: "Hall" }] },
+        {
+          id: "Hall",
+          tags: [],
+          effects: {
+            enter: ({ emit }) => {
+              emit("perception", { text: "A clock strikes.", sense: "hear" });
+            },
+          },
+          body: () => [
+            { type: "text", text: "The hall." },
+            { type: "link", label: "Out", target: "Porch" },
+            { type: "notices" },
+          ],
+        },
+      ],
+      { start: "Porch" },
+    );
+    document.body.replaceChildren();
+    const container = document.createElement("div");
+    document.body.append(container);
+    mountPage(container, { story, record });
+    container.querySelector("button")?.click();
+    const shown = [...(container.querySelector(".loominate-passage")?.children ?? [])];
+    expect(shown.map((c) => c.textContent)).toEqual(["The hall.", "Out", "A clock strikes."]);
+  });
+});
+
 describe("the story-so-far drawer", () => {
   it("shows earlier moves from the event record, not the one on screen", () => {
     const { drawer, click, turns } = play();

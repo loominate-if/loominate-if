@@ -5,7 +5,9 @@
 
 :: Unlock
 {on enter: cellarDoor.unlock(); cellarDoor.open(); happen(cellarDoor, { seen: "The cellar door creaks open." })}
-The key turns, and the door swings open.
+The key turns.
+{notices}
+You step back as it swings wide.
 {continue -> Hall}
 
 :: Cellar [room: cellar]

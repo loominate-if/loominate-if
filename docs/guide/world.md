@@ -208,7 +208,9 @@ A **room** is a place a passage describes. Tag the passage with `room:` and the 
 
 :: Unlock
 {on enter: cellarDoor.unlock(); cellarDoor.open(); happen(cellarDoor, { seen: "The cellar door creaks open." })}
-The key turns, and the door swings open.
+The key turns.
+{notices}
+You step back as it swings wide.
 {continue -> Hall}
 
 :: Cellar [room: cellar]
@@ -483,7 +485,21 @@ happen(bedroomDoor, {
 });
 ```
 
-From the hall, below the landing, the player reads "You hear a door slam from above." on the page after the passage's text and before its choices, for the move it happened in. So a passage that shoos the cat reads `"Shoo!"` and then "The cat slinks off outside.", though the cat left while the passage's effects ran, before its text was shown. The story-so-far drawer keeps it in the same place, and a walkthrough test reads it in `game.notices`, and in `game.text` where the page shows it.
+From the hall, below the landing, the player reads "You hear a door slam from above." on the page after the passage's text and before its choices, for the move it happened in. So a passage that shoos the cat reads `"Shoo!"` and then "The cat slinks off outside.", though the cat left while the passage's effects ran, before its text was shown. The story-so-far drawer keeps it there, and a walkthrough test reads it in `game.notices`, and in `game.text` where the page shows it.
+
+To put them somewhere else in a passage, write `{notices}` where they go:
+
+<!-- example: packages/cli/src/fixtures/rooms.weft#Unlock -->
+```weft
+:: Unlock
+{on enter: cellarDoor.unlock(); cellarDoor.open(); happen(cellarDoor, { seen: "The cellar door creaks open." })}
+The key turns.
+{notices}
+You step back as it swings wide.
+{continue -> Hall}
+```
+
+`{notices}` works in any passage, with or without the world model, since actions' results (`action-result` events) go there too. The story-so-far drawer keeps notices after their part's text either way.
 
 - Only the mind the player controls is told. Every mind that notices, the player's and NPCs', in control or riding along as a passenger, learns `reveals` and sees what it saw.
 - Without `heard`, only those who see it notice; without `far`, nothing is heard from other rooms. Sound carries through exits the way they lead, whatever's in the way.

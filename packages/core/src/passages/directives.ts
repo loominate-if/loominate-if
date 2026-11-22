@@ -12,6 +12,7 @@ import type {
   EffectContext,
   LinkGuard,
   NamedEffectNode,
+  NoticesNode,
   PassageId,
 } from "./story.js";
 
@@ -67,6 +68,14 @@ export function wait(args: Readonly<Record<string, never>> = {}): BeatNode {
  */
 export function pageBreak(args: Readonly<Record<string, never>> = {}): BeatNode {
   return { ...args, type: "beat", page: true };
+}
+
+/**
+ * Where the move's notices go, from `{notices}`. It takes no arguments; the
+ * parameter is the empty object every directive call passes.
+ */
+export function notices(args: Readonly<Record<string, never>> = {}): NoticesNode {
+  return { ...args, type: "notices" };
 }
 
 /**

@@ -297,6 +297,7 @@ describe("loading extensions", () => {
       "effect",
       "emit",
       "line",
+      "notices",
       "on enter",
       "on first visit",
       "on leave",

@@ -185,6 +185,31 @@ describe("walkthroughs", () => {
     expect(game.notices).toBe("");
   });
 
+  it("show notices where {notices} puts them", () => {
+    const game = play({
+      passages: [
+        { id: "Stairs", tags: [], body: () => [{ type: "link", label: "Up", target: "Attic" }] },
+        {
+          id: "Attic",
+          tags: [],
+          effects: {
+            enter: () => {
+              emit("perception", { text: "A draught stirs the dust.", sense: "see" });
+            },
+          },
+          body: () => [
+            { type: "notices" },
+            { type: "text", text: "Bare rafters." },
+            { type: "continue", target: "Stairs" },
+          ],
+        },
+      ],
+      start: "Stairs",
+    });
+    game.choose("Up");
+    expect(game.text).toBe("A draught stirs the dust.\nBare rafters.");
+  });
+
   it("play the same with the same seed, and replay exactly", () => {
     const run = (seed: string) =>
       play({ passages, start: "Start", seed })

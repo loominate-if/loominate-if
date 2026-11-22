@@ -75,6 +75,12 @@ export const coreExtension: CompilerExtension = {
       beat: true,
     },
     {
+      name: "notices",
+      kind: "content",
+      example: "{notices}",
+      runtime: core("notices"),
+    },
+    {
       name: "emit",
       kind: "arrival",
       example: '{emit "The lamp is lit.", tags: lamp}',

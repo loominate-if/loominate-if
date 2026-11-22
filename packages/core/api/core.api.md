@@ -382,6 +382,14 @@ export type NamedEffectNode = {
 };
 
 // @public
+export function notices(args?: Readonly<Record<string, never>>): NoticesNode;
+
+// @public
+export type NoticesNode = {
+    readonly type: "notices";
+};
+
+// @public
 export function object<Id extends StateId, D extends ObjectDefinition<D>>(id: Id, definition: D & ThisType<Handle<D, Id>>): Handle<D, Id>;
 
 // @public
@@ -439,7 +447,7 @@ export type PassageEffects = {
 export type PassageId = StateId;
 
 // @public
-export type PassageNode = TextNode | LinkNode | ContinueNode | NamedEffectNode | BeatNode;
+export type PassageNode = TextNode | LinkNode | ContinueNode | NamedEffectNode | NoticesNode | BeatNode;
 
 // @public
 export const PERSISTENT_FORMAT = "loominate-persistent";
@@ -572,7 +580,7 @@ export type RenderedLink = LinkNode & {
 };
 
 // @public
-export type RenderedNode = RenderedText | RenderedLink | ContinueNode | NamedEffectNode;
+export type RenderedNode = RenderedText | RenderedLink | ContinueNode | NamedEffectNode | NoticesNode;
 
 // @public
 export interface RenderedPassage {

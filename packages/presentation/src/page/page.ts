@@ -325,17 +325,6 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     beatControls = undefined;
     if (from === 0) passage.replaceChildren();
     const rendered = story.render();
-    // What the player noticed follows the passage's own text and comes before
-    // its choices: the text says what the player did, the notices what came of it.
-    let noticesLeft = notices(from > 0);
-    const drawNotices = (): void => {
-      for (const notice of noticesLeft) {
-        const p = el("p", "loominate-notice");
-        appendProse(p, notice.text, notice.styles ?? [], [], () => el("span"));
-        passage.append(p);
-      }
-      noticesLeft = [];
-    };
     /** Effects waiting for the next element drawn. */
     let pending: [EffectDefinition, NamedEffectNode][] = [];
     const queue: [EffectDefinition, NamedEffectNode, HTMLElement][] = [];
@@ -343,8 +332,29 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
       for (const [definition, node] of pending) queue.push([definition, node, element]);
       pending = [];
     };
-    for (const node of rendered.nodes.slice(from)) {
-      if (node.type === "link" || node.type === "continue") drawNotices();
+    // What the player noticed goes where `{notices}` puts it, or else after the
+    // passage's own text and before its choices: the text says what the player
+    // did, the notices what came of it.
+    const nodes = rendered.nodes.slice(from);
+    const placed = nodes.some((n) => n.type === "notices");
+    let noticesLeft = notices(from > 0);
+    const drawNotices = (): void => {
+      for (const notice of noticesLeft) {
+        const p = el("p", "loominate-notice");
+        appendProse(p, notice.text, notice.styles ?? [], [], () => el("span"));
+        passage.append(p);
+        drawn(p);
+      }
+      noticesLeft = [];
+    };
+    for (const node of nodes) {
+      if (
+        node.type === "notices" ||
+        (!placed && (node.type === "link" || node.type === "continue"))
+      ) {
+        drawNotices();
+      }
+      if (node.type === "notices") continue;
       if (node.type === "effect") {
         const definition = effect(node);
         if (definition.target === "page") queue.push([definition, node, root]);

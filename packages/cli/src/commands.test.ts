@@ -251,10 +251,15 @@ describe("loominate dev", () => {
       expect(button("Down").getAttribute("aria-disabled")).toBe("true");
       expect(text()).toContain("The cellar door is locked.");
       follow("Unlock the cellar door");
-      // What the player noticed shows after the passage text.
-      expect(page().querySelector(".loominate-notice")?.textContent).toBe(
+      // What the player noticed shows where {notices} puts it.
+      expect(
+        [...page().querySelectorAll(".loominate-passage p")].map((p) => p.textContent),
+      ).toEqual([
+        "The key turns.",
         "The cellar door creaks open.",
-      );
+        "You step back as it swings wide.",
+        "Continue",
+      ]);
       follow("Continue");
       expect(text()).toContain("The hall again.");
       follow("Down");
