@@ -7,18 +7,25 @@
  * a region's edge runs the region's `onEnter` and `onLeave`.
  */
 import { object, StateError, type EffectContext, type ObjectRef } from "@loominate-if/core";
-import { currentPlayerBody, mindOf, passengersOf, playerBody } from "./actors.js";
-import { noteSights } from "./knowledge.js";
+import {
+  currentPlayerBody,
+  currentPlayerMind,
+  mindOf,
+  passengersOf,
+  playerBody,
+  playerMind,
+} from "./actors.js";
+import { noteSights, rememberedRoomVisits, rememberRoomVisit } from "./knowledge.js";
 import { nearestRegions, regionFor, type Region, type RegionHooks } from "./regions.js";
 import { byId, isPlace, isWithin, move, onMove, placeOf, type Place } from "./things.js";
 
-/** Visits to each place, by ID: arrivals at its `room:` passages. */
+/** Real visits to each place, by ID: arrivals at its `room:` passages, whoever made them. */
 const visits = object("world:visits", { counts: {} as Record<string, number> });
 
 /**
  * What a passage tagged `[room: cellar]` calls when the player arrives: it
  * moves the player's body into `room`, unless it's already there, counts
- * a visit to it, and marks what the body can see there as seen by the minds
+ * a visit to it, which the player's mind remembers, and marks what the body can see there as seen by the minds
  * in it.
  *
  * @remarks
@@ -43,7 +50,8 @@ export function enterRoom(room: Place, context?: EffectContext): void {
     );
   }
   if (placeOf(body)?.id !== room.id) move(body, room);
-  visits.counts[room.id] = visitsTo(room) + 1;
+  visits.counts[room.id] = totalVisitsTo(room) + 1;
+  rememberRoomVisit(playerMind(), room);
   // Every mind in the body sees the room, the one in control and its passengers.
   const controller = mindOf(body);
   noteSights(body, [...(controller ? [controller] : []), ...passengersOf(body)]);
@@ -64,14 +72,29 @@ export function registerRoom(room: Place, passage: { id: string; tags: readonly 
   roomPassages.set(room.id, list);
 }
 
+/** The IDs of the passages that describe `room`. @internal */
+export function roomPassageIds(room: ObjectRef): string[] {
+  return (roomPassages.get(room.id) ?? []).map((p) => p.id);
+}
+
 /** The passage exits to `room` lead to, or `undefined` if no passage describes it. @internal */
 export function arrivalPassage(room: ObjectRef): string | undefined {
   const list = roomPassages.get(room.id) ?? [];
   return (list.length === 1 ? list[0] : list.find((p) => p.arrive))?.id;
 }
 
-/** How many times the player has arrived at `room`'s passages, counting this arrival. */
+/**
+ * How many times the player's mind remembers arriving at `room`'s passages,
+ * counting this arrival. A mind switched to, or one that forgot, may
+ * remember fewer than {@link totalVisitsTo}.
+ */
 export function visitsTo(room: ObjectRef): number {
+  const m = currentPlayerMind();
+  return m ? rememberedRoomVisits(m, room) : totalVisitsTo(room);
+}
+
+/** How many times anyone playing has arrived at `room`'s passages, whatever they remember. */
+export function totalVisitsTo(room: ObjectRef): number {
   return visits.counts[room.id] ?? 0;
 }
 

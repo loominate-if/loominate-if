@@ -260,6 +260,10 @@ export type MindKnowledge = {
     learnAbout(thing: ObjectRef): void;
     knowsAbout(thing: ObjectRef): boolean;
     forget(what: Fact | ObjectRef): void;
+    forgetVisits(passage?: string): void;
+    loseMemory(): void;
+    regainMemory(): void;
+    readonly hasAmnesia: boolean;
 };
 
 // @public
@@ -423,6 +427,9 @@ export type ThingOf<D> = Omit<D, "location"> & {
     } ? D["name"] : string;
     location: ObjectRef | null;
 };
+
+// @public
+export function totalVisitsTo(room: ObjectRef): number;
 
 // @public
 export const transparent: {

@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createEventRecord } from "../events/record.js";
+import { object } from "../objects/objects.js";
+import { useVisitMemory } from "./memory.js";
 import { createHistory } from "../state/history.js";
 import { createStore, type StateSnapshot } from "../state/store.js";
 import { createStory, type Passage } from "./story.js";
@@ -103,5 +105,53 @@ describe("visit tracking", () => {
     history.redo();
     history.redo();
     expect(story.visits("Hall")).toBe(2);
+  });
+});
+
+describe("visit memory", () => {
+  // A memory with two players, as the world model's minds would be.
+  const memo = object("memo", {
+    who: "a",
+    counts: {} as Record<string, number>,
+    welcomes: 0,
+  });
+  const key = (passage: string) => `${memo.who}/${passage}`;
+  const withWelcome: Passage[] = [
+    {
+      ...(passages[0] as Passage),
+      effects: {
+        firstVisit: () => {
+          memo.welcomes += 1;
+        },
+      },
+    },
+    passages[1] as Passage,
+  ];
+  beforeEach(() => {
+    useVisitMemory({
+      count: (passage) => (memo.who === "nobody" ? undefined : (memo.counts[key(passage)] ?? 0)),
+      record: (passage) => {
+        if (memo.who !== "nobody") memo.counts[key(passage)] = (memo.counts[key(passage)] ?? 0) + 1;
+      },
+    });
+  });
+  afterEach(() => {
+    useVisitMemory(undefined);
+  });
+
+  it("answers passages and first visits from memory, while totalVisits counts every visit", () => {
+    const store = createStore();
+    const story = createStory(store, createEventRecord(store), withWelcome, { start: "Hall" });
+    story.begin();
+    go(story, "Wait");
+    expect(story.visits("Hall")).toBe(2);
+    memo.who = "b"; // another player, who has never been here
+    go(story, "Wait");
+    expect(prose(story)).toEqual(["A grand hall."]);
+    expect(story.visits("Hall")).toBe(1);
+    expect(story.totalVisits("Hall")).toBe(3);
+    expect(memo.welcomes).toBe(2); // the first visit ran again, for the new player
+    memo.who = "nobody"; // no memory: the real count
+    expect(story.visits("Hall")).toBe(3);
   });
 });

@@ -150,12 +150,11 @@ export function mind<Id extends StateId, D extends ObjectDefinition<D>>(
   }
   const handle = object(
     id,
-    withDefaults(definition, {
-      inhabits: start,
-      isPassenger: passenger,
-      displaced: null,
-      ...mindKnowledge,
-    }) as unknown as ObjectDefinition<D>,
+    // Copied as descriptors, not spread, so `hasAmnesia` stays a getter.
+    withDefaults(
+      withDefaults(definition, { inhabits: start, isPassenger: passenger, displaced: null }),
+      mindKnowledge,
+    ) as unknown as ObjectDefinition<D>,
   );
   minds.set(id, handle as unknown as Mind);
   createKnowledge(handle);
@@ -502,6 +501,11 @@ function playerRecord(where: string): Handle<{ mind: ObjectRef }> {
     );
   }
   return chosenPlayer;
+}
+
+/** The player's mind, or `undefined` if there's no player yet. @internal */
+export function currentPlayerMind(): Mind | undefined {
+  return chosenPlayer ? mindFor(chosenPlayer.mind, "player") : undefined;
 }
 
 /** The player's body, or `undefined` if there's no player yet or it's in no body. @internal */

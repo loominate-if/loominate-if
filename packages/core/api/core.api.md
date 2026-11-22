@@ -791,6 +791,7 @@ export interface Story {
     playReplay(replay: Replay, game?: GameInfo): ReplayCheck;
     render(): RenderedPassage;
     toReplay(game?: GameInfo): Replay;
+    totalVisits(id: PassageId): number;
     visited(id: PassageId): boolean;
     visits(id: PassageId): number;
 }
@@ -893,6 +894,15 @@ export type UnreadableSave = {
     readonly slot: string;
     readonly problem: string;
 };
+
+// @public
+export function useVisitMemory(visitMemory: VisitMemory | undefined): void;
+
+// @public
+export interface VisitMemory {
+    count(passage: PassageId): number | undefined;
+    record(passage: PassageId): void;
+}
 
 // @public
 export function wait(args?: Readonly<Record<string, never>>): BeatNode;

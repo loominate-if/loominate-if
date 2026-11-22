@@ -29,6 +29,7 @@ import {
 } from "../replay/replay.js";
 import { checkInlineLinks, checkStyles } from "./prose.js";
 import { hook } from "../rules/hooks.js";
+import { visitMemory } from "./memory.js";
 
 /** A passage's ID: its name from `:: Name`. */
 export type PassageId = StateId;
@@ -220,11 +221,15 @@ export interface RenderContext {
   readonly persistent: StateReader;
   /** The passage being rendered. */
   readonly passage: PassageId;
-  /** How many times the player has entered this passage, counting the current visit. */
+  /**
+   * How many times the player remembers entering this passage, counting the
+   * current visit. Without a visit memory ({@link useVisitMemory}), every
+   * real visit.
+   */
   readonly visits: number;
-  /** Whether this is the player's first visit to this passage. */
+  /** Whether this is the player's first remembered visit to this passage. */
   readonly firstVisit: boolean;
-  /** Whether the player has ever entered `passage`. */
+  /** Whether the player remembers entering `passage`. */
   visited(passage: PassageId): boolean;
 }
 
@@ -324,10 +329,20 @@ export interface Story {
   readonly current: PassageId | undefined;
   /** Looks up a passage by ID. */
   passage(id: PassageId): Passage | undefined;
-  /** How many times the player has entered a passage. Following a link back to the same passage counts. */
+  /**
+   * How many times the player remembers entering a passage, as passages see
+   * it. Following a link back to the same passage counts. Without a visit
+   * memory ({@link useVisitMemory}), it's {@link Story.totalVisits}.
+   */
   visits(id: PassageId): number;
-  /** Whether the player has ever entered a passage. */
+  /** Whether the player remembers entering a passage. */
   visited(id: PassageId): boolean;
+  /**
+   * How many times the story has really entered a passage, whoever the
+   * player was and whatever they remember, for the story map, coverage, and
+   * the inspector.
+   */
+  totalVisits(id: PassageId): number;
   /**
    * Enters the start passage, if the story hasn't begun. Does nothing on a story
    * that has already begun, for example one loaded from a save.
@@ -341,7 +356,7 @@ export interface Story {
   /**
    * Follows one of the current passage's choices. In order: runs the current
    * passage's `leave` effect, records a navigation event, moves to the target and
-   * counts the visit, runs the target's `firstVisit` (on its first visit) and
+   * counts the visit, runs the target's `firstVisit` (on its first remembered visit) and
    * `enter` effects, then records the target's prose. If an effect throws on a
    * store with no uncommitted changes, the whole move is rolled back.
    * @throws {@link StateError} if `choice` isn't one of the current choices, or if an
@@ -468,10 +483,11 @@ export function createStory(
     return typeof id === "string" ? id : undefined;
   };
 
-  const visits = (id: PassageId): number => {
+  const totalVisits = (id: PassageId): number => {
     const n = store.get(VISITS_ID, id);
     return typeof n === "number" ? n : 0;
   };
+  const visits = (id: PassageId): number => visitMemory()?.count(id) ?? totalVisits(id);
 
   const stepIn = (): number => {
     const n = store.get(STORY_ID, STEP_FIELD);
@@ -687,7 +703,8 @@ export function createStory(
       emitIn(to.id)("navigation", { ...(from !== undefined && { from }), to: to.id });
       store.set(STORY_ID, CURRENT_FIELD, to.id);
       if (store.has(STORY_ID, STEP_FIELD)) store.delete(STORY_ID, STEP_FIELD);
-      store.set(VISITS_ID, to.id, visits(to.id) + 1);
+      store.set(VISITS_ID, to.id, totalVisits(to.id) + 1);
+      visitMemory()?.record(to.id);
       if (visits(to.id) === 1) runPhase(to, "firstVisit");
       runPhase(to, "enter");
       hook("passageEnter").run(contextFor(to.id));
@@ -772,6 +789,7 @@ export function createStory(
     passage: (id) => byId.get(id),
     visits,
     visited: (id) => visits(id) > 0,
+    totalVisits,
     begin() {
       if (current() !== undefined) return;
       const start = lookup(options.start, "begin");

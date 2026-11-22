@@ -84,6 +84,7 @@ export {
   type TextNode,
   type UnavailableLink,
 } from "./passages/story.js";
+export { useVisitMemory, type VisitMemory } from "./passages/memory.js";
 export {
   beat,
   continueTo,
