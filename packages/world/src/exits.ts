@@ -221,6 +221,14 @@ export function exitsOf(room: ObjectRef): Exit[] {
   });
 }
 
+/** Every connected room, sorted by ID. @internal */
+export function connectedRooms(): Place[] {
+  return [...records.keys()].sort().flatMap((id) => {
+    const t = thingFor({ id });
+    return t ? [t as Place] : [];
+  });
+}
+
 /** Why `exit` is blocked for `traveler`, or `undefined` if the way is clear. */
 export function blockedReason(exit: Exit, traveler: ObjectRef): string | undefined {
   return (exit.via as (Thing & Blocker) | undefined)?.blocks?.(traveler);

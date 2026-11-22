@@ -87,7 +87,7 @@ export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, start
     "node_modules/world-from-source/extension.js": `export { default } from ${JSON.stringify(
       pathToFileURL(path.join(packages, "world/src/extension.ts")).href,
     )};\n`,
-    "story.ts": `import { actor, connect, defineFacts, door, lockable, place, player, startAs, thing, visitsTo } from "@loominate-if/world";
+    "story.ts": `import { actor, connect, defineFacts, door, happen, lockable, place, player, startAs, thing, visitsTo } from "@loominate-if/world";
 export const hall = place("hall", { name: "the hall" });
 export const cellar = place("cellar", { name: "the cellar" });
 export const cellarDoor = thing("cellarDoor", { ...door, ...lockable, name: "the cellar door" });
@@ -97,7 +97,7 @@ export const you = actor("you", { body: { name: "you", location: hall } });
 startAs(you);
 export const note = thing("note", { name: "a note", location: cellar });
 export const facts = defineFacts({ culprit: "The butler did it." });
-export { player, visitsTo };
+export { happen, player, visitsTo };
 `,
     "rooms.weft": readFileSync(path.join(here, "fixtures/rooms.weft"), "utf8"),
   });
@@ -225,7 +225,7 @@ export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, start
 });
 
 describe("loominate dev", () => {
-  it("plays room passages, exits, and revealed facts with the world model's extension (#63, #64, #67)", async () => {
+  it("plays room passages, exits, and revealed facts with the world model's extension (#63, #64, #67, #69)", async () => {
     const root = worldGame();
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const server = await dev({
@@ -251,6 +251,10 @@ describe("loominate dev", () => {
       expect(button("Down").getAttribute("aria-disabled")).toBe("true");
       expect(text()).toContain("The cellar door is locked.");
       follow("Unlock the cellar door");
+      // What the player noticed shows above the passage.
+      expect(page().querySelector(".loominate-notice")?.textContent).toBe(
+        "The cellar door creaks open.",
+      );
       follow("Continue");
       expect(text()).toContain("The hall again.");
       follow("Down");

@@ -158,6 +158,10 @@ export interface EventKinds {
         readonly from?: StateId;
         readonly to: StateId;
     };
+    perception: ProseFields & {
+        readonly sense: "see" | "hear";
+        readonly source?: StateId;
+    };
     phase: {
         readonly passage: StateId;
         readonly phase: "firstVisit" | "enter" | "leave";

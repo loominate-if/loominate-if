@@ -75,6 +75,17 @@ export interface EventKinds {
   };
   /** What happened as the result of an action. */
   "action-result": ProseFields;
+  /**
+   * Something the player noticed by sight or sound, such as "You hear a door
+   * slam upstairs." The page shows a move's perception events above the
+   * passage. The world model's perception layer records them.
+   */
+  perception: ProseFields & {
+    /** How it was noticed. */
+    readonly sense: "see" | "hear";
+    /** The thing that was noticed, if any. */
+    readonly source?: StateId;
+  };
   /** Moving between passages or locations. */
   navigation: {
     /** Where the move started, if anywhere. */

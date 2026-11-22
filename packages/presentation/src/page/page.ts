@@ -11,6 +11,7 @@ import type {
   EventKind,
   NamedEffectNode,
   EventRecord,
+  ProseFields,
   RecordedEvent,
   RenderedInlineLink,
   RenderedLink,
@@ -99,6 +100,11 @@ function regionLabel(region: string): string {
 
 /** Event kinds the drawer shows: prose the player read. */
 const PROSE_KINDS: readonly EventKind[] = ["narrative", "scene", "dialogue", "room-description"];
+/**
+ * Events recorded during a move that the page shows above the passage: what
+ * the player noticed, and what their actions did.
+ */
+const NOTICE_KINDS: readonly EventKind[] = ["perception", "action-result"];
 
 /**
  * Shows a story in `container`: the current passage in the main view, and
@@ -319,6 +325,11 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     beatControls = undefined;
     if (from === 0) passage.replaceChildren();
     const rendered = story.render();
+    for (const notice of notices(from > 0)) {
+      const p = el("p", "loominate-notice");
+      appendProse(p, notice.text, notice.styles ?? [], [], () => el("span"));
+      passage.append(p);
+    }
     /** Effects waiting for the next element drawn. */
     let pending: [EffectDefinition, NamedEffectNode][] = [];
     const queue: [EffectDefinition, NamedEffectNode, HTMLElement][] = [];
@@ -375,8 +386,26 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     if (rendered.beat) drawBeat(rendered.beat, arrived);
   };
 
+  /**
+   * The perception and action-result events of the move on screen: since it
+   * began, or with `sinceBeat`, since the last beat moved past.
+   */
+  const notices = (sinceBeat: boolean): (RecordedEvent & ProseFields)[] => {
+    const events = record.events({ kinds: [...NOTICE_KINDS, "navigation", "beat"] });
+    const out: (RecordedEvent & ProseFields)[] = [];
+    for (const e of events) {
+      const starts =
+        e.kind === "navigation" || (e.kind === "beat" && (sinceBeat || e.page === true));
+      if (starts) out.length = 0;
+      else if (e.kind !== "beat") out.push(e as RecordedEvent & ProseFields);
+    }
+    return out;
+  };
+
   const drawDrawer = (): void => {
-    const events = record.events({ kinds: [...PROSE_KINDS, "navigation", "beat"] });
+    const events = record.events({
+      kinds: [...NOTICE_KINDS, ...PROSE_KINDS, "navigation", "beat"],
+    });
     // Each move starts at a navigation, and each page of a passage at a page
     // break; the last of them is the one on screen.
     const turns: RecordedEvent[][] = [];

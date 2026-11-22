@@ -53,6 +53,7 @@ const passages: Passage[] = [
   {
     id: "Room",
     tags: [],
+
     body: () => [
       { type: "text", text: "Bare walls." },
       { type: "continue", target: "Start", label: "Back" },
@@ -153,6 +154,35 @@ describe("walkthroughs", () => {
     // #endregion
     game.undo();
     expect(game.record.events({ tags: ["lamp"] })).toEqual([]);
+  });
+
+  it("show what the player noticed during the move, as the page does", () => {
+    const attic: Passage[] = [
+      {
+        id: "Stairs",
+        tags: [],
+        body: () => [{ type: "link", label: "Up", target: "Attic" }],
+      },
+      {
+        id: "Attic",
+        tags: [],
+        effects: {
+          enter: () => {
+            emit("perception", { text: "A draught stirs the dust.", sense: "see" });
+          },
+        },
+        body: () => [
+          { type: "text", text: "Bare rafters." },
+          { type: "continue", target: "Stairs" },
+        ],
+      },
+    ];
+    const game = play({ passages: attic, start: "Stairs" });
+    game.choose("Up");
+    expect(game.notices).toBe("A draught stirs the dust.");
+    expect(game.text).toBe("A draught stirs the dust.\nBare rafters.");
+    game.choose("Continue");
+    expect(game.notices).toBe("");
   });
 
   it("play the same with the same seed, and replay exactly", () => {

@@ -43,6 +43,7 @@ export interface Walkthrough {
     readonly choices: readonly string[];
     choose(label: string): this;
     readonly history: History;
+    readonly notices: string;
     readonly passage: PassageId;
     readonly record: EventRecord;
     replay(): Replay;

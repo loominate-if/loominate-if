@@ -81,6 +81,8 @@ export type Direction = {
     readonly name: DirectionName;
     readonly label: string;
     readonly opposite?: DirectionName;
+    readonly toward: string;
+    readonly from: string;
 };
 
 // @public
@@ -96,6 +98,8 @@ export function directionNamed(name: string): Direction | undefined;
 export type DirectionOptions = {
     readonly label?: string;
     readonly opposite?: DirectionName;
+    readonly toward?: string;
+    readonly from?: string;
 };
 
 // @public
@@ -175,6 +179,18 @@ export type FactOptions = {
 export type FactSource = {
     readonly from?: ObjectRef;
     readonly passage?: string;
+};
+
+// @public
+export function happen(source: ObjectRef, options: HappenOptions): void;
+
+// @public
+export type HappenOptions = {
+    readonly seen?: string;
+    readonly heard?: string;
+    readonly far?: string | ((from: string, way: Direction) => string);
+    readonly carries?: number;
+    readonly reveals?: Fact;
 };
 
 // @public

@@ -104,3 +104,4 @@ export {
   type Player,
   type RevealArguments,
 } from "./knowledge.js";
+export { happen, type HappenOptions } from "./perception.js";

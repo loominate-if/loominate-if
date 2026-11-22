@@ -44,6 +44,7 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   border-radius: ${v("radius")};
 }
 .loominate-passage:focus { outline: none; }
+.loominate-notice { font-style: italic; }
 .loominate-page button {
   font: inherit;
   color: inherit;

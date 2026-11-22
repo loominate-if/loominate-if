@@ -44,7 +44,7 @@ The lamp room.
 Far out, lights.
 ```
 
-- `{emit "Wind howls.", tags: storm}` records a `system` event with the text and the tag `storm`. Give `kind:` to record another kind of text: `narrative`, `scene`, `dialogue`, or `action-result`.
+- `{emit "Wind howls.", tags: storm}` records a `system` event with the text and the tag `storm`. Give `kind:` to record another kind of text: `narrative`, `scene`, `dialogue`, or `action-result`. The page shows a move's `action-result` and `perception` events above the passage; the others go to the story so far.
 - Written after a beat, it records when the player reaches that part, just as code there runs then. It never records when the passage is only shown.
 - `emit(kind, fields, tags)` takes any kind of event, including ones a package adds, and its fields are type-checked. Use it in `{on enter: …}` and the other effect phases; in shown text it's an error, because showing a passage can't change anything.
 - Each of these events also has the passage's tags, first: the ship turning is tagged `scene`, `ship`, and `storm`.

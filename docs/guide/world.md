@@ -207,7 +207,7 @@ A **room** is a place a passage describes. Tag the passage with `room:` and the 
 [[Unlock the cellar door -> Unlock]]{when cellarDoor.isLocked, hidden}
 
 :: Unlock
-{on enter: cellarDoor.unlock(); cellarDoor.open()}
+{on enter: cellarDoor.unlock(); cellarDoor.open(); happen(cellarDoor, { seen: "The cellar door creaks open." })}
 The key turns, and the door swings open.
 {continue -> Hall}
 
@@ -347,6 +347,8 @@ direction("fore", { opposite: "aft", label: "Fore" });
 direction("aft", { opposite: "fore", label: "Aft" });
 ```
 
+Each direction also says how to go that way and come from it, "to the north" and "from the north", which perception uses for "Mira leaves to the north". `up` and `down` say "upstairs" and "from above", "downstairs" and "from below". Give a game's own with `toward:` and `from:`, as in `direction("fore", { toward: "forward", from: "from the bow" })`.
+
 ## Knowledge and facts
 
 A **fact** is something a mind can know, such as who took the letter. Define facts in `story.ts`, one at a time with `fact()`, or several at once with `defineFacts()`, whose keys are their IDs. Minds remember facts by ID, so keep each ID stable once players have saves:
@@ -451,4 +453,58 @@ expect(go(story, "Study")).toBe("A study you don't know.");
 you.regainMemory();
 expect(you.knows(facts.secret)).toBe(true);
 expect(story.visits("Study")).toBe(2); // one before, one during
+```
+
+## Perception
+
+`happen(thing, …)` makes something perceptible. Everyone who can see the thing notices `seen`, everyone who can only hear it, in the dark or through a closed box, notices `heard`, and with `far`, everyone a room away hears it, told which way it came from. `carries: 2` reaches two exits away. With `reveals`, every mind that notices learns a fact, sourced to the thing:
+
+<!-- example: packages/world/src/perception.test.ts#house -->
+```ts
+export const landing = place("landing", { name: "the landing" });
+export const hall = place("hall", { name: "the hall" });
+export const cellar = place("cellar", { name: "the cellar", isDark: true });
+export const garden = place("garden", { name: "the garden" });
+connect(landing, { down: hall });
+connect(hall, { up: landing, down: cellar, out: garden });
+connect(cellar, { up: hall });
+connect(garden, { in: hall });
+
+export const bedroomDoor = thing("bedroomDoor", { name: "the bedroom door", location: landing });
+```
+
+<!-- example: packages/world/src/perception.test.ts#slam -->
+```ts
+happen(bedroomDoor, {
+  seen: "The bedroom door slams shut.",
+  heard: "A door slams.",
+  far: (from) => `You hear a door slam ${from}.`,
+  reveals: facts.someoneUpstairs,
+});
+```
+
+From the hall, below the landing, the player reads "You hear a door slam from above." on the page, above the passage, for the move it happened in. The story-so-far drawer keeps it, and a walkthrough test reads it in `game.notices`, which also starts `game.text`.
+
+- Only the mind the player controls is told. Every mind that notices, the player's and NPCs', in control or riding along as a passenger, learns `reveals` and sees what it saw.
+- Without `heard`, only those who see it notice; without `far`, nothing is heard from other rooms. Sound carries through exits the way they lead, whatever's in the way.
+- It's recorded as a `perception` event, so the inspector's Events panel lists it.
+
+### Comings and goings
+
+An actor moving into or out of the player's room, while the player can see, is narrated without the author asking: "Mira arrives from outside.", "Mira leaves upstairs.", with the way from the room's exits. Nothing is narrated in the dark, or for the player's own moves. Everyone in the room who can see a newcomer sees it. An actor can say it its own way with `arrives(from)` and `leaves(toward)` on its body, or stay quiet by returning `undefined`:
+
+<!-- example: packages/world/src/perception.test.ts#leaves -->
+```ts
+export const cat = actor("cat", {
+  body: {
+    name: "the cat",
+    location: hall,
+    leaves(toward: string | undefined) {
+      return `The cat slinks off ${toward ?? "somewhere"}.`;
+    },
+    arrives() {
+      return undefined; // it comes and goes as it pleases, unseen
+    },
+  },
+});
 ```

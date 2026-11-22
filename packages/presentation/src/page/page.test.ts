@@ -26,7 +26,12 @@ const passages: Passage[] = [
   {
     id: "Lantern",
     tags: [],
-    effects: { enter: ({ state }) => state.set("lantern", "lit", true) },
+    effects: {
+      enter: ({ state, emit }) => {
+        state.set("lantern", "lit", true);
+        emit("perception", { text: "Something skitters away.", sense: "hear" });
+      },
+    },
     body: () => [
       prose(["You light it. ", strong("Finally", emphasis(" light")), "."]),
       { type: "continue", target: "Kitchen" },
@@ -112,7 +117,7 @@ describe("the page", () => {
       "Go to the stairs",
     ]);
     click("Take the lantern");
-    expect(main().querySelector("p")?.innerHTML).toBe(
+    expect(main().querySelector("p:not(.loominate-notice)")?.innerHTML).toBe(
       "You light it. <strong>Finally<em> light</em></strong>.",
     );
     expect(main().querySelector("button.loominate-continue")?.textContent).toBe("Continue");
@@ -154,6 +159,19 @@ describe("the page", () => {
   });
 });
 
+describe("what the player noticed", () => {
+  it("shows above the passage for the move it happened in", () => {
+    const { main, click } = play();
+    click("Take the lantern");
+    const notice = main().querySelector("p");
+    expect(notice?.className).toBe("loominate-notice");
+    expect(notice?.textContent).toBe("Something skitters away.");
+    expect(main().textContent).toContain("You light it.");
+    click("Continue");
+    expect(main().querySelector(".loominate-notice")).toBeNull();
+  });
+});
+
 describe("the story-so-far drawer", () => {
   it("shows earlier moves from the event record, not the one on screen", () => {
     const { drawer, click, turns } = play();
@@ -162,7 +180,10 @@ describe("the story-so-far drawer", () => {
     click("Continue");
     expect(drawer().hidden).toBe(false);
     expect(drawer().querySelector("summary")?.textContent).toBe("Story so far");
-    expect(turns()).toEqual([["The kitchen is warm."], ["You light it. Finally light."]]);
+    expect(turns()).toEqual([
+      ["The kitchen is warm."],
+      ["Something skitters away.", "You light it. Finally light."],
+    ]);
     expect(drawer().querySelector("strong")?.textContent).toBe("Finally light");
   });
 
@@ -180,7 +201,10 @@ describe("the story-so-far drawer", () => {
     // A page over a loaded game shows the story so far from its record.
     click("Continue");
     const loaded = play(store.snapshot());
-    expect(loaded.turns()).toEqual([["The kitchen is warm."], ["You light it. Finally light."]]);
+    expect(loaded.turns()).toEqual([
+      ["The kitchen is warm."],
+      ["Something skitters away.", "You light it. Finally light."],
+    ]);
     expect(loaded.main().textContent).toContain("Back in the kitchen");
   });
 

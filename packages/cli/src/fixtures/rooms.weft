@@ -4,7 +4,7 @@
 [[Unlock the cellar door -> Unlock]]{when cellarDoor.isLocked, hidden}
 
 :: Unlock
-{on enter: cellarDoor.unlock(); cellarDoor.open()}
+{on enter: cellarDoor.unlock(); cellarDoor.open(); happen(cellarDoor, { seen: "The cellar door creaks open." })}
 The key turns, and the door swings open.
 {continue -> Hall}
 

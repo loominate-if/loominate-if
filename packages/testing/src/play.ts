@@ -57,6 +57,12 @@ export interface Walkthrough {
   readonly passage: PassageId;
   /** The prose on screen, one paragraph per line, with links inside paragraphs as their labels. */
   readonly text: string;
+  /**
+   * What the player noticed during the last move, and what their actions did,
+   * one per line: the perception and action-result events the page shows
+   * above the passage. They're at the start of {@link Walkthrough.text} too.
+   */
+  readonly notices: string;
   /** The labels of the choices that can be made now, in order. A continue point without a label is "Continue". */
   readonly choices: readonly string[];
   /** Links on screen or hidden that can't be followed now, with why. */
@@ -151,6 +157,17 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
   store.commit();
 
   const page = (): RenderedPassage => story.render();
+  /** The texts of the perception and action-result events since the move on screen began. */
+  const notices = (): string[] => {
+    const out: string[] = [];
+    for (const e of record.events({
+      kinds: ["perception", "action-result", "navigation", "beat"],
+    })) {
+      if (e.kind === "navigation" || (e.kind === "beat" && e.page === true)) out.length = 0;
+      else if (e.kind !== "beat") out.push((e as { text: string }).text);
+    }
+    return out;
+  };
   const labelOf = (c: RenderedPassage["choices"][number]): string =>
     c.type === "continue" ? (c.label ?? CONTINUE) : c.label;
   const moved = (): void => {
@@ -162,9 +179,13 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
       return story.current ?? start;
     },
     get text() {
-      return page()
-        .nodes.flatMap((n) => (n.type === "text" ? [n.text] : []))
-        .join("\n");
+      return [
+        ...notices(),
+        ...page().nodes.flatMap((n) => (n.type === "text" ? [n.text] : [])),
+      ].join("\n");
+    },
+    get notices() {
+      return notices().join("\n");
     },
     get choices() {
       return page().choices.map(labelOf);
@@ -190,7 +211,16 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
     },
     get transcript() {
       return record
-        .events({ kinds: ["narrative", "scene", "dialogue", "room-description", "action-result"] })
+        .events({
+          kinds: [
+            "perception",
+            "narrative",
+            "scene",
+            "dialogue",
+            "room-description",
+            "action-result",
+          ],
+        })
         .map((e) => (e as { text: string }).text)
         .join("\n");
     },
