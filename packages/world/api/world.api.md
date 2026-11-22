@@ -9,6 +9,7 @@ import { Handle } from '@loominate-if/core';
 import { LinkNode } from '@loominate-if/core';
 import { ObjectDefinition } from '@loominate-if/core';
 import { ObjectRef } from '@loominate-if/core';
+import { ObjectTemplate } from '@loominate-if/core';
 import { StateId } from '@loominate-if/core';
 
 // @public
@@ -454,6 +455,13 @@ export type ThingOf<D> = Omit<D, "location"> & {
     } ? D["name"] : string;
     location: ObjectRef | null;
 };
+
+// @public
+export function thingTemplate<D extends ObjectDefinition<D> & {
+    name: string;
+}>(name: string, definition: D & {
+    location?: ObjectRef | null;
+} & ThisType<Handle<ThingOf<D>>>): ObjectTemplate<ThingOf<D>>;
 
 // @public
 export function totalVisitsTo(room: ObjectRef): number;

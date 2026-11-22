@@ -120,6 +120,24 @@ expect(t`{She subj ${sam}} {nods}; {they subj ${coins}} {clink}.`()).toBe(
 - Any word in braces that isn't a registered parameter is taken as a verb, so a misspelled parameter, such as `{teh ${door}}`, prints as a verb rather than failing. Checking names when the game compiles is [#235](https://github.com/loominate-if/loominate-if/issues/235).
 - The world model's own messages are written this way: "The cellar door is locked.", "Mira arrives from outside.", "North, to the library". A game rewords them in the message table ([Rewording the library](messages.md)), where a template names what it's about by name, as `{the door}`.
 
+### Things made during play
+
+A game that makes things as it goes, such as treasure in a chest or loot in a generated dungeon, defines a **thing template** with `thingTemplate()`, which takes what `thing()` does, mixins included. Core's `spawn()` makes one from it during play, in an effect. Its ID comes from what made it, as in `gen:chest:coin-1`, so undo, saves, and replays give the same things. From then on it's part of the world like any thing: it can be moved, it's listed in contents, sorted by ID, and it can be seen, reached, and heard, and named in text:
+
+<!-- example: packages/world/src/spawned.test.ts#template -->
+```ts
+export const chest = thing("chest", { ...container, ...openable, name: "chest", location: vault });
+export const coin = thingTemplate("coin", { name: "gold coin" });
+export const pouch = thingTemplate("pouch", { ...container, name: "leather pouch" });
+```
+
+<!-- example: packages/world/src/spawned.test.ts#spawn -->
+```ts
+chest.open();
+move(spawn(coin, chest), chest); // gen:chest:coin-1
+move(spawn(coin, chest), chest); // gen:chest:coin-2
+```
+
 ## Moving things
 
 `move(thing, to)` moves a thing into or onto another, or out of the world with `move(thing, null)`. It's one change, so one undo takes it back. It refuses a move that makes no sense: into something that can't hold things, or into the thing itself or something inside it. Whether the player may make the move, such as into a locked chest, is for actions to decide.
