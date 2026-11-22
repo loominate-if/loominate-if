@@ -58,18 +58,6 @@ export type Actor<B, M, Id extends StateId = StateId> = Handle<
   Id
 >;
 
-/**
- * Rejects keys in both an actor's body and its mind. Each such key must have
- * a type no value has, and the type carries the explanation, so the
- * compiler's message names the key and says what to do. A bare message type
- * would collapse the definition to `never` against a literal value.
- */
-type InBothHalves<K extends PropertyKey> = {
-  [P in K]: {
-    error: `"${P & string}" is in both the body and the mind; give one of them another name.`;
-  };
-};
-
 /** Every mind, by ID. */
 const minds = new Map<StateId, Mind>();
 /** The IDs of bodies. */
@@ -189,7 +177,14 @@ export function actor<
   id: Id,
   definition: {
     body: B & { location?: ObjectRef | null } & ThisType<Actor<B, M, Id>>;
-    mind?: M & InBothHalves<keyof M & keyof B> & ThisType<Actor<B, M, Id>>;
+    // A key in both halves gets a type no value has, which carries the
+    // explanation into the compiler's message. A bare message type would
+    // collapse the definition to `never` against a literal value instead.
+    mind?: M & {
+      [K in keyof M & keyof B]: {
+        error: `"${K & string}" is in both the body and the mind; give one of them another name.`;
+      };
+    } & ThisType<Actor<B, M, Id>>;
   },
 ): Actor<B, M, Id> {
   const where = `actor ${JSON.stringify(id)}`;
