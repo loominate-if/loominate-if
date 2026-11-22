@@ -1,4 +1,5 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createEventRecord, createStore, createStory, type Passage } from "@loominate-if/core";
@@ -62,6 +63,37 @@ const show = (r: ReturnType<typeof compile>): string[] =>
 
 // These tests build real TypeScript programs, which takes seconds, longer under load from parallel test files.
 describe("compileProject", { timeout: 30_000 }, () => {
+  it("applies the declarations of ambient packages the game doesn't import", () => {
+    // A package on disk that declares something for the whole game, as
+    // presentation declares its message keys.
+    const game = mkdtempSync(path.join(tmpdir(), "loominate-ambient-"));
+    try {
+      const pkg = path.join(game, "node_modules", "fake-shell");
+      mkdirSync(pkg, { recursive: true });
+      writeFileSync(
+        path.join(pkg, "package.json"),
+        JSON.stringify({ name: "fake-shell", types: "./index.d.ts" }),
+      );
+      writeFileSync(
+        path.join(pkg, "index.d.ts"),
+        "declare global { var shellGreeting: string; }\nexport {};\n",
+      );
+      const files = [
+        { path: "story.ts", text: "export const greeting: string = shellGreeting;\n" },
+      ];
+      const shown = (ambient?: string[]) =>
+        compileProject({ root: game, files, compilerOptions, ...(ambient && { ambient }) })
+          .diagnostics.map((d) => d.message)
+          .join("\n");
+      expect(shown()).toContain("Cannot find name 'shellGreeting'");
+      expect(shown(["fake-shell"])).toBe("");
+      // One that can't be found is skipped.
+      expect(shown(["no-such-pkg"])).not.toContain("no-such-pkg");
+    } finally {
+      rmSync(game, { recursive: true, force: true });
+    }
+  });
+
   it("type-checks a valid game with no errors", () => {
     const result = compile([
       { path: "story.ts", text: story },

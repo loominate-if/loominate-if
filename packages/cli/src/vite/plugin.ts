@@ -199,6 +199,9 @@ export function loominate(options: LoominateOptions = {}): Plugin {
         ...(options.start !== undefined && { start: options.start }),
         ...(options.extensions !== undefined && { extensions: options.extensions }),
         ...(options.compilerOptions !== undefined && { compilerOptions: options.compilerOptions }),
+        // Every game is played through presentation, so its message keys and
+        // the like are the game's to use, though story.ts doesn't import it.
+        ambient: ["@loominate-if/presentation"],
       });
     },
 

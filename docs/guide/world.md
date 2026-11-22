@@ -118,7 +118,7 @@ expect(t`{She subj ${sam}} {nods}; {they subj ${coins}} {clink}.`()).toBe(
 ```
 
 - Any word in braces that isn't a registered parameter is taken as a verb, so a misspelled parameter, such as `{teh ${door}}`, prints as a verb rather than failing. Checking names when the game compiles is [#235](https://github.com/loominate-if/loominate-if/issues/235).
-- The world model's own messages are written this way: "The cellar door is locked.", "Mira arrives from outside.", "North, to the library".
+- The world model's own messages are written this way: "The cellar door is locked.", "Mira arrives from outside.", "North, to the library". A game rewords them in the message table ([Rewording the library](messages.md)), where a template names what it's about by name, as `{the door}`.
 
 ## Moving things
 

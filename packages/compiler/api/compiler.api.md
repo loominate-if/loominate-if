@@ -320,6 +320,7 @@ export type ProjectOptions = {
     readonly compilerOptions?: ts.CompilerOptions;
     readonly extensions?: readonly CompilerExtension[];
     readonly start?: string;
+    readonly ambient?: readonly string[];
 };
 
 // @public

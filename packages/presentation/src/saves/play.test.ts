@@ -6,6 +6,7 @@ import {
   createSaves,
   createStore,
   ENGINE_VERSION,
+  messages,
   readReplay,
   writeReplay,
   type Passage,
@@ -142,6 +143,33 @@ describe("playing a game", () => {
       expect(await autosaved(storage)).toBe("Road");
     });
     expect((await createSaves({ storage, game }).list()).map((x) => x.slot)).toContain("save-1");
+  });
+
+  it("words its menu and screens from the message table, which a game can reword", async () => {
+    messages.replace("menu.restart", "Walk the plank");
+    messages.replace("menu.confirmRestart", "Aye, walk it");
+    try {
+      const { container, click, button } = await start();
+      const header = container.querySelector('[data-region="header"]');
+      expect([...(header?.querySelectorAll("button") ?? [])].map((b) => b.textContent)).toEqual([
+        "Undo",
+        "Save",
+        "Load",
+        "Walk the plank",
+      ]);
+      // The tooltips still say what the reworded buttons do.
+      expect(button("Walk the plank").title).toBe(
+        "Start the story over from the beginning. Your saves are kept.",
+      );
+      expect(button("Undo").title).toBe("Nothing to undo yet.");
+      click("Walk the plank");
+      expect(button("Aye, walk it").title).toBe("Click again to start over. Moving away cancels.");
+    } finally {
+      messages.replace("menu.restart", "Restart", { source: "@loominate-if/presentation" });
+      messages.replace("menu.confirmRestart", "Confirm restart", {
+        source: "@loominate-if/presentation",
+      });
+    }
   });
 
   it("undoes from the menu, and autosaves what's left", async () => {

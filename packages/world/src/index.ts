@@ -6,6 +6,8 @@
  */
 // Registers the message parameters `t` templates use: articles, pronouns, and verbs.
 import "./grammar.js";
+// Registers the world model's messages, which a game can reword.
+import "./messages.js";
 export {
   container,
   contents,

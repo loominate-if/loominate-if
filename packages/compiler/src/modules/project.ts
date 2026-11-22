@@ -59,6 +59,13 @@ export type ProjectOptions = {
    * are reported as warnings; without it, they aren't checked.
    */
   readonly start?: string;
+  /**
+   * Packages the game is played with but doesn't import itself, such as
+   * `@loominate-if/presentation`, whose type declarations apply to the game
+   * as if `story.ts` imported them: the message keys, event kinds, and hooks
+   * they declare. A package that can't be found is skipped.
+   */
+  readonly ambient?: readonly string[];
 };
 
 /** A problem in a game's sources, positioned for the author. */
@@ -180,6 +187,14 @@ export function createCompilerSession(options: ProjectOptions): CompilerSession 
   const host = ts.createCompilerHost(compilerOptions);
   const virtual = new Map<string, string>();
   const read = (p: string): string | undefined => virtual.get(p) ?? memory.get(p);
+  // Brings in the declarations of packages the game is played with, such as
+  // presentation's message keys, though nothing in the game imports them.
+  if (options.ambient && options.ambient.length > 0) {
+    virtual.set(
+      resolve("$ambient.ts"),
+      options.ambient.map((m) => `import type {} from ${JSON.stringify(m)};\n`).join(""),
+    );
+  }
   const fileExists = host.fileExists.bind(host);
   const readFile = host.readFile.bind(host);
   const getSourceFile = host.getSourceFile.bind(host);

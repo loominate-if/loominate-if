@@ -10,8 +10,8 @@
 import {
   mixin,
   object,
+  message,
   StateError,
-  t,
   type Handle,
   type LinkNode,
   type ObjectRef,
@@ -99,8 +99,8 @@ export const door = mixin({
   blocks(traveler: ObjectRef): string | undefined {
     void traveler;
     const self = this as unknown as ObjectRef & { isOpen: boolean; isLocked?: boolean };
-    if (self.isLocked === true) return t`{The subj ${self}} {is} locked.`();
-    if (!self.isOpen) return t`{The subj ${self}} {is} closed.`();
+    if (self.isLocked === true) return message("door.locked", { door: self });
+    if (!self.isOpen) return message("door.closed", { door: self });
     return undefined;
   },
 });
@@ -259,8 +259,11 @@ export function exitLinks(args: Readonly<Record<string, never>> = {}): LinkNode[
         `{exits}: the ${e.direction.name} exit from ${JSON.stringify(here.id)} leads to ${JSON.stringify(e.to.id)}, which no passage describes. Tag one [room: …] for it.`,
       );
     }
-    const label =
-      visitsTo(e.to) > 0 ? t`${e.direction.label}, to {the ${e.to}}`() : e.direction.label;
+    const label = message("exit.label", {
+      direction: message("direction.label", { direction: e.direction.name }),
+      room: e.to,
+      visited: visitsTo(e.to) > 0,
+    });
     const reason = blockedReason(e, body);
     return {
       type: "link",
