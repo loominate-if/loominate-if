@@ -4,7 +4,7 @@ The world model is an optional package for games with places and things in them:
 
 It's `@loominate-if/world`. It isn't published to npm yet, while the rest of the world model is built ([Phase 2](https://github.com/loominate-if/loominate-if/issues/58)); this guide grows with it. [ADR 0031](../decisions/0031-containment-and-scope.md) records the decisions behind it.
 
-So far, the world model keeps track of where things are and what can be sensed. It doesn't show anything or add links by itself: a thing in a room doesn't appear in the passage, and there's no "open the box" until you write one. Your passages decide what to show, with checks such as `{if canSee(player, coin)}`, and links call methods such as `box.open()` in an `on enter` effect. Export from `story.ts` every thing a passage mentions. Room descriptions and actions come in later tasks ([#63](https://github.com/loominate-if/loominate-if/issues/63), [#69](https://github.com/loominate-if/loominate-if/issues/69), [#76](https://github.com/loominate-if/loominate-if/issues/76)).
+So far, the world model keeps track of where things are, what can be sensed, and which mind is in which body. It doesn't show anything or add links by itself: a thing in a room doesn't appear in the passage, and there's no "open the box" until you write one. Your passages decide what to show, with checks such as `{if canSee(player, coin)}`, and links call methods such as `box.open()` in an `on enter` effect. Export from `story.ts` every thing a passage mentions. Room descriptions and actions come in later tasks ([#63](https://github.com/loominate-if/loominate-if/issues/63), [#69](https://github.com/loominate-if/loominate-if/issues/69), [#76](https://github.com/loominate-if/loominate-if/issues/76)).
 
 ## Places and things
 
@@ -106,3 +106,91 @@ expect(ids(inScope(player, "see"))).toEqual(["cellar", "chest", "lamp", "rat"]);
 ```
 
 `isInLight(observer)` says whether there's light where the observer is.
+
+## Minds and bodies
+
+An **actor**, such as the player character or an NPC, is two linked halves: a **body**, the thing in the world that's moved, seen, and carries things, and a **mind**, what it knows and thinks. Most games never separate them. `actor()` makes both, with each half in its own section:
+
+<!-- example: packages/world/src/actors.test.ts#actor -->
+```ts
+export const mira = actor("mira", {
+  body: { name: "Mira", location: hall, strength: 2 },
+  mind: { courage: 3 },
+});
+```
+
+- The actor is its body: `move(mira, attic)` moves her, and `location: mira` puts something in her hands. Her body's ID is `mira`, and her mind's is `mira:mind`.
+- The actor reads its mind's properties through, so `mira.courage` is her mind's. `mira.mind` and `mira.body` are the halves. A key in both halves is an error.
+
+### The player
+
+Name the mind the player starts as in `story.ts`. Pass an actor, and the player is its mind:
+
+<!-- example: packages/world/src/actors.test.ts#player -->
+```ts
+export const you = actor("you", { body: { name: "you", location: hall } });
+startAs(you);
+```
+
+`playAs(mind)` switches who the player is during play. `playerMind()` and `playerBody()` answer for whoever it is now, and everything else, such as scope, takes a body, so nothing treats the player specially:
+
+<!-- example: packages/world/src/actors.test.ts#play-as -->
+```ts
+playAs(mira);
+expect(playerMind().id).toBe("mira:mind");
+expect(ids(inScope(playerAt(), "see"))).toContain("statue");
+```
+
+### Possession and swaps
+
+A mind inhabits one body, in control or as a passenger. `mind()` and `body()` make the halves on their own, for a ghost without a body or a statue without a mind:
+
+<!-- example: packages/world/src/actors.test.ts#minds -->
+```ts
+export const ghost = mind("ghost", { name: "the ghost", malice: 2 });
+export const statue = body("statue", { name: "marble statue", location: hall });
+```
+
+`possess(mind, body)` puts a mind in control of a body. The mind that was in control stays as a passenger, watching:
+
+<!-- example: packages/world/src/actors.test.ts#possess -->
+```ts
+possess(ghost, mira);
+expect(mindOf(mira)?.id).toBe("ghost");
+expect(ids(passengersOf(mira))).toEqual(["mira:mind"]);
+expect(mira.courage).toBe(3); // still Mira's own
+```
+
+- `possess(ghost, mira, { displaced: "out" })` casts Mira's mind out of any body instead.
+- `possess(ghost, mira, { as: "passenger" })` has the ghost ride along, with Mira still in control.
+
+When the possessor leaves, with `leaveBody(mind)` or by possessing another body, the mind it displaced takes control again:
+
+<!-- example: packages/world/src/actors.test.ts#leave -->
+```ts
+leaveBody(ghost);
+expect(mindOf(mira)?.id).toBe("mira:mind");
+```
+
+To leave the body empty instead, such as in a trance, say so. The displaced mind stays inside as a passenger, without control, until something gives it back with `possess(mira.mind, mira)`:
+
+<!-- example: packages/world/src/actors.test.ts#trance -->
+```ts
+leaveBody(ghost, { restore: false });
+expect(mindOf(mira)).toBeUndefined();
+expect(ids(passengersOf(mira))).toEqual(["mira:mind"]);
+```
+
+Only a mind that was displaced takes control back. One that rode along as a passenger never does, and possessors stacked on one body unwind in order.
+
+`swapBodies(a, b)` exchanges two minds' bodies:
+
+<!-- example: packages/world/src/actors.test.ts#swap -->
+```ts
+swapBodies(you, tom);
+expect(mindOf(tom)?.id).toBe("you:mind");
+expect(mindOf(you)?.id).toBe("tom:mind");
+expect(tom.mood).toBe("sleepy"); // the actor's own mind, wherever it is
+```
+
+`bodyOf(mind)`, `mindOf(body)`, and `passengersOf(body)` say who's where. Every change is state, so undo, saves, and the inspector see it.

@@ -10,6 +10,39 @@ import { ObjectRef } from '@loominate-if/core';
 import { StateId } from '@loominate-if/core';
 
 // @public
+export type Actor<B, M, Id extends StateId = StateId> = Handle<ThingOf<B> & MindOf<M> & ActorHalves<M>, Id>;
+
+// @public
+export function actor<Id extends StateId, B extends ObjectDefinition<B> & {
+    name: string;
+}, M extends ObjectDefinition<M> = Record<never, never>>(id: Id, definition: {
+    body: B & {
+        location?: ObjectRef | null;
+    } & ThisType<Actor<B, M, Id>>;
+    mind?: M & {
+        [K in keyof M & keyof B]: {
+            error: `"${K & string}" is in both the body and the mind; give one of them another name.`;
+        };
+    } & ThisType<Actor<B, M, Id>>;
+}): Actor<B, M, Id>;
+
+// @public
+export type ActorHalves<M> = {
+    readonly mind: Handle<MindOf<M>>;
+    readonly body: Thing;
+};
+
+// @public
+export function body<Id extends StateId, D extends ObjectDefinition<D> & {
+    name: string;
+}>(id: Id, definition: D & {
+    location?: ObjectRef | null;
+} & ThisType<Handle<ThingOf<D>, Id>>): Handle<ThingOf<D>, Id>;
+
+// @public
+export function bodyOf(m: ObjectRef): Thing | undefined;
+
+// @public
 export function canHear(observer: ObjectRef, target: ObjectRef): boolean;
 
 // @public
@@ -36,13 +69,27 @@ export function holding(t: ObjectRef): Holding | undefined;
 export function inScope(observer: ObjectRef, sense: Sense): Thing[];
 
 // @public
+export function isBody(ref: ObjectRef): boolean;
+
+// @public
 export function isInLight(observer: ObjectRef): boolean;
+
+// @public
+export function isMind(ref: ObjectRef): boolean;
 
 // @public
 export function isPlace(t: ObjectRef): boolean;
 
 // @public
 export function isWithin(t: ObjectRef, ancestor: ObjectRef): boolean;
+
+// @public
+export function leaveBody(m: ObjectRef, options?: LeaveOptions): void;
+
+// @public
+export type LeaveOptions = {
+    readonly restore?: boolean;
+};
 
 // @public
 export const lightSource: {
@@ -59,6 +106,25 @@ export const lockable: {
 };
 
 // @public
+export type Mind = Handle<MindFields>;
+
+// @public
+export function mind<Id extends StateId, D extends ObjectDefinition<D>>(id: Id, definition: D & Partial<MindFields> & ThisType<Handle<MindOf<D>, Id>>): Handle<MindOf<D>, Id>;
+
+// @public
+export type MindFields = {
+    inhabits: ObjectRef | null;
+    isPassenger: boolean;
+    displaced: ObjectRef | null;
+};
+
+// @public
+export type MindOf<D> = Omit<D, keyof MindFields> & MindFields;
+
+// @public
+export function mindOf(b: ObjectRef): Mind | undefined;
+
+// @public
 export function move(t: ObjectRef, to: ObjectRef | null): void;
 
 // @public
@@ -70,6 +136,9 @@ export const openable: {
 
 // @public
 export function parentOf(t: ObjectRef): Thing | undefined;
+
+// @public
+export function passengersOf(b: ObjectRef): Mind[];
 
 // @public
 export type Place = Handle<PlaceFields>;
@@ -91,12 +160,36 @@ export type PlaceFields = ThingFields & {
 export function placeOf(t: ObjectRef): Place | undefined;
 
 // @public
+export function playAs(m: ObjectRef): void;
+
+// @public
+export function playerBody(): Thing | undefined;
+
+// @public
+export function playerMind(): Mind;
+
+// @public
+export function possess(m: ObjectRef, b: ObjectRef, options?: PossessOptions): void;
+
+// @public
+export type PossessOptions = {
+    readonly as?: "controller" | "passenger";
+    readonly displaced?: "passenger" | "out";
+};
+
+// @public
 export type Sense = "see" | "reach" | "hear";
+
+// @public
+export function startAs(m: ObjectRef): void;
 
 // @public
 export const surface: {
     holds: Holding;
 };
+
+// @public
+export function swapBodies(a: ObjectRef, b: ObjectRef): void;
 
 // @public
 export type Thing = Handle<ThingFields>;
