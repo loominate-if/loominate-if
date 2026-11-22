@@ -44,6 +44,27 @@ export function enterRoom(room: Place, context?: EffectContext): void {
   visits.counts[room.id] = visitsTo(room) + 1;
 }
 
+/** The passages that describe each room, by the room's ID, in the order the game loaded them. */
+const roomPassages = new Map<string, { readonly id: string; readonly arrive: boolean }[]>();
+
+/**
+ * What a passage tagged `[room: cellar]` calls when the game loads, so the
+ * world model knows which passages describe each room before the player gets
+ * there. A room with several passages names the one exits lead to with the
+ * `arrive` tag.
+ */
+export function registerRoom(room: Place, passage: { id: string; tags: readonly string[] }): void {
+  const list = roomPassages.get(room.id) ?? [];
+  list.push({ id: passage.id, arrive: passage.tags.includes("arrive") });
+  roomPassages.set(room.id, list);
+}
+
+/** The passage exits to `room` lead to, or `undefined` if no passage describes it. @internal */
+export function arrivalPassage(room: ObjectRef): string | undefined {
+  const list = roomPassages.get(room.id) ?? [];
+  return (list.length === 1 ? list[0] : list.find((p) => p.arrive))?.id;
+}
+
 /** How many times the player has arrived at `room`'s passages, counting this arrival. */
 export function visitsTo(room: ObjectRef): number {
   return visits.counts[room.id] ?? 0;

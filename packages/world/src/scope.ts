@@ -9,6 +9,7 @@
  * sight of it. In the dark, nothing can be seen.
  */
 import { StateError, type ObjectRef, type StateId } from "@loominate-if/core";
+import { waysOut } from "./exits.js";
 import { byId, contents, features, isPlace, parentOf, thingFor, type Thing } from "./things.js";
 
 /** A way of sensing things: by sight, by touch, or by sound. */
@@ -60,10 +61,17 @@ function known(ref: ObjectRef, where: string): Thing {
   return t;
 }
 
-/** Everything `observer` could sense with `sense`, light aside: its root and all within. */
+/**
+ * Everything `observer` could sense with `sense`, light aside: its root and
+ * all within, and, in a room, the doors and obstacles on its exits, which
+ * belong to both rooms they join.
+ */
 function field(observer: Thing, sense: Sense): Thing[] {
   const root = rootOf(observer, sense);
-  return [root, ...within(root, sense)];
+  const inside = within(root, sense);
+  if (!isPlace(root)) return [root, ...inside];
+  const doors = waysOut(root).filter((d) => !inside.some((t) => t.id === d.id));
+  return [root, ...inside, ...doors];
 }
 
 /**

@@ -162,14 +162,16 @@ export function resolveExtensions(extensions: readonly CompilerExtension[]): Res
       const other = tagRoles.get(r.name);
       if (other)
         fail(`The tag role \`${r.name}:\` is registered by both ${other.from} and ${from}.`);
-      const arrival = r.arrival as Partial<RuntimeExport> | undefined;
-      if (
-        arrival !== undefined &&
-        (typeof arrival.module !== "string" || typeof arrival.export !== "string")
-      ) {
-        fail(
-          `${from}: tag role "${r.name}" has an \`arrival\` that isn't a runtime export; give it a \`module\` and an \`export\`.`,
-        );
+      for (const key of ["arrival", "register"] as const) {
+        const runtime = r[key] as Partial<RuntimeExport> | undefined;
+        if (
+          runtime !== undefined &&
+          (typeof runtime.module !== "string" || typeof runtime.export !== "string")
+        ) {
+          fail(
+            `${from}: tag role "${r.name}" has an \`${key}\` that isn't a runtime export; give it a \`module\` and an \`export\`.`,
+          );
+        }
       }
       tagRoles.set(r.name, { definition: r, from });
     }

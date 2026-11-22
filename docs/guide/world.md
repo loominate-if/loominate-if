@@ -2,9 +2,9 @@
 
 The world model is an optional package for games with places and things in them: rooms to move between, boxes to open, and lamps to light. A plain branching story doesn't need it, and pays nothing for it.
 
-It's `@loominate-if/world`. It isn't published to npm yet, while the rest of the world model is built ([Phase 2](https://github.com/loominate-if/loominate-if/issues/58)); this guide grows with it. ADRs [0031](../decisions/0031-containment-and-scope.md), [0032](../decisions/0032-minds-and-bodies.md), and [0033](../decisions/0033-rooms-and-regions.md) record the decisions behind it.
+It's `@loominate-if/world`. It isn't published to npm yet, while the rest of the world model is built ([Phase 2](https://github.com/loominate-if/loominate-if/issues/58)); this guide grows with it. ADRs [0031](../decisions/0031-containment-and-scope.md), [0032](../decisions/0032-minds-and-bodies.md), [0033](../decisions/0033-rooms-and-regions.md), and [0034](../decisions/0034-exits-and-directions.md) record the decisions behind it.
 
-So far, the world model keeps track of where things are, what can be sensed, which mind is in which body, and which room the player is in. It doesn't show anything or add links by itself: a thing in a room doesn't appear in the passage, and there's no "open the box" until you write one. Your passages decide what to show, with checks such as `{if canSee(player, coin)}`, and links call methods such as `box.open()` in an `on enter` effect. Export from `story.ts` every thing a passage mentions. Exits, listing what's in a room, and actions come in later tasks ([#64](https://github.com/loominate-if/loominate-if/issues/64), [#69](https://github.com/loominate-if/loominate-if/issues/69), [#76](https://github.com/loominate-if/loominate-if/issues/76)).
+So far, the world model keeps track of where things are, what can be sensed, which mind is in which body, which room the player is in, and the ways between rooms. It doesn't show anything or add links by itself: a thing in a room doesn't appear in the passage, and there's no "open the box" until you write one. Your passages decide what to show, with checks such as `{if canSee(player, coin)}`, and links call methods such as `box.open()` in an `on enter` effect. Export from `story.ts` every thing a passage mentions. Listing what's in a room, the compass, and actions come in later tasks ([#69](https://github.com/loominate-if/loominate-if/issues/69), [#81](https://github.com/loominate-if/loominate-if/issues/81), [#76](https://github.com/loominate-if/loominate-if/issues/76)).
 
 ## Places and things
 
@@ -202,19 +202,28 @@ A **room** is a place a passage describes. Tag the passage with `room:` and the 
 <!-- example: packages/cli/src/fixtures/rooms.weft -->
 ```weft
 :: Hall [room: hall]
-{if visitsTo(hall) === 1}A draughty hall.{else}The hall again.{/if} Hall visits: {visitsTo(hall)}. You're in {you.location?.id}.
-[[Down -> Cellar]]
+{if visitsTo(hall) === 1}A draughty hall.{else}The hall again.{/if} You're in {you.location?.id ?? "nowhere"}.
+{exits}
+[[Unlock the cellar door -> Unlock]]{when cellarDoor.isLocked, hidden}
+
+:: Unlock
+{on enter: cellarDoor.unlock(); cellarDoor.open()}
+The key turns, and the door swings open.
+{continue -> Hall}
 
 :: Cellar [room: cellar]
-Cellar visits: {visitsTo(cellar)}. You're in {you.location?.id}.
-[[Up -> Hall]]
+Cellar visits: {visitsTo(cellar)}. You're in {you.location?.id ?? "nowhere"}.
+{exits}
 ```
 
 - The `room:` tag comes from the world model's compiler extension, so list the package in `loominate.config.ts`: `extensions: ["@loominate-if/world"]`.
 - The value is an export of `story.ts`, checked like any other code: a typo, or something that isn't a place, is an error on the tag.
 - The move happens before the passage's own `{on enter: …}` code, so that code sees the player in the room. A player already there, even sitting in a chair there, stays put.
 - The player needs a body: call `startAs()` in `story.ts` ([Minds and bodies](#minds-and-bodies)).
-- Room passages are never reported as unreachable, since exits will lead to them as well as links.
+- Room passages are never reported as unreachable, since [exits](#exits) lead to them.
+- A room can have more than one passage, such as by day and by night. Tag the one exits lead to with `arrive`, as in `[room: hall, arrive]`, or the compiler reports it.
+
+`{exits}` shows the room's exits as links, and `cellarDoor` is a door; [Exits](#exits) explains both.
 
 `visitsTo(room)` counts the player's arrivals at a room's passages, including this one, so `visitsTo(hall) === 1` is the first visit. It's state, so undo and saves keep it:
 
@@ -262,3 +271,70 @@ roomDefaults: {
 
 - `onEnter(room)` and `onLeave(room)` run when the player moves into or out of the region: from the hall into the gallery runs only the east wing's `onEnter`, since the player was already in the manor. Regions around others are entered first and left last. They run for the player's moves, including being carried in something, but not for where the player starts, or for a change of bodies.
 - `regionsOf(t)` lists the regions a place, thing, or region is in, and `isInRegion(t, region)` asks about one.
+
+## Exits
+
+A room's exits are declared with `connect()` in `story.ts`, after the rooms, since rooms refer to each other. An exit leads to a room, and can go `via` a door, and say how long it takes in minutes, for the game clock to come. Exits are one-way, so connect both rooms for a way there and back:
+
+<!-- example: packages/world/src/exits.test.ts#connect -->
+```ts
+export const hall = place("hall", { name: "the hall" });
+export const library = place("library", { name: "the library" });
+export const cellar = place("cellar", { name: "the cellar" });
+export const cellarDoor = thing("cellarDoor", { ...door, ...lockable, name: "the cellar door" });
+
+connect(hall, {
+  north: library,
+  down: { to: cellar, via: cellarDoor },
+});
+connect(library, { south: { to: hall, minutes: 1 } });
+connect(cellar, { up: { to: hall, via: cellarDoor } });
+```
+
+`{exits}` in a room passage shows the player's room's exits as links, in direction order, each leading to the passage that describes where it goes. A blocked exit is disabled with its reason, which the inspector's Choices panel explains like any other link. An exit to a room the player has visited names it, as in "North, to the library":
+
+<!-- example: packages/world/src/exits.test.ts#links -->
+```ts
+expect(summary()).toEqual(["North -> Library", "Down -> Cellar [The cellar door is locked.]"]);
+cellarDoor.unlock();
+expect(summary()).toEqual(["North -> Library", "Down -> Cellar [The cellar door is closed.]"]);
+cellarDoor.open();
+expect(summary()).toEqual(["North -> Library", "Down -> Cellar"]);
+```
+
+- `exitsOf(room)` lists a room's exits, and `blockedReason(exit, traveler)` says why one is blocked.
+- `setExit(room, direction, exit)` changes an exit during play, and `setExit(room, direction, null)` removes one, such as when a tunnel collapses. Exits are state, so undo and saves keep the change. A room changed this way must be connected in `story.ts`, even with no exits: `connect(cave, {})`.
+
+### Doors and obstacles
+
+A **door** is one thing that both rooms' exits name with `via`. It's in scope from both rooms, and opening it from one side opens it for both. Spread in `door`, and `lockable` for one that locks. A closed door blocks the way until something opens it: until actions arrive, write a link that does, such as `{on enter: cellarDoor.open()}`.
+
+Anything else can stand in the way with `obstacle` and a `blocks()` method of its own, which says why the way is blocked, or returns `undefined` when it isn't:
+
+<!-- example: packages/world/src/exits.test.ts#obstacle -->
+```ts
+export const rubble = thing("rubble", {
+  ...obstacle,
+  name: "a heap of rubble",
+  isCleared: false,
+  blocks() {
+    return this.isCleared ? undefined : "Rubble blocks the way.";
+  },
+});
+```
+
+### Directions
+
+The eight compass points, `up`, `down`, `in`, and `out` are built in, each with its opposite. A game adds its own, such as a ship's, by extending the `Directions` interface and registering each, so an exit in a direction nobody registered is a type error. They're listed after the built-in ones, in the order they're registered:
+
+<!-- example: packages/world/src/exits.test.ts#directions -->
+```ts
+declare module "@loominate-if/world" {
+  interface Directions {
+    fore: true;
+    aft: true;
+  }
+}
+direction("fore", { opposite: "aft", label: "Fore" });
+direction("aft", { opposite: "fore", label: "Aft" });
+```

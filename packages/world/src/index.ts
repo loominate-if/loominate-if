@@ -61,4 +61,25 @@ export {
   type RegionOf,
   type RegionOptions,
 } from "./regions.js";
-export { enterRoom, isInRegion, regionsOf, visitsTo } from "./rooms.js";
+export { enterRoom, isInRegion, registerRoom, regionsOf, visitsTo } from "./rooms.js";
+export {
+  direction,
+  directionNamed,
+  directions,
+  type Direction,
+  type DirectionName,
+  type DirectionOptions,
+  type Directions,
+} from "./directions.js";
+export {
+  blockedReason,
+  connect,
+  door,
+  exitLinks,
+  exitsOf,
+  obstacle,
+  setExit,
+  type Exit,
+  type ExitsDefinition,
+  type ExitSpec,
+} from "./exits.js";

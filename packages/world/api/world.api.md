@@ -6,6 +6,7 @@
 
 import { EffectContext } from '@loominate-if/core';
 import { Handle } from '@loominate-if/core';
+import { LinkNode } from '@loominate-if/core';
 import { ObjectDefinition } from '@loominate-if/core';
 import { ObjectRef } from '@loominate-if/core';
 import { StateId } from '@loominate-if/core';
@@ -34,6 +35,9 @@ export type ActorHalves<M> = {
 };
 
 // @public
+export function blockedReason(exit: Exit, traveler: ObjectRef): string | undefined;
+
+// @public
 export function body<Id extends StateId, D extends ObjectDefinition<D> & {
     name: string;
 }>(id: Id, definition: D & {
@@ -53,6 +57,9 @@ export function canReach(observer: ObjectRef, target: ObjectRef): boolean;
 export function canSee(observer: ObjectRef, target: ObjectRef): boolean;
 
 // @public
+export function connect(from: ObjectRef, exits: ExitsDefinition): void;
+
+// @public
 export const container: {
     holds: Holding;
 };
@@ -61,7 +68,82 @@ export const container: {
 export function contents(parent: ObjectRef): Thing[];
 
 // @public
+export type Direction = {
+    readonly name: DirectionName;
+    readonly label: string;
+    readonly opposite?: DirectionName;
+};
+
+// @public
+export function direction(name: DirectionName, options?: DirectionOptions): Direction;
+
+// @public
+export type DirectionName = keyof Directions & string;
+
+// @public
+export function directionNamed(name: string): Direction | undefined;
+
+// @public
+export type DirectionOptions = {
+    readonly label?: string;
+    readonly opposite?: DirectionName;
+};
+
+// @public
+export interface Directions {
+    down: true;
+    east: true;
+    in: true;
+    north: true;
+    northeast: true;
+    northwest: true;
+    out: true;
+    south: true;
+    southeast: true;
+    southwest: true;
+    up: true;
+    west: true;
+}
+
+// @public
+export function directions(): Direction[];
+
+// @public
+export const door: {
+    blocks(traveler: ObjectRef): string | undefined;
+    isOpen: boolean;
+    open(): boolean;
+    close(): void;
+};
+
+// @public
 export function enterRoom(room: Place, context?: EffectContext): void;
+
+// @public
+export type Exit = {
+    readonly direction: Direction;
+    readonly to: Place;
+    readonly via?: Thing;
+    readonly minutes?: number;
+};
+
+// @public
+export function exitLinks(args?: Readonly<Record<string, never>>): LinkNode[];
+
+// @public
+export type ExitsDefinition = {
+    readonly [K in DirectionName]?: ObjectRef | ExitSpec;
+};
+
+// @public
+export function exitsOf(room: ObjectRef): Exit[];
+
+// @public
+export type ExitSpec = {
+    readonly to: ObjectRef;
+    readonly via?: ObjectRef;
+    readonly minutes?: number;
+};
 
 // @public
 export type Holding = "in" | "on";
@@ -136,6 +218,11 @@ export function mindOf(b: ObjectRef): Mind | undefined;
 
 // @public
 export function move(t: ObjectRef, to: ObjectRef | null): void;
+
+// @public
+export const obstacle: {
+    blocks(traveler: ObjectRef): string | undefined;
+};
 
 // @public
 export const openable: {
@@ -222,7 +309,16 @@ export type RegionOptions = {
 export function regionsOf(t: ObjectRef): Region[];
 
 // @public
+export function registerRoom(room: Place, passage: {
+    id: string;
+    tags: readonly string[];
+}): void;
+
+// @public
 export type Sense = "see" | "reach" | "hear";
+
+// @public
+export function setExit(from: ObjectRef, name: DirectionName, exit: ObjectRef | ExitSpec | null): void;
 
 // @public
 export function startAs(m: ObjectRef): void;
