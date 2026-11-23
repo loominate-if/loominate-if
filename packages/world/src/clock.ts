@@ -10,6 +10,7 @@
  */
 import { hook, message, messages, object, StateError } from "@loominate-if/core";
 import { textWidget, widgets } from "@loominate-if/presentation";
+import type { DateSpec } from "./calendar.js";
 import { exitsOf } from "./exits.js";
 import { fireMoves, firingNow, holdNotices, nextInMinutes, tellHeld } from "./schedule.js";
 import type { Place } from "./things.js";
@@ -46,6 +47,13 @@ export type ClockStart = {
   /** The day the game begins on. Defaults to 1. */
   readonly day?: number;
   /**
+   * The date the game begins on, for a calendar with months: `"1923-10-31"`,
+   * or `{ year, month, date }` with the month by name. Defaults to 1 January
+   * 2000 on the real calendar, or the first day of year 1 on one of the
+   * game's own. See `useCalendar`.
+   */
+  readonly date?: string | DateSpec;
+  /**
    * How many minutes going through an exit takes when the exit doesn't say.
    * Defaults to 0, so time passes only where an exit gives `minutes`.
    */
@@ -69,7 +77,12 @@ export function parseTime(
 }
 
 /** When the game begins: authored, so not state. */
-let start = { minuteOfDay: 0, day: 1, travelMinutes: 0 };
+let start: {
+  minuteOfDay: number;
+  day: number;
+  travelMinutes: number;
+  date?: string | DateSpec;
+} = { minuteOfDay: 0, day: 1, travelMinutes: 0 };
 let started = false;
 
 const state = object("world:clock", {
@@ -111,7 +124,12 @@ export function startClock(options: ClockStart): void {
   }
   const travel = options.travelMinutes ?? 0;
   if (!isMinutes(travel)) throw minutesError("startClock travelMinutes", travel);
-  start = { minuteOfDay: hour * 60 + minute, day, travelMinutes: travel };
+  start = {
+    minuteOfDay: hour * 60 + minute,
+    day,
+    travelMinutes: travel,
+    ...(options.date !== undefined && { date: options.date }),
+  };
   started = true;
 }
 
@@ -147,6 +165,26 @@ export type Clock = {
    */
   interrupt(): void;
 };
+
+/** How many days after the game's first the day `minutes` into it is. @internal */
+export function dayOffset(minutes: number): number {
+  return Math.floor((start.minuteOfDay + minutes) / DAY);
+}
+
+/** The day number, as `clock.day` counts, of the day `minutes` into the game. @internal */
+export function dayAt(minutes: number): number {
+  return start.day + dayOffset(minutes);
+}
+
+/** The minute of the day, 0 to 1439, `minutes` into the game. @internal */
+export function minuteOfDayAt(minutes: number): number {
+  return (start.minuteOfDay + minutes) % DAY;
+}
+
+/** The date `startClock` was given, if any. @internal */
+export function startDate(): string | DateSpec | undefined {
+  return start.date;
+}
 
 /** How {@link Clock.advance} moves the clock on. */
 export type AdvanceOptions = {

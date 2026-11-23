@@ -944,6 +944,114 @@ waitMenu([
 ]);
 ```
 
+### The calendar
+
+The clock keeps a calendar too. It's the real one by default, started from a date:
+
+<!-- example: packages/world/src/calendar.test.ts#start -->
+```ts
+startClock({ at: "23:30", date: "1923-10-31" });
+holiday("thanksgiving", { month: "november", weekday: "thursday", nth: -1 });
+holiday("christmas", { month: "december", date: 25 });
+```
+
+<!-- example: packages/world/src/calendar.test.ts#dates -->
+```ts
+expect(dateText()).toBe("Wednesday, 31 October 1923");
+expect([calendar.weekday, calendar.month, calendar.date, calendar.year]).toEqual([
+  "wednesday",
+  "october",
+  31,
+  1923,
+]);
+expect(calendar.season).toBe("autumn");
+clock.advance(60);
+expect(dateText()).toBe("Thursday, 1 November 1923");
+```
+
+`calendar` says the `weekday`, `month`, `date`, `year`, and `season`, with weekdays and months in lowercase, and the `holidays` today is. `dateText()` words the date through the `calendar.date` message. The seasons are the northern meteorological ones, spring from March to May; `useCalendar(gregorian({ seasons: "southern" }))`, or months of your own for each, change them.
+
+A game can choose another calendar with `useCalendar`:
+
+- `countedDays(…)`: "Day 1", "Day 2", with a week and seasons if you give them. Seasons follow each other, so many days each, round and round. There are no months or years, so those are `undefined`.
+- `defineCalendar(…)`: one of your own, with its own months and their lengths, its own week, a leap day, and seasons by month. Years count from 1, and `startClock({ date: { year, month, date } })` starts it.
+
+<!-- example: packages/world/src/calendar-own.test.ts#own -->
+```ts
+export const reckoning = defineCalendar({
+  months: [
+    { name: "Frostmoot", days: 30 },
+    { name: "Thaw", days: 28 },
+    { name: "Greening", days: 31 },
+    { name: "Highsun", days: 30 },
+    { name: "Harvest", days: 29 },
+  ],
+  week: [
+    "Firstday",
+    "Seconday",
+    "Thirdday",
+    "Fourthday",
+    "Fifthday",
+    "Sixthday",
+    "Seventhday",
+    "Eighthday",
+  ],
+  leap: { month: "Thaw", days: 1, when: (year) => year % 4 === 0 },
+  seasons: { winter: ["Frostmoot", "Thaw"], summer: ["Greening", "Highsun"], autumn: ["Harvest"] },
+});
+```
+
+<!-- example: packages/world/src/calendar-own.test.ts#counted -->
+```ts
+export const survival = countedDays({
+  week: ["Moonday", "Sunday", "Starday"],
+  seasons: [
+    { name: "dry", days: 5 },
+    { name: "wet", days: 3 },
+  ],
+});
+```
+
+<!-- example: packages/world/src/calendar-own.test.ts#days -->
+```ts
+expect([dateText(), calendar.month, calendar.year]).toEqual([
+  "Moonday, day 1",
+  undefined,
+  undefined,
+]);
+clock.advance(3 * DAY);
+expect([dateText(), calendar.season, calendar.holidays]).toEqual([
+  "Moonday, day 4",
+  "dry",
+  ["landfall"],
+]);
+```
+
+`calendar.is({ weekday, month, season, holiday })` checks today, for conditions, guards, and text: each part given must match, and a list matches any of its names. Names are checked against the calendar, so a typo is an error, not a silent `false`.
+
+**Holidays** are plain data, named with `holiday(name, rule)`: a date each year, `{ month: "december", date: 25 }`; the nth weekday of a month, `{ month: "november", weekday: "thursday", nth: -1 }` (-1 is the last); or a day of the game, `{ day: 4 }`.
+
+**Daemons at a time of day** fire on the days `on` says, as weekdays or any calendar check, such as `{ holiday: "thanksgiving" }` or `{ season: "summer" }`. They're stepped to like any other, so sleeping through Tuesday still opens the market:
+
+<!-- example: packages/world/src/calendar.test.ts#market -->
+```ts
+export const market = daemon(
+  "market",
+  { at: "08:00", on: ["tuesday", "thursday"], running: true },
+  () => `The market opens, ${dateText()}.`,
+);
+```
+
+<!-- example: packages/world/src/calendar.test.ts#week -->
+```ts
+expect(market.firesAt).toBe(8 * 60 + 30); // Thursday 08:00
+clock.advance(7 * DAY);
+expect(said()).toEqual([
+  "The market opens, Thursday, 1 November 1923.",
+  "The market opens, Tuesday, 6 November 1923.",
+]);
+```
+
 ### Showing the time
 
 The world model registers a `clock` widget showing `timeOfDay()`, labelled "Time" for screen readers. It isn't shown unless the game adds it, in `story.ts`:

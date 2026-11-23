@@ -160,3 +160,21 @@ export {
   type Summary,
 } from "./schedule.js";
 export { wait, waitCondition, waitMenu, waitUntil, type WaitUntil } from "./waiting.js";
+export {
+  calendar,
+  countedDays,
+  dateText,
+  defineCalendar,
+  gregorian,
+  holiday,
+  useCalendar,
+  type Calendar,
+  type CalendarDefinition,
+  type CalendarQuery,
+  type CalendarView,
+  type CountedDaysOptions,
+  type DateSpec,
+  type GregorianOptions,
+  type HolidayRule,
+  type SeasonsByMonth,
+} from "./calendar.js";
