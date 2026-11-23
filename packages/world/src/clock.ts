@@ -125,7 +125,7 @@ export type Clock = {
   readonly hour: number;
   /** The minute of the hour, 0 to 59. */
   readonly minute: number;
-  /** How many moves the player has made: links followed, actions taken, and travel. Not undone moves. */
+  /** How many moves the player has made: links followed, actions taken, and travel, but not continues. Not undone moves. */
   readonly moves: number;
   /** How many minutes going through an exit that doesn't say takes. Set it to change it during play. */
   travelMinutes: number;
@@ -308,7 +308,9 @@ hook("actionTime").rule(
 // Every move counts, after it's made.
 hook("turnEnd").rule(
   "move counter",
-  () => {
+  ({ move }) => {
+    // A continue only acknowledges what was read, so it isn't a move (#311).
+    if (move === "continue") return;
     state.moves += 1;
     fireMoves();
   },

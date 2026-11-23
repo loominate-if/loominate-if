@@ -130,7 +130,7 @@ export type StatusLineData = {
 export type StatusLineOptions = {
   /** The left text. Defaults to the current passage's name. */
   readonly left?: (game: PageGame) => string;
-  /** The right text. Defaults to the number of moves made, as `Moves: 3`. */
+  /** The right text. Defaults to the number of moves made, not counting continues, as `Moves: 3`. */
   readonly right?: (game: PageGame) => string;
 };
 
@@ -173,7 +173,7 @@ export function statusLine(options: StatusLineOptions = {}): WidgetDefinition<St
   return {
     data: (game) => ({
       left: options.left?.(game) ?? game.story.current ?? "",
-      right: options.right?.(game) ?? message("status.moves", { count: game.story.actions.length }),
+      right: options.right?.(game) ?? message("status.moves", { count: game.story.moves }),
     }),
     view: statusLineView,
   };

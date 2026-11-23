@@ -426,6 +426,12 @@ export interface Story {
    */
   readonly actions: readonly StoryAction[];
   /**
+   * How many moves the player has made: links followed, actions taken, and
+   * `goTo`s, but not continues or moving past a beat, which only acknowledge
+   * what was read (#311).
+   */
+  readonly moves: number;
+  /**
    * Takes one action, as {@link Story.follow} or {@link Story.goTo} would.
    * @throws {@link StateError} as those do.
    */
@@ -467,6 +473,20 @@ const AT_BEGIN_FIELD = "atBegin";
 /** The state entity holding the action log: `length`, then one field per action by index. */
 const ACTIONS_ID = "$actions";
 const LENGTH_FIELD = "length";
+
+/**
+ * What kind of move the player made, as `turnEnd` hears: following a link,
+ * a continue, taking an action, or a `goTo`. A continue only acknowledges
+ * what was read, so it isn't counted as a move (#311).
+ */
+export type MoveKind = "follow" | "continue" | "act" | "goTo";
+
+/** What kind of move a logged action is, or `undefined` for moving past a beat, which isn't one. */
+function moveKind(action: StoryAction): MoveKind | undefined {
+  if (action.type === "follow") return action.choice.type === "continue" ? "continue" : "follow";
+  if (action.type === "advance") return undefined;
+  return action.type;
+}
 
 /**
  * Creates the passage runtime.
@@ -724,7 +744,7 @@ export function createStory(
     }
   };
 
-  const enter = (to: Passage, why: "start" | "turn", move: string): void => {
+  const enter = (to: Passage, why: "start" | "turn", move: string, kind?: MoveKind): void => {
     if (navigating) {
       throw new StateError(
         `can't move to ${JSON.stringify(to.id)} while an effect phase is running; effects change state, and links and continue points move between passages.`,
@@ -751,7 +771,7 @@ export function createStory(
       hook("passageEnter").run(contextFor(to.id));
       recordProse(to.id, renderPassage(to).nodes);
       if (why === "turn") {
-        hook("turnEnd").run(contextFor(to.id));
+        hook("turnEnd").run({ ...contextFor(to.id), move: kind ?? "follow" });
       }
     });
   };
@@ -797,7 +817,7 @@ export function createStory(
     const n = logLength();
     const tried = store.get(ATTEMPTS_ID, String(n));
     const attempt = replayed ?? (typeof tried === "number" ? tried : 0);
-    enter(to, "turn", `${String(n)}.${String(attempt)}`);
+    enter(to, "turn", `${String(n)}.${String(attempt)}`, moveKind(action));
     store.set(ATTEMPTS_ID, String(n), attempt + 1);
     log({ ...action, ...(attempt > 0 && { attempt }) });
   };
@@ -822,7 +842,7 @@ export function createStory(
       store.set(RANDOM_ID, MOVE_FIELD, `${String(n)}.${String(attempt)}`);
       emitIn(id)("action", { action: logged.action, ...(label !== undefined && { label }) });
       perform(call);
-      hook("turnEnd").run(contextFor(id));
+      hook("turnEnd").run({ ...contextFor(id), move: "act" });
     });
     store.set(ATTEMPTS_ID, String(n), attempt + 1);
     log({
@@ -902,6 +922,14 @@ export function createStory(
     },
     goTo: (id) => {
       act(lookup(id, "goTo"), { type: "goTo", passage: id });
+    },
+    get moves() {
+      let n = 0;
+      for (let i = 0; i < logLength(); i++) {
+        const kind = moveKind(store.get(ACTIONS_ID, String(i)) as unknown as StoryAction);
+        if (kind !== undefined && kind !== "continue") n++;
+      }
+      return n;
     },
     get actions() {
       const out: StoryAction[] = [];

@@ -112,6 +112,7 @@ const passages: Passage[] = [
       { type: "link", label: "Cross the bridge", target: "Far side" },
       { type: "link", label: "Look around", target: "Ravine" },
       { type: "link", label: "Climb the tower", target: "Tower" },
+      { type: "link", label: "Read the sign", target: "Sign" },
       {
         type: "link",
         label: "Wait",
@@ -124,6 +125,14 @@ const passages: Passage[] = [
         target: "Ride the subway",
         guard: actLink({ call: ride({ thing: bridge }) }),
       },
+    ],
+  },
+  {
+    id: "Sign",
+    tags: [],
+    body: () => [
+      { type: "text", text: "Danger: bridge unsafe." },
+      { type: "continue", target: "Ravine" },
     ],
   },
   {
@@ -427,6 +436,18 @@ describe("atmosphere and what stands out", () => {
     expect(() => {
       sentence("outside", ({ list }) => list);
     }).toThrow("this group's sentence already has a wording");
+  });
+});
+
+describe("counting moves", () => {
+  it("doesn't count a continue, which only acknowledges what was read (#311)", () => {
+    choose("Read the sign");
+    const cont = story.render().choices.find((c) => c.type === "continue");
+    if (!cont) throw new Error("no continue");
+    story.follow(cont);
+    expect([clock.moves, said()]).toEqual([1, []]);
+    choose("Wait"); // an action: the second move, so the drip fires
+    expect([clock.moves, said()]).toEqual([2, ["drip: Water drips."]]);
   });
 });
 
