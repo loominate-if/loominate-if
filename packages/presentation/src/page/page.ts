@@ -623,6 +623,18 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     story,
     record,
     follow,
+    goTo: guarded((target: string, label: string): void => {
+      story.goTo(target);
+      options.onMove?.({ type: "link", label, target });
+      draw(true);
+      passage.focus({ preventScroll: true });
+    }),
+    act: guarded((call: ActionCall, label: string): void => {
+      story.act(call);
+      options.onMove?.({ type: "action", label });
+      draw(true);
+      passage.focus({ preventScroll: true });
+    }),
     menu: (anchor, thing) => {
       menus.trigger(anchor, thing);
     },

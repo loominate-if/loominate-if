@@ -51,6 +51,7 @@ A message's text is one of three things:
 | `number.words` | `count` | "three", up to twelve, then digits |
 | `clock.time` | `day`, `hour`, `minute` | "9:45 pm" |
 | `clock.label` | | What the clock widget is, for screen readers: "Time" |
+| `compass.short` | `direction` | A compass button's label: "N", "NE", "Up" |
 | `hours.closed` | `place`, `opens`?, `when`? | "The bakery is closed until 9:00 am on Monday." |
 | `hours.onDay` | `weekday` | "on Monday" |
 | `calendar.date` | `day`, `weekday`?, `month`?, `date`?, `year`? | "Wednesday, 31 October 1923", or "Day 3" |
@@ -73,6 +74,7 @@ An actor can still give its own `arrives` and `leaves`, which win over these.
 | `history.nextPage`, `history.afterBeat` | | "Next page", "After a beat" |
 | `history.goTo` | `passage` | "Go to Cellar" |
 | `status.moves` | `count` | "Moves: 3" |
+| `compass.label` | | What the compass is, for screen readers: "Compass" |
 | `menu.undo`, `menu.save`, `menu.load`, `menu.restart` | | "Undo", "Save", "Load", "Restart" |
 | `menu.nothing` | | A thing's menu with nothing in it: "Nothing to do with it." |
 | `things.nothing` | | An empty inventory: "nothing" |

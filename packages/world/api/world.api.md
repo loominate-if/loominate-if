@@ -5,6 +5,7 @@
 ```ts
 
 import { Action } from '@loominate-if/core';
+import { CompassData } from '@loominate-if/presentation';
 import { EffectContext } from '@loominate-if/core';
 import { Handle } from '@loominate-if/core';
 import { LinkNode } from '@loominate-if/core';
@@ -194,6 +195,15 @@ export type ClosingStep = {
 
 // @public
 export function closingTime(door: ObjectRef, steps: readonly ClosingStep[]): void;
+
+// @public
+export function compass(settings?: CompassSettings): WidgetDefinition<CompassData>;
+
+// @public
+export type CompassSettings = {
+    readonly names?: "visited" | "all" | "none";
+    readonly keys?: "numpad" | "vi" | "both" | "none";
+};
 
 // @public
 export function connect(from: ObjectRef, exits: ExitsDefinition): void;

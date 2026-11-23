@@ -49,3 +49,9 @@ export {
 } from "./page/things.js";
 export { type MenuChoice, type MenuSource } from "./page/menus.js";
 export { textWidget, type TextWidgetOptions } from "./page/text.js";
+export {
+  compassWidget,
+  type CompassData,
+  type CompassOptions,
+  type CompassWay,
+} from "./page/compass.js";

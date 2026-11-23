@@ -502,6 +502,29 @@ expect(told()).toEqual([
 
 A stopped journey carries on only by the exits you give the place it stopped, such as walking the tunnel back to the platform. A door or obstacle on a journey blocks it as it does any way.
 
+### The compass
+
+The world model registers a `compass` widget: a button for each way out of the player's room, the eight compass points in a grid and up, down, in, out, and your own directions beside it. Place it, as you would the clock:
+
+```ts
+import { addToHeader } from "@loominate-if/presentation";
+addToHeader("compass");
+```
+
+<!-- example: packages/world/src/compass.test.ts#ways -->
+```ts
+expect(ways()).toEqual(["N North", "E East", "Down Down (The cellar door is locked.)"]);
+```
+
+- **Blocked ways:** a way a locked or closed door blocks is disabled, and the door's reason is its tooltip and what a screen reader hears.
+- **Taking a way:** a button takes the way as the `{exits}` links do, journeys included, even in a passage that shows no `{exits}`.
+- **Names:** a way names where it leads once the player has been there.
+- **Keys:** the numpad works when focus isn't in a text field: 8, 2, 4, and 6 for the points, 7, 9, 1, and 3 for the diagonals, and + and - for up and down.
+
+Change the defaults by replacing the widget: `widgets.replace("compass", compass({ names: "all", keys: "vi" }))`. `names` is `"visited"` (the default), `"all"`, or `"none"`, and `keys` is `"numpad"` (the default), `"vi"` for h j k l y u b n, `"both"`, or `"none"`. The short labels are the `compass.short` message, and what the compass is called, for screen readers, is `compass.label`.
+
+The compass's data is plain, a list of ways with each one's direction, label, title, and whether it can be taken and why not, so you can replace its view to draw a brass ship's compass or a subway map, keeping the data.
+
 ### Doors and obstacles
 
 A **door** is one thing that both rooms' exits name with `via`. It's in scope from both rooms, and opening it from one side opens it for both. Spread in `door`, and `lockable` for one that locks. A closed door blocks the way until something opens it: until actions arrive, write a link that does, such as `{on enter: cellarDoor.open()}`.
