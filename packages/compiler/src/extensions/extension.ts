@@ -190,7 +190,21 @@ export type ExtensionDiagnostic = {
 export type CheckContext = {
   /** Every passage file, parsed, in path order. */
   readonly files: readonly PassageFileSyntax[];
+  /** The passage the game starts in, if the game says. */
+  readonly start?: string;
+  /** Whether a link, a directive, or a string in code names the passage `name`. */
+  isNamed(name: string): boolean;
+  /**
+   * Where `name` is used in the game's TypeScript and its passages' inline
+   * code, each with the call it's an argument of, if any: read from syntax
+   * alone, so a check can tell when it can't be sure. A name's own
+   * declaration isn't a use.
+   */
+  uses(name: string): readonly NameUse[];
 };
+
+export type { NameUse } from "../modules/uses.js";
+import type { NameUse } from "../modules/uses.js";
 
 /** A check over the whole game, run after parsing, such as "every locked node has a way out". */
 export type ExtensionCheck = {

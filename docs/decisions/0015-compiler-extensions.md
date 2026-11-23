@@ -50,7 +50,7 @@ An argument can exclude others (`{when}`'s `hidden` and `reason:`). Errors name 
 - A **tag role** may be an `entry`: passages with it are entered by its package (rooms, actors), so they're never reported as unreachable.
 - A tag role from a known package that isn't loaded is an error. One that no package uses is a warning, since a game's own code may read its own roles.
 - A **line form** is a prefix character (`@`) and a pattern whose named groups are passed, as strings, to its runtime export. It ends the paragraph. Without a registered form, the prefix is plain prose, as ADR 0004 said.
-- A **check** runs over every parsed passage file after parsing and returns positioned diagnostics, reported as `source: "extension"` with the package and check named.
+- A **check** runs over every parsed passage file after parsing and returns positioned diagnostics, reported as `source: "extension"` with the package and check named. Its context also gives the start passage, whether a passage is named by a link or by code, and where a name is used in the game's TypeScript and inline code, with the call each use is an argument of, read from syntax alone (added by [ADR 0064](0064-unreachable-rooms.md)).
 
 ### Loading
 

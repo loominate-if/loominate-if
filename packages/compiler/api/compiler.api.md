@@ -31,6 +31,9 @@ export type BreakSyntax = {
 // @public
 export type CheckContext = {
     readonly files: readonly PassageFileSyntax[];
+    readonly start?: string;
+    isNamed(name: string): boolean;
+    uses(name: string): readonly NameUse[];
 };
 
 // @public
@@ -249,6 +252,15 @@ export type NamedArgument = {
 export type NameSyntax = {
     readonly name: string;
     readonly span: Span;
+};
+
+// @public
+export type NameUse = {
+    readonly file: string;
+    readonly call?: {
+        readonly callee: string;
+        readonly argument: number;
+    };
 };
 
 // @public

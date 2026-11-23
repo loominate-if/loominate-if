@@ -369,7 +369,7 @@ The note says the butler did it.
 - The value is an export of `story.ts`, checked like any other code: a typo, or something that isn't a place, is an error on the tag.
 - The move happens before the passage's own `{on enter: …}` code, so that code sees the player in the room. A player already there, even sitting in a chair there, stays put.
 - The player needs a body: call `startAs()` in `story.ts` ([Minds and bodies](#minds-and-bodies)).
-- Room passages are never reported as unreachable, since [exits](#exits) lead to them.
+- Room passages aren't reported as unreachable for want of a link, since [exits](#exits) lead to them. But if no exit can lead to a room, the compiler warns at its room tag: `attic.weft:1:11 warning: No exit leads to the room \`attic\`, so the player can't reach "Attic"`. It reads your code without running it, so it only warns when it's sure. Any use of the room's name other than its own definition and the "from" side of `connect(…)` might be a way in (an exit's `to:`, a journey's `stopsAt:`, `move(you, attic)` in code), and keeps it quiet. So does a link to the passage, and starting the game there.
 - A room can have more than one passage, such as by day and by night. Tag the one exits lead to with `arrive`, as in `[room: hall, arrive]`, or the compiler reports it.
 
 `{exits}` shows the room's exits as links, and `cellarDoor` is a door; [Exits](#exits) explains both.

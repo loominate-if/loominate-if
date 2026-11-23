@@ -120,7 +120,7 @@ Each passage file (`.weft`) compiles to a virtual TypeScript module, the techniq
 - references to undefined objects, topics, or facts
 
 Optional packages add their syntax through compiler extensions: directives with declared arguments, limited to tag roles if they like, tag roles (which may register their passages when the game loads and run code when the player arrives, with the role's value checked as code), line forms such as `@speaker` lines, and checks over the whole game. A package's directive compiles to a call of a function the package exports, so TypeScript checks it, and core's own directives are registered the same way. Syntax from a package the game doesn't load is reported with the package to install. [ADR 0015](decisions/0015-compiler-extensions.md) defines the API.
-- passages tagged as rooms that aren't connected to one
+- passages tagged as rooms that no exit leads to, a warning at the room tag, from reading `connect(…)` in the game's code without running it, and only when that's certain ([ADR 0064](decisions/0064-unreachable-rooms.md))
 - type errors inside inline code
 
 One broken expression can make TypeScript report dozens of errors as it recovers. The compiler marks the ones that likely follow from another, every error after a file's first syntax error among them, and `loominate` shows the rest, at most five per file, saying how many it held back; `--verbose` shows them all ([ADR 0041](decisions/0041-follow-on-errors.md)).
