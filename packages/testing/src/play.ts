@@ -4,6 +4,7 @@
  * headless in Vitest by `loominate test`.
  */
 import {
+  _noticeParagraphs,
   createEventRecord,
   createHistory,
   createStore,
@@ -13,6 +14,7 @@ import {
   type History,
   type Passage,
   type PassageId,
+  type RecordedEvent,
   type RenderedPassage,
   type Replay,
   type StateSnapshot,
@@ -161,7 +163,7 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
   const page = (): RenderedPassage => story.render();
   /** The texts of the perception, action-result, and scheduled events since the move on screen began. */
   const notices = (): string[] => {
-    const out: string[] = [];
+    const out: RecordedEvent[] = [];
     for (const e of record.events({
       kinds: ["perception", "action-result", "scheduled", "navigation", "action", "beat"],
     })) {
@@ -171,9 +173,10 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
         (e.kind === "beat" && e.page === true)
       ) {
         out.length = 0;
-      } else if (e.kind !== "beat") out.push((e as { text: string }).text);
+      } else if (e.kind !== "beat") out.push(e);
     }
-    return out;
+    // One line per paragraph, as the page shows them: atmosphere runs together.
+    return _noticeParagraphs(out).map((p) => p.map((e) => (e as { text: string }).text).join(" "));
   };
   const labelOf = (c: RenderedPassage["choices"][number]): string =>
     c.type === "continue" ? (c.label ?? CONTINUE) : c.label;

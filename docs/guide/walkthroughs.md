@@ -32,7 +32,7 @@ test("lighting the lamp", () => {
 ## Making moves
 
 - `game.choose("Light the lamp")` makes the choice with that label. A continue point without a label is `"Continue"`.
-- `game.notices` is what the player noticed during the last move, such as "You hear a door slam from above.", one per line. `game.text` has them where the page shows them: where the passage's `{notices}` is, or else after its text and before its choices.
+- `game.notices` is what the player noticed during the last move, such as "You hear a door slam from above.", one paragraph per line, as the page shows them: the atmosphere from fuses and daemons is one line. `game.text` has them where the page shows them: where the passage's `{notices}` is, or else after its text and before its choices.
 - `game.advance()` moves past the next beat (`{beat}`, `{wait}`, or `{page}`), and `game.skip()` moves past all of them.
 - `game.undo()` takes back the last move.
 

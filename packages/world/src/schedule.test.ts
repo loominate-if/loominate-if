@@ -5,6 +5,7 @@ import {
   createHistory,
   createStore,
   createStory,
+  _noticeParagraphs,
   messages,
   readReplay,
   writeReplay,
@@ -14,7 +15,7 @@ import {
   type Story,
 } from "@loominate-if/core";
 import { beforeEach, describe, expect, it } from "vitest";
-import { clock, daemon, fuse, minutes, moves, thing, timeOfDay } from "./index.js";
+import { clock, daemon, fuse, minutes, moves, sentence, thing, timeOfDay } from "./index.js";
 
 // #region fuse
 export const bridge = thing("bridge", { name: "rope bridge", isStanding: true });
@@ -70,6 +71,34 @@ export const ride = action<{ thing: typeof bridge }>("ride", {
 /** Due with the footsteps, at a higher priority, so it fires first, and with a lower one after. */
 const creak = fuse("creak", { after: minutes(180), priority: 1 }, () => "The floor creaks.");
 const wind = fuse("wind", { after: minutes(180), priority: -1 }, () => "The wind rises.");
+
+// #region groups
+sentence("outside", ({ list }) => `Outside, ${list} through the night.`);
+export const chimes = daemon(
+  "chimes",
+  { every: minutes(30), joins: "outside", clause: () => "the chapel chimes rang" },
+  () => `The chapel chimes ring for ${timeOfDay()}.`,
+);
+export const rooks = daemon(
+  "rooks",
+  { every: minutes(60), joins: "outside", clause: () => "the rooks muttered" },
+  () => "Rooks mutter in the elms.",
+);
+export const pipes = daemon(
+  "pipes",
+  {
+    every: minutes(45),
+    joins: "house",
+    clause: ({ count }) => `the pipes knocked ${String(count)} times`,
+  },
+  () => "The pipes knock.",
+);
+export const mouse = daemon("mouse", { every: minutes(50) }, () => "A mouse scratches.");
+export const smoke = daemon("smoke", { every: minutes(100), standsOut: true }, () => {
+  return "You smell smoke!";
+});
+// #endregion
+const night = [chimes, rooks, pipes, mouse, smoke];
 
 const wait = action<{ thing: typeof bridge }>("wait", {
   label: "Wait",
@@ -355,6 +384,49 @@ describe("repeated notices in a jump", () => {
     story.playReplay(replay);
     expect(said()).toEqual(told);
     expect(tower.struck).toBe(2);
+  });
+});
+
+describe("atmosphere and what stands out", () => {
+  /** The scheduled notices as the page shows them: one string per paragraph. */
+  const paragraphs = () =>
+    _noticeParagraphs(record.events({ kinds: ["scheduled"] })).map((p) =>
+      p.map((e) => e.text).join(" "),
+    );
+
+  it("join groups' clauses into sentences, in one paragraph, apart from what stands out", () => {
+    for (const d of night) d.start();
+    footsteps.start();
+    clock.advance(8 * 60);
+    // #region night
+    expect(paragraphs()).toEqual([
+      "Outside, the chapel chimes rang and the rooks muttered through the night." +
+        " The pipes knocked 4 times." +
+        " A mouse scratches. A mouse scratches. A mouse scratches.",
+      "You smell smoke!",
+      "You're woken by footsteps.",
+    ]);
+    // #endregion
+  });
+
+  it("don't join a single firing, which keeps its line in the paragraph", () => {
+    chimes.start();
+    rooks.start();
+    smoke.start();
+    clock.advance(60);
+    // The chimes rang twice, so they join; the rooks once, so they keep their line.
+    expect(paragraphs()).toEqual([
+      "Outside, the chapel chimes rang through the night. Rooks mutter in the elms.",
+    ]);
+  });
+
+  it("explain a clause without a group", () => {
+    expect(() =>
+      daemon("odd", { every: minutes(5), clause: () => "it hummed" }, () => "Hum."),
+    ).toThrow("give both `joins`");
+    expect(() => {
+      sentence("outside", ({ list }) => list);
+    }).toThrow("this group's sentence already has a wording");
   });
 });
 

@@ -830,6 +830,55 @@ messages.replace("schedule.repeated", ({ lines, count }) =>
 );
 ```
 
+### Atmosphere and what stands out
+
+What fuses and daemons say is **atmosphere** by default: a move's atmosphere runs together as one paragraph, where the first of it falls, so a player who has heard the church bells before can skim it. A fuse or daemon with `standsOut: true` gets a paragraph of its own instead, as other notices do, so a detail that matters isn't lost in the noise. What interrupts a jump always stands out.
+
+Daemons can also **join** a group's sentence when they fire more than once in a jump. Each gives the group it `joins` and its `clause`, and `sentence(group, …)` says how the group's sentence reads; without it, the clauses are joined and capitalised. Groups keep different noises apart, such as outside and in the house:
+
+<!-- example: packages/world/src/schedule.test.ts#groups -->
+```ts
+sentence("outside", ({ list }) => `Outside, ${list} through the night.`);
+export const chimes = daemon(
+  "chimes",
+  { every: minutes(30), joins: "outside", clause: () => "the chapel chimes rang" },
+  () => `The chapel chimes ring for ${timeOfDay()}.`,
+);
+export const rooks = daemon(
+  "rooks",
+  { every: minutes(60), joins: "outside", clause: () => "the rooks muttered" },
+  () => "Rooks mutter in the elms.",
+);
+export const pipes = daemon(
+  "pipes",
+  {
+    every: minutes(45),
+    joins: "house",
+    clause: ({ count }) => `the pipes knocked ${String(count)} times`,
+  },
+  () => "The pipes knock.",
+);
+export const mouse = daemon("mouse", { every: minutes(50) }, () => "A mouse scratches.");
+export const smoke = daemon("smoke", { every: minutes(100), standsOut: true }, () => {
+  return "You smell smoke!";
+});
+```
+
+After a long night's sleep, the atmosphere is one paragraph, with the joined sentences where their first member first spoke, and the smoke and the footsteps each stand on their own:
+
+<!-- example: packages/world/src/schedule.test.ts#night -->
+```ts
+expect(paragraphs()).toEqual([
+  "Outside, the chapel chimes rang and the rooks muttered through the night." +
+    " The pipes knocked 4 times." +
+    " A mouse scratches. A mouse scratches. A mouse scratches.",
+  "You smell smoke!",
+  "You're woken by footsteps.",
+]);
+```
+
+A daemon that fired only once keeps its own line in the paragraph, and one with a `clause` but no repeat doesn't join. A joined sentence is always atmosphere.
+
 ### Showing the time
 
 The world model registers a `clock` widget showing `timeOfDay()`, labelled "Time" for screen readers. It isn't shown unless the game adds it, in `story.ts`:

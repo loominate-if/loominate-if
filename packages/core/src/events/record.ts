@@ -91,8 +91,14 @@ export interface EventKinds {
    * you, timber gives way." The page shows it with the move's notices.
    */
   scheduled: ProseFields & {
-    /** The fuse or daemon's ID. */
+    /** The fuse or daemon's ID; for a sentence several joined, the first's. */
     readonly source: StateId;
+    /**
+     * Whether it stands out, in a paragraph of its own. Otherwise it's
+     * atmosphere: a move's atmosphere runs together in one paragraph, so a
+     * player can skim it.
+     */
+    readonly standsOut?: boolean;
   };
   /** The player took an action, such as from an `{act …}` link: a move that stays on the passage. */
   action: {
@@ -217,4 +223,30 @@ export function createEventRecord(store: StateStore): EventRecord {
       return out;
     },
   };
+}
+
+/**
+ * Groups a move's notices into paragraphs, as the page shows them: each
+ * notice is its own, except that `scheduled` events that don't stand out
+ * are atmosphere, gathered into one paragraph where the first of them is,
+ * so a player can skim it and catch what stands out.
+ * @internal
+ */
+export function _noticeParagraphs<E extends { readonly kind: string }>(
+  notices: readonly E[],
+): E[][] {
+  const out: E[][] = [];
+  let atmosphere: E[] | undefined;
+  for (const e of notices) {
+    if (e.kind === "scheduled" && (e as { readonly standsOut?: boolean }).standsOut !== true) {
+      if (atmosphere) {
+        atmosphere.push(e);
+        continue;
+      }
+      atmosphere = [];
+      atmosphere.push(e);
+      out.push(atmosphere);
+    } else out.push([e]);
+  }
+  return out;
 }
