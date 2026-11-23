@@ -879,6 +879,71 @@ expect(paragraphs()).toEqual([
 
 A daemon that fired only once keeps its own line in the paragraph, and one with a `clause` but no repeat doesn't join. A joined sentence is always atmosphere.
 
+### Waiting
+
+The world model's standard `wait` and `waitUntil` actions let time pass. Offer them as links, `[[Wait a while]]{act wait({ minutes: 10 })}`, or in a Wait menu in the page's header:
+
+<!-- example: packages/world/src/waiting.test.ts#links -->
+```ts
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- calls of two actions
+const links: ActionCall<any>[] = [
+  wait({ minutes: 10 }),
+  waitUntil({ time: "06:00" }),
+  waitUntil({ fires: "train", atMost: 60 }),
+  waitUntil({ condition: "kiosk opens" }),
+];
+```
+
+`waitUntil` waits for one of three things:
+
+- `time: "06:00"`: the next time it's 6:00, today or tomorrow. It isn't offered at 6:00 itself.
+- `fires: "train"`: until that fuse or daemon next fires. It isn't offered while it isn't running.
+- `condition: "kiosk opens"`: until a condition named with `waitCondition(…)` holds. It isn't offered while it already does. An action's arguments go into replays, so a wait names its condition rather than holding a function.
+
+For `fires` and `condition`, `atMost` is the most minutes to wait before giving up, a day unless it says.
+
+<!-- example: packages/world/src/waiting.test.ts#waits -->
+```ts
+export const train = daemon(
+  "train",
+  { every: minutes(25), running: true },
+  () => "A train pulls in.",
+);
+export const shop = thing("shop", { name: "kiosk", isOpen: false, location: platform });
+export const shopkeeper = fuse("shopkeeper", { after: minutes(40), running: true }, () => {
+  shop.isOpen = true;
+  return "The kiosk's shutter rattles up.";
+});
+waitCondition("kiosk opens", () => shop.isOpen);
+export const alarm = fuse("alarm", { after: minutes(15), interrupts: true }, () => {
+  return "A fire alarm shrieks!";
+});
+```
+
+<!-- example: packages/world/src/waiting.test.ts#until -->
+```ts
+choose("Wait until train");
+expect([timeOfDay(), told()]).toEqual([
+  "5:55 am",
+  ["A train pulls in.", "You wait until 5:55 am."],
+]);
+choose("Wait until kiosk opens");
+expect(timeOfDay()).toBe("6:10 am");
+expect(told().slice(2)).toEqual(["The kiosk's shutter rattles up.", "You wait until 6:10 am."]);
+```
+
+A wait is passive, so anything that interrupts stops it: "A fire alarm shrieks! Your wait ends at 5:45 am." Its reports are messages you can reword: `wait.done`, `waitUntil.done`, `wait.interrupted`, and `waitUntil.gaveUp`.
+
+The Wait menu is opt-in. `waitMenu` adds a Wait button to the header, listing the waits you give it, each with its own label or yours. Like a thing's menu, it leaves out waits that aren't offered.
+
+<!-- example: packages/world/src/waiting.test.ts#menu -->
+```ts
+waitMenu([
+  { call: wait({ minutes: 10 }) },
+  { call: waitUntil({ time: "06:00" }), label: "Wait until dawn" },
+]);
+```
+
 ### Showing the time
 
 The world model registers a `clock` widget showing `timeOfDay()`, labelled "Time" for screen readers. It isn't shown unless the game adds it, in `story.ts`:

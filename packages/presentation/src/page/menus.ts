@@ -17,14 +17,28 @@ export type MenuHost = {
   readonly act: (call: ActionCall, label: string) => void;
 };
 
+/** One choice in a menu that isn't a thing's: an action, and what to call it, if not its own label. */
+export type MenuChoice = {
+  // A call of any action: an action's type is invariant in its arguments, so no narrower type takes them all.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  readonly call: ActionCall<any>;
+  readonly label?: string;
+};
+
+/**
+ * What a menu lists: the actions for the thing with this ID, or, from a
+ * function, the choices it gives when the menu opens.
+ */
+export type MenuSource = string | (() => readonly MenuChoice[]);
+
 /** Opens and closes things' menus. */
 export type Menus = {
-  /** Opens the menu for the thing with ID `thing`, under `anchor`, which it gives focus back to. */
-  open(thing: string, anchor: HTMLElement): void;
+  /** Opens the menu for `source`, under `anchor`, which it gives focus back to. */
+  open(source: MenuSource, anchor: HTMLElement): void;
   /** Closes the menu on show, if any. */
   close(): void;
-  /** Makes `anchor` a button that opens `thing`'s menu. */
-  trigger(anchor: HTMLElement, thing: string): void;
+  /** Makes `anchor` a button that opens the menu for `source`. */
+  trigger(anchor: HTMLElement, source: MenuSource): void;
 };
 
 let menus = 0;
@@ -43,7 +57,7 @@ export function createMenus(host: MenuHost): Menus {
     if (focusAnchor) anchor.focus();
   };
 
-  const open = (thing: string, anchor: HTMLElement): void => {
+  const open = (source: MenuSource, anchor: HTMLElement): void => {
     close();
     const id = `loominate-menu-${String(++menus)}`;
     if (!anchor.id) anchor.id = `${id}-button`;
@@ -53,9 +67,12 @@ export function createMenus(host: MenuHost): Menus {
     list.setAttribute("role", "menu");
     list.setAttribute("aria-labelledby", anchor.id);
     const items: HTMLElement[] = [];
-    for (const call of actionsFor({ id: thing })) {
+    const choices: readonly MenuChoice[] =
+      typeof source === "string" ? actionsFor({ id: source }).map((call) => ({ call })) : source();
+    for (const { call, label } of choices) {
       const status = statusOf(call);
       if (status.hidden !== undefined) continue;
+      const shown = label ?? status.label;
       const li = doc.createElement("li");
       li.setAttribute("role", "none");
       const item = doc.createElement("button");
@@ -63,7 +80,7 @@ export function createMenus(host: MenuHost): Menus {
       item.className = "loominate-menu-item";
       item.setAttribute("role", "menuitem");
       item.tabIndex = -1;
-      item.textContent = status.label;
+      item.textContent = shown;
       li.append(item);
       if (status.disabled !== undefined) {
         item.setAttribute("aria-disabled", "true");
@@ -76,7 +93,7 @@ export function createMenus(host: MenuHost): Menus {
       } else {
         item.addEventListener("click", () => {
           close();
-          host.act(call, status.label);
+          host.act(call, shown);
         });
       }
       items.push(item);
@@ -125,19 +142,19 @@ export function createMenus(host: MenuHost): Menus {
     close();
   });
 
-  const trigger = (anchor: HTMLElement, thing: string): void => {
+  const trigger = (anchor: HTMLElement, source: MenuSource): void => {
     anchor.classList.add("loominate-menu-link");
     anchor.setAttribute("aria-haspopup", "menu");
     anchor.setAttribute("aria-expanded", "false");
     anchor.addEventListener("click", () => {
       if (shown?.anchor === anchor) close();
-      else open(thing, anchor);
+      else open(source, anchor);
     });
     // The arrow keys open it too, as a menu button's do.
     anchor.addEventListener("keydown", (event) => {
       if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
       event.preventDefault();
-      open(thing, anchor);
+      open(source, anchor);
     });
   };
 

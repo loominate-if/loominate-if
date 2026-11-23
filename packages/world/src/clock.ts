@@ -52,6 +52,22 @@ export type ClockStart = {
   readonly travelMinutes?: number;
 };
 
+/** Reads a time of day written `"HH:MM"` on a 24-hour clock. @internal */
+export function parseTime(
+  where: string,
+  at: string,
+): { readonly hour: number; readonly minute: number } {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(at);
+  const hour = Number(match?.[1]);
+  const minute = Number(match?.[2]);
+  if (!match || hour > 23 || minute > 59) {
+    throw new StateError(
+      `${where}: ${JSON.stringify(at)} isn't a time of day. Write it as "HH:MM" on a 24-hour clock, such as "08:00" or "21:30".`,
+    );
+  }
+  return { hour, minute };
+}
+
 /** When the game begins: authored, so not state. */
 let start = { minuteOfDay: 0, day: 1, travelMinutes: 0 };
 let started = false;
@@ -88,15 +104,7 @@ export function startClock(options: ClockStart): void {
       "startClock: the clock has already been started. Call startClock() once, in story.ts; change the time during play with clock.advance().",
     );
   }
-  const at = options.at ?? "00:00";
-  const match = /^(\d{1,2}):(\d{2})$/.exec(at);
-  const hour = Number(match?.[1]);
-  const minute = Number(match?.[2]);
-  if (!match || hour > 23 || minute > 59) {
-    throw new StateError(
-      `startClock: ${JSON.stringify(at)} isn't a time of day. Write it as "HH:MM" on a 24-hour clock, such as "08:00" or "21:30".`,
-    );
-  }
+  const { hour, minute } = parseTime("startClock", options.at ?? "00:00");
   const day = options.day ?? 1;
   if (!Number.isInteger(day)) {
     throw new StateError(`startClock: day ${String(day)} isn't a whole number.`);
@@ -149,6 +157,12 @@ export type AdvanceOptions = {
    * doesn't stop for still fires, at its own time.
    */
   readonly stopsFor?: (by: string) => boolean;
+  /**
+   * What it waits for: checked each time a fuse or daemon fires, since only
+   * that changes the world while time passes. When it holds, the advance
+   * ends there, after what's due at that same minute.
+   */
+  readonly until?: () => boolean;
 };
 
 /** How far {@link Clock.advance} moved the clock, and whether something stopped it. */
@@ -159,6 +173,8 @@ export type Advanced = {
   readonly interrupted: boolean;
   /** The ID of the fuse or daemon that stopped it, if one did. */
   readonly by?: string;
+  /** Whether it ended because its `until` held. */
+  readonly reached?: boolean;
 };
 
 /** A jump of the clock in progress, and what interrupted it, if anything did. */
@@ -217,13 +233,19 @@ export const clock: Clock = Object.freeze({
         if (next.fire()) jump.by ??= next.id;
         // What this jump doesn't stop for fires, and is told, but time goes on.
         if (jump.by !== undefined && !stopsFor(jump.by)) delete jump.by;
-        // Interrupted: what's due at this same minute still fires, but no later.
-        if (jump.by !== undefined) {
+        const reached = options.until?.() === true;
+        // Interrupted, or what it waits for came: what's due at this same minute still fires, but no later.
+        if (jump.by !== undefined || reached) {
           for (let now = nextInMinutes(state.elapsed); now; now = nextInMinutes(state.elapsed)) {
             now.fire();
           }
           done = true;
-          return { minutes: state.elapsed - from, interrupted: true, by: jump.by };
+          return {
+            minutes: state.elapsed - from,
+            interrupted: jump.by !== undefined,
+            ...(jump.by !== undefined && { by: jump.by }),
+            ...(reached && { reached: true }),
+          };
         }
       }
       step(target);

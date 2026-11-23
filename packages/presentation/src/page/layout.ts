@@ -12,6 +12,7 @@
  */
 import { message, object, registry, type Choice, type Registry } from "@loominate-if/core";
 import "../messages.js";
+import type { MenuSource } from "./menus.js";
 import type { PageGame } from "./page.js";
 
 /** The package that registers presentation's built-in layouts and widgets. */
@@ -40,8 +41,11 @@ export type LayoutDefinition = {
 export type WidgetHost = PageGame & {
   /** Follows a choice, as clicking a link on the page does, and redraws the page. */
   follow(choice: Choice): void;
-  /** Makes `anchor` a button that opens the menu for the thing with ID `thing`, as a name in the text does. */
-  menu(anchor: HTMLElement, thing: string): void;
+  /**
+   * Makes `anchor` a button that opens a menu: for the thing with ID
+   * `source`, as a name in the text does, or of the choices a function gives.
+   */
+  menu(anchor: HTMLElement, source: MenuSource): void;
 };
 
 /** A widget's view once mounted. */

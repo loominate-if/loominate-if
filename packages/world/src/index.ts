@@ -156,3 +156,4 @@ export {
   type Scheduled,
   type Summary,
 } from "./schedule.js";
+export { wait, waitCondition, waitMenu, waitUntil, type WaitUntil } from "./waiting.js";

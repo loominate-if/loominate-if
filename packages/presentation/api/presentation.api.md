@@ -4,6 +4,7 @@
 
 ```ts
 
+import { ActionCall } from '@loominate-if/core';
 import type { BeatNode } from '@loominate-if/core';
 import { Choice } from '@loominate-if/core';
 import type { EventRecord } from '@loominate-if/core';
@@ -77,6 +78,26 @@ export const layouts: Registry<LayoutDefinition>;
 export type ListedThing = {
     readonly id: string;
     readonly label: string;
+};
+
+// @public
+export type MenuChoice = {
+    readonly call: ActionCall<any>;
+    readonly label?: string;
+};
+
+// @public
+export type MenuSource = string | (() => readonly MenuChoice[]);
+
+// @public
+export function menuWidget(options: MenuWidgetOptions): WidgetDefinition<{
+    readonly label: string;
+}>;
+
+// @public
+export type MenuWidgetOptions = {
+    readonly label: () => string;
+    readonly choices: () => readonly MenuChoice[];
 };
 
 // @public
@@ -227,7 +248,7 @@ export type WidgetDefinition<D = unknown> = {
 // @public
 export type WidgetHost = PageGame & {
     follow(choice: Choice): void;
-    menu(anchor: HTMLElement, thing: string): void;
+    menu(anchor: HTMLElement, source: MenuSource): void;
 };
 
 // @public

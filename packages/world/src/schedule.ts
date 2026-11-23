@@ -361,6 +361,23 @@ function nextDue(unit: Timer["unit"], upTo: number): Timer | undefined {
   return best;
 }
 
+/**
+ * How many times each fuse and daemon has fired since the game loaded: not
+ * state, so only differences within one move mean anything.
+ */
+const fired = new Map<StateId, number>();
+
+/** How many times the fuse or daemon `id` has fired since the game loaded, to tell if it fires during a wait. @internal */
+export function timesFired(id: StateId): number {
+  return fired.get(id) ?? 0;
+}
+
+/** The fuse or daemon with this ID, if there is one. @internal */
+export function scheduledById(id: StateId): Scheduled | undefined {
+  const t = timers.find((x) => x.id === id);
+  return t ? handle(t) : undefined;
+}
+
 /** The fuse or daemon firing now, if one is. */
 let firing: StateId | undefined;
 
@@ -374,6 +391,7 @@ export function firingNow(): StateId | undefined {
  * the player what it said. Returns whether it interrupts, by its option.
  */
 function fire(t: Timer): boolean {
+  fired.set(t.id, (fired.get(t.id) ?? 0) + 1);
   const due = t.state.due ?? now(t.unit);
   if (t.repeats) t.state.due = due + t.delay;
   else halt(t);
