@@ -37,6 +37,31 @@ export type BrowserStorageOptions = {
 };
 
 // @public
+export type CompassData = {
+    readonly label: string;
+    readonly ways: readonly CompassWay[];
+};
+
+// @public
+export type CompassOptions = {
+    readonly ways: (game: PageGame) => readonly CompassWay[];
+    readonly take: (host: WidgetHost, direction: string) => void;
+    readonly keys?: "numpad" | "vi" | "both" | "none";
+};
+
+// @public
+export type CompassWay = {
+    readonly direction: string;
+    readonly label: string;
+    readonly title: string;
+    readonly available: boolean;
+    readonly reason?: string;
+};
+
+// @public
+export function compassWidget(options: CompassOptions): WidgetDefinition<CompassData>;
+
+// @public
 export function createBrowserStorage(gameId: string, options?: BrowserStorageOptions): SaveStorage;
 
 // @public
@@ -248,6 +273,8 @@ export type WidgetDefinition<D = unknown> = {
 // @public
 export type WidgetHost = PageGame & {
     follow(choice: Choice): void;
+    goTo(passage: string, label: string): void;
+    act(call: ActionCall<any>, label: string): void;
     menu(anchor: HTMLElement, source: MenuSource): void;
 };
 

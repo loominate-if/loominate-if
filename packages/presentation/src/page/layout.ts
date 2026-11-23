@@ -10,7 +10,14 @@
  * `view` draws it through a small mount/update/unmount contract that any UI
  * framework can meet (ADR 0003).
  */
-import { message, object, registry, type Choice, type Registry } from "@loominate-if/core";
+import {
+  message,
+  object,
+  registry,
+  type ActionCall,
+  type Choice,
+  type Registry,
+} from "@loominate-if/core";
 import "../messages.js";
 import type { MenuSource } from "./menus.js";
 import type { PageGame } from "./page.js";
@@ -41,6 +48,15 @@ export type LayoutDefinition = {
 export type WidgetHost = PageGame & {
   /** Follows a choice, as clicking a link on the page does, and redraws the page. */
   follow(choice: Choice): void;
+  /**
+   * Goes to a passage, as a move called `label`, such as a compass taking
+   * an exit the passage doesn't show as a link, and redraws the page.
+   */
+  goTo(passage: string, label: string): void;
+  /** Takes an action, as a move called `label`, as a menu does, and redraws the page. */
+  // A call of any action: an action's type is invariant in its arguments, so no narrower type takes them all.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  act(call: ActionCall<any>, label: string): void;
   /**
    * Makes `anchor` a button that opens a menu: for the thing with ID
    * `source`, as a name in the text does, or of the choices a function gives.

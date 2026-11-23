@@ -101,6 +101,25 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
 }
 /* A things widget, such as the inventory. */
 .loominate-things { font-family: ${v("font-ui")}; font-size: 0.9em; }
+/* The compass: the eight points in a grid, and the other ways beside it. */
+.loominate-compass { display: flex; gap: 0.5em; align-items: center; font-family: ${v("font-ui")}; font-size: 0.85em; }
+.loominate-compass-points { display: grid; grid-template-columns: repeat(3, 2.6em); grid-template-rows: repeat(3, 2em); gap: 0.2em; }
+.loominate-compass-others { display: flex; flex-direction: column; gap: 0.2em; }
+.loominate-compass-way {
+  font: inherit;
+  color: ${v("color-text")};
+  background: ${v("color-surface")};
+  border: 1px solid ${v("color-border")};
+  border-radius: 0.3em;
+  padding: 0.1em 0.4em;
+  cursor: pointer;
+}
+.loominate-compass-way[aria-disabled="true"] { color: ${v("color-muted")}; border-style: dashed; cursor: not-allowed; }
+/* A point with no way out: a faint mark in its cell, so the rose keeps its shape. */
+.loominate-compass-none, .loominate-compass-centre { display: flex; align-items: center; justify-content: center; }
+.loominate-compass-none::before { content: ""; width: 0.3em; height: 0.3em; border-radius: 50%; background: ${v("color-border")}; }
+.loominate-compass-centre::before { content: ""; width: 0.5em; height: 0.5em; transform: rotate(45deg); border: 1px solid ${v("color-muted")}; }
+.loominate-compass-reason { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .loominate-things-title { color: ${v("color-muted")}; }
 /* A thing's menu, under its name. */
 .loominate-has-menu { position: relative; display: inline-block; }
