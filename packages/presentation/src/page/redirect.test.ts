@@ -76,7 +76,11 @@ function play() {
   };
   const passage = () =>
     [...container.querySelectorAll(".loominate-passage > p")].map((p) => p.textContent);
-  return { story, click, passage, errors };
+  const drawer = () =>
+    [...container.querySelectorAll(".loominate-turn")].map((t) =>
+      [...t.children].map((p) => p.textContent),
+    );
+  return { story, click, passage, drawer, errors };
 }
 
 describe("a redirected move on the page", () => {
@@ -84,8 +88,15 @@ describe("a redirected move on the page", () => {
     const { story, click, passage, errors } = play();
     click("Fall through");
     expect([story.current, errors]).toEqual(["Street", []]);
-    // What was noticed on the way stays with the move.
-    expect(passage()).toEqual(["A street.", "The floor gives way!", "Back in"]);
+    // What led to the redirect comes first, before the passage the player was sent to.
+    expect(passage()).toEqual(["The floor gives way!", "A street.", "Back in"]);
+  });
+
+  it("puts what led to it between the two passages in the story so far", () => {
+    const { click, drawer } = play();
+    click("Fall through");
+    click("Back in");
+    expect(drawer().at(-1)).toEqual(["A trapdoor.", "The floor gives way!", "A street."]);
   });
 
   it("shows where the player was sent, from the end of the move", () => {

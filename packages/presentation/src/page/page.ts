@@ -29,7 +29,7 @@ import {
   type WidgetDefinition,
   type WidgetHost,
 } from "./layout.js";
-import { _noticeParagraphs, message } from "@loominate-if/core";
+import { _isAtmosphere, _leadingNotices, _noticeParagraphs, message } from "@loominate-if/core";
 import "../messages.js";
 import { appendProse } from "./prose.js";
 import { createMenus } from "./menus.js";
@@ -446,7 +446,20 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     // did, the notices what came of it.
     const nodes = rendered.nodes.slice(from);
     const placed = nodes.some((n) => n.type === "notices");
-    let noticesLeft = notices(from > 0);
+    // What led to a redirect comes first, before the passage the player was sent to.
+    const { lead, rest } = _leadingNotices(notices(from > 0));
+    let noticesLeft = rest;
+    if (from === 0) {
+      for (const paragraph of _noticeParagraphs(lead)) {
+        const p = el("p", "loominate-notice");
+        paragraph.forEach((notice, i) => {
+          if (i > 0) p.append(" ");
+          appendProse(p, notice.text, notice.styles ?? [], [], () => el("span"));
+        });
+        passage.append(p);
+        drawn(p);
+      }
+    } else noticesLeft = [...lead, ...rest];
     const drawNotices = (): void => {
       // Atmosphere from fuses and daemons runs together; what stands out has its own paragraph.
       for (const paragraph of _noticeParagraphs(noticesLeft)) {
@@ -535,8 +548,10 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
         e.kind === "action" ||
         (e.kind === "beat" && (sinceBeat || e.page === true));
       if (starts) out.length = 0;
-      // A redirect within the move isn't a notice; what came before it still is.
-      else if (NOTICE_KINDS.includes(e.kind)) out.push(e as RecordedEvent & ProseFields);
+      // A redirect within the move is kept, to tell what led to it from what came after.
+      else if (NOTICE_KINDS.includes(e.kind) || e.kind === "navigation") {
+        out.push(e as RecordedEvent & ProseFields);
+      }
     }
     return out;
   };
@@ -563,7 +578,11 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
       if (e.kind === "beat" || starts) endPart();
       if (starts || turns.length === 0) turns.push([]);
       if (NOTICE_KINDS.includes(e.kind)) noticed.push(e);
-      else if (e.kind !== "navigation" && e.kind !== "action" && e.kind !== "beat") {
+      else if (e.kind === "navigation" && e.redirected === true) {
+        // What led to a redirect goes between the passage left and the one arrived at.
+        turns.at(-1)?.push(...noticed.filter((n) => !_isAtmosphere(n)));
+        noticed = noticed.filter(_isAtmosphere);
+      } else if (e.kind !== "navigation" && e.kind !== "action" && e.kind !== "beat") {
         turns.at(-1)?.push(e);
       }
     }

@@ -244,7 +244,7 @@ export function _noticeParagraphs<E extends { readonly kind: string }>(
   const out: E[][] = [];
   let atmosphere: E[] | undefined;
   for (const e of notices) {
-    if (e.kind === "scheduled" && (e as { readonly standsOut?: boolean }).standsOut !== true) {
+    if (_isAtmosphere(e)) {
       if (atmosphere) {
         atmosphere.push(e);
         continue;
@@ -255,4 +255,31 @@ export function _noticeParagraphs<E extends { readonly kind: string }>(
     } else out.push([e]);
   }
   return out;
+}
+
+/** Whether a notice is atmosphere: a fuse's or daemon's that doesn't stand out. @internal */
+export function _isAtmosphere(e: { readonly kind: string }): boolean {
+  return e.kind === "scheduled" && (e as { readonly standsOut?: boolean }).standsOut !== true;
+}
+
+/**
+ * Splits a move's notices at its last redirect, given them and its
+ * redirected `navigation` events in order: what was noticed before it,
+ * apart from atmosphere, leads, before the passage the player was sent to,
+ * since it's how they got there ("A blast ahead shakes the carriage…").
+ * The rest follow, in order, as usual. Without a redirect, nothing leads.
+ * @internal
+ */
+export function _leadingNotices<E extends { readonly kind: string }>(
+  events: readonly E[],
+): { readonly lead: E[]; readonly rest: E[] } {
+  const last = events.findLastIndex((e) => e.kind === "navigation");
+  const lead: E[] = [];
+  const rest: E[] = [];
+  events.forEach((e, i) => {
+    if (e.kind === "navigation") return;
+    if (i < last && !_isAtmosphere(e)) lead.push(e);
+    else rest.push(e);
+  });
+  return { lead, rest };
 }

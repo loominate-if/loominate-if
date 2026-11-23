@@ -426,7 +426,7 @@ export function timeOfDay(minutes?: number): string {
  */
 export function travelled(from: Place, to: Place): void {
   const way = exitsOf(from).find((e) => e.to.id === to.id);
-  // Travel isn't stopped partway: the player has already arrived (#304).
+  // Travel isn't stopped partway: the player has already arrived. A journey (ADR 0062) can be.
   if (way) clock.advance(way.minutes ?? clock.travelMinutes, { stopsFor: () => false });
 }
 

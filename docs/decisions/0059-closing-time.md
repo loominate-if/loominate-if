@@ -16,6 +16,7 @@ Showing the player out means changing passages partway through a move: a wait, a
   - When the move's passage has been entered, the story goes on to the redirected one, within the same move and transaction: one undo step, and nothing extra in the action log, so replays redirect the same way. A later call in the same move wins.
   - Redirects made in `turnEnd`'s rules, such as fuses counted in moves, are followed after it.
   - The redirected navigation event says `redirected: true`. The page, the story-so-far drawer, and the walkthrough API don't start a new move at it, so what was noticed before it stays with the move.
+  - What was noticed before the redirect, apart from atmosphere, leads: the page shows it before the passage the player was sent to, since it's how they got there, and the drawer between the two passages (added while reviewing #304). Core's internal `_leadingNotices` splits a move's notices this way for the page, the drawer, and the walkthrough API alike.
   - Calling it outside a move is an error. More than 20 redirects in one move are taken for a loop, and the move is rolled back.
 - **`closingTime(door, steps)`** (world) is a load-time helper for a door with opening hours. A step's code can't be stored in state, so it isn't part of `openingHours`.
   - It builds a daemon at the door's closing time, which reads the hours from state each time through a function `at`. Daemons now accept that.

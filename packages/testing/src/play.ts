@@ -4,6 +4,7 @@
  * headless in Vitest by `loominate test`.
  */
 import {
+  _leadingNotices,
   _noticeParagraphs,
   createEventRecord,
   createHistory,
@@ -162,7 +163,11 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
 
   const page = (): RenderedPassage => story.render();
   /** The texts of the perception, action-result, and scheduled events since the move on screen began. */
-  const notices = (): string[] => {
+  /**
+   * The move's notices as the page shows them, one line per paragraph: what
+   * led to a redirect, which comes before the passage, and the rest.
+   */
+  const notices = (): { readonly lead: string[]; readonly rest: string[] } => {
     const out: RecordedEvent[] = [];
     for (const e of record.events({
       kinds: ["perception", "action-result", "scheduled", "navigation", "action", "beat"],
@@ -173,11 +178,15 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
         (e.kind === "beat" && e.page === true)
       ) {
         out.length = 0;
-      } else if (e.kind !== "beat" && e.kind !== "navigation") out.push(e);
+      } else if (e.kind !== "beat") out.push(e);
     }
-    // One line per paragraph, as the page shows them: atmosphere runs together.
-    return _noticeParagraphs(out).map((p) => p.map((e) => (e as { text: string }).text).join(" "));
+    // Atmosphere runs together, as on the page.
+    const lines = (events: readonly RecordedEvent[]) =>
+      _noticeParagraphs(events).map((p) => p.map((e) => (e as { text: string }).text).join(" "));
+    const { lead, rest } = _leadingNotices(out);
+    return { lead: lines(lead), rest: lines(rest) };
   };
+
   const labelOf = (c: RenderedPassage["choices"][number]): string =>
     c.type === "continue" ? (c.label ?? CONTINUE) : c.label;
   const moved = (): void => {
@@ -191,10 +200,12 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
     get text() {
       // As the page shows them: where `{notices}` puts them, or else after the
       // text, before the first choice.
-      const lines: string[] = [];
+      const { lead, rest } = notices();
+      // What led to a redirect comes first, before the passage the player was sent to.
+      const lines: string[] = [...lead];
       const nodes = page().nodes;
       const placed = nodes.some((n) => n.type === "notices");
-      let left = notices();
+      let left = rest;
       for (const n of nodes) {
         if (n.type === "notices" || (!placed && (n.type === "link" || n.type === "continue"))) {
           lines.push(...left);
@@ -204,7 +215,8 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
       return [...lines, ...left].join("\n");
     },
     get notices() {
-      return notices().join("\n");
+      const { lead, rest } = notices();
+      return [...lead, ...rest].join("\n");
     },
     get choices() {
       return page().choices.map(labelOf);
