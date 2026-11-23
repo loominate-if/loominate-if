@@ -30,7 +30,14 @@ import {
 import { checkInlineLinks, checkStyles } from "./prose.js";
 import { hook } from "../rules/hooks.js";
 import { visitMemory } from "./memory.js";
-import { callOf, perform, type LoggedCall } from "../actions/actions.js";
+import {
+  callOf,
+  logCall,
+  perform,
+  statusOf,
+  type ActionCall,
+  type LoggedCall,
+} from "../actions/actions.js";
 
 /** A passage's ID: its name from `:: Name`. */
 export type PassageId = StateId;
@@ -86,6 +93,11 @@ export type LinkGuard = {
    * performs it and stays on the passage, instead of going to a target.
    */
   readonly act?: LoggedCall;
+  /**
+   * The ID of the thing a `{menu …}` link opens a menu for: the page shows
+   * the thing's actions instead of following the link.
+   */
+  readonly menu?: string;
   /**
    * While the guard is closed, the condition's parts and their values, so
    * the inspector can show which part closed it: for
@@ -397,6 +409,13 @@ export interface Story {
    * @throws {@link StateError} if there's no passage with that ID.
    */
   goTo(id: PassageId): void;
+  /**
+   * Takes an action, as from a thing's menu: the same `act` move as an
+   * action link, staying on the passage. The page calls it when the player
+   * chooses from a menu.
+   * @throws {@link StateError} if the action is hidden or disabled now, saying why.
+   */
+  act(call: ActionCall): void;
   /**
    * Every action since the story began, oldest first: each successful
    * {@link Story.follow} and {@link Story.goTo}. The log lives in the state
@@ -817,6 +836,11 @@ export function createStory(
     const same = (c: Choice): boolean =>
       c.type === choice.type && c.target === choice.target && c.label === choice.label;
     const chosen = page.choices.find(same);
+    if (chosen?.type === "link" && chosen.guard?.menu !== undefined) {
+      throw new StateError(
+        `follow: ${JSON.stringify(chosen.label)} opens a menu for ${JSON.stringify(chosen.guard.menu)}; take one of its actions with act() instead.`,
+      );
+    }
     if (chosen?.type === "link" && chosen.guard?.act) {
       takeAction(chosen.guard.act, chosen.label, attempt);
       return;
@@ -882,6 +906,14 @@ export function createStory(
         out.push(store.get(ACTIONS_ID, String(i)) as unknown as StoryAction);
       }
       return out;
+    },
+    act(call) {
+      const status = statusOf(call);
+      const why = status.hidden ?? status.disabled;
+      if (why !== undefined) {
+        throw new StateError(`act: ${JSON.stringify(status.label)} can't be taken now: ${why}`);
+      }
+      takeAction(logCall(call), status.label);
     },
     perform(action) {
       if (action.type === "follow") follow(action.choice, action.attempt);

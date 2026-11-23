@@ -170,7 +170,9 @@ export { hook, type Hook, type HookContext, type HookKinds } from "./rules/hooks
 export { registry, type Registry, type RegistryEntry } from "./rules/registry.js";
 export {
   action,
+  actionsFor,
   actLink,
+  menuLink,
   everyAction,
   perform,
   statusOf,

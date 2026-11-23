@@ -13,6 +13,7 @@ export type Action<A> = ((args: A) => ActionCall<A>) & {
     readonly report: DecideRulebook<ActionContext<A>, string | undefined>;
     readonly minutes: FoldRulebook<number, ActionContext<A>>;
     label(args: A): string;
+    offeredFor(thing: ObjectRef): boolean;
 };
 
 // @public
@@ -39,6 +40,8 @@ export type ActionDefinition<A> = {
     readonly run?: (context: ActionContext<A>) => void;
     readonly report?: string | ((context: ActionContext<A>) => string);
     readonly minutes?: number | ((context: ActionContext<A>) => number);
+    readonly on?: ObjectRef | readonly ObjectRef[];
+    readonly for?: (thing: ObjectRef) => boolean;
 };
 
 // @public
@@ -46,6 +49,9 @@ export type ActionOutcome = {
     readonly done: boolean;
     readonly reason?: string;
 };
+
+// @public
+export function actionsFor(thing: ObjectRef): ActionCall[];
 
 // @public
 export interface ActionStage<P> extends RuleList<(context: P) => void> {
@@ -391,6 +397,7 @@ export type LinkGuard = {
     readonly mode?: GuardMode;
     readonly reason?: string;
     readonly act?: LoggedCall;
+    readonly menu?: string;
     readonly parts?: readonly ConditionPart[];
 };
 
@@ -423,6 +430,11 @@ export type LoggedCall = {
         readonly $ref: string;
     }>>;
 };
+
+// @public
+export function menuLink(args: {
+    readonly thing: ObjectRef;
+}): LinkGuard;
 
 // @public
 export function message<K extends MessageKey>(key: K, ...context: Record<string, never> extends Messages[K] ? [Messages[K]?] : [Messages[K]]): string;
@@ -917,6 +929,7 @@ export interface Stopped<V> {
 
 // @public
 export interface Story {
+    act(call: ActionCall): void;
     readonly actions: readonly StoryAction[];
     advance(): void;
     begin(): void;

@@ -34,8 +34,9 @@ import {
 import { message } from "@loominate-if/core";
 import "../messages.js";
 import { layouts, widget, widgets, type WidgetDefinition } from "../page/layout.js";
-import { mountPage, type Page, type PageOptions } from "../page/page.js";
+import { mountPage, type ActionMove, type Page, type PageOptions } from "../page/page.js";
 import { addStyles } from "../page/theme.js";
+import { headerWidgets } from "../page/things.js";
 import { createSaveMenu } from "./menu.js";
 import { createBrowserStorage } from "./storage.js";
 
@@ -152,7 +153,8 @@ function actionLabel(action: StoryAction, story: Story): string {
 }
 
 /** How a move is labeled in the undo history. */
-function moveLabel(move: Choice | BeatNode): string {
+function moveLabel(move: Choice | BeatNode | ActionMove): string {
+  if (move.type === "action") return move.label;
   if (move.type === "link") return move.label;
   if (move.type === "continue") return move.label ?? message("page.continue");
   if (move.page) return message("history.nextPage");
@@ -357,7 +359,7 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
   if (pageLayout?.source === SOURCE && !pageLayout.value.widgets) {
     layouts.replace(
       "page",
-      { ...pageLayout.value, widgets: { header: ["game-menu"] } },
+      { ...pageLayout.value, widgets: { header: ["game-menu", ...headerWidgets()] } },
       { source: SOURCE },
     );
   }

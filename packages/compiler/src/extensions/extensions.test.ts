@@ -298,6 +298,7 @@ describe("loading extensions", () => {
       "effect",
       "emit",
       "line",
+      "menu",
       "notices",
       "on enter",
       "on first visit",

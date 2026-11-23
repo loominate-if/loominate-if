@@ -49,6 +49,23 @@ export const open = action<{ thing: typeof door }>("open", {
 
 Code performs an action with `perform(call)`, in an effect, through every stage: `{on enter: perform(knock({ thing: cellarDoor }))}`. It returns whether it was done, and why not.
 
+## Things' menus
+
+A thing's name in the text can open a menu of what the player can do with it. Write the name as a link with `{menu …}`; like `{act}`, it needs no `->`:
+
+```weft
+A [[brass bell]]{menu bell} hangs by the door.
+```
+
+Choosing the name opens the menu under it. The arrow keys move through it, Enter or a click takes an action, and Escape, Tab, or a click elsewhere closes it, giving focus back to the name. Actions whose verify fails aren't listed. Those whose check fails are listed disabled, with the reason under them. Taking one is the same move as an action link: it stays on the passage, its report shows after the text, and undo, saves, and replays cover it.
+
+An action says whose menus offer it:
+
+- `on: bell`, or `on: [bell, gong]`, offers it on those things' menus.
+- `for: (thing) => …` offers it on every thing the function says yes to, as the world model's standard actions do.
+
+Either way, the menu's thing is the action's `thing`, so an action offered on menus names its thing `thing`: `action<{ thing: Bell }>("ring", { on: bell, … })`. `actionsFor(thing)` lists what a thing's menu offers, and `story.act(call)` takes one, as the menu does.
+
 ## Rules
 
 Each stage is a rulebook, so an action's behavior can be added to, replaced, or removed without changing its definition, as TADS's `modify` does. The definition's own function is the rule `"<name>: own"`, so new rules can go before or after it:
@@ -84,4 +101,48 @@ export const kick = action<{ thing: Thing }>("kick", {
 });
 ```
 
-The world model doesn't define actions such as open, take, or drop yet; they'll come with the context menus (#77). Write your own with `action()` meanwhile.
+### Standard actions
+
+The world model defines seven actions, each offered on the menus of the things it suits:
+
+| Action | On | What it does |
+| --- | --- | --- |
+| `examine` | every thing but places | Says the thing's `description`, text or a `t` template, or "You see nothing special about the statue." |
+| `take` | things that can be carried | Moves it into the player's body. Not offered for what they already have. |
+| `drop` | things the player carries | Puts it where they are. |
+| `open`, `close` | `openable` things | Opens or closes it. A locked one can't be opened. |
+| `lock`, `unlock` | `lockable` things | Locks or unlocks it, if the player carries its `key`. A lock with no `key` needs none. An open thing must be closed to lock. |
+
+<!-- example: packages/world/src/standard.test.ts#things -->
+```ts
+export const key = thing("key", { name: "iron key", location: hall });
+export const chest = thing("chest", {
+  ...container,
+  ...openable,
+  ...lockable,
+  key,
+  name: "oak chest",
+  description: "Iron bands hold it shut.",
+  location: hall,
+});
+export const statue = thing("statue", { name: "statue", isFixed: true, location: hall });
+```
+
+<!-- example: packages/world/src/standard.test.ts#menus -->
+```ts
+expect(menu(key)).toEqual(["Examine the iron key", "Take the iron key"]);
+expect(menu(chest)).toEqual([
+  "Examine the oak chest",
+  "Take the oak chest",
+  "Open the oak chest (The oak chest is locked.)",
+  "Unlock the oak chest (You need the iron key.)",
+]);
+```
+
+- A thing can't be taken if it's a place, a body, a door or obstacle, or marked `isFixed: true`.
+- Their words are in the message table, as `take.label` ("Take the iron key"), `take.done` ("You take the iron key."), and so on ([Rewording the library](messages.md)).
+- Each is an ordinary action, exported from `@loominate-if/world`, so change one with its rules, as in `take.check.rule("too heavy", …)`. A game's own action can't reuse their names: call it something else, or change theirs.
+
+### The inventory
+
+The world model adds an inventory to the page's header: "You carry: an iron key, a map", or "nothing". Each name opens the thing's menu. A game that replaces the `page` layout places the `inventory` widget itself, and presentation's `thingsWidget` makes others like it.

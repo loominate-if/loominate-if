@@ -300,6 +300,19 @@ describe("loominate dev", () => {
       follow("Continue");
       expect(text()).toContain("You know who did it, from note.");
       expect(text()).not.toContain("Read the note");
+      // The note's name opens its menu, from the world model's standard actions.
+      const name = [...page().querySelectorAll(".loominate-passage button")].find(
+        (b) => b.textContent === "note",
+      );
+      name?.click();
+      const items = [...page().querySelectorAll("[role=menuitem]")].map((i) => i.textContent);
+      expect(items).toEqual(["Examine the note", "Take the note"]);
+      [...page().querySelectorAll("[role=menuitem]")]
+        .find((i) => i.textContent === "Take the note")
+        ?.click();
+      expect(text()).toContain("You take the note.");
+      // The inventory, in the header, lists it.
+      expect(page().querySelector(".loominate-things")?.textContent).toBe("You carry: a note");
       // The hall's been visited, so the way back names it.
       follow("Up, to the hall");
       expect(text()).toContain("The hall again. You're in hall.");

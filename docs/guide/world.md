@@ -355,7 +355,7 @@ You step back as it swings wide.
 :: Cellar [room: cellar]
 Cellar visits: {visitsTo(cellar)}. You're in {you.location?.id ?? "nowhere"}. You see {listContents(cellar)}.
 {exits}
-{if player.hasSeen(note)}A note lies on the floor.{/if}
+{if player.hasSeen(note)}A [[note]]{menu note} lies on the floor.{/if}
 {if player.knows(facts.culprit)}You know who did it, from {player.sourceOf(facts.culprit)?.from?.id ?? "nowhere"}.{/if}
 [[Read the note -> Note]]{when !player.knows(facts.culprit), hidden}
 

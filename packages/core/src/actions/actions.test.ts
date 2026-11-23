@@ -194,7 +194,9 @@ describe("stages", () => {
   });
 
   it("explain a name that's taken, or a thing named like the context", () => {
-    expect(() => action("open")).toThrow('action "open": another action has this name.');
+    expect(() => action("open")).toThrow(
+      'action "open": another action has this name, perhaps one a package',
+    );
     const odd = action<{ actor: typeof door }>("odd");
     expect(() => odd({ actor: door })).toThrow('a thing can\'t be called "actor"');
   });

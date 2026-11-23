@@ -40,6 +40,8 @@ export type LayoutDefinition = {
 export type WidgetHost = PageGame & {
   /** Follows a choice, as clicking a link on the page does, and redraws the page. */
   follow(choice: Choice): void;
+  /** Makes `anchor` a button that opens the menu for the thing with ID `thing`, as a name in the text does. */
+  menu(anchor: HTMLElement, thing: string): void;
 };
 
 /** A widget's view once mounted. */

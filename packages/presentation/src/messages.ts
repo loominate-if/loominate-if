@@ -30,6 +30,10 @@ declare module "@loominate-if/core" {
     "history.goTo": { readonly passage: string };
     /** The status line's count of moves. */
     "status.moves": { readonly count: number };
+    /** A things widget, such as the inventory, with nothing in it. */
+    "things.nothing": None;
+    /** A thing's menu with nothing to offer. */
+    "menu.nothing": None;
     /** The game menu's buttons. */
     "menu.undo": None;
     "menu.save": None;
@@ -113,6 +117,8 @@ register("history.nextPage", "Next page");
 register("history.afterBeat", "After a beat");
 register("history.goTo", ({ passage }) => `Go to ${passage}`);
 register("status.moves", ({ count }) => `Moves: ${String(count)}`);
+register("menu.nothing", "Nothing to do with it.");
+register("things.nothing", "nothing");
 register("menu.undo", "Undo");
 register("menu.save", "Save");
 register("menu.load", "Load");

@@ -22,6 +22,15 @@ import { StoryAction } from '@loominate-if/core';
 import { StoryOptions } from '@loominate-if/core';
 
 // @public
+export type ActionMove = {
+    readonly type: "action";
+    readonly label: string;
+};
+
+// @public
+export function addToHeader(name: string): void;
+
+// @public
 export type BrowserStorageOptions = {
     readonly indexedDB?: IDBFactory;
 };
@@ -65,6 +74,12 @@ export type LayoutDefinition = {
 export const layouts: Registry<LayoutDefinition>;
 
 // @public
+export type ListedThing = {
+    readonly id: string;
+    readonly label: string;
+};
+
+// @public
 export interface MountedWidget<D> {
     unmount(): void;
     update(data: D): void;
@@ -88,7 +103,7 @@ export type PageGame = {
 
 // @public
 export type PageOptions = {
-    readonly onMove?: (move: Choice | BeatNode) => void;
+    readonly onMove?: (move: Choice | BeatNode | ActionMove) => void;
     readonly onError?: (error: unknown) => void;
     readonly pacing?: "paced" | "immediate";
     readonly skipLabel?: string;
@@ -176,6 +191,18 @@ export type ThemeToken = {
 export const themeTokens: readonly ThemeToken[];
 
 // @public
+export function thingsWidget(options: ThingsWidgetOptions): WidgetDefinition<{
+    readonly title: string;
+    readonly things: readonly ListedThing[];
+}>;
+
+// @public
+export type ThingsWidgetOptions = {
+    readonly things: () => readonly ListedThing[];
+    readonly title: () => string;
+};
+
+// @public
 export function widget<D>(definition: WidgetDefinition<D>): WidgetDefinition<D>;
 
 // @public
@@ -187,6 +214,7 @@ export type WidgetDefinition<D = unknown> = {
 // @public
 export type WidgetHost = PageGame & {
     follow(choice: Choice): void;
+    menu(anchor: HTMLElement, thing: string): void;
 };
 
 // @public
