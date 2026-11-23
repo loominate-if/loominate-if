@@ -27,6 +27,7 @@ export {
   type TemplateParams,
 } from "./state/instances.js";
 export {
+  _storyRunning,
   describeObjects,
   emit,
   instancesOf,

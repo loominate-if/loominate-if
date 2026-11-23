@@ -77,6 +77,12 @@ export type AdvanceOptions = {
 };
 
 // @public
+export function attitude(observer: ObjectRef, toward: ObjectRef): number;
+
+// @public
+export function attitudeTo(observer: ObjectRef, b: ObjectRef): number;
+
+// @public
 export function blockedReason(exit: Exit, traveler: ObjectRef): string | undefined;
 
 // @public
@@ -143,6 +149,9 @@ export function canReach(observer: ObjectRef, target: ObjectRef): boolean;
 
 // @public
 export function canSee(observer: ObjectRef, target: ObjectRef): boolean;
+
+// @public
+export function changeAttitude(observer: ObjectRef, toward: ObjectRef, by: number): number;
 
 // @public
 export type Clause = (repeated: Repeated) => string | Text;
@@ -327,6 +336,17 @@ export interface Directions {
 export function directions(): Direction[];
 
 // @public
+export function disguise(b: ObjectRef, options: {
+    readonly as: DisguiseAs;
+}): void;
+
+// @public
+export type DisguiseAs = ObjectRef | string;
+
+// @public
+export function disguisedAs(b: ObjectRef): Mind | string | undefined;
+
+// @public
 export const door: {
     blocks(traveler: ObjectRef): string | undefined;
     isOpen: boolean;
@@ -382,6 +402,9 @@ export type ExitSpec = {
     readonly minutes?: number;
     readonly journey?: string;
 };
+
+// @public
+export function expose(b: ObjectRef, observer: ObjectRef): void;
 
 // @public
 export type Fact<Id extends string = string> = {
@@ -831,6 +854,9 @@ export type SeasonsByMonth = {
 };
 
 // @public
+export function seesThrough(observer: ObjectRef, b: ObjectRef): boolean;
+
+// @public
 export type Sense = "see" | "reach" | "hear";
 
 // @public
@@ -841,6 +867,9 @@ export type SentenceWording = (joined: {
     readonly list: string;
     readonly clauses: readonly string[];
 }) => string | Text;
+
+// @public
+export function setAttitude(observer: ObjectRef, toward: ObjectRef, value: number): void;
 
 // @public
 export function setExit(from: ObjectRef, name: DirectionName, exit: ObjectRef | ExitSpec | null): void;
@@ -920,6 +949,9 @@ export const transparent: {
 };
 
 // @public
+export function undisguise(b: ObjectRef): void;
+
+// @public
 export const unlock: Action<    {
 thing: ActingOn;
 }>;
@@ -961,5 +993,8 @@ export type WaitUntil = {
 
 // @public
 export const waitUntil: Action<WaitUntil>;
+
+// @public
+export function whoIs(observer: ObjectRef, b: ObjectRef): Mind | undefined;
 
 ```

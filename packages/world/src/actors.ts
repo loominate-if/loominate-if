@@ -162,6 +162,16 @@ export function mind<Id extends StateId, D extends ObjectDefinition<D>>(
   return handle as unknown as Handle<MindOf<D>, Id>;
 }
 
+/**
+ * The mind a body belongs to: the one whose definition starts it in
+ * control, such as an actor's own mind. Others take the body for it, even
+ * when another mind possesses it (#66). @internal
+ */
+export function ownerOf(b: ObjectRef): Mind | undefined {
+  const id = startingController(b.id);
+  return id === undefined ? undefined : minds.get(id);
+}
+
 /** The mind whose definition starts it in control of `bodyId`. Read from definitions, since no story runs yet. */
 function startingController(bodyId: StateId): StateId | undefined {
   for (const [m, b] of startingControllers) if (b === bodyId) return m;
