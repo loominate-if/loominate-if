@@ -188,6 +188,7 @@ export {
   type ActionDefinition,
   type ActionOutcome,
   type ActionRule,
+  type Period,
   type Participant,
   type ActionStage,
   type ActionStatus,

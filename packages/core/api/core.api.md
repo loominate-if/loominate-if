@@ -50,6 +50,7 @@ export type ActionDefinition<A> = {
     };
     readonly source?: string;
     readonly stopsFor?: (by: string) => boolean;
+    readonly during?: Period;
 };
 
 // @public
@@ -619,6 +620,13 @@ export type PassageNode = TextNode | LinkNode | ContinueNode | NamedEffectNode |
 
 // @public
 export function perform<A>(call: ActionCall<A>): ActionOutcome;
+
+// @public
+export type Period = {
+    readonly id: string;
+    readonly name?: string;
+    readonly isHappening: boolean;
+};
 
 // @public
 export const PERSISTENT_FORMAT = "loominate-persistent";

@@ -482,6 +482,14 @@ export function scheduledById(id: StateId): Scheduled | undefined {
   return t ? handle(t) : undefined;
 }
 
+/** What's told after any fuse or daemon fires, such as scenes checking their conditions. */
+const afterFiring: (() => void)[] = [];
+
+/** Calls `listener` after any fuse or daemon fires. @internal */
+export function onFired(listener: () => void): void {
+  afterFiring.push(listener);
+}
+
 /** The fuse or daemon firing now, if one is. */
 let firing: StateId | undefined;
 
@@ -507,6 +515,7 @@ function fire(t: Timer): boolean {
   } finally {
     firing = outer;
   }
+  for (const listener of afterFiring) listener();
   const text = typeof said === "function" ? said() : said;
   if (typeof text === "string" && text !== "") {
     const told = { id: t.id, text, at: now(t.unit) };
