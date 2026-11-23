@@ -36,6 +36,7 @@ import {
   perform,
   statusOf,
   type ActionCall,
+  type ActionRule,
   type LoggedCall,
 } from "../actions/actions.js";
 
@@ -98,6 +99,8 @@ export type LinkGuard = {
    * the thing's actions instead of following the link.
    */
   readonly menu?: string;
+  /** For an action link that's hidden or disabled, the rule that did it. */
+  readonly by?: ActionRule;
   /**
    * While the guard is closed, the condition's parts and their values, so
    * the inspector can show which part closed it: for

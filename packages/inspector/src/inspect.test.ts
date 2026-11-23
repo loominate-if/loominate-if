@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 /** The inspector shell and its state tree (#45). */
 import {
+  action,
   createEventRecord,
   createMemoryStorage,
   createStore,
@@ -11,6 +12,7 @@ import {
   linkGuard,
   object,
   rulebook,
+  useCandidates,
   type Passage,
 } from "@loominate-if/core";
 import { layouts, playGame, widgets, type Player } from "@loominate-if/presentation";
@@ -28,6 +30,12 @@ const shed = object("shed", { name: "shed" });
 const weather = rulebook<undefined, string>("weather", { kind: "decide", otherwise: () => "calm" });
 const keeper = object("keeper", { pockets: { coins: [1, 2], matches: false } });
 const lamp = object("lamp", { lit: false, oil: 3, where: shed });
+// On the lamp's menu, which no passage shows: it's listed only while the lamp is a candidate.
+action<{ thing: typeof lamp }>("polish", {
+  on: lamp,
+  label: "Polish the lamp",
+  check: ({ thing }) => (thing.lit ? undefined : "It's too dark to see the smudges."),
+});
 
 const passages: Passage[] = [
   {
@@ -578,7 +586,7 @@ describe("the choices panel", () => {
     const game = await setup();
     await showChoices(game);
     expect(game.q(".at")?.textContent).toBe("At Cottage");
-    expect(game.qa("h3").map((h) => h.textContent)).toEqual(["Links"]);
+    expect(game.qa("h3").map((h) => h.textContent)).toEqual(["Links", "Actions"]);
     expect(listed(game.qa)).toEqual([
       "Available | Climb | → Tower",
       "Disabled | Light the stove | → Tower | Because lamp.lit && lamp.oil > 0 doesn't hold. | lamp.lit | !false | lamp.oil > 0 | true | lamp.oil | 3 | The player is told: “The lamp isn't lit.”",
@@ -601,6 +609,22 @@ describe("the choices panel", () => {
     ]);
   });
 
+  it("lists things' actions, with the rule that hid or disabled each", async () => {
+    useCandidates(() => [lamp]);
+    try {
+      const game = await setup();
+      await showChoices(game);
+      expect(listed(game.qa).at(-1)).toBe(
+        "Disabled | Polish the lamp | takes the action polish | Because polish isn't allowed now: It's too dark to see the smudges. | The player is told: “It's too dark to see the smudges.”",
+      );
+      expect(game.q(".rule")?.textContent).toBe(
+        "Decided by the check rule polish: own in polish: check, from game.",
+      );
+    } finally {
+      useCandidates(undefined);
+    }
+  });
+
   it("shows registered explainers too, and one that fails says so", async () => {
     explainers.register("topics", {
       title: "Topics",
@@ -617,7 +641,12 @@ describe("the choices panel", () => {
     try {
       const game = await setup();
       await showChoices(game);
-      expect(game.qa("h3").map((h) => h.textContent)).toEqual(["Links", "Topics", "Broken"]);
+      expect(game.qa("h3").map((h) => h.textContent)).toEqual([
+        "Links",
+        "Actions",
+        "Topics",
+        "Broken",
+      ]);
       expect(listed(game.qa).at(-1)).toBe(
         "Hidden | the storm | Because keeper.metMira doesn't hold.",
       );

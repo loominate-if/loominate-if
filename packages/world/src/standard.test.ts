@@ -16,6 +16,7 @@ import {
   door,
   drop,
   lockable,
+  move,
   openable,
   place,
   startAs,
@@ -92,6 +93,23 @@ describe("the standard actions", () => {
       "You unlock the oak chest.",
       "You drop the iron key.",
     ]);
+  });
+
+  it("say which rule hid or disabled them, for the inspector", () => {
+    move(key, cellar);
+    expect(statusOf(take({ thing: key })).by).toEqual({
+      stage: "verify",
+      rulebook: "every action: verify",
+      rule: "things in reach",
+      source: "@loominate-if/world",
+    });
+    move(key, hall);
+    expect(statusOf(unlock({ thing: chest })).by).toEqual({
+      stage: "check",
+      rulebook: "unlock: check",
+      rule: "unlock: own",
+      source: "@loominate-if/world",
+    });
   });
 
   it("examine with a description, or say there's nothing special", () => {

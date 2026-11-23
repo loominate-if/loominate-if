@@ -77,6 +77,11 @@ export type ActionDefinition<A> = {
    * them, on each participant's menu.
    */
   readonly with?: { readonly [K in Exclude<keyof A, "thing">]?: Participant };
+  /**
+   * The package that defines it, for its own rules and the inspector, as
+   * in `source: "@my-scope/doors"`. Defaults to the game.
+   */
+  readonly source?: string;
 };
 
 /** How a menu fills one of an action's other roles: a fixed thing, or a test for things that suit. */
@@ -173,6 +178,15 @@ export function useCandidates(things: (() => readonly ObjectRef[]) | undefined):
   candidates = things;
 }
 
+/**
+ * The things menus try in actions' other roles, as {@link useCandidates}
+ * set them: with the world model, what the player can reach. The inspector
+ * lists their actions.
+ */
+export function actionCandidates(): readonly ObjectRef[] {
+  return candidates?.() ?? [];
+}
+
 /** A stage whose rules all run, named for the inspector. */
 function stage<P>(name: string): ActionStage<P> {
   const rules = ruleList<(context: P) => void>(name, "action stage");
@@ -244,16 +258,17 @@ export function action<A extends Readonly<Record<string, unknown>>>(
       );
     }
   }
-  if (d.verify) verify.rule(own, d.verify);
-  if (d.check) check.rule(own, d.check);
-  if (d.run) perform.rule(own, d.run);
+  const from = d.source === undefined ? {} : { source: d.source };
+  if (d.verify) verify.rule(own, d.verify, from);
+  if (d.check) check.rule(own, d.check, from);
+  if (d.run) perform.rule(own, d.run, from);
   if (d.report !== undefined) {
     const r = d.report;
-    report.rule(own, (c) => (typeof r === "string" ? r : r(c)));
+    report.rule(own, (c) => (typeof r === "string" ? r : r(c)), from);
   }
   if (d.minutes !== undefined) {
     const m = d.minutes;
-    minutes.rule(own, (value, c) => value + (typeof m === "number" ? m : m(c)));
+    minutes.rule(own, (value, c) => value + (typeof m === "number" ? m : m(c)), from);
   }
   const call = (args: A): ActionCall<A> => {
     for (const key of Object.keys(args)) {
@@ -378,6 +393,18 @@ export function menuLink(args: { readonly thing: ObjectRef }): LinkGuard {
   return { open: true, condition: `menu for ${args.thing.id}`, menu: args.thing.id };
 }
 
+/** The rule that hid or disabled an action, for the inspector. */
+export type ActionRule = {
+  /** The stage it's in: `verify` hides, `check` disables. */
+  readonly stage: "verify" | "check";
+  /** Its rulebook, such as "every action: verify" or "open: check". */
+  readonly rulebook: string;
+  /** Its name, such as "things in reach" or "open: own". */
+  readonly rule: string;
+  /** The package that added it, or replaced it. */
+  readonly source: string;
+};
+
 /** Whether an action is offered, and allowed, and why not. */
 export type ActionStatus = {
   /** Its label. */
@@ -386,17 +413,40 @@ export type ActionStatus = {
   readonly hidden?: string;
   /** Why check disabled it, if it did: it's offered, but can't be taken. */
   readonly disabled?: string;
+  /** The rule that hid or disabled it, if one did. */
+  readonly by?: ActionRule;
 };
+
+type Book = DecideRulebook<ActionContext<Readonly<Record<string, unknown>>>, string | undefined>;
+
+/** Runs `books` in turn until one gives a reason: the reason, and the rule that gave it. */
+function decide(
+  stage: ActionRule["stage"],
+  books: readonly Book[],
+  c: ActionContext<Readonly<Record<string, unknown>>>,
+): { readonly reason: string; readonly by: ActionRule } | undefined {
+  for (const book of books) {
+    const e = book.explain(c);
+    traced("decide", book.name, e);
+    if (e.result === undefined) continue;
+    const step = e.steps.find((s) => s.rule === e.decidedBy);
+    return {
+      reason: e.result,
+      by: { stage, rulebook: book.name, rule: e.decidedBy ?? "", source: step?.source ?? "" },
+    };
+  }
+  return undefined;
+}
 
 /** Runs verify and check, without changing anything, for a link or menu. */
 export function statusOf<A>(call: ActionCall<A>): ActionStatus {
   const c = contextFor(call) as ActionContext<Readonly<Record<string, unknown>>>;
   const a = call.action as unknown as Action<Readonly<Record<string, unknown>>>;
   const label = a.label(call.args as Readonly<Record<string, unknown>>);
-  const hidden = everyAction.verify.run(c) ?? a.verify.run(c);
-  if (hidden !== undefined) return { label, hidden };
-  const disabled = everyAction.check.run(c) ?? a.check.run(c);
-  return disabled === undefined ? { label } : { label, disabled };
+  const hidden = decide("verify", [everyAction.verify, a.verify], c);
+  if (hidden) return { label, hidden: hidden.reason, by: hidden.by };
+  const disabled = decide("check", [everyAction.check, a.check], c);
+  return disabled ? { label, disabled: disabled.reason, by: disabled.by } : { label };
 }
 
 /** What {@link perform} did. */
@@ -491,7 +541,13 @@ export function actLink<A>(args: { readonly call: ActionCall<A> }): LinkGuard {
   const name = call.action.actionName;
   const act = logCall(call);
   if (status.hidden !== undefined) {
-    return { open: false, condition: `${name}: ${status.hidden}`, mode: "hidden", act };
+    return {
+      open: false,
+      condition: `${name}: ${status.hidden}`,
+      mode: "hidden",
+      act,
+      ...(status.by && { by: status.by }),
+    };
   }
   if (status.disabled !== undefined) {
     return {
@@ -500,6 +556,7 @@ export function actLink<A>(args: { readonly call: ActionCall<A> }): LinkGuard {
       mode: "disabled-with-reason",
       reason: status.disabled,
       act,
+      ...(status.by && { by: status.by }),
     };
   }
   return { open: true, condition: name, act };
