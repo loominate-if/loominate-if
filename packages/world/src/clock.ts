@@ -11,6 +11,7 @@
 import { hook, message, messages, object, StateError } from "@loominate-if/core";
 import { textWidget, widgets } from "@loominate-if/presentation";
 import { exitsOf } from "./exits.js";
+import { fireMoves, nextInMinutes } from "./schedule.js";
 import type { Place } from "./things.js";
 
 declare module "@loominate-if/core" {
@@ -131,6 +132,14 @@ export type Clock = {
 
 const at = (): number => start.minuteOfDay + state.elapsed;
 
+/** Moves the clock on to `to`, if it's later, running the clockAdvance hook. */
+const step = (to: number): void => {
+  const from = state.elapsed;
+  if (to <= from) return;
+  state.elapsed = to;
+  hook("clockAdvance").run({ from, to });
+};
+
 /** The game clock. */
 export const clock: Clock = Object.freeze({
   get minutes() {
@@ -157,10 +166,13 @@ export const clock: Clock = Object.freeze({
   },
   advance(minutes: number) {
     if (!isMinutes(minutes)) throw minutesError("clock.advance", minutes);
-    if (minutes === 0) return;
-    const from = state.elapsed;
-    state.elapsed = from + minutes;
-    hook("clockAdvance").run({ from, to: state.elapsed });
+    const target = state.elapsed + minutes;
+    // Step to each fuse and daemon due on the way, so each fires at its own time.
+    for (let next = nextInMinutes(target); next; next = nextInMinutes(target)) {
+      step(next.at);
+      next.fire();
+    }
+    step(target);
   },
 });
 
@@ -193,6 +205,7 @@ hook("turnEnd").rule(
   "move counter",
   () => {
     state.moves += 1;
+    fireMoves();
   },
   { source: SOURCE },
 );
