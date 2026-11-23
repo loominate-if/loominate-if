@@ -372,7 +372,9 @@ export interface HookKinds {
         readonly slot: string;
         readonly summary: SaveSummary;
     };
-    turnEnd: EffectContext;
+    turnEnd: EffectContext & {
+        readonly move: MoveKind;
+    };
 }
 
 // @public
@@ -519,6 +521,9 @@ export type MessageText<C> = string | ((context: C) => string);
 
 // @public
 export function mixin<M extends ObjectDefinition<M>>(definition: M & ThisType<Handle<M>>): M;
+
+// @public
+export type MoveKind = "follow" | "continue" | "act" | "goTo";
 
 // @public
 export function namedEffect(args: {
@@ -967,6 +972,7 @@ export interface Story {
     readonly current: PassageId | undefined;
     follow(choice: Choice): void;
     goTo(id: PassageId): void;
+    readonly moves: number;
     passage(id: PassageId): Passage | undefined;
     perform(action: StoryAction): void;
     playReplay(replay: Replay, game?: GameInfo): ReplayCheck;

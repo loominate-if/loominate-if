@@ -3,7 +3,7 @@
  * in the story's life. A hook is a rulebook where every handler runs, so
  * handlers can be placed, replaced, and removed like rules.
  */
-import type { EffectContext } from "../passages/story.js";
+import type { EffectContext, MoveKind } from "../passages/story.js";
 import type { SaveSummary } from "../save/save.js";
 import {
   ruleList,
@@ -44,8 +44,11 @@ export interface HookKinds {
   passageEnter: EffectContext;
   /** After a passage's own `leave` effect. */
   passageLeave: EffectContext;
-  /** After each action (following a choice, or `goTo`) and its prose. Not after beginning. */
-  turnEnd: EffectContext;
+  /**
+   * After each move (following a choice, a continue, an action, or `goTo`)
+   * and its prose, with what kind of move it was. Not after beginning.
+   */
+  turnEnd: EffectContext & { readonly move: MoveKind };
   /**
    * When an action takes time, with how many minutes, after its action
    * stage. Core has no clock: the world model's clock (#84) handles it.

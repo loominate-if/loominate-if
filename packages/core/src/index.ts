@@ -62,6 +62,7 @@ export {
   type ConditionPart,
   type ContinueNode,
   type EffectContext,
+  type MoveKind,
   type EffectPhase,
   type GuardMode,
   type InlineLink,

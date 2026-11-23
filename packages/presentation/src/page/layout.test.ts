@@ -286,3 +286,27 @@ describe("widgets", () => {
     expect(layouts.get("page")).toEqual({ regions: ["header", "main", "footer"] });
   });
 });
+
+describe("the status line's move count", () => {
+  it("doesn't count continues (#311)", () => {
+    const store = createStore();
+    const story = createStory(
+      store,
+      createEventRecord(store),
+      [
+        {
+          id: "Desk",
+          tags: [],
+          body: () => [{ type: "link", label: "Read the note", target: "Note" }],
+        },
+        { id: "Note", tags: [], body: () => [{ type: "continue", target: "Desk" }] },
+      ],
+      { start: "Desk" },
+    );
+    story.begin();
+    const moves = () => statusLine().data({ story } as never).right;
+    story.follow({ type: "link", label: "Read the note", target: "Note" });
+    story.follow({ type: "continue", target: "Desk" });
+    expect([story.actions.length, moves()]).toEqual([2, "Moves: 1"]);
+  });
+});

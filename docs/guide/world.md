@@ -704,7 +704,7 @@ choose("South");
 expect(now()).toBe("day 1, 9:44 pm, 4 moves");
 ```
 
-`clock.minutes` is the time since the game began; `clock.day`, `clock.hour` (0–23), and `clock.minute` say when it is, from the start time. `timeOfDay()` words it through the `clock.time` message, "9:45 pm" by default, and `timeOfDay(minutes)` words another time on the clock. `clock.moves` counts the player's moves: links followed, actions taken, and travel, but not beginning or undoing. The `clockAdvance` hook runs after time moves on, with the minutes before and after.
+`clock.minutes` is the time since the game began; `clock.day`, `clock.hour` (0–23), and `clock.minute` say when it is, from the start time. `timeOfDay()` words it through the `clock.time` message, "9:45 pm" by default, and `timeOfDay(minutes)` words another time on the clock. `clock.moves` counts the player's moves: links followed, actions taken, and travel, but not continues, moving past a beat, beginning, or undoing. A continue only acknowledges what the player read, so it isn't a decision, and an "every move" daemon shouldn't run faster in a game with more passage breaks. The `clockAdvance` hook runs after time moves on, with the minutes before and after.
 
 The clock and the move count are state, so undo, saves, and replays restore them, and nothing reads the computer's clock.
 
