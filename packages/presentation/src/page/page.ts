@@ -29,7 +29,7 @@ import {
   type WidgetDefinition,
   type WidgetHost,
 } from "./layout.js";
-import { message } from "@loominate-if/core";
+import { _noticeParagraphs, message } from "@loominate-if/core";
 import "../messages.js";
 import { appendProse } from "./prose.js";
 import { createMenus } from "./menus.js";
@@ -448,9 +448,13 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     const placed = nodes.some((n) => n.type === "notices");
     let noticesLeft = notices(from > 0);
     const drawNotices = (): void => {
-      for (const notice of noticesLeft) {
+      // Atmosphere from fuses and daemons runs together; what stands out has its own paragraph.
+      for (const paragraph of _noticeParagraphs(noticesLeft)) {
         const p = el("p", "loominate-notice");
-        appendProse(p, notice.text, notice.styles ?? [], [], () => el("span"));
+        paragraph.forEach((notice, i) => {
+          if (i > 0) p.append(" ");
+          appendProse(p, notice.text, notice.styles ?? [], [], () => el("span"));
+        });
         passage.append(p);
         drawn(p);
       }
@@ -567,10 +571,13 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
         .filter((t) => t.length > 0)
         .map((turn) => {
           const section = el("section", "loominate-turn");
-          for (const e of turn) {
-            const fields = e as RecordedEvent & { text: string; styles?: readonly TextStyle[] };
+          for (const paragraph of _noticeParagraphs(turn)) {
             const p = el("p");
-            appendProse(p, fields.text, fields.styles ?? [], [], () => el("span"));
+            paragraph.forEach((e, i) => {
+              const fields = e as RecordedEvent & { text: string; styles?: readonly TextStyle[] };
+              if (i > 0) p.append(" ");
+              appendProse(p, fields.text, fields.styles ?? [], [], () => el("span"));
+            });
             section.append(p);
           }
           return section;

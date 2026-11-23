@@ -254,6 +254,56 @@ describe("{notices}", () => {
   });
 });
 
+describe("atmosphere from fuses and daemons", () => {
+  it("runs together in one paragraph, apart from what stands out, on the page and in the drawer", () => {
+    const store = createStore();
+    const record = createEventRecord(store);
+    const story = createStory(
+      store,
+      record,
+      [
+        { id: "Porch", tags: [], body: () => [{ type: "link", label: "In", target: "Hall" }] },
+        {
+          id: "Hall",
+          tags: [],
+          effects: {
+            enter: ({ emit }) => {
+              emit("scheduled", { text: "Rain patters.", source: "rain" });
+              emit("perception", { text: "A door slams.", sense: "hear" });
+              emit("scheduled", { text: "You smell smoke!", source: "smoke", standsOut: true });
+              emit("scheduled", { text: "An owl hoots.", source: "owl" });
+            },
+          },
+          body: () => [
+            { type: "text", text: "The hall." },
+            { type: "link", label: "Out", target: "Porch" },
+          ],
+        },
+      ],
+      { start: "Porch" },
+    );
+    document.body.replaceChildren();
+    const container = document.createElement("div");
+    document.body.append(container);
+    mountPage(container, { story, record });
+    container.querySelector("button")?.click();
+    const notices = [...container.querySelectorAll(".loominate-passage .loominate-notice")];
+    expect(notices.map((c) => c.textContent)).toEqual([
+      "Rain patters. An owl hoots.",
+      "A door slams.",
+      "You smell smoke!",
+    ]);
+    container.querySelector<HTMLButtonElement>(".loominate-passage button")?.click();
+    const drawn = [...container.querySelectorAll(".loominate-turn")].at(-1);
+    expect([...(drawn?.children ?? [])].map((c) => c.textContent)).toEqual([
+      "The hall.",
+      "Rain patters. An owl hoots.",
+      "A door slams.",
+      "You smell smoke!",
+    ]);
+  });
+});
+
 describe("an error in the story's code", () => {
   it("shows on the page, and the game stays where it was", () => {
     const store = createStore();

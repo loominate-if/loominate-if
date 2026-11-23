@@ -19,6 +19,7 @@ import {
   type Text,
 } from "@loominate-if/core";
 import { clock } from "./clock.js";
+import "./listing.js"; // list.join, which joins a group's clauses
 
 declare module "@loominate-if/core" {
   interface Messages {
@@ -79,6 +80,20 @@ export type Repeated = {
  */
 export type Summary = (repeated: Repeated) => string | Text | undefined;
 
+/**
+ * A fuse's or daemon's part in a joined sentence when it fires more than
+ * once in one jump of the clock, such as "the church bells rang".
+ */
+export type Clause = (repeated: Repeated) => string | Text;
+
+/** How a group's joined sentence reads, given its clauses, for {@link sentence}. */
+export type SentenceWording = (joined: {
+  /** The clauses joined into a list by `list.join`: "the bells rang and an owl hooted". */
+  readonly list: string;
+  /** Each clause, in the order its fuse or daemon first spoke. */
+  readonly clauses: readonly string[];
+}) => string | Text;
+
 /** What fuses and daemons have in common. */
 export type Scheduled = {
   /** Its ID, unique among fuses and daemons. */
@@ -132,6 +147,20 @@ export type FuseOptions = {
    * by default keeps each line.
    */
   readonly summary?: Summary;
+  /**
+   * Whether what it says stands out, in a paragraph of its own. Otherwise
+   * it's atmosphere, which runs together with other fuses' and daemons' in
+   * one paragraph. Defaults to `false`.
+   */
+  readonly standsOut?: boolean;
+  /**
+   * The group whose sentence it joins when it fires more than once in one
+   * jump of the clock, with its `clause`, as `"outside"`. See {@link sentence}.
+   * A joined sentence is atmosphere, even if this stands out.
+   */
+  readonly joins?: string;
+  /** Its part in its group's sentence: "the church bells rang". */
+  readonly clause?: Clause;
 };
 
 /** How {@link daemon} takes its timing. */
@@ -158,6 +187,20 @@ export type DaemonOptions = {
    * by default keeps each line.
    */
   readonly summary?: Summary;
+  /**
+   * Whether what it says stands out, in a paragraph of its own. Otherwise
+   * it's atmosphere, which runs together with other fuses' and daemons' in
+   * one paragraph. Defaults to `false`.
+   */
+  readonly standsOut?: boolean;
+  /**
+   * The group whose sentence it joins when it fires more than once in one
+   * jump of the clock, with its `clause`, as `"outside"`. See {@link sentence}.
+   * A joined sentence is atmosphere, even if this stands out.
+   */
+  readonly joins?: string;
+  /** Its part in its group's sentence: "the church bells rang". */
+  readonly clause?: Clause;
 };
 
 type Timer = {
@@ -169,6 +212,8 @@ type Timer = {
   readonly interrupts: boolean;
   readonly priority: number;
   readonly summary: Summary | undefined;
+  readonly standsOut: boolean;
+  readonly joins: { readonly group: string; readonly clause: Clause } | undefined;
   readonly fire: Firing;
   readonly state: Handle<{ running: boolean; due: number | null }>;
 };
@@ -185,6 +230,9 @@ function define(
     readonly interrupts?: boolean;
     readonly priority?: number;
     readonly summary?: Summary;
+    readonly standsOut?: boolean;
+    readonly joins?: string;
+    readonly clause?: Clause;
   },
   fire: Firing,
 ): Timer {
@@ -196,6 +244,11 @@ function define(
   const priority = options.priority ?? 0;
   if (!Number.isFinite(priority)) {
     throw new StateError(`${where}: priority ${String(priority)} isn't a number.`);
+  }
+  if ((options.joins === undefined) !== (options.clause === undefined)) {
+    throw new StateError(
+      `${where}: give both \`joins\`, the group whose sentence it joins, and \`clause\`, its part in it, or neither.`,
+    );
   }
   if (typeof fire !== "function") {
     throw new StateError(`${where}: give it a function to run when it fires.`);
@@ -211,6 +264,11 @@ function define(
     interrupts: options.interrupts ?? false,
     priority,
     summary: options.summary,
+    standsOut: options.standsOut ?? false,
+    joins:
+      options.joins !== undefined && options.clause !== undefined
+        ? { group: options.joins, clause: options.clause }
+        : undefined,
     fire,
     // Begun running, it's due its delay after the game begins.
     state: object(`world:${kind}:${id}`, {
@@ -331,10 +389,41 @@ function fire(t: Timer): boolean {
   if (typeof text === "string" && text !== "") {
     const told = { id: t.id, text, at: now(t.unit) };
     if (held) held.push(told);
-    else emit("scheduled", { text, source: t.id });
+    else tell(text, t.id, t.standsOut);
   }
   return t.interrupts;
 }
+
+/** Records what a fuse or daemon said, marked if it stands out. */
+const tell = (text: string, source: StateId, standsOut: boolean): void => {
+  emit("scheduled", { text, source, ...(standsOut && { standsOut: true }) });
+};
+
+const sentences = new Map<string, SentenceWording>();
+
+/**
+ * Says how a group's joined sentence reads. Fuses and daemons join a group
+ * with `joins` and a `clause`. Without a wording, a group's sentence is its
+ * clauses joined, and capitalised.
+ *
+ * @example
+ * ```ts
+ * sentence("outside", ({ list }) => `Outside, ${list} through the night.`);
+ * ```
+ *
+ * @throws StateError if the group already has a wording.
+ */
+export function sentence(group: string, wording: SentenceWording): void {
+  if (sentences.has(group)) {
+    throw new StateError(
+      `sentence ${JSON.stringify(group)}: this group's sentence already has a wording. Give it one.`,
+    );
+  }
+  sentences.set(group, wording);
+}
+
+const capitalised = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
+const words = (said: string | Text): string => (typeof said === "function" ? said() : said);
 
 /** What fuses and daemons said during the jump in progress, held to be written up at its end. */
 let held: { readonly id: StateId; readonly text: string; readonly at: number }[] | undefined;
@@ -361,34 +450,65 @@ export function tellHeld(interruptedBy: StateId | undefined): void {
   held = undefined;
   const interruption =
     interruptedBy === undefined ? -1 : told.findLastIndex((e) => e.id === interruptedBy);
-  const groups = new Map<StateId, (typeof told)[number][]>();
+  const byTimer = new Map<StateId, (typeof told)[number][]>();
   told.forEach((e, i) => {
-    if (i !== interruption) groups.set(e.id, [...(groups.get(e.id) ?? []), e]);
+    if (i !== interruption) byTimer.set(e.id, [...(byTimer.get(e.id) ?? []), e]);
   });
+  // What each repeated timer says instead of its lines: a clause for its group's sentence, or a summary.
+  const clauses = new Map<string, string[]>();
+  const groupOf = new Map<StateId, string>();
   const summaries = new Map<StateId, string>();
-  for (const [id, group] of groups) {
+  for (const [id, group] of byTimer) {
     if (group.length < 2) continue;
-    const lines = group.map((e) => e.text);
     const t = timers.find((x) => x.id === id);
+    const lines = group.map((e) => e.text);
+    const repeated: Repeated = {
+      count: group.length,
+      from: group[0]?.at ?? 0,
+      to: group.at(-1)?.at ?? 0,
+      lines,
+    };
+    if (t?.joins) {
+      const clause = words(t.joins.clause(repeated));
+      if (clause !== "") {
+        clauses.set(t.joins.group, [...(clauses.get(t.joins.group) ?? []), clause]);
+        groupOf.set(id, t.joins.group);
+        continue;
+      }
+    }
     const said = t?.summary
-      ? t.summary({
-          count: group.length,
-          from: group[0]?.at ?? 0,
-          to: group.at(-1)?.at ?? 0,
-          lines,
-        })
+      ? t.summary(repeated)
       : message("schedule.repeated", { source: id, lines, count: group.length });
-    const text = typeof said === "function" ? said() : said;
-    if (text !== undefined && text !== "") summaries.set(id, text);
+    const text = said === undefined ? "" : words(said);
+    if (text !== "") summaries.set(id, text);
   }
-  const summed = new Set<StateId>();
+  const standsOut = (id: StateId): boolean => timers.find((x) => x.id === id)?.standsOut ?? false;
+  const done = new Set<string>();
   told.forEach((e, i) => {
-    const summary = i === interruption ? undefined : summaries.get(e.id);
+    if (i === interruption) {
+      tell(e.text, e.id, true); // why the jump ended
+      return;
+    }
+    const group = groupOf.get(e.id);
+    if (group !== undefined) {
+      // A group's sentence goes where its first member first spoke.
+      if (done.has(`group:${group}`)) return;
+      done.add(`group:${group}`);
+      const list = clauses.get(group) ?? [];
+      const wording = sentences.get(group);
+      const joined = message("list.join", { items: list });
+      const text = wording
+        ? words(wording({ list: joined, clauses: list }))
+        : `${capitalised(joined)}.`;
+      tell(text, e.id, false); // joined sentences are atmosphere
+      return;
+    }
+    const summary = summaries.get(e.id);
     if (summary === undefined) {
-      emit("scheduled", { text: e.text, source: e.id });
-    } else if (!summed.has(e.id)) {
-      summed.add(e.id);
-      emit("scheduled", { text: summary, source: e.id });
+      tell(e.text, e.id, standsOut(e.id));
+    } else if (!done.has(e.id)) {
+      done.add(e.id);
+      tell(summary, e.id, standsOut(e.id));
     }
   });
 }

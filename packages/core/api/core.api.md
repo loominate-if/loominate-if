@@ -258,6 +258,7 @@ export interface EventKinds {
     scene: ProseFields;
     scheduled: ProseFields & {
         readonly source: StateId;
+        readonly standsOut?: boolean;
     };
     system: ProseFields;
 }
@@ -533,6 +534,11 @@ export type NamedEffectNode = {
     readonly duration?: number;
     readonly options?: Readonly<Record<string, unknown>>;
 };
+
+// @internal
+export function _noticeParagraphs<E extends {
+    readonly kind: string;
+}>(notices: readonly E[]): E[][];
 
 // @public
 export function notices(args?: Readonly<Record<string, never>>): NoticesNode;

@@ -92,6 +92,9 @@ export function canReach(observer: ObjectRef, target: ObjectRef): boolean;
 export function canSee(observer: ObjectRef, target: ObjectRef): boolean;
 
 // @public
+export type Clause = (repeated: Repeated) => string | Text;
+
+// @public
 export type Clock = {
     readonly minutes: number;
     readonly day: number;
@@ -150,6 +153,9 @@ export type DaemonOptions = {
     readonly interrupts?: boolean;
     readonly priority?: number;
     readonly summary?: Summary;
+    readonly standsOut?: boolean;
+    readonly joins?: string;
+    readonly clause?: Clause;
 };
 
 // @public
@@ -304,6 +310,9 @@ export type FuseOptions = {
     readonly interrupts?: boolean;
     readonly priority?: number;
     readonly summary?: Summary;
+    readonly standsOut?: boolean;
+    readonly joins?: string;
+    readonly clause?: Clause;
 };
 
 // @public
@@ -600,6 +609,15 @@ export type Scheduled = {
 
 // @public
 export type Sense = "see" | "reach" | "hear";
+
+// @public
+export function sentence(group: string, wording: SentenceWording): void;
+
+// @public
+export type SentenceWording = (joined: {
+    readonly list: string;
+    readonly clauses: readonly string[];
+}) => string | Text;
 
 // @public
 export function setExit(from: ObjectRef, name: DirectionName, exit: ObjectRef | ExitSpec | null): void;
