@@ -207,3 +207,17 @@ export {
   type Relationship,
   type ThresholdSpec,
 } from "./relationships.js";
+export {
+  canSpend,
+  changeStat,
+  restore,
+  setStat,
+  spend,
+  stat,
+  stats,
+  type DerivedStat,
+  type KeptStat,
+  type StatName,
+  type Stats,
+  type StatSpec,
+} from "./stats.js";

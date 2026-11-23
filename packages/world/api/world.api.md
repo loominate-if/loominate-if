@@ -145,9 +145,15 @@ export function canReach(observer: ObjectRef, target: ObjectRef): boolean;
 export function canSee(observer: ObjectRef, target: ObjectRef): boolean;
 
 // @public
+export function canSpend(who: ObjectRef, name: StatName, amount: number): string | undefined;
+
+// @public
 export function changeRelationship(observer: ObjectRef, toward: ObjectRef, by: {
     readonly [D in Dimension]?: number;
 }): Relationship;
+
+// @public
+export function changeStat(who: ObjectRef, name: StatName, by: number): number;
 
 // @public
 export type Clause = (repeated: Repeated) => string | Text;
@@ -293,6 +299,11 @@ export type Delay = {
     readonly minutes: number;
 } | {
     readonly moves: number;
+};
+
+// @public
+export type DerivedStat = {
+    readonly derived: (who: ObjectRef) => number;
 };
 
 // @public
@@ -582,6 +593,15 @@ export type JourneyOptions = {
 };
 
 // @public
+export type KeptStat = {
+    readonly on: "body" | "mind";
+    readonly start?: number;
+    readonly min?: number;
+    readonly max?: number | ((who: ObjectRef) => number);
+    readonly resource?: boolean;
+};
+
+// @public
 export type LearnOptions = FactSource;
 
 // @public
@@ -818,6 +838,9 @@ export type Repeated = {
 };
 
 // @public
+export function restore(who: ObjectRef, name: StatName, amount: number): number;
+
+// @public
 export function reveal(args: RevealArguments, context?: EffectContext): void;
 
 // @public
@@ -912,10 +935,34 @@ export function setRelationship(observer: ObjectRef, toward: ObjectRef, values: 
 }): Relationship;
 
 // @public
+export function setStat(who: ObjectRef, name: StatName, value: number): number;
+
+// @public
+export function spend(who: ObjectRef, name: StatName, amount: number): number;
+
+// @public
 export function startAs(m: ObjectRef): void;
 
 // @public
 export function startClock(options: ClockStart): void;
+
+// @public
+export function stat(who: ObjectRef, name: StatName): number;
+
+// @public
+export type StatName = keyof Stats & string;
+
+// @public
+export interface Stats {
+}
+
+// @public
+export function stats(declared: {
+    readonly [S in StatName]?: StatSpec;
+}): void;
+
+// @public
+export type StatSpec = KeptStat | DerivedStat;
 
 // @public
 export type StoredHours = {

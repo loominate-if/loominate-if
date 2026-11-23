@@ -51,6 +51,7 @@ A message's text is one of three things:
 | `number.words` | `count` | "three", up to twelve, then digits |
 | `clock.time` | `day`, `hour`, `minute` | "9:45 pm" |
 | `clock.label` | | What the clock widget is, for screen readers: "Time" |
+| `stat.notEnough` | `who`, `stat`, `need`, `have` | "You don't have enough energy." |
 | `compass.short` | `direction` | A compass button's label: "N", "NE", "Up" |
 | `hours.closed` | `place`, `opens`?, `when`? | "The bakery is closed until 9:00 am on Monday." |
 | `hours.onDay` | `weekday` | "on Monday" |
