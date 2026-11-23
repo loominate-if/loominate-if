@@ -50,7 +50,10 @@ export function nextOf(s: ScheduledInfo): string {
 
 /** Its delay, and what's special about it. */
 export function detailsOf(s: ScheduledInfo): string {
-  const parts = [`${s.kind === "fuse" ? "after" : "every"} ${amount(s, s.delay)}`];
+  const parts =
+    s.at === undefined
+      ? [`${s.kind === "fuse" ? "after" : "every"} ${amount(s, s.delay)}`]
+      : [`at ${s.at}${s.on === undefined ? " every day" : ` on ${s.on}`}`];
   if (s.interrupts) parts.push("interrupts");
   if (s.standsOut) parts.push("stands out");
   if (s.priority !== 0) parts.push(`priority ${String(s.priority)}`);

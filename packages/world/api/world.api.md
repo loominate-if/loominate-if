@@ -86,6 +86,51 @@ export function body<Id extends StateId, D extends ObjectDefinition<D> & {
 export function bodyOf(m: ObjectRef): Thing | undefined;
 
 // @public
+export type Calendar = {
+    readonly kind: "gregorian" | "counted" | "custom";
+};
+
+// @public
+export const calendar: CalendarView;
+
+// @public
+export type CalendarDefinition = {
+    readonly months: readonly {
+        readonly name: string;
+        readonly days: number;
+    }[];
+    readonly week: readonly string[];
+    readonly firstWeekday?: string;
+    readonly leap?: {
+        readonly month: string;
+        readonly days: number;
+        readonly when: (year: number) => boolean;
+    };
+    readonly seasons?: SeasonsByMonth;
+};
+
+// @public
+export type CalendarQuery = {
+    readonly weekday?: string | readonly string[];
+    readonly month?: string | readonly string[];
+    readonly season?: string | readonly string[];
+    readonly holiday?: string | readonly string[];
+};
+
+// @public
+export type CalendarView = {
+    readonly kind: Calendar["kind"];
+    readonly day: number;
+    readonly weekday: string | undefined;
+    readonly month: string | undefined;
+    readonly date: number | undefined;
+    readonly year: number | undefined;
+    readonly season: string | undefined;
+    readonly holidays: readonly string[];
+    is(query: CalendarQuery): boolean;
+};
+
+// @public
 export function canHear(observer: ObjectRef, target: ObjectRef): boolean;
 
 // @public
@@ -116,6 +161,7 @@ export const clock: Clock;
 export type ClockStart = {
     readonly at?: string;
     readonly day?: number;
+    readonly date?: string | DateSpec;
     readonly travelMinutes?: number;
 };
 
@@ -142,6 +188,18 @@ export const container: {
 export function contents(parent: ObjectRef): Thing[];
 
 // @public
+export function countedDays(options?: CountedDaysOptions): Calendar;
+
+// @public
+export type CountedDaysOptions = {
+    readonly week?: readonly string[];
+    readonly seasons?: readonly {
+        readonly name: string;
+        readonly days: number;
+    }[];
+};
+
+// @public
 export type Daemon = Scheduled & {
     stop(): void;
 };
@@ -151,7 +209,9 @@ export function daemon(id: StateId, options: DaemonOptions, fire: Firing): Daemo
 
 // @public
 export type DaemonOptions = {
-    readonly every: Delay;
+    readonly every?: Delay;
+    readonly at?: string;
+    readonly on?: string | readonly string[] | CalendarQuery;
     readonly running?: boolean;
     readonly interrupts?: boolean;
     readonly priority?: number;
@@ -161,6 +221,19 @@ export type DaemonOptions = {
     readonly clause?: Clause;
     readonly source?: string;
 };
+
+// @public
+export type DateSpec = {
+    readonly year: number;
+    readonly month: string | number;
+    readonly date: number;
+};
+
+// @public
+export function dateText(): string;
+
+// @public
+export function defineCalendar(definition: CalendarDefinition): Calendar;
 
 // @public
 export function defineFacts<D extends Record<string, string | FactOptions>>(definitions: D): {
@@ -332,6 +405,14 @@ export type Grammar = {
 };
 
 // @public
+export function gregorian(options?: GregorianOptions): Calendar;
+
+// @public
+export type GregorianOptions = {
+    readonly seasons?: "northern" | "southern" | SeasonsByMonth;
+};
+
+// @public
 export function happen(source: ObjectRef, options: HappenOptions): void;
 
 // @public
@@ -348,6 +429,21 @@ export type Holding = "in" | "on";
 
 // @public
 export function holding(t: ObjectRef): Holding | undefined;
+
+// @public
+export function holiday(name: string, rule: HolidayRule): void;
+
+// @public
+export type HolidayRule = {
+    readonly month: string;
+    readonly date: number;
+} | {
+    readonly month: string;
+    readonly weekday: string;
+    readonly nth: number;
+} | {
+    readonly day: number;
+};
 
 // @public
 export function inScope(observer: ObjectRef, sense: Sense): Thing[];
@@ -622,12 +718,19 @@ export function _scheduled(): readonly _ScheduledInfo[];
 export type _ScheduledInfo = Scheduled & {
     readonly kind: "fuse" | "daemon";
     readonly delay: number;
+    readonly at: string | undefined;
+    readonly on: string | undefined;
     readonly priority: number;
     readonly interrupts: boolean;
     readonly standsOut: boolean;
     readonly joins: string | undefined;
     readonly source: string;
     readonly ended: Ended | undefined;
+};
+
+// @public
+export type SeasonsByMonth = {
+    readonly [season: string]: readonly string[];
 };
 
 // @public
@@ -715,6 +818,9 @@ export const transparent: {
 export const unlock: Action<    {
 thing: ActingOn;
 }>;
+
+// @public
+export function useCalendar(calendar: Calendar): void;
 
 // @public
 export function visitsTo(room: ObjectRef): number;

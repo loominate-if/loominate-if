@@ -316,7 +316,7 @@ const collapse = fuse("collapse", { after: minutes(30) }, () => {
 - **Wait actions.** "Wait" and "wait until" are ordinary actions. The world model's `wait({ minutes })` and `waitUntil({ time | fires | condition, atMost })` are offered as links, or in an opt-in header Wait menu (`waitMenu`). Any interruption stops them, and named conditions keep replays plain data ([ADR 0054](decisions/0054-waiting.md)).
 - **Game time versus presentation time.** A cut scene's beats take real seconds; whether the scene costs game minutes is a separate, explicit choice.
 
-* **Calendar.** A calendar layer on the clock provides days, weekdays, seasons, years, and holidays, so schedules can say "Tuesdays and Thursdays" and storylets can say "the first day of summer."
+* **Calendar.** A calendar layer on the clock provides days, weekdays, seasons, years, and holidays, so schedules can say "Tuesdays and Thursdays" and storylets can say "the first day of summer." It's the real calendar by default, started from a date; `countedDays` gives "Day 1, Day 2", and `defineCalendar` one of the game's own, with its own months, week, leap day, and seasons. `calendar.is({ weekday, month, season, holiday })` checks a day, holidays are plain data, and daemons can fire `at` a time `on` chosen days ([ADR 0057](decisions/0057-calendar.md)).
 * **Lazy processes.** Large numbers of timed processes (crop growth, item decay) are computed when observed rather than run as individual daemons, generalizing the scheduled-NPC approach so big simulations stay fast.
 
 ## Randomness

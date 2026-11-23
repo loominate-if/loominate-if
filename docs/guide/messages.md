@@ -36,7 +36,6 @@ A message's text is one of three things:
 | `direction.label` | `direction` (its name) | The label it was registered with, "North" |
 | `direction.toward` | `direction` | "to the north", "upstairs" |
 | `direction.from` | `direction` | "from the north", "from above" |
-
 | `examine.label`, `take.label`, `drop.label`, `open.label`, `close.label`, `lock.label`, `unlock.label` | `thing` | The standard actions' labels: "Take the iron key" |
 | `take.done`, `drop.done`, `open.done`, `close.done`, `lock.done`, `unlock.done` | `thing` | What they report: "You take the iron key." |
 | `examine.nothing` | `thing` | "You see nothing special about the statue." |
@@ -50,6 +49,15 @@ A message's text is one of three things:
 | `list.join` | `items` | "a brass key, a map, and two mice" |
 | `list.group` | `count`, `plural` | "three gold coins" |
 | `number.words` | `count` | "three", up to twelve, then digits |
+| `clock.time` | `day`, `hour`, `minute` | "9:45 pm" |
+| `clock.label` | | What the clock widget is, for screen readers: "Time" |
+| `calendar.date` | `day`, `weekday`?, `month`?, `date`?, `year`? | "Wednesday, 31 October 1923", or "Day 3" |
+| `schedule.repeated` | `source`, `lines`, `count` | What a daemon without a `summary` says when it repeats in a jump: empty, which keeps each line |
+| `wait.label`, `waitUntil.label` | `minutes`; `what` | "Wait 10 minutes", "Wait until 6:00 am" |
+| `wait.done`, `waitUntil.came` | `minutes` | "You wait ten minutes." |
+| `waitUntil.done`, `wait.interrupted`, `waitUntil.gaveUp` | `time` | "You wait until 6:00 am.", "Your wait ends at 5:45 am.", "You give up waiting at 5:50 am." |
+| `waitUntil.now`, `waitUntil.notComing`, `waitUntil.holds` | `what` | Why a wait isn't offered |
+| `wait.menu` | | The Wait menu's button: "Wait" |
 
 An actor can still give its own `arrives` and `leaves`, which win over these.
 

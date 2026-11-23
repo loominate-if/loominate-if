@@ -18,7 +18,8 @@ import {
   type StateId,
   type Text,
 } from "@loominate-if/core";
-import { clock } from "./clock.js";
+import { type CalendarQuery, matchesAt } from "./calendar.js";
+import { clock, dayOffset, minuteOfDayAt, parseTime } from "./clock.js";
 import "./listing.js"; // list.join, which joins a group's clauses
 
 declare module "@loominate-if/core" {
@@ -167,8 +168,19 @@ export type FuseOptions = {
 
 /** How {@link daemon} takes its timing. */
 export type DaemonOptions = {
-  /** How often it fires, as in `minutes(5)` or `moves(1)`. */
-  readonly every: Delay;
+  /** How often it fires, as in `minutes(5)` or `moves(1)`. Give this, or `at`. */
+  readonly every?: Delay;
+  /**
+   * The time of day it fires, `"HH:MM"` on a 24-hour clock, every day or on
+   * the days `on` says. Give this, or `every`.
+   */
+  readonly at?: string;
+  /**
+   * With `at`, the days it fires on: weekdays, as `["tuesday", "thursday"]`,
+   * or any calendar check, as `{ season: "summer" }` or `{ holiday: "harvest" }`.
+   * Every day, if it doesn't say.
+   */
+  readonly on?: string | readonly string[] | CalendarQuery;
   /** Whether it starts when the game begins. Defaults to `false`: start it with `start()`. */
   readonly running?: boolean;
   /**
@@ -212,6 +224,10 @@ type Timer = {
   readonly order: number;
   readonly unit: "minutes" | "moves";
   readonly delay: number;
+  /** For a daemon at a time of day: when, and on which days. */
+  readonly at:
+    | { readonly text: string; readonly minuteOfDay: number; readonly on?: CalendarQuery }
+    | undefined;
   readonly repeats: boolean;
   readonly interrupts: boolean;
   readonly priority: number;
@@ -232,8 +248,10 @@ const timers: Timer[] = [];
 function define(
   kind: "fuse" | "daemon",
   id: StateId,
-  delay: Delay,
+  delay: Delay | undefined,
   options: {
+    readonly at?: string;
+    readonly on?: string | readonly string[] | CalendarQuery;
     readonly running?: boolean;
     readonly interrupts?: boolean;
     readonly priority?: number;
@@ -262,13 +280,42 @@ function define(
   if (typeof fire !== "function") {
     throw new StateError(`${where}: give it a function to run when it fires.`);
   }
-  const unit = "minutes" in delay ? "minutes" : "moves";
-  const n = count(where, "minutes" in delay ? delay.minutes : delay.moves);
+  if ((delay === undefined) === (options.at === undefined)) {
+    throw new StateError(
+      `${where}: give it \`every\`, as in every: minutes(15), or \`at\`, a time of day, as in at: "08:00", but not both.`,
+    );
+  }
+  if (options.on !== undefined && options.at === undefined) {
+    throw new StateError(
+      `${where}: \`on\` says which days it fires at its \`at\` time; give it \`at\` too.`,
+    );
+  }
+  const at =
+    options.at === undefined
+      ? undefined
+      : (() => {
+          const { hour, minute } = parseTime(where, options.at);
+          const on = options.on;
+          return {
+            text: options.at,
+            minuteOfDay: hour * 60 + minute,
+            ...(on !== undefined && {
+              on:
+                typeof on === "string" || Array.isArray(on)
+                  ? { weekday: on as string | readonly string[] }
+                  : (on as CalendarQuery),
+            }),
+          };
+        })();
+  const unit = delay === undefined || "minutes" in delay ? "minutes" : "moves";
+  const n =
+    delay === undefined ? 0 : count(where, "minutes" in delay ? delay.minutes : delay.moves);
   const timer: Timer = {
     id,
     order: timers.length,
     unit,
     delay: n,
+    at,
     repeats: kind === "daemon",
     interrupts: options.interrupts ?? false,
     priority,
@@ -281,9 +328,10 @@ function define(
     fire,
     source: options.source ?? "game",
     // Begun running, it's due its delay after the game begins.
+    // A daemon at a time of day works out its first firing when it's first needed, since the calendar may come later.
     state: object(`world:${kind}:${id}`, {
       running,
-      due: running ? n : (null as number | null),
+      due: running && at === undefined ? n : (null as number | null),
       ended: null as Ended | null,
     }),
   };
@@ -293,6 +341,32 @@ function define(
 
 const now = (unit: Timer["unit"]): number => (unit === "minutes" ? clock.minutes : clock.moves);
 
+/** The most days a daemon at a time of day looks ahead for a day it fires on. */
+const LOOK_AHEAD = 4000;
+
+/** When a daemon at a time of day next fires after `after`, or at it, with `inclusive`. */
+function nextAt(t: Timer, after: number, inclusive: boolean): number {
+  const at = t.at;
+  if (!at) return after + t.delay;
+  const startOfDay = (offset: number) => offset * 24 * 60 - minuteOfDayAt(0);
+  for (let d = dayOffset(Math.max(after, 0)); d < dayOffset(Math.max(after, 0)) + LOOK_AHEAD; d++) {
+    const m = startOfDay(d) + at.minuteOfDay;
+    if (m < after || (m === after && !inclusive)) continue;
+    if (!at.on || matchesAt(at.on, m, `daemon ${JSON.stringify(t.id)} on`)) return m;
+  }
+  throw new StateError(
+    `daemon ${JSON.stringify(t.id)}: no day in the next ${String(LOOK_AHEAD)} matches its \`on\`, so it would never fire.`,
+  );
+}
+
+/**
+ * When it's due: as stored, or, for a daemon at a time of day begun running
+ * and not yet fired, its next time from now, so one added to a game later
+ * doesn't fire for every day it missed.
+ */
+const dueOf = (t: Timer): number | null =>
+  t.state.due ?? (t.state.running && t.at ? nextAt(t, clock.minutes, true) : null);
+
 function handle(t: Timer): Scheduled {
   return {
     id: t.id,
@@ -301,11 +375,11 @@ function handle(t: Timer): Scheduled {
       return t.state.running;
     },
     get firesAt() {
-      return t.state.running ? (t.state.due ?? undefined) : undefined;
+      return t.state.running ? (dueOf(t) ?? undefined) : undefined;
     },
     start() {
       t.state.running = true;
-      t.state.due = now(t.unit) + t.delay;
+      t.state.due = t.at ? nextAt(t, clock.minutes, false) : now(t.unit) + t.delay;
       t.state.ended = null;
     },
   };
@@ -371,11 +445,15 @@ export function daemon(id: StateId, options: DaemonOptions, fire: Firing): Daemo
  */
 function nextDue(unit: Timer["unit"], upTo: number): Timer | undefined {
   let best: Timer | undefined;
+  let bestDue = Infinity;
   for (const t of timers) {
-    const due = t.state.due;
-    if (t.unit !== unit || !t.state.running || due === null || due > upTo) continue;
-    const bestDue = best?.state.due ?? Infinity;
-    if (!best || due < bestDue || (due === bestDue && t.priority > best.priority)) best = t;
+    if (t.unit !== unit || !t.state.running) continue;
+    const due = dueOf(t);
+    if (due === null || due > upTo) continue;
+    if (!best || due < bestDue || (due === bestDue && t.priority > best.priority)) {
+      best = t;
+      bestDue = due;
+    }
   }
   return best;
 }
@@ -411,8 +489,8 @@ export function firingNow(): StateId | undefined {
  */
 function fire(t: Timer): boolean {
   fired.set(t.id, (fired.get(t.id) ?? 0) + 1);
-  const due = t.state.due ?? now(t.unit);
-  if (t.repeats) t.state.due = due + t.delay;
+  const due = dueOf(t) ?? now(t.unit);
+  if (t.repeats) t.state.due = t.at ? nextAt(t, due, false) : due + t.delay;
   else halt(t, "fired");
   const outer = firing;
   firing = t.id;
@@ -558,8 +636,9 @@ export function nextInMinutes(
   upTo: number,
 ): { readonly at: number; readonly id: StateId; readonly fire: () => boolean } | undefined {
   const t = nextDue("minutes", upTo);
-  if (!t || t.state.due === null) return undefined;
-  return { at: t.state.due, id: t.id, fire: () => fire(t) };
+  const due = t ? dueOf(t) : null;
+  if (!t || due === null) return undefined;
+  return { at: due, id: t.id, fire: () => fire(t) };
 }
 
 /** Fires every timer counted in moves that's due now, in order. @internal */
@@ -573,6 +652,9 @@ export function fireMoves(): void {
 export type _ScheduledInfo = Scheduled & {
   readonly kind: "fuse" | "daemon";
   readonly delay: number;
+  /** For a daemon at a time of day: its time, and which days, described. */
+  readonly at: string | undefined;
+  readonly on: string | undefined;
   readonly priority: number;
   readonly interrupts: boolean;
   readonly standsOut: boolean;
@@ -593,6 +675,8 @@ export function _scheduled(): readonly _ScheduledInfo[] {
       start: h.start,
       kind: t.repeats ? "daemon" : "fuse",
       delay: t.delay,
+      at: t.at?.text,
+      on: t.at?.on === undefined ? undefined : describeOn(t.at.on),
       priority: t.priority,
       interrupts: t.interrupts,
       standsOut: t.standsOut,
@@ -601,4 +685,16 @@ export function _scheduled(): readonly _ScheduledInfo[] {
       ended: t.state.ended ?? undefined,
     };
   });
+}
+
+/** A calendar check, described for the inspector: "tuesday, thursday", or "season summer". */
+function describeOn(q: CalendarQuery): string {
+  const part = (v: string | readonly string[] | undefined) =>
+    v === undefined ? [] : typeof v === "string" ? [v] : [...v];
+  return [
+    ...part(q.weekday),
+    ...part(q.month).map((m) => `in ${m}`),
+    ...part(q.season).map((x) => `in ${x}`),
+    ...part(q.holiday).map((h) => `on ${h}`),
+  ].join(", ");
 }

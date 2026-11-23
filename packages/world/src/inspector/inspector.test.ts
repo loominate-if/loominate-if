@@ -16,6 +16,7 @@ const bells = daemon(
 );
 const drip = daemon("drip", { every: moves(2), source: "@my-scope/caves" }, () => "Drip.");
 fuse("letter", { after: minutes(60) }, () => "A letter arrives.");
+daemon("market", { at: "08:00", on: ["tuesday", "thursday"], running: true }, () => "Market.");
 
 beforeEach(() => {
   const store = createStore();
@@ -51,6 +52,8 @@ describe("the Fuses and daemons panel", () => {
       "bells | daemon | Running | 9:30 pm, in 10 minutes | every 15 minutes, priority 2, joins “outside” | game",
       "drip | daemon | Stopped | — | every 2 moves | @my-scope/caves",
       "letter | fuse | Not started | — | after 60 minutes | game",
+      // 1 January 2000, the default start, was a Saturday: the next Tuesday is three days on.
+      "market | daemon | Running | 8:00 am, in 3520 minutes | at 08:00 on tuesday, thursday | game",
     ]);
     clock.advance(10);
     view?.update();
