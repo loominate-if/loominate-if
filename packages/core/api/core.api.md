@@ -416,8 +416,21 @@ export function instancesOf<D>(template: ObjectTemplate<D>): Handle<D>[];
 // @public
 export function invertDiff(diff: StateDiff): StateDiff;
 
+// @internal
+export function _isAtmosphere(e: {
+    readonly kind: string;
+}): boolean;
+
 // @public
 export function isText(value: unknown): value is Text;
+
+// @internal
+export function _leadingNotices<E extends {
+    readonly kind: string;
+}>(events: readonly E[]): {
+    readonly lead: E[];
+    readonly rest: E[];
+};
 
 // @public
 export type LineId = string;

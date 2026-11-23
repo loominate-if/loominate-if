@@ -1263,7 +1263,9 @@ enter: ({ emit }) => {
 },
 ```
 
-The passage the player was going to is entered first, with its effects, then left. What they noticed on the way stays with the move, undo takes back both passages at once, and a replay makes the same move and is redirected the same way.
+The passage the player was going to is entered first, with its effects, then left. Undo takes back both passages at once, and a replay makes the same move and is redirected the same way.
+
+What led to the redirect comes first on the page, before the passage the player was sent to, since it's how they got there: "The floor gives way!", then "You land in the cellar." Atmosphere from fuses and daemons stays after the text, as usual. In the story so far, it sits between the passage they left and the one they landed in.
 
 ### Showing the time
 

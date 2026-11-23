@@ -15,7 +15,7 @@ A long journey, such as a subway ride, should be stoppable partway by an emergen
   - checks the exit's door or obstacle, as any way does;
   - moves the clock on by the exit's minutes, or `travelMinutes`, with the journey's `stopsFor`. Anything that interrupts stops it unless it says;
   - then moves the player to the destination, or, if interrupted, to `stopsAt`, and redirects to that place's room passage. Without `stopsAt`, an interrupted journey leaves the player where they set out.
-- **One move:** it's one move and one undo step. The destination's passage is entered only if the player arrives. What interrupted the journey is told on the page that follows.
+- **One move:** it's one move and one undo step. The destination's passage is entered only if the player arrives. What interrupted the journey is told first on the page that follows, before the stop place's text, with atmosphere from the way after it.
 - **Resuming:** a stopped journey isn't resumed automatically. The place it stops at has whatever exits the author connects.
 
 ## Consequences

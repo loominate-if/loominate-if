@@ -43,6 +43,8 @@ export {
   type PropertyDescription,
 } from "./objects/objects.js";
 export {
+  _isAtmosphere,
+  _leadingNotices,
   _noticeParagraphs,
   createEventRecord,
   type EventKind,
