@@ -447,6 +447,63 @@ expect([relationship(mira, you).affection, told()]).toEqual([
 
 `relationshipTo(observer, body)` reads toward whoever the observer believes a body is, so it follows [disguises](#who-others-take-you-for).
 
+## Traits
+
+A trait needs nothing special: it's a property you give an object or an actor, typed like any other, so a passage, an action, or a line of text tests it directly. A flag, a value, or a list of tags all work, and all are state, so undo and saves keep them:
+
+<!-- example: packages/world/src/traits.test.ts#things -->
+```ts
+export const sword = thing("sword", {
+  name: "sword",
+  location: hall,
+  isCursed: true, // a flag
+  weight: 3, // a value
+  tags: ["silver", "old"] as string[], // a set of tags
+});
+```
+
+<!-- example: packages/world/src/traits.test.ts#action -->
+```ts
+export const wield = action<{ thing: typeof sword }>("wield", {
+  on: sword,
+  label: "Wield the sword",
+  check: ({ thing }) =>
+    thing.isCursed && !thing.tags.includes("blessed")
+      ? "The cursed blade burns your hand."
+      : undefined,
+  report: "You lift the sword.",
+});
+```
+
+Change one like any property, in an effect or an action. A list is replaced, not changed in place:
+
+<!-- example: packages/world/src/traits.test.ts#bless -->
+```ts
+sword.tags = [...sword.tags, "blessed"];
+```
+
+On an actor, put each trait on the half it belongs to. Build and appearance go on the body and stay with it; personality, memories, and quirks go on the mind, and travel with it into another body:
+
+<!-- example: packages/world/src/traits.test.ts#actors -->
+```ts
+export const mira = actor("mira", {
+  body: { name: "Mira", isProper: true, location: hall, strength: 2 }, // build stays with the body
+  mind: { courage: 3, quirks: ["hums when nervous"] as string[] }, // personality travels with the mind
+});
+export const ghost = mind("ghost", { name: "ghost", courage: 9, quirks: [] as string[] });
+```
+
+`mira.courage` is always Mira's own, wherever her mind is. For whoever is in her body now, ask the body's mind:
+
+<!-- example: packages/world/src/traits.test.ts#possession -->
+```ts
+possess(ghost, mira);
+expect(mira.strength).toBe(2); // Mira's body is as strong as ever
+expect(mindOf(mira)?.id).toBe("ghost");
+expect((mindOf(mira) as unknown as { courage: number }).courage).toBe(9); // whoever's in it is bold
+expect(mira.courage).toBe(3); // Mira's own courage, wherever her mind is
+```
+
 ## Rooms and regions
 
 A **room** is a place a passage describes. Tag the passage with `room:` and the place it describes, and arriving at the passage moves the player there and counts a visit:
