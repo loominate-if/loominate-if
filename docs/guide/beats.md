@@ -25,6 +25,23 @@ You are not, it seems, expected.
 
 `{on enter: …}` and `{on first visit: …}` written after a beat run when the player reaches that part, not when they enter the passage. In the example, the lamp lights when the fog appears. `{on first visit: …}` there runs only on the passage's first visit. `{on leave: …}` belongs to the whole passage, so write it before the first beat.
 
+## Game time
+
+A beat's pause is real time, on screen; it never moves the game clock. Whether a cut scene costs game time is a separate choice you make, beat by beat, with `minutes`: that much game time passes as the player moves past the beat, whether they wait it out or skip it.
+
+```
+:: Night watch [cutscene]
+You settle in by the fire. It's {timeOfDay()}.
+{beat 2s, minutes: 120}
+The fire burns low. It's {timeOfDay()}.
+{beat 2s, minutes: 180}
+Grey light creeps over the hills. It's {timeOfDay()}.
+{page}
+You stand and stretch.
+```
+
+Two real seconds each, and five game hours in all. The time passes before the next part, so its text and effects see the new time, and fuses and daemons due on the way fire in order; what they say belongs to that part. `{wait minutes: 30}` and `{page minutes: 600}` work the same way. A beat without `minutes` costs no game time. The world model's clock keeps the time, hearing it through core's `beatTime` hook; without the world model, a game can handle that hook with its own clock. To cost the whole passage at once, `{on enter: clock.advance(30)}` still works.
+
 ## What players get
 
 - After a timed pause, the next part appears below what's shown. Clicking the page hurries the pause along.

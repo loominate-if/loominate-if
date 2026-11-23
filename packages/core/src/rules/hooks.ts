@@ -59,6 +59,12 @@ export interface HookKinds {
     /** What may stop its time partway, by ID, as the action's `stopsFor` says, if it does. */
     readonly stopsFor?: (by: string) => boolean;
   };
+  /**
+   * When the player moves past a beat that says game time passes, with how
+   * many minutes, before the next part's effects. Core has no clock: the
+   * world model's handles it, as with {@link HookKinds.actionTime}.
+   */
+  beatTime: { readonly passage: string; readonly minutes: number };
   /** After a save is written to a slot. */
   save: { readonly slot: string; readonly summary: SaveSummary };
   /** After a save is read from a slot, before the host loads it. */

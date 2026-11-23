@@ -95,6 +95,7 @@ export const AUTOSAVE_SLOT = "autosave";
 // @public
 export function beat(args: {
     readonly duration: number;
+    readonly minutes?: number;
 }): BeatNode;
 
 // @public
@@ -107,6 +108,7 @@ export type BeatNode = {
     readonly type: "beat";
     readonly duration?: number;
     readonly page?: true;
+    readonly minutes?: number;
 };
 
 // @public
@@ -363,6 +365,10 @@ export interface HookKinds {
         readonly minutes: number;
         readonly stopsFor?: (by: string) => boolean;
     };
+    beatTime: {
+        readonly passage: string;
+        readonly minutes: number;
+    };
     gameStart: HookContext;
     load: {
         readonly slot: string;
@@ -593,7 +599,9 @@ export function openPersistent(options: {
 }): Promise<PersistentStore>;
 
 // @public
-export function pageBreak(args?: Readonly<Record<string, never>>): BeatNode;
+export function pageBreak(args?: {
+    readonly minutes?: number;
+}): BeatNode;
 
 // @public
 export type Participant = ObjectRef | ((thing: ObjectRef) => boolean);
@@ -1118,7 +1126,9 @@ export interface VisitMemory {
 }
 
 // @public
-export function wait(args?: Readonly<Record<string, never>>): BeatNode;
+export function wait(args?: {
+    readonly minutes?: number;
+}): BeatNode;
 
 // @public
 export function writePersistent(game: GameInfo, state: StateSnapshot): string;

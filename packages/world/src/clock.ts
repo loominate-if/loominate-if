@@ -439,6 +439,15 @@ hook("actionTime").rule(
   { source: SOURCE },
 );
 
+// A beat's game time, as a cut scene says it passes, through core's beatTime hook.
+hook("beatTime").rule(
+  "game clock",
+  ({ minutes }) => {
+    clock.advance(minutes);
+  },
+  { source: SOURCE },
+);
+
 // Every move counts, after it's made.
 hook("turnEnd").rule(
   "move counter",
