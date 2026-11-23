@@ -115,6 +115,10 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   cursor: pointer;
 }
 .loominate-compass-way[aria-disabled="true"] { color: ${v("color-muted")}; border-style: dashed; cursor: not-allowed; }
+/* A point with no way out: a faint mark in its cell, so the rose keeps its shape. */
+.loominate-compass-none, .loominate-compass-centre { display: flex; align-items: center; justify-content: center; }
+.loominate-compass-none::before { content: ""; width: 0.3em; height: 0.3em; border-radius: 50%; background: ${v("color-border")}; }
+.loominate-compass-centre::before { content: ""; width: 0.5em; height: 0.5em; transform: rotate(45deg); border: 1px solid ${v("color-muted")}; }
 .loominate-compass-reason { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .loominate-things-title { color: ${v("color-muted")}; }
 /* A thing's menu, under its name. */

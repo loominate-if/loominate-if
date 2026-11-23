@@ -517,6 +517,7 @@ expect(ways()).toEqual(["N North", "E East", "Down Down (The cellar door is lock
 ```
 
 - **Blocked ways:** a way a locked or closed door blocks is disabled, and the door's reason is its tooltip and what a screen reader hears.
+- **Points with no way:** each is a faint dot in its cell, not a button, and screen readers skip it, so the rose keeps its shape and a missing way doesn't look like a blocked one.
 - **Taking a way:** a button takes the way as the `{exits}` links do, journeys included, even in a passage that shows no `{exits}`.
 - **Names:** a way names where it leads once the player has been there.
 - **Keys:** the numpad works when focus isn't in a text field: 8, 2, 4, and 6 for the points, 7, 9, 1, and 3 for the diagonals, and + and - for up and down.

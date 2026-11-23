@@ -95,7 +95,8 @@ const typing = (target: EventTarget | null): boolean => {
 /**
  * A compass: a button for each way out, the eight compass points in a grid
  * and the rest (up, down, in, out, and a game's own) beside it, disabled
- * with why when a way can't be taken. Keys take ways too.
+ * with why when a way can't be taken. A point with no way out is a faint
+ * mark, hidden from screen readers. Keys take ways too.
  */
 export function compassWidget(options: CompassOptions): WidgetDefinition<CompassData> {
   const keys = options.keys ?? "numpad";
@@ -150,7 +151,26 @@ export function compassWidget(options: CompassOptions): WidgetDefinition<Compass
               grid.append(b);
             } else rest.append(b);
           }
-          box.prepend(grid, rest);
+          // Every point has its cell: one with no way out is a faint mark, not a button,
+          // so it reads differently from a way that's there but blocked.
+          const there = new Set(d.ways.map((w) => w.direction));
+          for (const [direction, [col, row]] of Object.entries(GRID)) {
+            if (there.has(direction)) continue;
+            const none = doc.createElement("span");
+            none.className = "loominate-compass-none";
+            none.setAttribute("aria-hidden", "true");
+            none.dataset.direction = direction;
+            none.style.gridColumn = String(col);
+            none.style.gridRow = String(row);
+            grid.append(none);
+          }
+          const centre = doc.createElement("span");
+          centre.className = "loominate-compass-centre";
+          centre.setAttribute("aria-hidden", "true");
+          centre.style.gridColumn = "2";
+          centre.style.gridRow = "2";
+          grid.append(centre);
+          box.prepend(grid, ...(rest.childElementCount > 0 ? [rest] : []));
         };
         const onKey = (event: KeyboardEvent): void => {
           if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;

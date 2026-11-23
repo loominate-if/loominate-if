@@ -11,7 +11,7 @@ The compass is an optional widget that asks the current location for its exits a
 ## Decision
 
 - **Split:** presentation draws it, and the world model supplies it.
-  - Presentation's `compassWidget({ ways, take, keys })` is generic. It lays the eight compass points out in a 3 by 3 grid, with the other ways (up, down, in, out, a game's own) beside it. A way that can't be taken is `aria-disabled`, with its reason as its tooltip and described for screen readers. Its data is plain (`direction`, `label`, `title`, `available`, `reason`), so a game can replace the view and keep the data.
+  - Presentation's `compassWidget({ ways, take, keys })` is generic. It lays the eight compass points out in a 3 by 3 grid, with the other ways (up, down, in, out, a game's own) beside it. A way that can't be taken is `aria-disabled`, with its reason as its tooltip and described for screen readers. A point with no way at all is a faint mark in its cell, hidden from screen readers, and the centre has a mark too, so the rose keeps its shape and a missing way looks different from a blocked one (added in review). Its data is plain (`direction`, `label`, `title`, `available`, `reason`), so a game can replace the view and keep the data.
   - The world model registers `compass` from `compass({ names, keys })`. Its ways are the exits of the player's room, with the door's reason for a blocked one.
 - **Placement:** it's opt-in. A game places it with `addToHeader("compass")` or in a layout of its own, and changes its settings by replacing the widget.
 - **Names:** a way names its destination once visited, as `{exits}` does. `names: "all"` or `"none"` changes that.

@@ -57,6 +57,18 @@ describe("a compass", () => {
     expect(
       [...element.querySelectorAll(".loominate-compass-others button")].map((b) => b.textContent),
     ).toEqual(["Up", "Fore"]);
+    // Points with no way out are faint marks, not buttons, hidden from screen readers.
+    const none = [...element.querySelectorAll<HTMLElement>(".loominate-compass-none")];
+    expect(none.map((n) => n.dataset.direction)).toEqual([
+      "northwest",
+      "northeast",
+      "west",
+      "southwest",
+      "south",
+      "southeast",
+    ]);
+    expect(none.every((n) => n.getAttribute("aria-hidden") === "true")).toBe(true);
+    expect(element.querySelectorAll(".loominate-compass-points button")).toHaveLength(2);
     expect((await axe.run(element)).violations).toEqual([]);
   });
 
