@@ -504,6 +504,61 @@ expect((mindOf(mira) as unknown as { courage: number }).courage).toBe(9); // who
 expect(mira.courage).toBe(3); // Mira's own courage, wherever her mind is
 ```
 
+## Stats and resources
+
+For numbers the library should look after, such as strength, wits, and energy, declare **stats**. Each says where it's kept: on the body, physical, which stays with the body; or on the mind, mental, which travels with the mind. A resource is spent and restored, up to a maximum that can be worked out from other stats, and a derived stat is a formula over others:
+
+<!-- example: packages/world/src/stats.test.ts#stats -->
+```ts
+declare module "@loominate-if/world" {
+  interface Stats {
+    strength: true;
+    wits: true;
+    energy: true;
+    carry: true;
+  }
+}
+stats({
+  strength: { on: "body", start: 2, min: 0, max: 10 },
+  wits: { on: "mind", start: 3 },
+  energy: { on: "body", resource: true, start: 4, max: (who) => 5 + stat(who, "strength") },
+  carry: { derived: (who) => stat(who, "strength") * 5 },
+});
+```
+
+- **Reading:** `stat(who, name)` works for an actor, a body, or a mind. Asked of a body, a mental stat is the stat of whoever is in it now; asked of a mind, it's that mind's own.
+- **Changing:** `setStat` and `changeStat` change a stat, clamped to its limits. In `story.ts`, as the game loads, they set how things start.
+
+<!-- example: packages/world/src/stats.test.ts#starting -->
+```ts
+setStat(ox, "strength", 9); // an ox's body is strong
+setStat(ox, "wits", 1); // and its mind, slow
+```
+
+So a body swap moves mental stats with the mind:
+
+<!-- example: packages/world/src/stats.test.ts#swap -->
+```ts
+swapBodies(you, ox);
+expect(stat(you, "strength")).toBe(2); // your old body, as weak as ever
+expect(stat(you, "wits")).toBe(1); // but the ox's mind is in it now
+expect(stat(ox, "wits")).toBe(3); // and yours is in the ox: strong and clever
+```
+
+**Resources:** `canSpend(who, name, amount)` says why not, for an action's `check`, and `spend` takes it. `restore` gives it back, up to the max. The reason is the `stat.notEnough` message: "You don't have enough energy."
+
+<!-- example: packages/world/src/stats.test.ts#spend -->
+```ts
+export const haul = action<{ thing: typeof ox }>("haul", {
+  label: "Haul the cart",
+  check: ({ body }) => (body ? canSpend(body, "energy", 3) : undefined),
+  run: ({ body }) => {
+    if (body) spend(body, "energy", 3);
+  },
+  report: "You haul the cart across the yard.",
+});
+```
+
 ## Rooms and regions
 
 A **room** is a place a passage describes. Tag the passage with `room:` and the place it describes, and arriving at the passage moves the player there and counts a visit:
