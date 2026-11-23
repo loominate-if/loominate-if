@@ -113,6 +113,12 @@ export interface EventKinds {
     readonly from?: StateId;
     /** Where the move ended. */
     readonly to: StateId;
+    /**
+     * Whether it was `redirect` sending the player on, within a move, rather
+     * than a move of its own: what was noticed before it still belongs to
+     * the move.
+     */
+    readonly redirected?: boolean;
   };
   /** A message from the system rather than the story, such as "Game saved." */
   system: ProseFields;

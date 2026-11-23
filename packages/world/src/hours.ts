@@ -113,14 +113,14 @@ const minuteOf = (where: string, at: string): number => {
   return hour * 60 + minute;
 };
 
-/** The opening hours a thing has, if it has any. */
-const hoursOf = (thing: ObjectRef): Stored | undefined => {
+/** The opening hours a thing has, if it has any. @internal */
+export const hoursOf = (thing: ObjectRef): Stored | undefined => {
   const h = (thingFor(thing) as { hours?: Stored } | undefined)?.hours;
   return h && typeof h.open === "string" ? h : undefined;
 };
 
-/** Whether `h` is open `minutes` into the game. */
-function openAt(h: Stored, minutes: number): boolean {
+/** Whether `h` is open `minutes` into the game. @internal */
+export function openAt(h: Stored, minutes: number): boolean {
   const open = minuteOf("hours", h.open);
   const close = minuteOf("hours", h.close);
   const dayOk = (m: number) => h.on === null || matchesAt(h.on, m, "openingHours on");

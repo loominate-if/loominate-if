@@ -172,9 +172,10 @@ export type DaemonOptions = {
   readonly every?: Delay;
   /**
    * The time of day it fires, `"HH:MM"` on a 24-hour clock, every day or on
-   * the days `on` says. Give this, or `every`.
+   * the days `on` says. Give this, or `every`. A function is asked each
+   * time, for a time kept in state, such as a door's closing time.
    */
-  readonly at?: string;
+  readonly at?: string | (() => string);
   /**
    * With `at`, the days it fires on: weekdays, as `["tuesday", "thursday"]`,
    * or any calendar check, as `{ season: "summer" }` or `{ holiday: "harvest" }`.
@@ -250,7 +251,7 @@ function define(
   id: StateId,
   delay: Delay | undefined,
   options: {
-    readonly at?: string;
+    readonly at?: string | (() => string);
     readonly on?: string | readonly string[] | CalendarQuery;
     readonly running?: boolean;
     readonly interrupts?: boolean;
@@ -290,23 +291,28 @@ function define(
       `${where}: \`on\` says which days it fires at its \`at\` time; give it \`at\` too.`,
     );
   }
+  const spec = options.at;
+  if (typeof spec === "string") parseTime(where, spec);
+  const on = options.on;
+  const atText = (): string => (typeof spec === "function" ? spec() : (spec ?? ""));
   const at =
-    options.at === undefined
+    spec === undefined
       ? undefined
-      : (() => {
-          const { hour, minute } = parseTime(where, options.at);
-          const on = options.on;
-          return {
-            text: options.at,
-            minuteOfDay: hour * 60 + minute,
-            ...(on !== undefined && {
-              on:
-                typeof on === "string" || Array.isArray(on)
-                  ? { weekday: on as string | readonly string[] }
-                  : (on as CalendarQuery),
-            }),
-          };
-        })();
+      : {
+          get text() {
+            return atText();
+          },
+          get minuteOfDay() {
+            const { hour, minute } = parseTime(where, atText());
+            return hour * 60 + minute;
+          },
+          ...(on !== undefined && {
+            on:
+              typeof on === "string" || Array.isArray(on)
+                ? { weekday: on as string | readonly string[] }
+                : (on as CalendarQuery),
+          }),
+        };
   const unit = delay === undefined || "minutes" in delay ? "minutes" : "moves";
   const n =
     delay === undefined ? 0 : count(where, "minutes" in delay ? delay.minutes : delay.moves);
@@ -349,8 +355,9 @@ function nextAt(t: Timer, after: number, inclusive: boolean): number {
   const at = t.at;
   if (!at) return after + t.delay;
   const startOfDay = (offset: number) => offset * 24 * 60 - minuteOfDayAt(0);
+  const minuteOfDay = at.minuteOfDay;
   for (let d = dayOffset(Math.max(after, 0)); d < dayOffset(Math.max(after, 0)) + LOOK_AHEAD; d++) {
-    const m = startOfDay(d) + at.minuteOfDay;
+    const m = startOfDay(d) + minuteOfDay;
     if (m < after || (m === after && !inclusive)) continue;
     if (!at.on || matchesAt(at.on, m, `daemon ${JSON.stringify(t.id)} on`)) return m;
   }

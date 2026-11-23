@@ -474,6 +474,57 @@ const AT_BEGIN_FIELD = "atBegin";
 const ACTIONS_ID = "$actions";
 const LENGTH_FIELD = "length";
 
+/** How many times one move can be redirected before it's taken for a loop. */
+const MAX_REDIRECTS = 20;
+/** Where the move being made is redirected to, if anywhere. */
+let redirectTo: PassageId | undefined;
+/** Whether a move is being made, so `redirect` has one to redirect. */
+let moving = false;
+
+/** Runs `move`, marking that a move is being made, and forgets any redirect left over if it fails. */
+function duringMove(move: () => void): void {
+  const outer = moving;
+  moving = true;
+  try {
+    move();
+  } finally {
+    moving = outer;
+    if (!outer) redirectTo = undefined;
+  }
+}
+
+/** Where the move is redirected to, taken so it's followed once. */
+function takeRedirect(): PassageId | undefined {
+  const target = redirectTo;
+  redirectTo = undefined;
+  return target;
+}
+
+/**
+ * Sends the player to `passage` once the move being made is done, as part
+ * of the same move: the passage they were going to is entered first, with
+ * its effects, then left for this one. Undo takes back both, and a replay
+ * makes the same move, so it's redirected the same way. Call it from an
+ * effect, an action, or a fuse or daemon as it fires, such as a trapdoor,
+ * or a shopkeeper showing the player out at closing time. A later call in
+ * the same move wins.
+ *
+ * @example
+ * ```ts
+ * {on enter: if (floor.isRotten) redirect("Cellar")}
+ * ```
+ *
+ * @throws StateError if no move is being made, such as while a passage is shown.
+ */
+export function redirect(passage: PassageId): void {
+  if (!moving) {
+    throw new StateError(
+      `redirect ${JSON.stringify(passage)}: there's no move to redirect. Call it during a move, from an effect, an action, or a fuse or daemon as it fires.`,
+    );
+  }
+  redirectTo = passage;
+}
+
 /**
  * What kind of move the player made, as `turnEnd` hears: following a link,
  * a continue, taking an action, or a `goTo`. A continue only acknowledges
@@ -744,35 +795,64 @@ export function createStory(
     }
   };
 
+  /** Leaves the passage the story is at, if any, and arrives at `to`: its effects, hooks, and prose. */
+  const arrive = (to: Passage, redirected: boolean): void => {
+    const from = current();
+    const leaving = from === undefined ? undefined : byId.get(from);
+    if (leaving) {
+      runPhase(leaving, "leave");
+      hook("passageLeave").run(contextFor(leaving.id));
+    }
+    emitIn(to.id)("navigation", {
+      ...(from !== undefined && { from }),
+      to: to.id,
+      ...(redirected && { redirected: true }),
+    });
+    store.set(STORY_ID, CURRENT_FIELD, to.id);
+    if (store.has(STORY_ID, STEP_FIELD)) store.delete(STORY_ID, STEP_FIELD);
+    store.set(VISITS_ID, to.id, totalVisits(to.id) + 1);
+    visitMemory()?.record(to.id);
+    if (visits(to.id) === 1) runPhase(to, "firstVisit");
+    runPhase(to, "enter");
+    hook("passageEnter").run(contextFor(to.id));
+    recordProse(to.id, renderPassage(to).nodes);
+  };
+
+  /** Goes where `redirect()` said to during the move, as part of it (#316). */
+  const followRedirects = (): void => {
+    for (let hops = 0; ; hops++) {
+      const target = takeRedirect();
+      if (target === undefined) return;
+      if (hops >= MAX_REDIRECTS) {
+        throw new StateError(
+          `redirect: the move was redirected ${String(MAX_REDIRECTS)} times, last to ${JSON.stringify(target)}; passages are probably redirecting to each other.`,
+        );
+      }
+      arrive(lookup(target, "redirect"), true);
+    }
+  };
+
   const enter = (to: Passage, why: "start" | "turn", move: string, kind?: MoveKind): void => {
     if (navigating) {
       throw new StateError(
         `can't move to ${JSON.stringify(to.id)} while an effect phase is running; effects change state, and links and continue points move between passages.`,
       );
     }
-    transaction(() => {
-      store.set(RANDOM_ID, MOVE_FIELD, move);
-      const from = current();
-      const leaving = from === undefined ? undefined : byId.get(from);
-      if (why === "start") {
-        hook("gameStart").run(hookContext());
-      }
-      if (leaving) {
-        runPhase(leaving, "leave");
-        hook("passageLeave").run(contextFor(leaving.id));
-      }
-      emitIn(to.id)("navigation", { ...(from !== undefined && { from }), to: to.id });
-      store.set(STORY_ID, CURRENT_FIELD, to.id);
-      if (store.has(STORY_ID, STEP_FIELD)) store.delete(STORY_ID, STEP_FIELD);
-      store.set(VISITS_ID, to.id, totalVisits(to.id) + 1);
-      visitMemory()?.record(to.id);
-      if (visits(to.id) === 1) runPhase(to, "firstVisit");
-      runPhase(to, "enter");
-      hook("passageEnter").run(contextFor(to.id));
-      recordProse(to.id, renderPassage(to).nodes);
-      if (why === "turn") {
-        hook("turnEnd").run({ ...contextFor(to.id), move: kind ?? "follow" });
-      }
+    duringMove(() => {
+      transaction(() => {
+        store.set(RANDOM_ID, MOVE_FIELD, move);
+        if (why === "start") {
+          hook("gameStart").run(hookContext());
+        }
+        arrive(to, false);
+        followRedirects();
+        if (why === "turn") {
+          const at = current() ?? to.id;
+          hook("turnEnd").run({ ...contextFor(at), move: kind ?? "follow" });
+          // What turnEnd's own rules redirect to, such as a fuse counted in moves.
+          followRedirects();
+        }
+      });
     });
   };
 
@@ -838,11 +918,15 @@ export function createStory(
     const n = logLength();
     const tried = store.get(ATTEMPTS_ID, String(n));
     const attempt = replayed ?? (typeof tried === "number" ? tried : 0);
-    transaction(() => {
-      store.set(RANDOM_ID, MOVE_FIELD, `${String(n)}.${String(attempt)}`);
-      emitIn(id)("action", { action: logged.action, ...(label !== undefined && { label }) });
-      perform(call);
-      hook("turnEnd").run({ ...contextFor(id), move: "act" });
+    duringMove(() => {
+      transaction(() => {
+        store.set(RANDOM_ID, MOVE_FIELD, `${String(n)}.${String(attempt)}`);
+        emitIn(id)("action", { action: logged.action, ...(label !== undefined && { label }) });
+        perform(call);
+        followRedirects();
+        hook("turnEnd").run({ ...contextFor(current() ?? id), move: "act" });
+        followRedirects();
+      });
     });
     store.set(ATTEMPTS_ID, String(n), attempt + 1);
     log({

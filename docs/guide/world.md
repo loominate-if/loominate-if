@@ -1109,6 +1109,60 @@ expect(exits()).toEqual(["East: open", "In: The bakery is closed until 9:00 am o
 
 `isOpenNow(bakeryDoor)` checks it from code, such as a shopkeeper's action. The hours are state, so `bakeryDoor.hours = …` changes them during play, for a holiday, say. The reason is the `hours.closed` message.
 
+### Closing time
+
+Someone inside when a place closes is free to leave, and nothing else happens, since they may have something to finish there. To have something happen, list it with `closingTime`, step by step after closing:
+
+<!-- example: packages/world/src/closing.test.ts#closing -->
+```ts
+closingTime(bakeryDoor, [
+  { after: minutes(5), say: "The baker glares at you over the counter." },
+  {
+    after: minutes(20),
+    say: "“We're closed, dear,” says the baker, and shows you out.",
+    moveTo: street,
+    unless: () => till.isPaying,
+  },
+]);
+```
+
+- **What a step does:** `say` tells the player something, `moveTo` moves them to a place and the story to its room's passage, and `do` runs code of your own, which may return more to say.
+- **Who it affects:** each step happens only if the player is still inside, and stands out in its own paragraph.
+- **Interrupting:** a step that happens interrupts a jump of the clock, so a long wait in the bakery is cut short by the baker's glare.
+- **`unless`:** a step waits while this holds, such as while the player is paying. It's checked again each minute and each move, and the step happens once it's clear.
+
+<!-- example: packages/world/src/closing.test.ts#shown out -->
+```ts
+choose("Wait 30 minutes"); // to 17:20, but the glare at 17:05 stops it
+expect([timeOfDay(), story.current]).toEqual(["5:05 pm", "Bakery"]);
+choose("Wait 30 minutes");
+expect([timeOfDay(), story.current]).toEqual(["5:20 pm", "Street"]);
+expect(told()).toEqual([
+  "The baker glares at you over the counter.",
+  "Your wait ends at 5:05 pm.",
+  "“We're closed, dear,” says the baker, and shows you out.",
+  "Your wait ends at 5:20 pm.",
+]);
+```
+
+It's built from a daemon at the door's closing time and a fuse for each step, named `closing:<door>…`, so the inspector's Fuses and daemons tab lists them.
+
+### Sending the player elsewhere
+
+A step that moves the player out happens partway through a move, a wait, say, when the story can't change passages. Core's `redirect(passage)` handles that, and you can call it yourself from an effect, an action, or a fuse or daemon as it fires. When the move is done, the story goes on to that passage, as part of the same move:
+
+<!-- example: packages/core/src/passages/redirect.test.ts#trapdoor -->
+```ts
+enter: ({ emit }) => {
+  if (floorRotten) {
+    emit("perception", { text: "The floor gives way!", sense: "see" });
+    redirect("Cellar");
+  }
+},
+```
+
+The passage the player was going to is entered first, with its effects, then left. What they noticed on the way stays with the move, undo takes back both passages at once, and a replay makes the same move and is redirected the same way.
+
 ### Showing the time
 
 The world model registers a `clock` widget showing `timeOfDay()`, labelled "Time" for screen readers. It isn't shown unless the game adds it, in `story.ts`:

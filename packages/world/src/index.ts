@@ -180,3 +180,4 @@ export {
   type SeasonsByMonth,
 } from "./calendar.js";
 export { isOpenNow, openingHours, type Hours, type StoredHours } from "./hours.js";
+export { closingTime, type ClosingStep } from "./closing.js";

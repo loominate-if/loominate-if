@@ -531,11 +531,12 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     const out: (RecordedEvent & ProseFields)[] = [];
     for (const e of events) {
       const starts =
-        e.kind === "navigation" ||
+        (e.kind === "navigation" && e.redirected !== true) ||
         e.kind === "action" ||
         (e.kind === "beat" && (sinceBeat || e.page === true));
       if (starts) out.length = 0;
-      else if (e.kind !== "beat") out.push(e as RecordedEvent & ProseFields);
+      // A redirect within the move isn't a notice; what came before it still is.
+      else if (NOTICE_KINDS.includes(e.kind)) out.push(e as RecordedEvent & ProseFields);
     }
     return out;
   };
@@ -556,7 +557,9 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     };
     for (const e of events) {
       const starts =
-        e.kind === "navigation" || e.kind === "action" || (e.kind === "beat" && e.page === true);
+        (e.kind === "navigation" && e.redirected !== true) ||
+        e.kind === "action" ||
+        (e.kind === "beat" && e.page === true);
       if (e.kind === "beat" || starts) endPart();
       if (starts || turns.length === 0) turns.push([]);
       if (NOTICE_KINDS.includes(e.kind)) noticed.push(e);

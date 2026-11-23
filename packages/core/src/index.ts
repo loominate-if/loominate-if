@@ -56,6 +56,7 @@ export {
 } from "./events/record.js";
 export {
   createStory,
+  redirect,
   type BeatEffects,
   type BeatNode,
   type Choice,
