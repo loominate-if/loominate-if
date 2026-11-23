@@ -438,7 +438,7 @@ A coverage report flags unreachable topics and facts no one can be asked about, 
 
 Stats, traits, and relationships are a shared module used by any game or kit, so life sims, dating sims, and the RPG kit build on the same foundation.
 
-- **Traits need no kit.** A trait is a plain typed property on any object or actor (a flag, a value, or a set of tags), defined in ordinary TypeScript. Passages, topics, storylets, and actions can all test traits directly.
+- **Traits need no kit.** A trait is a plain typed property on any object or actor (a flag, a value, or a set of tags), defined in ordinary TypeScript. Passages, topics, storylets, and actions can all test traits directly. An actor's traits go on the half they belong to, the mind's travelling with it ([guide](guide/world.md#traits)).
 - **Stats and resources.** Numeric stats, skills, and spendable resources (energy, money, hit points), with derived values. Each stat declares whether it is physical (stays with the body) or mental (travels with the mind).
 - **Modifiers.** Buffs, debuffs, and bonuses with sources and durations, visible in the inspector.
 - **Relationships.** A directed store keyed by pairs of minds, covering player-to-NPC and NPC-to-NPC, with multiple dimensions per pair (affection, trust, rivalry) and thresholds that trigger events. Combined with presence and knowledge, this supports jealousy, reputation, and gossip. A game declares its dimensions, typed by declaration merging (`interface Dimensions`), with each one's start and limits; `setRelationship` and `changeRelationship` change a pair, clamped, and set how things start in `story.ts`; a `threshold` fires once as a pair crosses it, re-armed when it goes back ([ADR 0067](decisions/0067-relationships.md)).
