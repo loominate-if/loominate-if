@@ -454,6 +454,54 @@ expect(summary()).toEqual(["North -> Library", "Down -> Cellar"]);
 - `exitsOf(room)` lists a room's exits, and `blockedReason(exit, traveler)` says why one is blocked.
 - `setExit(room, direction, exit)` changes an exit during play, and `setExit(room, direction, null)` removes one, such as when a tunnel collapses. Exits are state, so undo and saves keep the change. A room changed this way must be connected in `story.ts`, even with no exits: `connect(cave, {})`.
 
+### Journeys
+
+A **journey** is a way long enough to be stopped partway: a subway ride a bomb on the tracks brings to a halt, though a phone call on the way is only told. Define it with `journey()`, and have exits name it:
+
+<!-- example: packages/world/src/journeys.test.ts#journey -->
+```ts
+export const phone = fuse("phone", { after: minutes(10), interrupts: true }, () => {
+  return "Your phone buzzes: your house alarm is ringing.";
+});
+export const bomb = fuse("bomb", { after: minutes(25), interrupts: true }, () => {
+  return "A blast ahead shakes the carriage, and the train grinds to a halt.";
+});
+journey("subway", { stopsFor: (by) => by === bomb.id, stopsAt: tunnel });
+connect(platform, {
+  east: { to: downtown, minutes: 40, journey: "subway" },
+  north: { to: busStop },
+});
+```
+
+- **How it's taken:** a journey's link is taken as one move. The clock moves on first, with the journey's `stopsFor` saying what may stop it (anything that interrupts, unless it says).
+- **If nothing stops it:** the player arrives, and the story goes on to the destination's room passage.
+- **If something stops it:** the player ends up at `stopsAt`, and its room passage, or, without `stopsAt`, back where they set out. The destination's passage is only entered if they arrive.
+
+<!-- example: packages/world/src/journeys.test.ts#arrive -->
+```ts
+choose("East");
+expect([story.current, firstLine()]).toEqual([
+  "Downtown",
+  "You step out downtown. It's 8:40 am.",
+]);
+expect(told()).toEqual(["Your phone buzzes: your house alarm is ringing."]);
+```
+
+<!-- example: packages/world/src/journeys.test.ts#stopped -->
+```ts
+choose("East");
+expect([story.current, firstLine()]).toEqual([
+  "Tunnel",
+  "You're stuck in a dark tunnel. It's 8:25 am.",
+]);
+expect(told()).toEqual([
+  "Your phone buzzes: your house alarm is ringing.",
+  "A blast ahead shakes the carriage, and the train grinds to a halt.",
+]);
+```
+
+A stopped journey carries on only by the exits you give the place it stopped, such as walking the tunnel back to the platform. A door or obstacle on a journey blocks it as it does any way.
+
 ### Doors and obstacles
 
 A **door** is one thing that both rooms' exits name with `via`. It's in scope from both rooms, and opening it from one side opens it for both. Spread in `door`, and `lockable` for one that locks. A closed door blocks the way until something opens it: until actions arrive, write a link that does, such as `{on enter: cellarDoor.open()}`.
@@ -841,7 +889,7 @@ export const ride = action<{ thing: typeof bridge }>("ride", {
 
 `stopsFor` goes on an action, for its `minutes`, or on `clock.advance(n, { stopsFor })` from code, and `() => false` means nothing stops it. An interrupted action still happens, but takes only the time up to the interruption. A sleep or wait action reads `advance`'s result to say what happened, as in "You sleep until 3 a.m."
 
-Travel through an exit isn't stopped partway, since the player has already arrived when its minutes pass. What's due on the way fires and is told. Journeys that can be stopped partway are [#304](https://github.com/loominate-if/loominate-if/issues/304).
+Travel through an ordinary exit isn't stopped partway, since the player has already arrived when its minutes pass. What's due on the way fires and is told. For a way that can be stopped partway, make it a [journey](#journeys).
 
 ### Summing up repeats
 

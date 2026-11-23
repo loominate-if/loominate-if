@@ -20,6 +20,7 @@ import {
 import { currentPlayerBody } from "./actors.js";
 import { directionNamed, directions, type Direction, type DirectionName } from "./directions.js";
 import { closedReason } from "./hours.js";
+import { journeyLink } from "./journeys.js";
 import { arrivalPassage, visitsTo } from "./rooms.js";
 import { isPlace, openable, placeOf, thingFor, type Place, type Thing } from "./things.js";
 
@@ -31,6 +32,11 @@ export type ExitSpec = {
   readonly via?: ObjectRef;
   /** How long the way takes, in minutes, for the game clock. */
   readonly minutes?: number;
+  /**
+   * A journey, by the name `journey()` gave it, which the way can be
+   * stopped partway through, as a subway ride by a bomb on the tracks.
+   */
+  readonly journey?: string;
 };
 
 /** A room's exits, by direction: a room, or an {@link ExitSpec}. */
@@ -46,10 +52,12 @@ export type Exit = {
   readonly via?: Thing;
   /** How long the way takes, in minutes, if it says. */
   readonly minutes?: number;
+  /** The journey it is, if it can be stopped partway. */
+  readonly journey?: string;
 };
 
 /** An exit as stored. */
-type StoredExit = { to: ObjectRef; via?: ObjectRef; minutes?: number };
+type StoredExit = { to: ObjectRef; via?: ObjectRef; minutes?: number; journey?: string };
 type ExitRecord = Handle<{ exits: Record<string, StoredExit> }>;
 
 /** Each connected room's exits, by the room's ID. */
@@ -126,6 +134,7 @@ function stored(exit: ObjectRef | ExitSpec, where: string): StoredExit {
     to: thingFor(spec.to) as Thing,
     ...(spec.via !== undefined && { via: thingFor(spec.via) as Thing }),
     ...(spec.minutes !== undefined && { minutes: spec.minutes }),
+    ...(spec.journey !== undefined && { journey: spec.journey }),
   };
 }
 
@@ -215,6 +224,7 @@ export function exitsOf(room: ObjectRef): Exit[] {
         to,
         ...(via !== undefined && { via }),
         ...(e.minutes !== undefined && { minutes: e.minutes }),
+        ...(e.journey !== undefined && { journey: e.journey }),
       },
     ];
   });
@@ -270,6 +280,10 @@ export function exitLinks(args: Readonly<Record<string, never>> = {}): LinkNode[
       room: e.to,
       visited: visitsTo(e.to) > 0,
     });
+    // A journey is taken as an action, so it can be stopped partway and end somewhere else.
+    if (e.journey !== undefined) {
+      return { type: "link", label, target, guard: journeyLink(e.direction.name) };
+    }
     const reason = blockedReason(e, body);
     return {
       type: "link",

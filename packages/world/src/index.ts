@@ -182,3 +182,4 @@ export {
 export { isOpenNow, openingHours, type Hours, type StoredHours } from "./hours.js";
 export { closingTime, type ClosingStep } from "./closing.js";
 export { scene, type Endings, type Scene, type SceneOptions } from "./scenes.js";
+export { journey, type JourneyOptions } from "./journeys.js";

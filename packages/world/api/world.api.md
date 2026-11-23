@@ -351,6 +351,7 @@ export type Exit = {
     readonly to: Place;
     readonly via?: Thing;
     readonly minutes?: number;
+    readonly journey?: string;
 };
 
 // @public
@@ -369,6 +370,7 @@ export type ExitSpec = {
     readonly to: ObjectRef;
     readonly via?: ObjectRef;
     readonly minutes?: number;
+    readonly journey?: string;
 };
 
 // @public
@@ -517,6 +519,15 @@ export function isRegion(ref: ObjectRef): boolean;
 
 // @public
 export function isWithin(t: ObjectRef, ancestor: ObjectRef): boolean;
+
+// @public
+export function journey(name: string, options?: JourneyOptions): void;
+
+// @public
+export type JourneyOptions = {
+    readonly stopsFor?: (by: string) => boolean;
+    readonly stopsAt?: ObjectRef;
+};
 
 // @public
 export type LearnOptions = FactSource;
