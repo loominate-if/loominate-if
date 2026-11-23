@@ -58,6 +58,18 @@ export type ActorHalves<M> = {
 };
 
 // @public
+export type Advanced = {
+    readonly minutes: number;
+    readonly interrupted: boolean;
+    readonly by?: string;
+};
+
+// @public
+export type AdvanceOptions = {
+    readonly stopsFor?: (by: string) => boolean;
+};
+
+// @public
 export function blockedReason(exit: Exit, traveler: ObjectRef): string | undefined;
 
 // @public
@@ -87,7 +99,8 @@ export type Clock = {
     readonly minute: number;
     readonly moves: number;
     travelMinutes: number;
-    advance(minutes: number): void;
+    advance(minutes: number, options?: AdvanceOptions): Advanced;
+    interrupt(): void;
 };
 
 // @public
@@ -134,6 +147,8 @@ export function daemon(id: StateId, options: DaemonOptions, fire: Firing): Daemo
 export type DaemonOptions = {
     readonly every: Delay;
     readonly running?: boolean;
+    readonly interrupts?: boolean;
+    readonly priority?: number;
 };
 
 // @public
@@ -285,6 +300,8 @@ export function fuse(id: StateId, options: FuseOptions, fire: Firing): Fuse;
 export type FuseOptions = {
     readonly after: Delay;
     readonly running?: boolean;
+    readonly interrupts?: boolean;
+    readonly priority?: number;
 };
 
 // @public

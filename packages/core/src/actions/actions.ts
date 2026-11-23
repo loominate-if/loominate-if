@@ -82,6 +82,13 @@ export type ActionDefinition<A> = {
    * in `source: "@my-scope/doors"`. Defaults to the game.
    */
   readonly source?: string;
+  /**
+   * While its `minutes` pass, what may stop them partway, given the ID of
+   * what asks to, such as a fuse: `(by) => by === "bomb"` for a ride only
+   * an emergency stops, or `() => false` for one nothing does. Defaults to
+   * anything. A clock, such as the world model's, honours it.
+   */
+  readonly stopsFor?: (by: string) => boolean;
 };
 
 /** How a menu fills one of an action's other roles: a fixed thing, or a test for things that suit. */
@@ -149,6 +156,8 @@ const actions = new Map<string, Action<never>>();
 const roles = new Map<string, readonly (readonly [string, Participant])[]>();
 /** The things each action is `on`, by action name. */
 const ons = new Map<string, readonly ObjectRef[]>();
+/** What may stop each action's time partway, by action name, if it says. */
+const stops = new Map<string, (by: string) => boolean>();
 /** Names an action's things can't have, since its rules see these too. */
 const RESERVED = new Set(["action", "actor", "body"]);
 
@@ -302,6 +311,7 @@ export function action<A extends Readonly<Record<string, unknown>>>(
   roles.set(name, others);
   const on = d.on;
   ons.set(name, on === undefined ? [] : Array.isArray(on) ? on : [on as ObjectRef]);
+  if (d.stopsFor) stops.set(name, d.stopsFor);
   return made;
 }
 
@@ -479,7 +489,10 @@ export function perform<A>(call: ActionCall<A>): ActionOutcome {
   }
   a.perform.run(c);
   const spent = a.minutes.run(0, c);
-  if (spent !== 0) hook("actionTime").run({ action: a.actionName, minutes: spent });
+  if (spent !== 0) {
+    const stopsFor = stops.get(a.actionName);
+    hook("actionTime").run({ action: a.actionName, minutes: spent, ...(stopsFor && { stopsFor }) });
+  }
   const said = a.report.run(c);
   if (said !== undefined && said !== "") emit("action-result", { text: said });
   return { done: true };

@@ -310,6 +310,7 @@ const collapse = fuse("collapse", { after: minutes(30) }, () => {
 
 - **Time jumps.** Sleeping or long travel advances the clock step by step to each scheduled event, firing them in order. Any event can interrupt the jump ("You're woken at 3 a.m. by footsteps"), leaving the clock at that moment.
 - **Tie-breaking.** Events scheduled for the same minute fire in a deterministic priority order.
+- A fuse or daemon interrupts with `interrupts: true`, or `clock.interrupt()` from its code. A `clock.advance` can be interrupted, finishing the interrupting minute's firings, and returns `{ minutes, interrupted, by }`. The activity says what it stops for with `stopsFor`, on `advance` or an action, so a subway ride stops for a bomb but not a phone call. Travel through an exit isn't interrupted (#304). Ties go by `priority`, higher first, then definition order ([ADR 0051](decisions/0051-time-jumps.md)).
 - **Time-aware content.** Descriptions and actions can vary by time of day; locations can have opening hours enforced through the same rules that gate doors; scenes can start at a time.
 - **Wait actions.** "Wait" and "wait until" are ordinary actions.
 - **Game time versus presentation time.** A cut scene's beats take real seconds; whether the scene costs game minutes is a separate, explicit choice.

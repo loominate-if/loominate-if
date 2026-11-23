@@ -19,6 +19,8 @@ import {
   connect,
   enterRoom,
   exitLinks,
+  fuse,
+  minutes,
   place,
   registerRoom,
   type Place,
@@ -45,6 +47,7 @@ export const brew = action<{ thing: typeof kitchen }>("brew", {
   report: () => `You brew tea. It's ${timeOfDay()}.`,
 });
 // #endregion
+const alarm = fuse("alarm", { after: minutes(1), interrupts: true }, () => "An alarm rings.");
 const you = actor("you", { body: { name: "you", location: kitchen } });
 startAs(you);
 
@@ -115,6 +118,13 @@ describe("the game clock", () => {
     choose("South");
     expect(now()).toBe("day 1, 9:44 pm, 4 moves");
     // #endregion
+  });
+
+  it("takes all its travel time: nothing stops a journey partway", () => {
+    alarm.start();
+    choose("Out");
+    expect(clock.minutes).toBe(2);
+    expect(alarm.isRunning).toBe(false);
   });
 
   it("takes actions' time, and time any code adds, even partway through", () => {
