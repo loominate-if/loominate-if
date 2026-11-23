@@ -139,6 +139,7 @@ export {
   type ClockStart,
 } from "./clock.js";
 export {
+  _scheduled,
   daemon,
   fuse,
   minutes,
@@ -154,6 +155,8 @@ export {
   type FuseOptions,
   type Repeated,
   type Scheduled,
+  type _ScheduledInfo,
+  type Ended,
   type Summary,
 } from "./schedule.js";
 export { wait, waitCondition, waitMenu, waitUntil, type WaitUntil } from "./waiting.js";

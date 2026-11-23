@@ -84,6 +84,53 @@ export function checkDependency(
   return undefined;
 }
 
+const INSPECTOR = "@loominate-if/inspector";
+
+/**
+ * Where a package's inspector module lives, from its package.json's
+ * `loominate.inspector`: `./dist/inspector/inspector.js` is built from
+ * `src/inspector/` (ADR 0028, ADR 0055).
+ */
+function inspectorModuleDir(json: Record<string, unknown>): string | undefined {
+  const entry = (json.loominate as { inspector?: unknown } | undefined)?.inspector;
+  if (typeof entry !== "string") return undefined;
+  const dir = dirname(entry.replace(/^\.\//, "").replace(/^dist\//, "src/"));
+  return dir === "src" ? undefined : dir;
+}
+
+/**
+ * Why a runtime package may not depend on the inspector, or undefined if it
+ * may: only as an optional peer (and a dev dependency, to build and test),
+ * for an inspector module of its own, in its own folder of `src`.
+ */
+function inspectorModuleProblem(
+  dir: string,
+  json: Record<string, unknown>,
+  moduleDir: string | undefined,
+): string | undefined {
+  const has = (field: string) =>
+    Object.hasOwn((json[field] as Record<string, unknown> | undefined) ?? {}, INSPECTOR);
+  const optional = ((json.peerDependenciesMeta as
+    Record<string, { optional?: boolean }> | undefined) ?? {})[INSPECTOR]?.optional;
+  if (moduleDir === undefined) {
+    return `runtime package ${dir} depends on tooling package ${INSPECTOR}; runtime packages must never depend on tooling, except for an inspector module of their own: name it in package.json as "loominate": { "inspector": "./dist/<folder>/inspector.js" }, built from src/<folder>/.`;
+  }
+  if (
+    has("dependencies") ||
+    has("optionalDependencies") ||
+    !has("peerDependencies") ||
+    optional !== true
+  ) {
+    return `${dir} may depend on ${INSPECTOR} only as an optional peer dependency (with "peerDependenciesMeta": { "${INSPECTOR}": { "optional": true } }) and a dev dependency, for its inspector module, so games that don't use the inspector don't install it.`;
+  }
+  return undefined;
+}
+
+/** The package names `source` imports. */
+function importsOf(source: string): string[] {
+  return [...source.matchAll(IMPORT_RE)].map((m) => m[1] ?? "").filter((s) => !s.startsWith("."));
+}
+
 const IMPORT_RE = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+|\brequire\s*\(\s*)["']([^"']+)["']/g;
 
 /** Finds relative import specifiers in `source` that resolve outside `packageDir`. */
@@ -118,13 +165,31 @@ export function checkRepo(repo: string): string[] {
       errors.push(`${pkg.dir}: unknown package; classify it in scripts/check-deps.ts.`);
       continue;
     }
+    const inspectorDir = inspectorModuleDir(pkg.json);
     for (const dep of pkg.deps) {
       const target = byName.get(dep);
       if (!target) continue;
       const to = classify(target.dir);
       if (!to) continue;
+      if (from.kind === "runtime" && dep === INSPECTOR) {
+        const why = inspectorModuleProblem(pkg.dir, pkg.json, inspectorDir);
+        if (why) errors.push(`${pkg.dir}/package.json: ${why}`);
+        continue;
+      }
       const why = checkDependency(pkg.dir, from, target.dir, to);
       if (why) errors.push(`${pkg.dir}/package.json: ${why}`);
+    }
+    // Only a runtime package's inspector module may import the inspector, so it never reaches a game's build.
+    if (from.kind === "runtime") {
+      for (const file of sourceFiles(join(repo, pkg.dir, "src"))) {
+        const rel = relative(join(repo, pkg.dir), file).split(sep).join("/");
+        if (inspectorDir !== undefined && rel.startsWith(`${inspectorDir}/`)) continue;
+        if (importsOf(readFileSync(file, "utf8")).includes(INSPECTOR)) {
+          errors.push(
+            `${relative(repo, file)}: imports ${INSPECTOR}, which only the package's inspector module may, so the inspector stays out of game builds. Move it into the inspector module.`,
+          );
+        }
+      }
     }
     for (const file of sourceFiles(join(repo, pkg.dir, "src"))) {
       for (const spec of findEscapingImports(

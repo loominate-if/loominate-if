@@ -161,6 +161,8 @@ export type FuseOptions = {
   readonly joins?: string;
   /** Its part in its group's sentence: "the church bells rang". */
   readonly clause?: Clause;
+  /** The package that defines it, for the inspector, as in `source: "@my-scope/weather"`. Defaults to the game. */
+  readonly source?: string;
 };
 
 /** How {@link daemon} takes its timing. */
@@ -201,6 +203,8 @@ export type DaemonOptions = {
   readonly joins?: string;
   /** Its part in its group's sentence: "the church bells rang". */
   readonly clause?: Clause;
+  /** The package that defines it, for the inspector, as in `source: "@my-scope/weather"`. Defaults to the game. */
+  readonly source?: string;
 };
 
 type Timer = {
@@ -215,8 +219,12 @@ type Timer = {
   readonly standsOut: boolean;
   readonly joins: { readonly group: string; readonly clause: Clause } | undefined;
   readonly fire: Firing;
-  readonly state: Handle<{ running: boolean; due: number | null }>;
+  readonly source: string;
+  readonly state: Handle<{ running: boolean; due: number | null; ended: Ended | null }>;
 };
+
+/** How a fuse or daemon last stopped running: a fuse fired or was cancelled, or a daemon was stopped. */
+export type Ended = "fired" | "cancelled" | "stopped";
 
 /** Every fuse and daemon, in the order they were defined, which breaks ties. */
 const timers: Timer[] = [];
@@ -233,6 +241,7 @@ function define(
     readonly standsOut?: boolean;
     readonly joins?: string;
     readonly clause?: Clause;
+    readonly source?: string;
   },
   fire: Firing,
 ): Timer {
@@ -270,10 +279,12 @@ function define(
         ? { group: options.joins, clause: options.clause }
         : undefined,
     fire,
+    source: options.source ?? "game",
     // Begun running, it's due its delay after the game begins.
     state: object(`world:${kind}:${id}`, {
       running,
       due: running ? n : (null as number | null),
+      ended: null as Ended | null,
     }),
   };
   timers.push(timer);
@@ -295,13 +306,15 @@ function handle(t: Timer): Scheduled {
     start() {
       t.state.running = true;
       t.state.due = now(t.unit) + t.delay;
+      t.state.ended = null;
     },
   };
 }
 
-const halt = (t: Timer): void => {
+const halt = (t: Timer, ended: Ended): void => {
   t.state.running = false;
   t.state.due = null;
+  t.state.ended = ended;
 };
 
 /**
@@ -323,7 +336,10 @@ const halt = (t: Timer): void => {
 export function fuse(id: StateId, options: FuseOptions, fire: Firing): Fuse {
   const t = define("fuse", id, options.after, options, fire);
   return Object.freeze(
-    Object.defineProperties({ cancel: () => halt(t) }, Object.getOwnPropertyDescriptors(handle(t))),
+    Object.defineProperties(
+      { cancel: () => halt(t, "cancelled") },
+      Object.getOwnPropertyDescriptors(handle(t)),
+    ),
   ) as Fuse;
 }
 
@@ -342,7 +358,10 @@ export function fuse(id: StateId, options: FuseOptions, fire: Firing): Fuse {
 export function daemon(id: StateId, options: DaemonOptions, fire: Firing): Daemon {
   const t = define("daemon", id, options.every, options, fire);
   return Object.freeze(
-    Object.defineProperties({ stop: () => halt(t) }, Object.getOwnPropertyDescriptors(handle(t))),
+    Object.defineProperties(
+      { stop: () => halt(t, "stopped") },
+      Object.getOwnPropertyDescriptors(handle(t)),
+    ),
   ) as Daemon;
 }
 
@@ -394,7 +413,7 @@ function fire(t: Timer): boolean {
   fired.set(t.id, (fired.get(t.id) ?? 0) + 1);
   const due = t.state.due ?? now(t.unit);
   if (t.repeats) t.state.due = due + t.delay;
-  else halt(t);
+  else halt(t, "fired");
   const outer = firing;
   firing = t.id;
   let said: ReturnType<Firing>;
@@ -548,4 +567,38 @@ export function fireMoves(): void {
   for (let t = nextDue("moves", clock.moves); t; t = nextDue("moves", clock.moves)) {
     fire(t);
   }
+}
+
+/** A fuse or daemon as the inspector lists it. @internal */
+export type _ScheduledInfo = Scheduled & {
+  readonly kind: "fuse" | "daemon";
+  readonly delay: number;
+  readonly priority: number;
+  readonly interrupts: boolean;
+  readonly standsOut: boolean;
+  readonly joins: string | undefined;
+  readonly source: string;
+  readonly ended: Ended | undefined;
+};
+
+/** Every fuse and daemon, in the order they were defined, for the inspector. @internal */
+export function _scheduled(): readonly _ScheduledInfo[] {
+  return timers.map((t) => {
+    const h = handle(t);
+    return {
+      id: t.id,
+      unit: t.unit,
+      isRunning: h.isRunning,
+      firesAt: h.firesAt,
+      start: h.start,
+      kind: t.repeats ? "daemon" : "fuse",
+      delay: t.delay,
+      priority: t.priority,
+      interrupts: t.interrupts,
+      standsOut: t.standsOut,
+      joins: t.joins?.group,
+      source: t.source,
+      ended: t.state.ended ?? undefined,
+    };
+  });
 }

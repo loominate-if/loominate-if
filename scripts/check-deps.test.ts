@@ -104,16 +104,33 @@ describe("findEscapingImports", () => {
 });
 
 describe("checkRepo", () => {
-  function repo(pkgs: Record<string, { deps?: string[]; src?: string }>): string {
+  function repo(
+    pkgs: Record<
+      string,
+      {
+        deps?: string[];
+        src?: string;
+        json?: Record<string, unknown>;
+        files?: Record<string, string>;
+      }
+    >,
+  ): string {
     const root = mkdtempSync(join(tmpdir(), "check-deps-"));
-    for (const [dir, { deps = [], src }] of Object.entries(pkgs)) {
+    for (const [dir, { deps = [], src, json = {}, files = {} }] of Object.entries(pkgs)) {
       mkdirSync(join(root, dir, "src"), { recursive: true });
       const name = `@loominate-if/${dir.split("/").at(-1)}`;
       const dependencies = Object.fromEntries(
         deps.map((d) => [`@loominate-if/${d}`, "workspace:*"]),
       );
-      writeFileSync(join(root, dir, "package.json"), JSON.stringify({ name, dependencies }));
+      writeFileSync(
+        join(root, dir, "package.json"),
+        JSON.stringify({ name, dependencies, ...json }),
+      );
       if (src) writeFileSync(join(root, dir, "src", "index.ts"), src);
+      for (const [file, text] of Object.entries(files)) {
+        mkdirSync(join(root, dir, file, ".."), { recursive: true });
+        writeFileSync(join(root, dir, file), text);
+      }
     }
     return root;
   }
@@ -161,5 +178,43 @@ describe("checkRepo", () => {
     expect(errors.some((e) => e.startsWith("packages/core/src/index.ts: relative import"))).toBe(
       true,
     );
+  });
+
+  describe("a runtime package's inspector module (#91, ADR 0055)", () => {
+    const inspector = "@loominate-if/inspector";
+    const world = (json: Record<string, unknown>, files: Record<string, string> = {}) =>
+      repo({
+        "packages/core": {},
+        "packages/presentation": { deps: ["core"] },
+        "packages/inspector": { deps: ["core", "presentation"] },
+        "packages/world": { deps: ["core", "presentation"], json, files },
+      });
+    const module = {
+      loominate: { inspector: "./dist/inspector/inspector.js" },
+      peerDependencies: { [inspector]: "workspace:^" },
+      peerDependenciesMeta: { [inspector]: { optional: true } },
+      devDependencies: { [inspector]: "workspace:^" },
+    };
+
+    it("may use the inspector, as an optional peer, from its own folder", () => {
+      const root = world(module, {
+        "src/inspector/inspector.ts": `import { panels } from "${inspector}";`,
+      });
+      expect(checkRepo(root)).toEqual([]);
+    });
+
+    it("but nothing else in the package may import it", () => {
+      const root = world(module, { "src/things.ts": `import { panels } from "${inspector}";` });
+      expect(checkRepo(root)).toEqual([
+        `packages/world/src/things.ts: imports ${inspector}, which only the package's inspector module may, so the inspector stays out of game builds. Move it into the inspector module.`,
+      ]);
+    });
+
+    it("and only as an optional peer, for a module it names", () => {
+      const required = world({ ...module, peerDependenciesMeta: {} });
+      expect(checkRepo(required)[0]).toMatch(/only as an optional peer dependency/);
+      const unnamed = world({ ...module, loominate: {} });
+      expect(checkRepo(unnamed)[0]).toMatch(/except for an inspector module of their own/);
+    });
   });
 });

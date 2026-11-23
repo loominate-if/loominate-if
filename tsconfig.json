@@ -17,6 +17,9 @@
       "path": "packages/inspector"
     },
     {
+      "path": "packages/world/src/inspector"
+    },
+    {
       "path": "packages/testing"
     },
     {

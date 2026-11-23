@@ -1,0 +1,18 @@
+{
+  "extends": "../../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "../../dist/inspector",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": []
+  },
+  "include": ["."],
+  "references": [
+    {
+      "path": "../.."
+    },
+    {
+      "path": "../../../inspector"
+    }
+  ]
+}

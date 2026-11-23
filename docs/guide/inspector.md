@@ -93,6 +93,18 @@ The **Rules** tab shows, for each turn, the rulebooks and hooks that ran and eve
 - What an autosave ran is listed with the turn it saved.
 - The tab keeps the last 50 turns. It starts afresh when the page reloads, since the trace isn't part of the game's state.
 
+## Fuses and daemons
+
+With the world model, a **Fuses and daemons** tab lists every fuse and daemon in the order they were defined. For each, it shows:
+
+- whether it's a fuse or a daemon;
+- its state: **Running**, **Not started**, **Fired** (a fuse that went off), **Cancelled** (a fuse that was), or **Stopped** (a daemon that was);
+- when it fires next, as the time of day or the move, and how long until then;
+- its timing, such as "after 30 minutes" or "every 2 moves", and what's special about it: whether it interrupts, stands out, has a priority, or joins a group's sentence;
+- where it comes from: `game`, or the package its `source:` names.
+
+It's the world model's own inspector module, so games that don't use the world model don't have it.
+
 ## Going back in time
 
 The **History** tab lists every move in the game, from **Start**, with the passage each one reached. Select a move to jump to just after it; select a later one to jump forward again. Jumping uses the game's undo history, so the game comes back exactly as it was.
@@ -140,9 +152,11 @@ panels.register("where", {
 
 The panel's element is inside the inspector's shadow root, so the game's styles don't reach it.
 
-The Choices tab is built the same way: each kind of choice has an explainer in `explainers`, which lists the choices of that kind on offer now and says why any can't be made. Links are the first and things' actions the second; kits will add theirs, such as conversation topics.
+The Choices tab is built the same way: each kind of choice has an explainer in `explainers`, which lists the choices of that kind on offer now and says why any can't be made. Links are the first and things' actions the second; kits will add theirs, such as conversation topics. The world model adds its Fuses and daemons panel from an inspector module of its own.
 
 The Rules tab hears about rule runs through core's `traceRules(listener)`, which tools of your own can use too.
+
+A package's inspector module is the one part of it that may import `@loominate-if/inspector`, as an optional peer dependency, so a game that doesn't use the inspector never installs or builds it. It lives in a folder of its own under `src`, named by `"loominate": { "inspector": "./dist/<folder>/inspector.js" }`. The layering check makes sure nothing else in the package imports the inspector.
 
 ### Adding your own
 
