@@ -300,6 +300,11 @@ type Jump = { by?: string };
 /** The jumps in progress, innermost last: a fuse can move the clock on as it fires. */
 const jumps: Jump[] = [];
 
+/** Whether the clock is moving on, so a fuse firing can interrupt it. @internal */
+export function isJumping(): boolean {
+  return jumps.length > 0;
+}
+
 const at = (): number => start.minuteOfDay + state.elapsed;
 
 /** Moves the clock on to `to`, if it's later, running the clockAdvance hook. */

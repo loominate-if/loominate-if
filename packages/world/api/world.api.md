@@ -181,6 +181,18 @@ thing: ActingOn;
 }>;
 
 // @public
+export type ClosingStep = {
+    readonly after: Delay;
+    readonly say?: string | Text;
+    readonly moveTo?: ObjectRef;
+    readonly do?: () => string | Text | undefined;
+    readonly unless?: () => boolean;
+};
+
+// @public
+export function closingTime(door: ObjectRef, steps: readonly ClosingStep[]): void;
+
+// @public
 export function connect(from: ObjectRef, exits: ExitsDefinition): void;
 
 // @public
@@ -214,7 +226,7 @@ export function daemon(id: StateId, options: DaemonOptions, fire: Firing): Daemo
 // @public
 export type DaemonOptions = {
     readonly every?: Delay;
-    readonly at?: string;
+    readonly at?: string | (() => string);
     readonly on?: string | readonly string[] | CalendarQuery;
     readonly running?: boolean;
     readonly interrupts?: boolean;

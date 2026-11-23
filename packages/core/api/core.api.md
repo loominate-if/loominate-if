@@ -245,6 +245,7 @@ export interface EventKinds {
     navigation: {
         readonly from?: StateId;
         readonly to: StateId;
+        readonly redirected?: boolean;
     };
     perception: ProseFields & {
         readonly sense: "see" | "hear";
@@ -701,6 +702,9 @@ export type RecordedEvent<K extends EventKind = EventKind> = {
         readonly tags: readonly string[];
     };
 }[K];
+
+// @public
+export function redirect(passage: PassageId): void;
 
 // @public
 export interface Registry<T> {

@@ -168,12 +168,12 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
       kinds: ["perception", "action-result", "scheduled", "navigation", "action", "beat"],
     })) {
       if (
-        e.kind === "navigation" ||
+        (e.kind === "navigation" && e.redirected !== true) ||
         e.kind === "action" ||
         (e.kind === "beat" && e.page === true)
       ) {
         out.length = 0;
-      } else if (e.kind !== "beat") out.push(e);
+      } else if (e.kind !== "beat" && e.kind !== "navigation") out.push(e);
     }
     // One line per paragraph, as the page shows them: atmosphere runs together.
     return _noticeParagraphs(out).map((p) => p.map((e) => (e as { text: string }).text).join(" "));
