@@ -11,7 +11,15 @@ import { parsePassageFile } from "../passages/parse.js";
 import { locator } from "../passages/positions.js";
 import type { PassageFileSyntax, Span } from "../passages/syntax.js";
 import { CONTEXT_NAMES, generatePassageModule, type GeneratedModule } from "./generate.js";
-import { checkLinks, closestName, codeIn, stringLiterals, type FilePassage } from "./links.js";
+import {
+  checkLinks,
+  closestName,
+  codeIn,
+  passageTargets,
+  stringLiterals,
+  type FilePassage,
+} from "./links.js";
+import { nameUses, type NameUse } from "./uses.js";
 import {
   authorMessage,
   missingName,
@@ -399,10 +407,32 @@ export function createCompilerSession(options: ProjectOptions): CompilerSession 
         `start: there's no passage named ${JSON.stringify(options.start)}. Pass the name of the passage the game starts in.`,
       );
     }
+    // Where names are used, for checks that ask: worked out once, the first time one does.
+    let uses: ReadonlyMap<string, readonly NameUse[]> | undefined;
+    const usesOf = (name: string): readonly NameUse[] => {
+      uses ??= nameUses(
+        [...new Set([...tsFiles(), ...(host.fileExists(scopePath) ? [scopePath] : [])])].map(
+          (file) => ({ file, text: read(file) ?? host.readFile(file) ?? "" }),
+        ),
+        allPassages.flatMap(({ file, passage }) =>
+          codeIn(passage.content).map((c) => ({ file, code: c.code })),
+        ),
+      );
+      return uses?.get(name) ?? [];
+    };
+    const targeted = new Set(
+      allPassages.flatMap(({ passage }) => passageTargets(passage.content).map((t) => t.name)),
+    );
+    const context = {
+      files: parsedFiles,
+      ...(options.start !== undefined && { start: options.start }),
+      isNamed: (name: string) => targeted.has(name) || named.has(name),
+      uses: usesOf,
+    };
     for (const { definition: c, from } of syntax.checks) {
       let found;
       try {
-        found = c.run({ files: parsedFiles });
+        found = c.run(context);
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
         throw new Error(`The check "${c.name}" from ${from} failed: ${reason}`, { cause: error });

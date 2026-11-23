@@ -3,3 +3,4 @@ pnpm build
 npx loominate dev
 npx loominate dev
 npx loominate dev
+npx loominate dev

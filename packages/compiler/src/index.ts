@@ -8,6 +8,7 @@ export type {
   ArgumentKind,
   ArgumentSpec,
   CheckContext,
+  NameUse,
   CompilerExtension,
   DirectiveDefinition,
   ExtensionCheck,

@@ -397,6 +397,67 @@ export const again = same();
   });
 });
 
+describe("what checks can see (#72)", { timeout: 30_000 }, () => {
+  it("where names are used, with the call each is an argument of, and which passages are named", () => {
+    const seen: string[] = [];
+    const probe: CompilerExtension = {
+      name: "probe",
+      checks: [
+        {
+          name: "uses",
+          run: (context) => {
+            for (const name of ["hall", "cellar", "attic", "lamp"]) {
+              const uses = context
+                .uses(name)
+                .map(
+                  (u) =>
+                    `${path.basename(u.file)}:${u.call ? `${u.call.callee}[${String(u.call.argument)}]` : "-"}`,
+                );
+              seen.push(`${name}: ${uses.join(" ")}`);
+            }
+            seen.push(
+              `start ${context.start ?? "-"}, Cellar named ${String(context.isNamed("Cellar"))}, Attic named ${String(context.isNamed("Attic"))}`,
+            );
+            return [];
+          },
+        },
+      ],
+    };
+    compileProject({
+      root,
+      compilerOptions,
+      extensions: [probe],
+      start: "Hall",
+      files: [
+        {
+          path: "story.ts",
+          text: [
+            "const place = (id: string) => ({ id });",
+            "const connect = (from: object, ways: object) => [from, ways];",
+            'export const hall = place("hall");',
+            'export const cellar = place("cellar");',
+            'export const attic = place("attic");',
+            "export const lamp = { lit: false };",
+            "connect(hall, { down: cellar });",
+            "connect(attic, { down: hall });",
+          ].join("\n"),
+        },
+        {
+          path: "rooms.weft",
+          text: ":: Hall\n[[Down -> Cellar]]\n\n:: Cellar\n{on enter: lamp.lit = true}\nDark.\n\n:: Attic\nDusty.",
+        },
+      ],
+    });
+    expect(seen).toEqual([
+      "hall: story.ts:connect[0] story.ts:connect[1]",
+      "cellar: story.ts:connect[1]",
+      "attic: story.ts:connect[0]",
+      "lamp: rooms.weft:-",
+      "start Hall, Cellar named true, Attic named false",
+    ]);
+  });
+});
+
 describe("a compiled game", { timeout: 30_000 }, () => {
   // Generated modules are written to disk so they run exactly as the build will run them.
   const out = mkdtempSync(path.join(here, "__run-"));

@@ -204,6 +204,8 @@ describe("rooms with several passages", () => {
           })),
         },
       ],
+      isNamed: () => false,
+      uses: () => [],
     });
 
   it("need one passage tagged arrive", () => {
@@ -223,5 +225,63 @@ describe("rooms with several passages", () => {
       'The room `hall` is described by 2 passages, "Hall", "Hall at Night". Tag the one its exits lead to with `arrive`, as in `[room: hall, arrive]`.',
       'The room `hall` is described by 2 passages, "Hall", "Hall at Night". Tag the one its exits lead to with `arrive`, as in `[room: hall, arrive]`.',
     ]);
+  });
+});
+
+describe("rooms no exit leads to (#72)", () => {
+  type Use = {
+    readonly file: string;
+    readonly call?: { readonly callee: string; readonly argument: number };
+  };
+  const check = (
+    rooms: Record<string, string>,
+    uses: Record<string, Use[]>,
+    options: { start?: string; named?: string[] } = {},
+  ) =>
+    extension.checks[1]?.run({
+      files: [
+        {
+          file: "rooms.weft",
+          passages: Object.entries(rooms).map(([passage, room], i) => ({
+            name: { name: passage },
+            tags: [{ name: "room", value: room, span: { start: i * 10, end: i * 10 + 5 } }],
+          })),
+        },
+      ],
+      ...(options.start !== undefined && { start: options.start }),
+      isNamed: (name: string) => options.named?.includes(name) ?? false,
+      uses: (name: string) => uses[name] ?? [],
+    });
+  const from = { file: "story.ts", call: { callee: "connect", argument: 0 } };
+  const to = { file: "story.ts", call: { callee: "connect", argument: 1 } };
+
+  it("warn at the room tag when nothing leads in", () => {
+    expect(
+      check(
+        { Hall: "hall", Attic: "attic" },
+        { hall: [from, to], attic: [from] },
+        { start: "Hall" },
+      ),
+    ).toEqual([
+      {
+        severity: "warning",
+        file: "rooms.weft",
+        message:
+          'No exit leads to the room `attic`, so the player can\'t reach "Attic". Connect a room to it in story.ts, as in connect(hall, { north: attic }), link to the passage, or start the game here.',
+        span: { start: 10, end: 15 },
+      },
+    ]);
+  });
+
+  it("stay quiet for the start, a linked passage, or any other use, which might be a way in", () => {
+    expect(check({ Attic: "attic" }, {}, { start: "Attic" })).toEqual([]);
+    expect(check({ Attic: "attic" }, {}, { named: ["Attic"] })).toEqual([]);
+    expect(
+      check(
+        { Attic: "attic" },
+        { attic: [{ file: "story.ts", call: { callee: "move", argument: 1 } }] },
+      ),
+    ).toEqual([]);
+    expect(check({ Attic: "rooms.attic" }, {})).toEqual([]); // not a plain name: can't follow it
   });
 });

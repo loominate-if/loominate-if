@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import {
+  appendFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -121,6 +122,34 @@ describe("loominate build", () => {
     expect(readFileSync(path.join(root, "dist/test-game.html"), "utf8")).toContain(
       "A draughty hall.",
     );
+  }, 60_000);
+
+  it("warns about a room passage no exit leads to, at its room tag (#72)", async () => {
+    const root = worldGame();
+    appendFileSync(
+      path.join(root, "story.ts"),
+      'export const attic = place("attic", { name: "attic" });\nconnect(attic, { down: hall });\n',
+    );
+    writeFileSync(path.join(root, "attic.weft"), ":: Attic [room: attic]\nDusty.\n");
+    const warned: string[] = [];
+    const spy = vi.spyOn(console, "warn").mockImplementation((...args: unknown[]) => {
+      warned.push(args.map(String).join(" "));
+    });
+    try {
+      // Warnings show at Vite's "warn" level; the other tests keep it silent.
+      await build({
+        ...options(root),
+        vite: { configFile: false, logLevel: "warn" },
+        target: "single",
+      });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(warned.join("\n")).toContain(
+      'attic.weft:1:11 warning: No exit leads to the room `attic`, so the player can\'t reach "Attic".',
+    );
+    // The cellar has a way in, and the hall is where the game starts.
+    expect(warned.join("\n")).not.toMatch(/room `(cellar|hall)`/);
   }, 60_000);
 
   it("builds the game as a static site, with relative URLs", async () => {
