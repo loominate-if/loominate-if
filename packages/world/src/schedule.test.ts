@@ -38,6 +38,19 @@ export const owl = daemon("owl", { every: minutes(60) }, () => {
 });
 // #endregion
 let owlWakes = false;
+// #region ride
+export const phone = fuse("phone", { after: minutes(10), interrupts: true }, () => {
+  return "Your phone buzzes: your house alarm is ringing.";
+});
+export const bomb = fuse("bomb", { after: minutes(25), interrupts: true }, () => {
+  return "A blast ahead shakes the carriage, and the train grinds to a halt.";
+});
+export const ride = action<{ thing: typeof bridge }>("ride", {
+  label: "Ride the subway",
+  minutes: 40,
+  stopsFor: (by) => by === bomb.id,
+});
+// #endregion
 /** Due with the footsteps, at a higher priority, so it fires first, and with a lower one after. */
 const creak = fuse("creak", { after: minutes(180), priority: 1 }, () => "The floor creaks.");
 const wind = fuse("wind", { after: minutes(180), priority: -1 }, () => "The wind rises.");
@@ -58,6 +71,12 @@ const passages: Passage[] = [
         label: "Wait",
         target: "Wait",
         guard: actLink({ call: wait({ thing: bridge }) }),
+      },
+      {
+        type: "link",
+        label: "Ride the subway",
+        target: "Ride the subway",
+        guard: actLink({ call: ride({ thing: bridge }) }),
       },
     ],
   },
@@ -193,6 +212,27 @@ describe("time jumps", () => {
     expect(() => {
       clock.interrupt();
     }).toThrow("clock.interrupt: the clock isn't moving on now.");
+  });
+
+  it("stop only for what the jump says it stops for", () => {
+    phone.start();
+    expect(clock.advance(30, { stopsFor: () => false })).toEqual({
+      minutes: 30,
+      interrupted: false,
+    });
+    expect(said()).toEqual(["phone: Your phone buzzes: your house alarm is ringing."]);
+  });
+
+  it("stop an action's time only for what it stops for", () => {
+    phone.start();
+    bomb.start();
+    choose("Ride the subway");
+    // The call is told on the way; only the bomb stops the ride, 25 minutes in.
+    expect(said()).toEqual([
+      "phone: Your phone buzzes: your house alarm is ringing.",
+      "bomb: A blast ahead shakes the carriage, and the train grinds to a halt.",
+    ]);
+    expect(clock.minutes).toBe(25);
   });
 
   it("fire in the same order every time", () => {

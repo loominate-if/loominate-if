@@ -133,6 +133,7 @@ export {
   clockWidget,
   startClock,
   timeOfDay,
+  type AdvanceOptions,
   type Advanced,
   type Clock,
   type ClockStart,

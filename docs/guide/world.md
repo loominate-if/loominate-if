@@ -768,7 +768,26 @@ expect(slept).toEqual({ minutes: 180, interrupted: true, by: "footsteps" });
 expect(timeOfDay()).toBe("3:00 am");
 ```
 
-Every advance can be interrupted, including an action's `minutes` and travel: the action still happens, but takes only the time up to the interruption. A sleep or wait action reads the result to say what happened, as in "You sleep until 3 a.m."
+An advance can be interrupted by anything, unless it says what it stops for. A subway ride shouldn't stop for a phone call, only for a bomb on the tracks. The call still fires at its own time, and is told, but time goes on:
+
+<!-- example: packages/world/src/schedule.test.ts#ride -->
+```ts
+export const phone = fuse("phone", { after: minutes(10), interrupts: true }, () => {
+  return "Your phone buzzes: your house alarm is ringing.";
+});
+export const bomb = fuse("bomb", { after: minutes(25), interrupts: true }, () => {
+  return "A blast ahead shakes the carriage, and the train grinds to a halt.";
+});
+export const ride = action<{ thing: typeof bridge }>("ride", {
+  label: "Ride the subway",
+  minutes: 40,
+  stopsFor: (by) => by === bomb.id,
+});
+```
+
+`stopsFor` goes on an action, for its `minutes`, or on `clock.advance(n, { stopsFor })` from code, and `() => false` means nothing stops it. An interrupted action still happens, but takes only the time up to the interruption. A sleep or wait action reads `advance`'s result to say what happened, as in "You sleep until 3 a.m."
+
+Travel through an exit isn't stopped partway, since the player has already arrived when its minutes pass. What's due on the way fires and is told. Journeys that can be stopped partway are [#304](https://github.com/loominate-if/loominate-if/issues/304).
 
 ### Showing the time
 

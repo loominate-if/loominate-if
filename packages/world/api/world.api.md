@@ -65,6 +65,11 @@ export type Advanced = {
 };
 
 // @public
+export type AdvanceOptions = {
+    readonly stopsFor?: (by: string) => boolean;
+};
+
+// @public
 export function blockedReason(exit: Exit, traveler: ObjectRef): string | undefined;
 
 // @public
@@ -94,7 +99,7 @@ export type Clock = {
     readonly minute: number;
     readonly moves: number;
     travelMinutes: number;
-    advance(minutes: number): Advanced;
+    advance(minutes: number, options?: AdvanceOptions): Advanced;
     interrupt(): void;
 };
 

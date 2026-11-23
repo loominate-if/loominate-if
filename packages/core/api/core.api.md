@@ -49,6 +49,7 @@ export type ActionDefinition<A> = {
         readonly [K in Exclude<keyof A, "thing">]?: Participant;
     };
     readonly source?: string;
+    readonly stopsFor?: (by: string) => boolean;
 };
 
 // @public
@@ -357,6 +358,7 @@ export interface HookKinds {
     actionTime: {
         readonly action: string;
         readonly minutes: number;
+        readonly stopsFor?: (by: string) => boolean;
     };
     gameStart: HookContext;
     load: {
