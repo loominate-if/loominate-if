@@ -149,5 +149,7 @@ export {
   type Firing,
   type Fuse,
   type FuseOptions,
+  type Repeated,
   type Scheduled,
+  type Summary,
 } from "./schedule.js";

@@ -8,8 +8,34 @@
  * Undo, saves, and replays restore that, and the inspector can list it.
  * What one returns is shown to the player with the move's notices.
  */
-import { emit, object, StateError, type Handle, type StateId, type Text } from "@loominate-if/core";
+import {
+  emit,
+  message,
+  messages,
+  object,
+  StateError,
+  type Handle,
+  type StateId,
+  type Text,
+} from "@loominate-if/core";
 import { clock } from "./clock.js";
+
+declare module "@loominate-if/core" {
+  interface Messages {
+    /**
+     * What a fuse or daemon without a `summary` says when it fires more than
+     * once in one jump of the clock, given its lines. Empty, the default,
+     * keeps each line.
+     */
+    "schedule.repeated": {
+      readonly source: string;
+      readonly lines: readonly string[];
+      readonly count: number;
+    };
+  }
+}
+
+messages.register("schedule.repeated", "", { source: "@loominate-if/world" });
 
 /** How long until a fuse or daemon fires: in the clock's minutes, or in the player's moves. */
 export type Delay = { readonly minutes: number } | { readonly moves: number };
@@ -33,6 +59,25 @@ export function moves(n: number): Delay {
 
 /** What a fuse or daemon does when it fires: it may return what the player is told. */
 export type Firing = () => string | Text | undefined;
+
+/** When a fuse or daemon fired more than once in one jump of the clock, for its `summary`. */
+export type Repeated = {
+  /** How many times it fired. */
+  readonly count: number;
+  /** The clock's `minutes` when it first fired. */
+  readonly from: number;
+  /** The clock's `minutes` when it last fired. */
+  readonly to: number;
+  /** What it said each time, in order. */
+  readonly lines: readonly string[];
+};
+
+/**
+ * What a fuse or daemon says instead of its lines when it fires more than
+ * once in one jump of the clock, such as "The church bells rang throughout
+ * the night." Nothing, or empty, keeps each line.
+ */
+export type Summary = (repeated: Repeated) => string | Text | undefined;
 
 /** What fuses and daemons have in common. */
 export type Scheduled = {
@@ -80,6 +125,13 @@ export type FuseOptions = {
    * first. Defaults to 0; equal ones go in the order they were defined.
    */
   readonly priority?: number;
+  /**
+   * What to say instead of its lines when it fires more than once in one
+   * jump of the clock, as a long sleep: "The church bells rang throughout
+   * the night." Without it, the `schedule.repeated` message decides, which
+   * by default keeps each line.
+   */
+  readonly summary?: Summary;
 };
 
 /** How {@link daemon} takes its timing. */
@@ -99,6 +151,13 @@ export type DaemonOptions = {
    * first. Defaults to 0; equal ones go in the order they were defined.
    */
   readonly priority?: number;
+  /**
+   * What to say instead of its lines when it fires more than once in one
+   * jump of the clock, as a long sleep: "The church bells rang throughout
+   * the night." Without it, the `schedule.repeated` message decides, which
+   * by default keeps each line.
+   */
+  readonly summary?: Summary;
 };
 
 type Timer = {
@@ -109,6 +168,7 @@ type Timer = {
   readonly repeats: boolean;
   readonly interrupts: boolean;
   readonly priority: number;
+  readonly summary: Summary | undefined;
   readonly fire: Firing;
   readonly state: Handle<{ running: boolean; due: number | null }>;
 };
@@ -124,6 +184,7 @@ function define(
     readonly running?: boolean;
     readonly interrupts?: boolean;
     readonly priority?: number;
+    readonly summary?: Summary;
   },
   fire: Firing,
 ): Timer {
@@ -149,6 +210,7 @@ function define(
     repeats: kind === "daemon",
     interrupts: options.interrupts ?? false,
     priority,
+    summary: options.summary,
     fire,
     // Begun running, it's due its delay after the game begins.
     state: object(`world:${kind}:${id}`, {
@@ -266,8 +328,69 @@ function fire(t: Timer): boolean {
     firing = outer;
   }
   const text = typeof said === "function" ? said() : said;
-  if (typeof text === "string" && text !== "") emit("scheduled", { text, source: t.id });
+  if (typeof text === "string" && text !== "") {
+    const told = { id: t.id, text, at: now(t.unit) };
+    if (held) held.push(told);
+    else emit("scheduled", { text, source: t.id });
+  }
   return t.interrupts;
+}
+
+/** What fuses and daemons said during the jump in progress, held to be written up at its end. */
+let held: { readonly id: StateId; readonly text: string; readonly at: number }[] | undefined;
+
+/**
+ * Starts holding what fuses and daemons say, for a jump of the clock.
+ * Returns whether this call started it: a jump inside another's firing
+ * leaves the outer one to write everything up. @internal
+ */
+export function holdNotices(): boolean {
+  if (held) return false;
+  held = [];
+  return true;
+}
+
+/**
+ * Writes up what was held, in the order it was said, except that a fuse or
+ * daemon that spoke more than once and sums it up says its summary where it
+ * first spoke, instead of its lines. The line of what interrupted the jump
+ * is never summed up: it's why the jump ended. @internal
+ */
+export function tellHeld(interruptedBy: StateId | undefined): void {
+  const told = held ?? [];
+  held = undefined;
+  const interruption =
+    interruptedBy === undefined ? -1 : told.findLastIndex((e) => e.id === interruptedBy);
+  const groups = new Map<StateId, (typeof told)[number][]>();
+  told.forEach((e, i) => {
+    if (i !== interruption) groups.set(e.id, [...(groups.get(e.id) ?? []), e]);
+  });
+  const summaries = new Map<StateId, string>();
+  for (const [id, group] of groups) {
+    if (group.length < 2) continue;
+    const lines = group.map((e) => e.text);
+    const t = timers.find((x) => x.id === id);
+    const said = t?.summary
+      ? t.summary({
+          count: group.length,
+          from: group[0]?.at ?? 0,
+          to: group.at(-1)?.at ?? 0,
+          lines,
+        })
+      : message("schedule.repeated", { source: id, lines, count: group.length });
+    const text = typeof said === "function" ? said() : said;
+    if (text !== undefined && text !== "") summaries.set(id, text);
+  }
+  const summed = new Set<StateId>();
+  told.forEach((e, i) => {
+    const summary = i === interruption ? undefined : summaries.get(e.id);
+    if (summary === undefined) {
+      emit("scheduled", { text: e.text, source: e.id });
+    } else if (!summed.has(e.id)) {
+      summed.add(e.id);
+      emit("scheduled", { text: summary, source: e.id });
+    }
+  });
 }
 
 /**

@@ -704,7 +704,7 @@ choose("South");
 expect(now()).toBe("day 1, 9:44 pm, 4 moves");
 ```
 
-`clock.minutes` is the time since the game began; `clock.day`, `clock.hour` (0–23), and `clock.minute` say when it is, from the start time. `timeOfDay()` words it through the `clock.time` message, "9:45 pm" by default. `clock.moves` counts the player's moves: links followed, actions taken, and travel, but not beginning or undoing. The `clockAdvance` hook runs after time moves on, with the minutes before and after.
+`clock.minutes` is the time since the game began; `clock.day`, `clock.hour` (0–23), and `clock.minute` say when it is, from the start time. `timeOfDay()` words it through the `clock.time` message, "9:45 pm" by default, and `timeOfDay(minutes)` words another time on the clock. `clock.moves` counts the player's moves: links followed, actions taken, and travel, but not beginning or undoing. The `clockAdvance` hook runs after time moves on, with the minutes before and after.
 
 The clock and the move count are state, so undo, saves, and replays restore them, and nothing reads the computer's clock.
 
@@ -788,6 +788,47 @@ export const ride = action<{ thing: typeof bridge }>("ride", {
 `stopsFor` goes on an action, for its `minutes`, or on `clock.advance(n, { stopsFor })` from code, and `() => false` means nothing stops it. An interrupted action still happens, but takes only the time up to the interruption. A sleep or wait action reads `advance`'s result to say what happened, as in "You sleep until 3 a.m."
 
 Travel through an exit isn't stopped partway, since the player has already arrived when its minutes pass. What's due on the way fires and is told. Journeys that can be stopped partway are [#304](https://github.com/loominate-if/loominate-if/issues/304).
+
+### Summing up repeats
+
+A long jump past a daemon that fires every quarter hour would tell each firing: "The tower clock strikes 12:15 am. The tower clock strikes 12:30 am. …". To write it as prose instead, give the daemon a `summary`. When it fires more than once in one jump, its summary is told in place of its lines, where it first spoke. Every firing still happens, at its own time; only the telling is summed up.
+
+<!-- example: packages/world/src/schedule.test.ts#summary -->
+```ts
+export const tower = thing("tower", { name: "clock tower", struck: 0 });
+export const quarters = daemon(
+  "quarters",
+  {
+    every: minutes(15),
+    summary: ({ count, from, to }) =>
+      `The tower clock struck the quarters ${String(count)} times, from ${timeOfDay(from)} to ${timeOfDay(to)}.`,
+  },
+  () => {
+    tower.struck += 1;
+    return `The tower clock strikes ${timeOfDay()}.`;
+  },
+);
+```
+
+A summary is given the `count`, the clock's `minutes` when it `from` first and `to` last fired, and its `lines`. `timeOfDay(minutes)` words such a time. What interrupted the jump is never summed up; it keeps its own line, after the summary:
+
+<!-- example: packages/world/src/schedule.test.ts#slept -->
+```ts
+clock.advance(8 * 60);
+expect(said().filter((s) => /quarters|footsteps/.test(s))).toEqual([
+  "quarters: The tower clock struck the quarters 12 times, from 12:15 am to 3:00 am.",
+  "footsteps: You're woken by footsteps.",
+]);
+```
+
+A single firing keeps its own line, so a short wait past one quarter still says "The tower clock strikes 12:15 am." For every daemon without a `summary`, the `schedule.repeated` message decides, given its `lines` and `count`; it's empty by default, which keeps each line. Reword it to sum up repeats game-wide:
+
+<!-- example: packages/world/src/schedule.test.ts#repeated -->
+```ts
+messages.replace("schedule.repeated", ({ lines, count }) =>
+  count > 2 ? `${lines[0] ?? ""} It happens again and again.` : "",
+);
+```
 
 ### Showing the time
 

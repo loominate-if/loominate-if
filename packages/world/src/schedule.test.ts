@@ -5,6 +5,7 @@ import {
   createHistory,
   createStore,
   createStory,
+  messages,
   readReplay,
   writeReplay,
   type EventRecord,
@@ -38,6 +39,21 @@ export const owl = daemon("owl", { every: minutes(60) }, () => {
 });
 // #endregion
 let owlWakes = false;
+// #region summary
+export const tower = thing("tower", { name: "clock tower", struck: 0 });
+export const quarters = daemon(
+  "quarters",
+  {
+    every: minutes(15),
+    summary: ({ count, from, to }) =>
+      `The tower clock struck the quarters ${String(count)} times, from ${timeOfDay(from)} to ${timeOfDay(to)}.`,
+  },
+  () => {
+    tower.struck += 1;
+    return `The tower clock strikes ${timeOfDay()}.`;
+  },
+);
+// #endregion
 // #region ride
 export const phone = fuse("phone", { after: minutes(10), interrupts: true }, () => {
   return "Your phone buzzes: your house alarm is ringing.";
@@ -66,6 +82,7 @@ const passages: Passage[] = [
     body: () => [
       { type: "link", label: "Cross the bridge", target: "Far side" },
       { type: "link", label: "Look around", target: "Ravine" },
+      { type: "link", label: "Climb the tower", target: "Tower" },
       {
         type: "link",
         label: "Wait",
@@ -77,6 +94,24 @@ const passages: Passage[] = [
         label: "Ride the subway",
         target: "Ride the subway",
         guard: actLink({ call: ride({ thing: bridge }) }),
+      },
+    ],
+  },
+  {
+    id: "Tower",
+    tags: [],
+    effects: {
+      enter: () => {
+        quarters.start();
+      },
+    },
+    body: () => [
+      { type: "link", label: "Look around", target: "Tower" },
+      {
+        type: "link",
+        label: "Wait",
+        target: "Wait",
+        guard: actLink({ call: wait({ thing: bridge }) }),
       },
     ],
   },
@@ -251,6 +286,75 @@ describe("time jumps", () => {
     };
     const first = run();
     expect(run()).toEqual(first);
+  });
+});
+
+describe("repeated notices in a jump", () => {
+  it("are summed up where a daemon says how, before what interrupted the jump", () => {
+    choose("Climb the tower");
+    footsteps.start();
+    // #region slept
+    clock.advance(8 * 60);
+    expect(said().filter((s) => /quarters|footsteps/.test(s))).toEqual([
+      "quarters: The tower clock struck the quarters 12 times, from 12:15 am to 3:00 am.",
+      "footsteps: You're woken by footsteps.",
+    ]);
+    // #endregion
+    expect(tower.struck).toBe(12); // every firing still happened
+  });
+
+  it("aren't summed up for a single firing, or without a summary", () => {
+    choose("Climb the tower");
+    owl.start();
+    clock.advance(20);
+    expect(said()).toEqual(["quarters: The tower clock strikes 12:15 am."]);
+    clock.advance(180);
+    expect(said().filter((s) => s.startsWith("owl"))).toEqual([
+      "owl: An owl hoots at 1:00 am.",
+      "owl: An owl hoots at 2:00 am.",
+      "owl: An owl hoots at 3:00 am.",
+    ]);
+  });
+
+  it("can be summed up game-wide through the message table", () => {
+    const before = messages.get("schedule.repeated");
+    // #region repeated
+    messages.replace("schedule.repeated", ({ lines, count }) =>
+      count > 2 ? `${lines[0] ?? ""} It happens again and again.` : "",
+    );
+    // #endregion
+    try {
+      owl.start();
+      clock.advance(180);
+      expect(said()).toEqual(["owl: An owl hoots at 1:00 am. It happens again and again."]);
+    } finally {
+      if (before !== undefined) {
+        messages.replace("schedule.repeated", before, { source: "@loominate-if/world" });
+      }
+    }
+  });
+
+  it("are the same after undo, and in a replay", () => {
+    const history = createHistory(store);
+    history.checkpoint("begun");
+    choose("Climb the tower");
+    history.checkpoint("climbed");
+    choose("Wait");
+    history.checkpoint("waited");
+    const told = said();
+    expect(told).toEqual([
+      "quarters: The tower clock struck the quarters 2 times, from 12:15 am to 12:30 am.",
+      "drip: Water drips.", // the second move
+    ]);
+    history.undo();
+    expect([tower.struck, said()]).toEqual([0, []]);
+    history.redo();
+    expect([tower.struck, said()]).toEqual([2, told]);
+    const replay = readReplay(writeReplay(story.toReplay()));
+    begin();
+    story.playReplay(replay);
+    expect(said()).toEqual(told);
+    expect(tower.struck).toBe(2);
   });
 });
 
