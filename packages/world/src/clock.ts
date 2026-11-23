@@ -156,6 +156,19 @@ export type Clock = {
    * @throws StateError if `minutes` isn't a whole number, 0 or more.
    */
   advance(minutes: number, options?: AdvanceOptions): Advanced;
+  /** The part of the day it is, as {@link dayParts} names them: "morning", "night". */
+  readonly part: string;
+  /**
+   * Whether it's that part of the day, as `clock.is("night")`.
+   *
+   * @throws StateError if there's no such part.
+   */
+  is(part: string): boolean;
+  /**
+   * Whether the time is from `from` up to, but not including, `to`, each
+   * `"HH:MM"`. If `to` is earlier than `from`, the span runs past midnight.
+   */
+  between(from: string, to: string): boolean;
   /**
    * Stops the clock's jump at this moment, as waking someone who sleeps.
    * Call it from a fuse or daemon as it fires; whatever else is due at the
@@ -165,6 +178,73 @@ export type Clock = {
    */
   interrupt(): void;
 };
+
+/** The parts of the day, each by the time it starts, in order through the day. */
+let parts: readonly { readonly name: string; readonly from: number }[] = [
+  { name: "night", from: 0 },
+  { name: "dawn", from: 5 * 60 },
+  { name: "morning", from: 7 * 60 },
+  { name: "afternoon", from: 12 * 60 },
+  { name: "evening", from: 17 * 60 },
+  { name: "night", from: 21 * 60 },
+];
+
+/**
+ * Names the parts of the day, each by the time it starts; each lasts until
+ * the next. The last runs on past midnight to the first. Call it in
+ * `story.ts`. The default is dawn from 5:00, morning from 7:00, afternoon
+ * from 12:00, evening from 17:00, and night from 21:00.
+ *
+ * @example
+ * ```ts
+ * dayParts({ dawn: "04:30", morning: "06:00", noon: "11:30", afternoon: "13:00", evening: "18:00", night: "22:00" });
+ * ```
+ *
+ * @throws StateError if a time isn't valid, or two parts start at once.
+ */
+export function dayParts(starts: { readonly [part: string]: string }): void {
+  const list = Object.entries(starts)
+    .map(([name, at]) => {
+      const { hour, minute } = parseTime(`dayParts ${name}`, at);
+      return { name, from: hour * 60 + minute };
+    })
+    .sort((a, b) => a.from - b.from);
+  if (list.length === 0) throw new StateError("dayParts: name at least one part of the day.");
+  for (let i = 1; i < list.length; i++) {
+    if (list[i]?.from === list[i - 1]?.from) {
+      throw new StateError(
+        `dayParts: ${list[i - 1]?.name ?? ""} and ${list[i]?.name ?? ""} start at the same time.`,
+      );
+    }
+  }
+  const last = list.at(-1);
+  // Before the first part starts, it's still the last one, from the night before.
+  parts = (list[0]?.from ?? 0) > 0 && last ? [{ name: last.name, from: 0 }, ...list] : list;
+}
+
+/** The part of the day `minutes` into the game. @internal */
+export function partAt(minutes: number): string {
+  const m = minuteOfDayAt(minutes);
+  let name = parts[0]?.name ?? "";
+  for (const p of parts) if (p.from <= m) name = p.name;
+  return name;
+}
+
+/** Checks a part of the day's name. @internal */
+export function checkPart(where: string, part: string): string {
+  if (!parts.some((p) => p.name === part)) {
+    throw new StateError(
+      `${where}: ${JSON.stringify(part)} isn't a part of the day: ${[...new Set(parts.map((p) => p.name))].join(", ")}. Name it with dayParts().`,
+    );
+  }
+  return part;
+}
+
+/** Whether `minutes` into the game is from `from` up to `to`, minutes of the day, past midnight if `to` is earlier. @internal */
+export function withinDay(minutes: number, from: number, to: number): boolean {
+  const m = minuteOfDayAt(minutes);
+  return from <= to ? m >= from && m < to : m >= from || m < to;
+}
 
 /** How many days after the game's first the day `minutes` into it is. @internal */
 export function dayOffset(minutes: number): number {
@@ -293,6 +373,17 @@ export const clock: Clock = Object.freeze({
       jumps.pop();
       if (holding) tellHeld(done ? jump.by : undefined);
     }
+  },
+  get part() {
+    return partAt(state.elapsed);
+  },
+  is(part: string) {
+    return partAt(state.elapsed) === checkPart("clock.is", part);
+  },
+  between(from: string, to: string) {
+    const a = parseTime("clock.between", from);
+    const b = parseTime("clock.between", to);
+    return withinDay(state.elapsed, a.hour * 60 + a.minute, b.hour * 60 + b.minute);
   },
   interrupt() {
     const jump = jumps.at(-1);

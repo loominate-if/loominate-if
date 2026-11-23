@@ -51,6 +51,8 @@ A message's text is one of three things:
 | `number.words` | `count` | "three", up to twelve, then digits |
 | `clock.time` | `day`, `hour`, `minute` | "9:45 pm" |
 | `clock.label` | | What the clock widget is, for screen readers: "Time" |
+| `hours.closed` | `place`, `opens`?, `when`? | "The bakery is closed until 9:00 am on Monday." |
+| `hours.onDay` | `weekday` | "on Monday" |
 | `calendar.date` | `day`, `weekday`?, `month`?, `date`?, `year`? | "Wednesday, 31 October 1923", or "Day 3" |
 | `schedule.repeated` | `source`, `lines`, `count` | What a daemon without a `summary` says when it repeats in a jump: empty, which keeps each line |
 | `wait.label`, `waitUntil.label` | `minutes`; `what` | "Wait 10 minutes", "Wait until 6:00 am" |

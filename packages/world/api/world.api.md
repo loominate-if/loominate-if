@@ -111,6 +111,7 @@ export type CalendarDefinition = {
 
 // @public
 export type CalendarQuery = {
+    readonly part?: string | readonly string[];
     readonly weekday?: string | readonly string[];
     readonly month?: string | readonly string[];
     readonly season?: string | readonly string[];
@@ -151,6 +152,9 @@ export type Clock = {
     readonly moves: number;
     travelMinutes: number;
     advance(minutes: number, options?: AdvanceOptions): Advanced;
+    readonly part: string;
+    is(part: string): boolean;
+    between(from: string, to: string): boolean;
     interrupt(): void;
 };
 
@@ -231,6 +235,11 @@ export type DateSpec = {
 
 // @public
 export function dateText(): string;
+
+// @public
+export function dayParts(starts: {
+    readonly [part: string]: string;
+}): void;
 
 // @public
 export function defineCalendar(definition: CalendarDefinition): Calendar;
@@ -446,6 +455,13 @@ export type HolidayRule = {
 };
 
 // @public
+export type Hours = {
+    readonly open: string;
+    readonly close: string;
+    readonly on?: string | readonly string[] | CalendarQuery;
+};
+
+// @public
 export function inScope(observer: ObjectRef, sense: Sense): Thing[];
 
 // @public
@@ -465,6 +481,9 @@ export function isInRegion(t: ObjectRef, region: ObjectRef): boolean;
 
 // @public
 export function isMind(ref: ObjectRef): boolean;
+
+// @public
+export function isOpenNow(thing: ObjectRef): boolean;
 
 // @public
 export function isPlace(t: ObjectRef): boolean;
@@ -582,6 +601,11 @@ export const openable: {
     isOpen: boolean;
     open(): boolean;
     close(): void;
+};
+
+// @public
+export function openingHours(hours: Hours): {
+    hours: StoredHours;
 };
 
 // @public
@@ -753,6 +777,13 @@ export function startAs(m: ObjectRef): void;
 
 // @public
 export function startClock(options: ClockStart): void;
+
+// @public
+export type StoredHours = {
+    open: string;
+    close: string;
+    on: CalendarQuery | null;
+};
 
 // @public
 export type Summary = (repeated: Repeated) => string | Text | undefined;

@@ -1052,6 +1052,62 @@ expect(said()).toEqual([
 ]);
 ```
 
+### Parts of the day and opening hours
+
+`clock.is("night")` says whether it's that part of the day, and `clock.part` which it is. The parts are dawn from 5:00, morning from 7:00, afternoon from 12:00, evening from 17:00, and night from 21:00, until `dayParts({ … })` names your own. `clock.between("09:00", "17:00")` checks a span, running past midnight if it ends earlier than it starts, and `calendar.is({ part: "night", weekday: "friday" })` checks parts with days:
+
+<!-- example: packages/world/src/hours.test.ts#parts -->
+```ts
+expect([clock.part, clock.is("morning"), clock.between("08:00", "09:00")]).toEqual([
+  "morning",
+  true,
+  true,
+]);
+clock.advance(13 * 60); // 21:30
+expect([clock.part, calendar.is({ part: "night", weekday: "friday" })]).toEqual([
+  "night",
+  true,
+]);
+expect(clock.between("21:00", "02:00")).toBe(true); // past midnight
+```
+
+In a passage, `{if clock.is("night")}Stars wheel overhead.{else}The sky is grey.{/if}` varies a description, and a link's `{when …}` or an action's `check` can vary what's offered.
+
+**Opening hours** go on a door or other obstacle on an exit, with `openingHours`. Outside them, it blocks the way with why, before its own reason, as a locked door does. `on` takes weekdays or any calendar check, and a `close` earlier than `open` closes after midnight, counted as the day it opened:
+
+<!-- example: packages/world/src/hours.test.ts#hours -->
+```ts
+export const bakeryDoor = thing("bakeryDoor", {
+  ...door,
+  ...openingHours({
+    open: "09:00",
+    close: "17:00",
+    on: ["monday", "tuesday", "wednesday", "thursday", "friday"],
+  }),
+  name: "bakery door",
+});
+export const tavernDoor = thing("tavernDoor", {
+  ...door,
+  ...openingHours({ open: "17:00", close: "01:00" }), // until after midnight
+  name: "tavern door",
+});
+connect(street, { in: { to: bakery, via: bakeryDoor }, east: { to: tavern, via: tavernDoor } });
+```
+
+<!-- example: packages/world/src/hours.test.ts#closed -->
+```ts
+expect(exits()).toEqual([
+  "East: The tavern is closed until 5:00 pm.",
+  "In: The bakery is closed until 9:00 am.",
+]);
+clock.advance(30); // 9:00 on Friday
+expect(exits()).toEqual(["East: The tavern is closed until 5:00 pm.", "In: open"]);
+clock.advance(8 * 60); // 17:00 on Friday
+expect(exits()).toEqual(["East: open", "In: The bakery is closed until 9:00 am on Monday."]);
+```
+
+`isOpenNow(bakeryDoor)` checks it from code, such as a shopkeeper's action. The hours are state, so `bakeryDoor.hours = …` changes them during play, for a holiday, say. The reason is the `hours.closed` message.
+
 ### Showing the time
 
 The world model registers a `clock` widget showing `timeOfDay()`, labelled "Time" for screen readers. It isn't shown unless the game adds it, in `story.ts`:

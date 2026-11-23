@@ -13,7 +13,7 @@
  * computer's date.
  */
 import { message, messages, StateError } from "@loominate-if/core";
-import { clock, dayAt, dayOffset, startDate } from "./clock.js";
+import { checkPart, clock, dayAt, dayOffset, partAt, startDate } from "./clock.js";
 
 declare module "@loominate-if/core" {
   interface Messages {
@@ -505,6 +505,8 @@ function isHolidayAt(name: string, minutes: number): boolean {
 
 /** What {@link CalendarView.is} checks: each one given must match; a list matches any of its names. */
 export type CalendarQuery = {
+  /** Parts of the day, as {@link dayParts} names them: "morning", "night". */
+  readonly part?: string | readonly string[];
   readonly weekday?: string | readonly string[];
   readonly month?: string | readonly string[];
   readonly season?: string | readonly string[];
@@ -553,9 +555,16 @@ export function matchesAt(query: CalendarQuery, minutes: number, where = "calend
   if (months && !months.includes(p.month?.id ?? "")) return false;
   const seasons = list(query.season);
   if (seasons && !seasons.includes(p.season ?? "")) return false;
+  const dayPart = list(query.part)?.map((x) => checkPart(where, x));
+  if (dayPart && !dayPart.includes(partAt(minutes))) return false;
   const named = list(query.holiday);
   if (named && !named.some((h) => isHolidayAt(h, minutes))) return false;
   return true;
+}
+
+/** The weekday's name, as the calendar gives it, `minutes` into the game, if it has a week. @internal */
+export function weekdayNameAt(minutes: number): string | undefined {
+  return placeOf(minutes).weekday?.name;
 }
 
 /** The game's calendar, as of the clock now. */
