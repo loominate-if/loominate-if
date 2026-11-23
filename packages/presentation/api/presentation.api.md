@@ -181,6 +181,19 @@ export type StatusLineOptions = {
 export const statusLineView: WidgetView<StatusLineData>;
 
 // @public
+export function textWidget(options: TextWidgetOptions): WidgetDefinition<{
+    readonly text: string;
+    readonly label: string;
+}>;
+
+// @public
+export type TextWidgetOptions = {
+    readonly text: () => string;
+    readonly label: () => string;
+    readonly className?: string;
+};
+
+// @public
 export type ThemeToken = {
     readonly name: `--loominate-${string}`;
     readonly value: string;

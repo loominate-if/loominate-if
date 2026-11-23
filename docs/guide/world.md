@@ -423,7 +423,7 @@ roomDefaults: {
 
 ## Exits
 
-A room's exits are declared with `connect()` in `story.ts`, after the rooms, since rooms refer to each other. An exit leads to a room, and can go `via` a door, and say how long it takes in minutes, for the game clock to come. Exits are one-way, so connect both rooms for a way there and back:
+A room's exits are declared with `connect()` in `story.ts`, after the rooms, since rooms refer to each other. An exit leads to a room, and can go `via` a door, and say how long it takes in minutes, for [the game clock](#time). Exits are one-way, so connect both rooms for a way there and back:
 
 <!-- example: packages/world/src/exits.test.ts#connect -->
 ```ts
@@ -663,3 +663,59 @@ export const cat = actor("cat", {
   },
 });
 ```
+
+## Time
+
+The world model keeps a game clock in minutes. Time passes only when something says so, so a game that never mentions it pays nothing. Set when the game begins once, in `story.ts`:
+
+<!-- example: packages/world/src/clock.test.ts#clock -->
+```ts
+startClock({ at: "21:30" });
+export const kitchen = place("kitchen", { name: "kitchen" });
+export const garden = place("garden", { name: "garden" });
+export const lane = place("lane", { name: "lane" });
+connect(kitchen, { out: { to: garden, minutes: 2 }, north: lane });
+connect(garden, { in: { to: kitchen, minutes: 2 } });
+connect(lane, { south: kitchen });
+
+export const brew = action<{ thing: typeof kitchen }>("brew", {
+  label: "Brew tea",
+  minutes: 5,
+  run: () => {
+    clock.advance(1); // waiting for the kettle, partway through
+  },
+  report: () => `You brew tea. It's ${timeOfDay()}.`,
+});
+```
+
+- **Actions** take their `minutes`, through core's `actionTime` hook.
+- **Travel** takes the `minutes` of the exit the player goes through, or the clock's `travelMinutes`, which is 0 unless `startClock({ travelMinutes })` or `clock.travelMinutes = …` changes it. Moving the player between rooms with no exit between them takes no time.
+- **Any code** can call `clock.advance(minutes)` in an effect or an action stage, even partway through an action, as `brew` does while the kettle boils.
+
+<!-- example: packages/world/src/clock.test.ts#travel -->
+```ts
+choose("Out"); // 2 minutes, as the exit says
+expect(now()).toBe("day 1, 9:32 pm, 1 moves");
+choose("In");
+choose("North"); // no minutes: travelMinutes, 0 by default
+expect(now()).toBe("day 1, 9:34 pm, 3 moves");
+clock.travelMinutes = 10;
+choose("South");
+expect(now()).toBe("day 1, 9:44 pm, 4 moves");
+```
+
+`clock.minutes` is the time since the game began; `clock.day`, `clock.hour` (0–23), and `clock.minute` say when it is, from the start time. `timeOfDay()` words it through the `clock.time` message, "9:45 pm" by default. `clock.moves` counts the player's moves: links followed, actions taken, and travel, but not beginning or undoing. The `clockAdvance` hook runs after time moves on, with the minutes before and after.
+
+The clock and the move count are state, so undo, saves, and replays restore them, and nothing reads the computer's clock.
+
+### Showing the time
+
+The world model registers a `clock` widget showing `timeOfDay()`, labelled "Time" for screen readers. It isn't shown unless the game adds it, in `story.ts`:
+
+```ts
+import { addToHeader } from "@loominate-if/presentation";
+addToHeader("clock");
+```
+
+Reword it with `messages.replace("clock.time", ({ hour, minute }) => …)`, or replace the widget's view to draw a dial. Presentation's `textWidget({ text, label })` makes a widget like it for any line of text, such as a score.
+

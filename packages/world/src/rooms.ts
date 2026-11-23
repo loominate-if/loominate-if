@@ -8,6 +8,7 @@
  */
 import { object, StateError, type EffectContext, type ObjectRef } from "@loominate-if/core";
 import { currentPlayerBody, currentPlayerMind, mindsIn, playerBody, playerMind } from "./actors.js";
+import { travelled } from "./clock.js";
 import { noteSights, rememberedRoomVisits, rememberRoomVisit } from "./knowledge.js";
 import { nearestRegions, regionFor, type Region, type RegionHooks } from "./regions.js";
 import { byId, isPlace, isWithin, move, onMove, placeOf, type Place } from "./things.js";
@@ -42,7 +43,11 @@ export function enterRoom(room: Place, context?: EffectContext): void {
       `${where}: the player's mind is in no body, so it can't enter the room. Put it in one with possess().`,
     );
   }
-  if (placeOf(body)?.id !== room.id) move(body, room);
+  const from = placeOf(body);
+  if (from?.id !== room.id) {
+    move(body, room);
+    if (from) travelled(from, room);
+  }
   visits.counts[room.id] = totalVisitsTo(room) + 1;
   rememberRoomVisit(playerMind(), room);
   // Every mind in the body sees the room, the one in control and its passengers.

@@ -80,6 +80,33 @@ export function canReach(observer: ObjectRef, target: ObjectRef): boolean;
 export function canSee(observer: ObjectRef, target: ObjectRef): boolean;
 
 // @public
+export type Clock = {
+    readonly minutes: number;
+    readonly day: number;
+    readonly hour: number;
+    readonly minute: number;
+    readonly moves: number;
+    travelMinutes: number;
+    advance(minutes: number): void;
+};
+
+// @public
+export const clock: Clock;
+
+// @public
+export type ClockStart = {
+    readonly at?: string;
+    readonly day?: number;
+    readonly travelMinutes?: number;
+};
+
+// @public
+export const clockWidget: WidgetDefinition<    {
+readonly text: string;
+readonly label: string;
+}>;
+
+// @public
 export const close: Action<    {
 thing: ActingOn;
 }>;
@@ -501,6 +528,9 @@ export function setExit(from: ObjectRef, name: DirectionName, exit: ObjectRef | 
 export function startAs(m: ObjectRef): void;
 
 // @public
+export function startClock(options: ClockStart): void;
+
+// @public
 export const surface: {
     holds: Holding;
 };
@@ -545,6 +575,9 @@ export function thingTemplate<D extends ObjectDefinition<D> & {
     location?: ObjectRef | null;
     vocab?: Vocabulary;
 } & ThisType<Handle<ThingOf<D>>>): ObjectTemplate<ThingOf<D>>;
+
+// @public
+export function timeOfDay(): string;
 
 // @public
 export function totalVisitsTo(room: ObjectRef): number;
