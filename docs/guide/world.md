@@ -559,6 +559,54 @@ export const haul = action<{ thing: typeof ox }>("haul", {
 });
 ```
 
+### Modifiers
+
+A **modifier** changes a stat for a while: a potion's strength, a poison's weakness, a blessing's wit. It adds `by` an amount, or multiplies it by `times`, from a source. A new one from the same source replaces the last, so a second potion refreshes the first rather than doubling it, while different sources stack: additions first, then multiplications, and the result stays within the stat's limits:
+
+<!-- example: packages/world/src/modifiers.test.ts#modify -->
+```ts
+modify(you, "strength", {
+  by: 2,
+  from: "potion",
+  lasts: minutes(30),
+  wearsOff: "The potion's warmth fades.",
+});
+modify(you, "strength", { times: 0.5, from: "poison" });
+expect([stat(you, "strength"), baseStat(you, "strength")]).toEqual([2, 2]); // (2 + 2) × 0.5
+unmodify(you, "strength", "poison");
+expect(stat(you, "strength")).toBe(4);
+```
+
+`lasts` is in `minutes(…)` or `moves(…)`. It wears off by the clock, saying its `wearsOff`, if it has one, as it does:
+
+<!-- example: packages/world/src/modifiers.test.ts#refresh -->
+```ts
+modify(you, "strength", {
+  by: 2,
+  from: "potion",
+  lasts: minutes(30),
+  wearsOff: "The potion's warmth fades.",
+});
+expect(stat(you, "strength")).toBe(4); // refreshed, not doubled
+clock.advance(29);
+expect(stat(you, "strength")).toBe(4);
+clock.advance(1); // 30 minutes after the second potion
+expect([stat(you, "strength"), modifiersOf(you, "strength"), told()]).toEqual([
+  2,
+  [],
+  ["The potion's warmth fades."],
+]);
+```
+
+`baseStat` is a stat without its modifiers, and `modifiersOf` lists them. `changeStat`, `spend`, and `restore` work on the base, so a potion's strength isn't kept when it wears off. A modifier is kept with its stat, on the body or the mind, so a mental one travels with the mind. In `story.ts`, `modify` sets how things start:
+
+<!-- example: packages/world/src/modifiers.test.ts#curse -->
+```ts
+modify(ox, "wits", { by: -1, from: "curse" }); // the ox starts cursed
+```
+
+The inspector's **Stats** tab lists every body's stats, base and now, with their modifiers and when each wears off.
+
 ## Rooms and regions
 
 A **room** is a place a passage describes. Tag the passage with `room:` and the place it describes, and arriving at the passage moves the player there and counts a visit:

@@ -208,8 +208,16 @@ export {
   type ThresholdSpec,
 } from "./relationships.js";
 export {
+  _statsTable,
+  baseStat,
   canSpend,
   changeStat,
+  modifiersOf,
+  modify,
+  unmodify,
+  type ActiveModifier,
+  type _StatRow,
+  type Modifier,
   restore,
   setStat,
   spend,

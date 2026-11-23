@@ -3,10 +3,32 @@ import { createEventRecord, createStore, createStory } from "@loominate-if/core"
 import { panels, type PanelContext } from "@loominate-if/inspector";
 import axe from "axe-core";
 import { beforeEach, describe, expect, it } from "vitest";
-import { clock, daemon, fuse, minutes, moves, startClock } from "@loominate-if/world";
+import {
+  actor,
+  clock,
+  daemon,
+  fuse,
+  minutes,
+  modify,
+  moves,
+  place,
+  startAs,
+  startClock,
+  stats,
+} from "@loominate-if/world";
 import "./inspector.js";
 
 startClock({ at: "21:00" });
+declare module "@loominate-if/world" {
+  interface Stats {
+    strength: true;
+    wits: true;
+  }
+}
+stats({ strength: { on: "body", start: 2 }, wits: { on: "mind", start: 3 } });
+const yard = place("yard", { name: "yard" });
+const hero = actor("hero", { body: { name: "hero", location: yard } });
+startAs(hero);
 const collapse = fuse("collapse", { after: minutes(30), interrupts: true }, () => "Crash.");
 const kettle = fuse("kettle", { after: moves(3), standsOut: true }, () => "Whistle.");
 const bells = daemon(
@@ -60,6 +82,24 @@ describe("the Fuses and daemons panel", () => {
     expect(rows(element)[0]).toBe(
       "collapse | fuse | Fired | — | after 30 minutes, interrupts | game",
     );
+    expect((await axe.run(element)).violations).toEqual([]);
+  });
+});
+
+describe("the Stats panel (#95)", () => {
+  it("lists each body's stats, base and modified, with their modifiers", async () => {
+    const panel = panels.get("stats");
+    expect(panel?.title).toBe("Stats");
+    const element = document.createElement("div");
+    document.body.replaceChildren(element);
+    const view = panel?.mount(element, {} as PanelContext);
+    modify(hero, "strength", { by: 2, from: "potion", lasts: minutes(30) });
+    modify(hero, "wits", { times: 2, from: "insight" });
+    view?.update();
+    expect(rows(element)).toEqual([
+      "hero | strength | 2 | 4 | potion +2, until 9:30 pm",
+      "hero (hero:mind) | wits | 3 | 6 | insight ×2, until removed",
+    ]);
     expect((await axe.run(element)).violations).toEqual([]);
   });
 });
