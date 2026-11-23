@@ -13,6 +13,9 @@ import { MenuChoice } from '@loominate-if/presentation';
 import { ObjectDefinition } from '@loominate-if/core';
 import { ObjectRef } from '@loominate-if/core';
 import { ObjectTemplate } from '@loominate-if/core';
+import { Period } from '@loominate-if/core';
+import { RuleList } from '@loominate-if/core';
+import { RuleOptions } from '@loominate-if/core';
 import { StateId } from '@loominate-if/core';
 import { Text } from '@loominate-if/core';
 import { WidgetDefinition } from '@loominate-if/presentation';
@@ -328,6 +331,11 @@ thing: ActingOn;
 
 // @public
 export type Ended = "fired" | "cancelled" | "stopped";
+
+// @public
+export type Endings = (() => boolean) | {
+    readonly [ending: string]: () => boolean;
+};
 
 // @public
 export function enterRoom(room: Place, context?: EffectContext): void;
@@ -737,6 +745,37 @@ export function reveal(args: RevealArguments, context?: EffectContext): void;
 export type RevealArguments = {
     readonly fact: Fact;
     readonly from?: ObjectRef;
+};
+
+// @public
+export type Scene = Period & {
+    readonly name: string;
+    readonly hasHappened: boolean;
+    readonly hasEnded: boolean;
+    readonly timesStarted: number;
+    readonly howEnded: string | undefined;
+    readonly startedAt: number | undefined;
+    readonly canStart: boolean;
+    start(): void;
+    end(how?: string): void;
+    rule<F extends (...args: never[]) => unknown>(book: RuleList<F>, name: string, fn: F, options?: RuleOptions): void;
+};
+
+// @public
+export function scene(id: string, options?: SceneOptions): Scene;
+
+// @public
+export type SceneOptions = {
+    readonly name?: string;
+    readonly startsWhen?: () => boolean;
+    readonly endsWhen?: Endings;
+    readonly startsAt?: string;
+    readonly on?: string | readonly string[] | CalendarQuery;
+    readonly lasts?: Delay;
+    readonly recurring?: boolean | number;
+    readonly onStart?: () => string | Text | undefined;
+    readonly onEnd?: (how: string) => string | Text | undefined;
+    readonly source?: string;
 };
 
 // @public

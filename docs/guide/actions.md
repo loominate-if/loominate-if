@@ -49,6 +49,8 @@ export const open = action<{ thing: typeof door }>("open", {
 
 Code performs an action with `perform(call)`, in an effect, through every stage: `{on enter: perform(knock({ thing: cellarDoor }))}`. It returns whether it was done, and why not.
 
+An action can also be offered only during a period of the story: `during: storm` hides it while the world model's [scene](world.md#scenes) `storm` isn't happening.
+
 ## Things' menus
 
 A thing's name in the text can open a menu of what the player can do with it. Write the name as a link with `{menu …}`; like `{act}`, it needs no `->`:

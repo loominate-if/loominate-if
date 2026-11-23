@@ -26,6 +26,18 @@ import {
   type RuleStep,
 } from "../rules/rules.js";
 import { StateError } from "../state/value.js";
+import { message, messages } from "../text/messages.js";
+
+declare module "../text/messages.js" {
+  interface Messages {
+    /** Why an action offered only during a period isn't, for the inspector: "Only during the storm." */
+    "action.notDuring": { readonly during: string };
+  }
+}
+
+messages.register("action.notDuring", ({ during }) => `Only during ${during}.`, {
+  source: "@loominate-if/core",
+});
 
 /** What an action's rules see: its things, by name, and who's acting. */
 export type ActionContext<A> = A & {
@@ -89,6 +101,22 @@ export type ActionDefinition<A> = {
    * anything. A clock, such as the world model's, honours it.
    */
   readonly stopsFor?: (by: string) => boolean;
+  /**
+   * A period of the story it's offered only during, such as the world
+   * model's scenes: `during: storm`. While it isn't happening, the action
+   * isn't offered.
+   */
+  readonly during?: Period;
+};
+
+/** A period of the story, such as a world model's scene, that an action can be offered only during. */
+export type Period = {
+  /** Its ID, or a name to say it by. */
+  readonly id: string;
+  /** Its name, for the inspector: "the storm". Defaults to its ID. */
+  readonly name?: string;
+  /** Whether it's happening now. */
+  readonly isHappening: boolean;
 };
 
 /** How a menu fills one of an action's other roles: a fixed thing, or a test for things that suit. */
@@ -268,6 +296,17 @@ export function action<A extends Readonly<Record<string, unknown>>>(
     }
   }
   const from = d.source === undefined ? {} : { source: d.source };
+  const during = d.during;
+  if (during) {
+    verify.rule(
+      `${name}: during`,
+      () =>
+        during.isHappening
+          ? undefined
+          : message("action.notDuring", { during: during.name ?? during.id }),
+      from,
+    );
+  }
   if (d.verify) verify.rule(own, d.verify, from);
   if (d.check) check.rule(own, d.check, from);
   if (d.run) perform.rule(own, d.run, from);

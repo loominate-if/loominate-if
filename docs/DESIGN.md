@@ -49,10 +49,10 @@ A game is written as passage files for prose and TypeScript modules for objects 
 
 ### Passage files
 
-Passages are declared with `:: Name [tags]`. Tags are comma-separated and assign roles: `scene`, `room: platform`, `actor: butler`. Prose is the default; expressions and directives sit in `{ }`, and `\{` writes a literal brace. The full grammar is in [ADR 0004](decisions/0004-passage-syntax.md).
+Passages are declared with `:: Name [tags]`. Tags are comma-separated and assign roles: `cutscene`, `room: platform`, `actor: butler`. Prose is the default; expressions and directives sit in `{ }`, and `\{` writes a literal brace. The full grammar is in [ADR 0004](decisions/0004-passage-syntax.md).
 
 ```
-:: Arrival [scene]
+:: Arrival [cutscene]
 The train is gone before you've finished stepping down.
 {beat 1.5s}
 Fog has swallowed the platform. Somewhere ahead, a lamp
@@ -284,7 +284,7 @@ swapBodies(you, tom);    // classic body swap
 - **Exits and directions.** Rooms declare exits, optionally with distances or travel times and with doors or other obstacles. Directions are a registry, not a fixed eight: up/down/in/out and themed sets such as fore, aft, port, starboard can be added. Exits are declared with `connect(hall, { north: library, down: { to: cellar, via: cellarDoor } })` after the rooms, are state, and change with `setExit`. A door is one object both rooms' exits name; an `obstacle` says why it blocks the way. `{exits}` shows a room's exits as links, a blocked one disabled with its reason. A room with several passages tags one `arrive` ([ADR 0034](decisions/0034-exits-and-directions.md), [guide](guide/world.md#exits)).
 - **Compass widget.** An optional widget that asks the current location for its exits and their passability, so locked doors appear disabled with the door supplying the reason. Authors choose whether unvisited exits show destination names. Fully reskinnable, keyboard-operable.
 - **Knowledge and facts.** The player and NPCs track what they have seen, what is familiar, and which facts they know. Facts can carry a source ("the gardener told me" versus "I read it in the diary"). Knowledge drives available actions and conversation topics. Facts are defined with `fact()` or `defineFacts()`; every mind has `knows`, `learn`, `sourceOf`, `hasSeen`, `knowsAbout`, and `forget`, and `player` stands for the mind the player controls now. `{reveal facts.x, from: maid}` teaches the player a fact, sourced to `from` and the passage. Arriving in a room marks what the body can see as seen. `loseMemory()` blocks a mind's memories until `regainMemory()` ([ADR 0035](decisions/0035-knowledge-and-facts.md), [guide](guide/world.md#knowledge-and-facts)).
-- **Scenes.** Named periods of the story with start and end conditions, able to add rules, actions, and topics while active.
+- **Scenes.** Named periods of the story with start and end conditions, able to add rules, actions, and topics while active. A scene, as Inform 7 and adv3Lite have them, starts when `startsWhen` holds (checked after every move and whenever a fuse or daemon fires), at a `startsAt` time, or from code; it ends by one of its named `endsWhen` endings, when it `lasts` out, or from code. It happens once unless `recurring`. Its rules are registered once at load and take part only while it's happening, and actions take `during: scene`. A cut scene, a passage of beats, is tagged `[cutscene]` ([ADR 0060](decisions/0060-scenes.md)).
 - **Perception.** A sense layer decides what the player notices: NPC arrivals and departures are narrated automatically, and offstage events are silent unless made perceptible ("You hear a door slam upstairs"). `happen(thing, { seen, heard, far, carries, reveals })` tells whoever can see or hear it, and rooms up to `carries` exits away, which way it came from. The player's mind is told through `perception` events, which the page shows after the passage text and before its choices, for the move, or where `{notices}` puts them; every mind that notices can learn a fact. Actors coming into and leaving the player's sight are narrated with the way they went, in their own words if they give them ([ADR 0037](decisions/0037-perception.md), [guide](guide/world.md#perception)).
 
 ### Storylets and stackable items
@@ -534,7 +534,7 @@ An optional presentation kit for visual-novel-style games, built as a layout lik
 - **Scripted dialogue passages.** Lines name a speaker and an optional expression:
 
 ```
-:: Rooftop [scene]
+:: Rooftop [cutscene]
 @mira (nervous) "I didn't think you'd actually come."
 @player "You asked me to."
 {show mira smiling, dissolve}

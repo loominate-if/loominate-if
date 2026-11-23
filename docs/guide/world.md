@@ -664,6 +664,60 @@ export const cat = actor("cat", {
 });
 ```
 
+## Scenes
+
+A **scene** is a named period of the story, as Inform 7 and adv3Lite have them: a storm, a dinner party, a chase. It starts when something holds, at a time, or when your code says, and ends the same ways, and while it's happening it can add rules and actions. (It isn't a cut scene, a passage of timed beats.)
+
+<!-- example: packages/world/src/scenes.test.ts#storm -->
+```ts
+export const storm = scene("storm", {
+  name: "the storm",
+  startsWhen: () => clock.is("evening") && at(cliff),
+  endsWhen: { sheltered: () => at(cave) },
+  lasts: minutes(60),
+  onStart: () => "Thunder cracks overhead, and rain sweeps the cliff.",
+  onEnd: (how) => (how === "sheltered" ? "You're out of the rain." : "The storm blows itself out."),
+});
+export const signal = action<{ thing: typeof cliff }>("signal", {
+  label: "Fire a flare",
+  report: "Your flare arcs out over the sea.",
+});
+storm.rule(signal.check, "the wind snatches flares", () => "The wind snatches the flare away.");
+export const brace = action<{ thing: typeof cliff }>("brace", {
+  label: "Brace against the wind",
+  during: storm,
+  report: "You brace against the wind.",
+});
+```
+
+- **Starting:** `startsWhen` is checked after every move and whenever a fuse or daemon fires. `startsAt: "19:00"`, with `on` days if you like, starts it at a time. `storm.start()` starts it from code.
+- **Ending:** `endsWhen` is a condition, or several, each naming an ending. `lasts: minutes(60)` ends it as `"timeUp"`, and `storm.end("escaped")` ends it from code. `storm.howEnded` says how it last ended.
+- **Saying so:** `onStart` and `onEnd` may return what the player is told, which stands out.
+- **Rules:** `storm.rule(rulebook, name, fn)` adds a rule that takes part only while the storm is happening, like Inform's "Instead of firing a flare during the Storm". It's registered once, when the game loads, so undo and loading a save always agree with what's happening. The inspector shows it as from "game (during the storm)".
+- **Actions:** `during: storm` on an action offers it only while the storm is happening.
+
+<!-- example: packages/world/src/scenes.test.ts#happening -->
+```ts
+choose("Wait 10 minutes"); // a move: the storm's condition holds
+expect([storm.isHappening, storm.timesStarted]).toEqual([true, 1]);
+expect(offered()).toContain("Brace against the wind");
+expect(statusOf(signal({ thing: cliff })).disabled).toBe("The wind snatches the flare away.");
+choose("In");
+expect([storm.isHappening, storm.howEnded, storm.hasEnded]).toEqual([false, "sheltered", true]);
+```
+
+A scene happens once, unless it says `recurring: true`, or a number of times at most. Starting a finished one-time scene from code is an error that says so. `storm.hasHappened`, `storm.hasEnded`, `storm.timesStarted`, and `storm.startedAt` say what's happened, for text and conditions, as in `{if storm.isHappening}Rain lashes the window.{/if}`.
+
+<!-- example: packages/world/src/scenes.test.ts#tide -->
+```ts
+export const tide = scene("tide", {
+  startsAt: "19:00",
+  lasts: minutes(30),
+  recurring: 2,
+  onStart: () => "The tide comes in.",
+});
+```
+
 ## Time
 
 The world model keeps a game clock in minutes. Time passes only when something says so, so a game that never mentions it pays nothing. Set when the game begins once, in `story.ts`:
