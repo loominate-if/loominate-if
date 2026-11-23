@@ -26,6 +26,9 @@ export type ActionCall<A = Readonly<Record<string, unknown>>> = {
 };
 
 // @public
+export function actionCandidates(): readonly ObjectRef[];
+
+// @public
 export type ActionContext<A> = A & {
     readonly action: string;
     readonly actor?: ObjectRef;
@@ -45,12 +48,21 @@ export type ActionDefinition<A> = {
     readonly with?: {
         readonly [K in Exclude<keyof A, "thing">]?: Participant;
     };
+    readonly source?: string;
 };
 
 // @public
 export type ActionOutcome = {
     readonly done: boolean;
     readonly reason?: string;
+};
+
+// @public
+export type ActionRule = {
+    readonly stage: "verify" | "check";
+    readonly rulebook: string;
+    readonly rule: string;
+    readonly source: string;
 };
 
 // @public
@@ -67,6 +79,7 @@ export type ActionStatus = {
     readonly label: string;
     readonly hidden?: string;
     readonly disabled?: string;
+    readonly by?: ActionRule;
 };
 
 // @public
@@ -401,6 +414,7 @@ export type LinkGuard = {
     readonly reason?: string;
     readonly act?: LoggedCall;
     readonly menu?: string;
+    readonly by?: ActionRule;
     readonly parts?: readonly ConditionPart[];
 };
 

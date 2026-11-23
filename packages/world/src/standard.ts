@@ -110,6 +110,7 @@ const needsKey = (thing: ActingOn, body: ObjectRef | undefined): string | undefi
 
 /** Examines a thing: says its `description`, or that there's nothing special about it. */
 export const examine = action<{ thing: ActingOn }>("examine", {
+  source: SOURCE,
   for: (t) => asThing(t) !== undefined,
   label: ({ thing }) => message("examine.label", { thing }),
   report: ({ thing }) => {
@@ -121,6 +122,7 @@ export const examine = action<{ thing: ActingOn }>("examine", {
 
 /** Takes a thing, into the actor's body. */
 export const take = action<{ thing: ActingOn }>("take", {
+  source: SOURCE,
   for: isPortable,
   label: ({ thing }) => message("take.label", { thing }),
   verify: ({ thing, body }) =>
@@ -133,6 +135,7 @@ export const take = action<{ thing: ActingOn }>("take", {
 
 /** Drops a thing the actor carries, where the actor is. */
 export const drop = action<{ thing: ActingOn }>("drop", {
+  source: SOURCE,
   for: isPortable,
   label: ({ thing }) => message("drop.label", { thing }),
   verify: ({ thing, body }) =>
@@ -146,6 +149,7 @@ export const drop = action<{ thing: ActingOn }>("drop", {
 
 /** Opens something openable, unless it's locked. */
 export const open = action<{ thing: ActingOn }>("open", {
+  source: SOURCE,
   for: isOpenable,
   label: ({ thing }) => message("open.label", { thing }),
   verify: ({ thing }) => (thing.isOpen === true ? message("open.already", { thing }) : undefined),
@@ -158,6 +162,7 @@ export const open = action<{ thing: ActingOn }>("open", {
 
 /** Closes something openable. */
 export const close = action<{ thing: ActingOn }>("close", {
+  source: SOURCE,
   for: isOpenable,
   label: ({ thing }) => message("close.label", { thing }),
   verify: ({ thing }) => (thing.isOpen === true ? undefined : message("close.already", { thing })),
@@ -169,6 +174,7 @@ export const close = action<{ thing: ActingOn }>("close", {
 
 /** Locks something lockable, with its key if it has one; it must be closed. */
 export const lock = action<{ thing: ActingOn }>("lock", {
+  source: SOURCE,
   for: isLockable,
   label: ({ thing }) => message("lock.label", { thing }),
   verify: ({ thing }) => (thing.isLocked === true ? message("lock.already", { thing }) : undefined),
@@ -182,6 +188,7 @@ export const lock = action<{ thing: ActingOn }>("lock", {
 
 /** Unlocks something lockable, with its key if it has one. */
 export const unlock = action<{ thing: ActingOn }>("unlock", {
+  source: SOURCE,
   for: isLockable,
   label: ({ thing }) => message("unlock.label", { thing }),
   verify: ({ thing }) =>

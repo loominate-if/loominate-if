@@ -4,9 +4,13 @@
 
 ```ts
 
+import { ActionRule } from '@loominate-if/core';
 import { ConditionPart } from '@loominate-if/core';
 import type { Player } from '@loominate-if/presentation';
 import { Registry } from '@loominate-if/core';
+
+// @public
+export const actionExplainer: Explainer;
 
 // @public
 export const choices: InspectorPanel;
@@ -28,6 +32,7 @@ export interface Explanation {
     readonly action?: {
         readonly name: string;
         readonly reason?: string;
+        readonly by?: ActionRule;
     };
     readonly available: boolean;
     readonly condition?: string;

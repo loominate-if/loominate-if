@@ -4,7 +4,15 @@
  * model and kits register explainers for theirs, such as actions and topics,
  * and the inspector's Choices panel shows them all.
  */
-import { registry, type ConditionPart, type Registry } from "@loominate-if/core";
+import {
+  actionCandidates,
+  actionsFor,
+  registry,
+  statusOf,
+  type ActionRule,
+  type ConditionPart,
+  type Registry,
+} from "@loominate-if/core";
 import type { PanelContext } from "./panels.js";
 
 /** A choice, and whether and why it can be made. */
@@ -23,8 +31,15 @@ export interface Explanation {
   readonly reason?: string;
   /** The condition's parts and their values, to show which part doesn't hold. */
   readonly parts?: readonly ConditionPart[];
-  /** For an action link, the action it takes, and while it can't, the reason its verify or check gave. */
-  readonly action?: { readonly name: string; readonly reason?: string };
+  /**
+   * For an action, its name, and while it can't be taken, the reason its
+   * verify or check gave and the rule that gave it.
+   */
+  readonly action?: {
+    readonly name: string;
+    readonly reason?: string;
+    readonly by?: ActionRule;
+  };
 }
 
 /** Explains the choices of one kind. */
@@ -66,7 +81,7 @@ export const linkExplainer: Explainer = {
             label: link.label,
             available: false,
             shown: mode === "hidden" ? "hidden" : "disabled",
-            action: { name: act.action, reason },
+            action: { name: act.action, reason, ...(link.guard?.by && { by: link.guard.by }) },
             ...(mode === "disabled-with-reason" &&
               link.guard?.reason !== undefined && { reason: link.guard.reason }),
           };
@@ -83,5 +98,58 @@ export const linkExplainer: Explainer = {
         };
       }),
     ];
+  },
+};
+
+/**
+ * Every action on the menus of the things the player could act on: the
+ * things with menus in the passage, then everything else in reach, as
+ * core's action candidates give them (#80).
+ */
+export const actionExplainer: Explainer = {
+  title: "Actions",
+  explain({ player }) {
+    const story = player.story;
+    if (!story?.current) return [];
+    const rendered = story.render();
+    const ids = new Set<string>();
+    for (const choice of rendered.choices) {
+      if (choice.type === "link" && choice.guard?.menu !== undefined) ids.add(choice.guard.menu);
+    }
+    for (const { link } of rendered.unavailable) {
+      if (link.guard?.menu !== undefined) ids.add(link.guard.menu);
+    }
+    for (const t of actionCandidates()) ids.add(t.id);
+    const seen = new Set<string>();
+    const out: Explanation[] = [];
+    for (const id of ids) {
+      for (const call of actionsFor({ id })) {
+        // A multi-object action is on each participant's menu; list it once.
+        const args = call.args as Readonly<Record<string, unknown>>;
+        const key = [
+          call.action.actionName,
+          ...Object.keys(args)
+            .sort()
+            .map((k) => `${k}=${(args[k] as { id?: string } | undefined)?.id ?? String(args[k])}`),
+        ].join(" ");
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const status = statusOf(call);
+        const name = call.action.actionName;
+        const reason = status.hidden ?? status.disabled;
+        if (reason === undefined) {
+          out.push({ label: status.label, available: true, action: { name } });
+          continue;
+        }
+        out.push({
+          label: status.label,
+          available: false,
+          shown: status.hidden !== undefined ? "hidden" : "disabled",
+          action: { name, reason, ...(status.by && { by: status.by }) },
+          ...(status.disabled !== undefined && { reason: status.disabled }),
+        });
+      }
+    }
+    return out;
   },
 };

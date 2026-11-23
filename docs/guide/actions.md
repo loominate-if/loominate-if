@@ -43,7 +43,7 @@ export const open = action<{ thing: typeof door }>("open", {
 [[Knock on the door]]{act knock({ thing: cellarDoor })}
 ```
 
-- A link whose action fails verify is hidden; the inspector's Choices panel lists it with the reason. One that fails check is disabled with the reason, as any link with `{when …, reason: …}`: the player sees it in a tooltip when they hover, focus, or tap the link.
+- A link whose action fails verify is hidden; the inspector's Choices panel lists it with the reason and the rule that gave it, as it does every action on a menu ([the inspector](inspector.md#why-a-choice-is-hidden)). One that fails check is disabled with the reason, as any link with `{when …, reason: …}`: the player sees it in a tooltip when they hover, focus, or tap the link.
 - The action is called with its things by name, as `knock({ thing: cellarDoor })`, so TypeScript checks them against what the action expects.
 - An action link is a move like any other: undo takes it back, saves keep it, and a replay takes it again. It's logged as an `act` move, with the action's name and its things.
 

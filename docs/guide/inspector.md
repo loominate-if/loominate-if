@@ -82,6 +82,8 @@ The **Choices** tab lists every choice where the player is: the links and contin
 - the value of each part of that condition, so you can see which part closed it. For `{when lamp.lit && lamp.oil > 0}`, it shows `lamp.lit`, `lamp.oil > 0`, and `lamp.oil`, with values that make a condition false highlighted. A part that can't be read on its own, such as `door.open` in `door && door.open` when there's no door, says why;
 - what the player is told, for a link with a `reason:`.
 
+Its **Actions** section lists the actions on things' menus: those of the things with a `{menu …}` link in the passage, and, with the world model, everything else the player can reach or carries. An action with more than one thing is listed once. For each action that can't be taken, and each action link, it says whether verify hid it or check disabled it, the reason, and the rule that decided, with its rulebook and the package that added it: "Decided by the verify rule `things in reach` in `every action: verify`, from @loominate-if/world." An action's own rules are named after it, such as `open: own`, and come from the package its `source:` names, or `game`.
+
 ## Which rules ran
 
 The **Rules** tab shows, for each turn, the rulebooks and hooks that ran and every rule in them: its name, the package that added it (`game` for your own), and what it did. A decide rule *passed* or *decided*; a fold rule *changed the value*, *left it as it was*, or *settled* it; a hook's rules *ran*. The rule that settled a result is in bold.
@@ -138,7 +140,7 @@ panels.register("where", {
 
 The panel's element is inside the inspector's shadow root, so the game's styles don't reach it.
 
-The Choices tab is built the same way: each kind of choice has an explainer in `explainers`, which lists the choices of that kind on offer now and says why any can't be made. Links are the first; the world model will add its actions and conversation topics.
+The Choices tab is built the same way: each kind of choice has an explainer in `explainers`, which lists the choices of that kind on offer now and says why any can't be made. Links are the first and things' actions the second; kits will add theirs, such as conversation topics.
 
 The Rules tab hears about rule runs through core's `traceRules(listener)`, which tools of your own can use too.
 

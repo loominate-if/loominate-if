@@ -50,6 +50,18 @@ export const choices: InspectorPanel = {
             : `Because ${e.action.name} isn't allowed now: ${e.action.reason}`,
         );
         li.append(why);
+        const by = e.action.by;
+        if (by !== undefined) {
+          const rule = el("p", "rule");
+          rule.append(
+            `Decided by the ${by.stage} rule `,
+            code(by.rule),
+            ` in `,
+            code(by.rulebook),
+            `, from ${by.source}.`,
+          );
+          li.append(rule);
+        }
       }
       if (e.condition !== undefined) {
         const why = el("p", "why");
