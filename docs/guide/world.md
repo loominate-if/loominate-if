@@ -343,12 +343,13 @@ export const roy = actor("roy", { body: { name: "Roy", isProper: true, location:
 export const captain = actor("captain", { body: { name: "captain", location: gate } });
 export const guard = actor("guard", { body: { name: "guard", location: gate } });
 export const bob = mind("bob", { name: "Bob" });
+relationships({ regard: {} });
 // In story.ts, as the game loads, these set how things start.
-setAttitude(guard, captain, 5);
-setAttitude(guard, roy, -3);
+setRelationship(guard, captain, { regard: 5 });
+setRelationship(guard, roy, { regard: -3 });
 /** What the guard says to whoever he takes `someone` for. */
 export const greeting = (someone: typeof roy): string => {
-  const feeling = attitudeTo(guard, someone);
+  const feeling = relationshipTo(guard, someone).regard;
   return feeling > 0
     ? "“Evening, sir. Go on through.”"
     : feeling < 0
@@ -365,12 +366,12 @@ expect([name(whoIs(guard, roy)), greeting(roy)]).toEqual([
   "captain:mind",
   "“Evening, sir. Go on through.”",
 ]);
-expect(attitude(guard, roy)).toBe(-3); // how he feels about Roy hasn't changed
+expect(relationship(guard, roy).regard).toBe(-3); // how he feels about Roy hasn't changed
 ```
 
 - `whoIs(observer, body)` is who the observer believes the body is, or `undefined` for a stranger.
-- **How things start:** in `story.ts`, as the game loads, `setAttitude` and `disguise` set how things start, as `setAttitude(guard, roy, -3)` above. Every new game begins that way. During play, in effects and actions, they change things, and undo and saves see the change.
-- **Attitudes:** `attitude(observer, someone)` is how they feel about a mind: a number, 0 unless `setAttitude` or `changeAttitude` says. `attitudeTo(observer, body)` is how they feel about whoever they believe the body is: what an NPC acts on. So a disguise changes what they do, but never how they feel about the real person.
+- **How things start:** in `story.ts`, as the game loads, `disguise` and `setRelationship` set how things start. Every new game begins that way. During play, in effects and actions, they change things, and undo and saves see the change.
+- **What an NPC acts on:** `relationshipTo(observer, body)` is how they feel about whoever they believe the body is ([relationships](#relationships)). So a disguise changes what they do, but never how they feel about the real person.
 - **Seeing through:** `expose(body, observer)` means the observer has seen who's really there, through the disguise and past whose body it is. A new disguise, or another mind in the body, can fool them again. `seesThrough(observer, body)` says whether they do.
 
 <!-- example: packages/world/src/identity.test.ts#expose -->
@@ -399,6 +400,52 @@ expect(name(whoIs(guard, roy))).toBe("bob");
 ```
 
 Everyone recognises everyone, so there's no "have we met". A game that wants strangers can treat whoever it likes as one in its own rules.
+
+### Relationships
+
+How each mind feels about each other mind is a **relationship**: a directed pair, so how Mira feels about you needn't be how you feel about her, in dimensions your game declares, such as affection, trust, and rivalry. Declare them once, with where every pair starts and the limits a change is kept within:
+
+<!-- example: packages/world/src/relationships.test.ts#dimensions -->
+```ts
+declare module "@loominate-if/world" {
+  interface Dimensions {
+    affection: true;
+    trust: true;
+  }
+}
+relationships({ affection: { min: -10, max: 10 }, trust: { start: 2 } });
+```
+
+`relationship(mira, you)` gives a pair's values, and `setRelationship` and `changeRelationship` change them, clamped to the limits. In `story.ts`, as the game loads, they set how things start. A dimension you use but haven't declared is an error that says so.
+
+<!-- example: packages/world/src/relationships.test.ts#pairs -->
+```ts
+expect(relationship(mira, you)).toEqual({ affection: 4, trust: 2 });
+expect(relationship(you, mira)).toEqual({ affection: 0, trust: 2 }); // the other way round
+```
+
+**Thresholds** fire as a pair's value crosses them, in the move that changes it: `reaches` from below, `falls` from above. What one returns stands out. It fires once for each pair, until the value goes back past it, which re-arms it:
+
+<!-- example: packages/world/src/relationships.test.ts#thresholds -->
+```ts
+threshold("smitten", { dimension: "affection", reaches: 8 }, ({ observer }) =>
+  observer.id === "mira:mind" ? "Mira can't stop smiling at you." : undefined,
+);
+threshold("wary", { dimension: "trust", falls: 0 }, () => "Mira watches you warily now.");
+```
+
+<!-- example: packages/world/src/relationships.test.ts#smitten -->
+```ts
+visit("Compliment her"); // 6
+visit("Compliment her"); // 8: smitten
+visit("Compliment her"); // 10, the most it can be: already smitten
+expect([relationship(mira, you).affection, told()]).toEqual([
+  10,
+  ["Mira can't stop smiling at you."],
+]);
+```
+
+`relationshipTo(observer, body)` reads toward whoever the observer believes a body is, so it follows [disguises](#who-others-take-you-for).
 
 ## Rooms and regions
 
