@@ -155,3 +155,6 @@ packages/create/__run-*/
 # Local, untracked test games and experiments
 scratch/
 release/
+
+# A shell history kept in the project folder (direnv); never commit it.
+.bash_history_local
