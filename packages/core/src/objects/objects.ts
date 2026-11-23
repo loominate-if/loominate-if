@@ -201,6 +201,15 @@ function writable(where: string): StateStore {
 }
 
 /**
+ * Whether a story is running, so state can be read and written. Before one
+ * is, while `story.ts` loads, a package can treat a call as setting how
+ * things start instead, as the world model's `setAttitude` does. @internal
+ */
+export function _storyRunning(): boolean {
+  return binding !== undefined;
+}
+
+/**
  * The running story's store, for other core modules that keep state in it,
  * such as random streams. `write` refuses while a passage renders.
  * @internal

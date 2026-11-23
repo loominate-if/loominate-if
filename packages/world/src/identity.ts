@@ -7,7 +7,7 @@
  * *believe* is in front of them: a disguise changes their response, never
  * how they feel about the real person.
  */
-import { object, StateError, type ObjectRef } from "@loominate-if/core";
+import { _storyRunning, object, StateError, type ObjectRef } from "@loominate-if/core";
 import { isBody, mindFor, mindOf, ownerOf, type Mind } from "./actors.js";
 
 /** What a body passes for while disguised: another actor, or a stranger described. */
@@ -25,6 +25,22 @@ const state = object("world:identity", {
   attitudes: {} as Record<string, Record<string, number>>,
 });
 
+/**
+ * How things start, as `story.ts` sets them while the game loads: authored,
+ * like the clock's start, so not state. During play, changes go to state,
+ * which undo and saves see, over these.
+ */
+const starting = {
+  attitudes: new Map<string, Map<string, number>>(),
+  disguises: new Map<string, { readonly mind?: string; readonly stranger?: string }>(),
+};
+
+/** A body's disguise now: as changed in play, or as it started. */
+const disguiseOf = (
+  id: string,
+): { readonly mind?: string; readonly stranger?: string } | undefined =>
+  Object.hasOwn(state.disguises, id) ? state.disguises[id] : starting.disguises.get(id);
+
 const checkBody = (where: string, b: ObjectRef): void => {
   if (!isBody(b)) {
     throw new StateError(
@@ -33,12 +49,13 @@ const checkBody = (where: string, b: ObjectRef): void => {
   }
 };
 /** A disguise as a key, to tell when it changes. */
-const disguiseKey = (b: ObjectRef): string => JSON.stringify(state.disguises[b.id] ?? null);
+const disguiseKey = (b: ObjectRef): string => JSON.stringify(disguiseOf(b.id) ?? null);
 
 /**
  * Disguises a body: others take it for `as`, another actor, or, given
  * words, a stranger, as `"a hooded figure"`, until they see through it.
- * A new disguise fools even those who saw through the last one.
+ * A new disguise fools even those who saw through the last one. In
+ * `story.ts`, while the game loads, it's how the body starts.
  *
  * @example
  * ```ts
@@ -51,28 +68,30 @@ const disguiseKey = (b: ObjectRef): string => JSON.stringify(state.disguises[b.i
 export function disguise(b: ObjectRef, options: { readonly as: DisguiseAs }): void {
   checkBody("disguise", b);
   const as = options.as;
-  if (typeof as === "string") {
-    if (as.trim() === "")
-      throw new StateError('disguise: say what it passes for, as "a hooded figure".');
-    state.disguises = { ...state.disguises, [b.id]: { stranger: as } };
-    return;
+  if (typeof as === "string" && as.trim() === "") {
+    throw new StateError('disguise: say what it passes for, as "a hooded figure".');
   }
-  const m = mindFor(as, "disguise");
-  state.disguises = { ...state.disguises, [b.id]: { mind: m.id } };
+  const d = typeof as === "string" ? { stranger: as } : { mind: mindFor(as, "disguise").id };
+  // While the game loads, it's how the body starts.
+  if (!_storyRunning()) starting.disguises.set(b.id, d);
+  else state.disguises = { ...state.disguises, [b.id]: d };
 }
 
 /** Ends a body's disguise: others take it for whoever it belongs to again. */
 export function undisguise(b: ObjectRef): void {
   checkBody("undisguise", b);
-  const { [b.id]: _gone, ...rest } = state.disguises;
-  void _gone;
-  state.disguises = rest;
+  if (!_storyRunning()) {
+    starting.disguises.delete(b.id);
+    return;
+  }
+  // A disguise it started in is ended by recording no disguise, which undo and saves see.
+  state.disguises = { ...state.disguises, [b.id]: {} };
 }
 
 /** What a body passes for: the mind it's disguised as, words for a stranger, or `undefined` if it isn't disguised. */
 export function disguisedAs(b: ObjectRef): Mind | string | undefined {
-  const d = state.disguises[b.id];
-  if (!d) return undefined;
+  const d = disguiseOf(b.id);
+  if (!d || (d.mind === undefined && d.stranger === undefined)) return undefined;
   return d.mind !== undefined ? mindFor({ id: d.mind }, "disguisedAs") : d.stranger;
 }
 
@@ -111,8 +130,9 @@ export function whoIs(observer: ObjectRef, b: ObjectRef): Mind | undefined {
   const seen = state.seen[o.id]?.[b.id];
   const inside = mindOf(b);
   if (seen && inside?.id === seen.mind && seen.disguise === disguiseKey(b)) return inside;
-  const d = state.disguises[b.id];
-  if (d) return d.mind !== undefined ? mindFor({ id: d.mind }, "whoIs") : undefined;
+  const d = disguiseOf(b.id);
+  if (d?.mind !== undefined) return mindFor({ id: d.mind }, "whoIs");
+  if (d?.stranger !== undefined) return undefined;
   return ownerOf(b);
 }
 
@@ -120,15 +140,25 @@ export function whoIs(observer: ObjectRef, b: ObjectRef): Mind | undefined {
 export function attitude(observer: ObjectRef, toward: ObjectRef): number {
   const o = mindFor(observer, "attitude");
   const t = mindFor(toward, "attitude");
-  return state.attitudes[o.id]?.[t.id] ?? 0;
+  return state.attitudes[o.id]?.[t.id] ?? starting.attitudes.get(o.id)?.get(t.id) ?? 0;
 }
 
-/** Sets how `observer` feels about `toward`. */
+/**
+ * Sets how `observer` feels about `toward`. In `story.ts`, while the game
+ * loads, it sets how they feel to begin with; during play, it changes it.
+ */
 export function setAttitude(observer: ObjectRef, toward: ObjectRef, value: number): void {
-  if (!Number.isFinite(value))
+  if (!Number.isFinite(value)) {
     throw new StateError(`setAttitude: ${String(value)} isn't a number.`);
+  }
   const o = mindFor(observer, "setAttitude");
   const t = mindFor(toward, "setAttitude");
+  if (!_storyRunning()) {
+    const theirs = starting.attitudes.get(o.id) ?? new Map<string, number>();
+    theirs.set(t.id, value);
+    starting.attitudes.set(o.id, theirs);
+    return;
+  }
   state.attitudes = { ...state.attitudes, [o.id]: { ...state.attitudes[o.id], [t.id]: value } };
 }
 

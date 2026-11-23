@@ -1047,6 +1047,9 @@ export interface StoryOptions {
     readonly start: PassageId;
 }
 
+// @internal
+export function _storyRunning(): boolean;
+
 // @public
 export function strong(...parts: ProsePart[]): StyledProse;
 

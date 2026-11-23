@@ -32,6 +32,9 @@ export const roy = actor("roy", { body: { name: "Roy", isProper: true, location:
 export const captain = actor("captain", { body: { name: "captain", location: gate } });
 export const guard = actor("guard", { body: { name: "guard", location: gate } });
 export const bob = mind("bob", { name: "Bob" });
+// In story.ts, as the game loads, these set how things start.
+setAttitude(guard, captain, 5);
+setAttitude(guard, roy, -3);
 /** What the guard says to whoever he takes `someone` for. */
 export const greeting = (someone: typeof roy): string => {
   const feeling = attitudeTo(guard, someone);
@@ -42,6 +45,9 @@ export const greeting = (someone: typeof roy): string => {
       : "“State your business.”";
 };
 // #endregion
+/** A spy, who starts the game disguised as the captain. */
+const spy = actor("spy", { body: { name: "spy", location: gate } });
+disguise(spy, { as: captain });
 startAs(roy);
 
 let store: StateStore;
@@ -50,8 +56,6 @@ beforeEach(() => {
   createStory(store, createEventRecord(store), [{ id: "Start", tags: [], body: () => [] }], {
     start: "Start",
   }).begin();
-  setAttitude(guard, captain, 5);
-  setAttitude(guard, roy, -3);
 });
 const name = (m: Mind | undefined) => m?.id ?? "a stranger";
 
@@ -108,6 +112,18 @@ describe("perceived identity", () => {
     history.checkpoint("changed");
     history.undo();
     expect([attitude(guard, roy), disguisedAs(roy)]).toEqual([-3, undefined]);
+  });
+
+  it("starts as story.ts sets it, in every new game, under what changes in play", () => {
+    expect([attitude(guard, captain), name(whoIs(guard, spy))]).toEqual([5, "captain:mind"]);
+    setAttitude(guard, captain, 0);
+    undisguise(spy);
+    expect([attitude(guard, captain), name(whoIs(guard, spy))]).toEqual([0, "spy:mind"]);
+    const again = createStore(); // a new game
+    createStory(again, createEventRecord(again), [{ id: "Start", tags: [], body: () => [] }], {
+      start: "Start",
+    }).begin();
+    expect([attitude(guard, captain), name(whoIs(guard, spy))]).toEqual([5, "captain:mind"]);
   });
 
   it("explains a disguise for something that isn't a body", () => {

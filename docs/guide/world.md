@@ -343,6 +343,9 @@ export const roy = actor("roy", { body: { name: "Roy", isProper: true, location:
 export const captain = actor("captain", { body: { name: "captain", location: gate } });
 export const guard = actor("guard", { body: { name: "guard", location: gate } });
 export const bob = mind("bob", { name: "Bob" });
+// In story.ts, as the game loads, these set how things start.
+setAttitude(guard, captain, 5);
+setAttitude(guard, roy, -3);
 /** What the guard says to whoever he takes `someone` for. */
 export const greeting = (someone: typeof roy): string => {
   const feeling = attitudeTo(guard, someone);
@@ -366,6 +369,7 @@ expect(attitude(guard, roy)).toBe(-3); // how he feels about Roy hasn't changed
 ```
 
 - `whoIs(observer, body)` is who the observer believes the body is, or `undefined` for a stranger.
+- **How things start:** in `story.ts`, as the game loads, `setAttitude` and `disguise` set how things start, as `setAttitude(guard, roy, -3)` above. Every new game begins that way. During play, in effects and actions, they change things, and undo and saves see the change.
 - **Attitudes:** `attitude(observer, someone)` is how they feel about a mind: a number, 0 unless `setAttitude` or `changeAttitude` says. `attitudeTo(observer, body)` is how they feel about whoever they believe the body is: what an NPC acts on. So a disguise changes what they do, but never how they feel about the real person.
 - **Seeing through:** `expose(body, observer)` means the observer has seen who's really there, through the disguise and past whose body it is. A new disguise, or another mind in the body, can fool them again. `seesThrough(observer, body)` says whether they do.
 
