@@ -4,7 +4,7 @@
  * its reason, as a locked door does: "The bakery is closed until 9:00 am
  * tomorrow." The hours are state, so a game can change them during play.
  */
-import { message, messages, mixin, t, type ObjectRef } from "@loominate-if/core";
+import { message, messages, mixin, StateError, t, type ObjectRef } from "@loominate-if/core";
 import { matchesAt, weekdayNameAt, type CalendarQuery } from "./calendar.js";
 import { clock, dayOffset, minuteOfDayAt, parseTime, timeOfDay, withinDay } from "./clock.js";
 import { thingFor } from "./things.js";
@@ -42,6 +42,11 @@ messages.register("hours.onDay", ({ weekday }) => `on ${weekday}`, { source: SOU
 
 /** When something is open, for {@link openingHours}. */
 export type Hours = {
+  /**
+   * The place whose hours they are: the way into it is closed outside them.
+   * The way out never is, so someone inside at closing time can leave.
+   */
+  readonly of: ObjectRef;
   /** When it opens, `"HH:MM"` on a 24-hour clock. */
   readonly open: string;
   /** When it closes. If it's earlier than `open`, it closes after midnight, on the next day. */
@@ -53,8 +58,11 @@ export type Hours = {
   readonly on?: string | readonly string[] | CalendarQuery;
 };
 
-/** Opening hours as a thing keeps them, in state: `on` is a calendar check, or `null` for every day. */
-export type StoredHours = { open: string; close: string; on: CalendarQuery | null };
+/**
+ * Opening hours as a thing keeps them, in state: `of` is the place they're
+ * for, and `on` a calendar check, or `null` for every day.
+ */
+export type StoredHours = { of: ObjectRef; open: string; close: string; on: CalendarQuery | null };
 type Stored = StoredHours;
 
 const toQuery = (on: Hours["on"]): CalendarQuery | null =>
@@ -66,15 +74,16 @@ const toQuery = (on: Hours["on"]): CalendarQuery | null =>
 
 /**
  * Opening hours for a door or other obstacle on an exit: outside them, it
- * blocks the way with why, before its own `blocks` is asked. Spread it into
- * the thing, beside `door` or `obstacle`. Change `hours` during play to
- * change them.
+ * blocks the way into the place `of` names with why, before its own
+ * `blocks` is asked. The way out is never closed by its hours. Spread it
+ * into the thing, beside `door` or `obstacle`. Change `hours` during play
+ * to change them.
  *
  * @example
  * ```ts
  * export const bakeryDoor = thing("bakeryDoor", {
  *   ...door,
- *   ...openingHours({ open: "09:00", close: "17:00", on: ["monday", "tuesday", "wednesday", "thursday", "friday"] }),
+ *   ...openingHours({ of: bakery, open: "09:00", close: "17:00", on: ["monday", "tuesday", "wednesday", "thursday", "friday"] }),
  *   name: "bakery door",
  * });
  * ```
@@ -82,10 +91,20 @@ const toQuery = (on: Hours["on"]): CalendarQuery | null =>
  * @throws StateError if a time isn't valid.
  */
 export function openingHours(hours: Hours): { hours: StoredHours } {
+  if (typeof (hours.of as ObjectRef | undefined)?.id !== "string") {
+    throw new StateError(
+      'openingHours: say whose hours they are with `of`, the place they close, as in openingHours({ of: bakery, open: "09:00", close: "17:00" }). The way into it closes outside them; the way out never does.',
+    );
+  }
   parseTime("openingHours open", hours.open);
   parseTime("openingHours close", hours.close);
   return mixin({
-    hours: { open: hours.open, close: hours.close, on: toQuery(hours.on) } as Stored,
+    hours: {
+      of: hours.of,
+      open: hours.open,
+      close: hours.close,
+      on: toQuery(hours.on),
+    } as Stored,
   });
 }
 
@@ -133,12 +152,14 @@ function nextOpening(h: Stored): number | undefined {
 }
 
 /**
- * Why `thing`'s opening hours block the way into `place` now, or
- * `undefined` if it's open or has none. @internal
+ * Why `thing`'s opening hours block the way into `to` now, or `undefined`
+ * if they don't: it's open, has no hours, or the way leads out of the
+ * place they're for, not into it. @internal
  */
-export function closedReason(thing: ObjectRef, place: ObjectRef): string | undefined {
+export function closedReason(thing: ObjectRef, to: ObjectRef): string | undefined {
   const h = hoursOf(thing);
-  if (!h || openAt(h, clock.minutes)) return undefined;
+  if (!h || h.of.id !== to.id || openAt(h, clock.minutes)) return undefined;
+  const place = h.of;
   const next = nextOpening(h);
   if (next === undefined) return message("hours.closed", { place });
   const days = dayOffset(next) - dayOffset(clock.minutes);

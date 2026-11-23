@@ -9,6 +9,7 @@ import {
   door,
   exitLinks,
   isOpenNow,
+  move,
   openingHours,
   place,
   registerRoom,
@@ -25,6 +26,7 @@ export const tavern = place("tavern", { name: "tavern" });
 export const bakeryDoor = thing("bakeryDoor", {
   ...door,
   ...openingHours({
+    of: bakery,
     open: "09:00",
     close: "17:00",
     on: ["monday", "tuesday", "wednesday", "thursday", "friday"],
@@ -33,7 +35,7 @@ export const bakeryDoor = thing("bakeryDoor", {
 });
 export const tavernDoor = thing("tavernDoor", {
   ...door,
-  ...openingHours({ open: "17:00", close: "01:00" }), // until after midnight
+  ...openingHours({ of: tavern, open: "17:00", close: "01:00" }), // until after midnight
   name: "tavern door",
 });
 connect(street, { in: { to: bakery, via: bakeryDoor }, east: { to: tavern, via: tavernDoor } });
@@ -92,8 +94,25 @@ describe("opening hours", () => {
     expect(exits()[1]).toBe("In: The bakery is closed until 9:00 am on Monday.");
   });
 
+  it("never close the way out, so no one is shut in at closing time", () => {
+    clock.advance(30);
+    move(you, bakery);
+    clock.advance(8 * 60); // 17:00: closed
+    expect(exits()).toEqual(["Out: open"]);
+    bakeryDoor.close();
+    expect(exits()).toEqual(["Out: The bakery door is closed."]); // the door's own reason still holds
+    move(you, street);
+    expect(exits()[1]).toBe("In: The bakery is closed until 9:00 am on Monday.");
+  });
+
+  it("say whose hours they are", () => {
+    expect(() => openingHours({ open: "09:00", close: "17:00" } as never)).toThrow(
+      "openingHours: say whose hours they are with `of`",
+    );
+  });
+
   it("can change during play", () => {
-    bakeryDoor.hours = { open: "08:00", close: "12:00", on: null };
+    bakeryDoor.hours = { of: bakery, open: "08:00", close: "12:00", on: null };
     expect(isOpenNow(bakeryDoor)).toBe(true);
   });
 });

@@ -1073,13 +1073,14 @@ expect(clock.between("21:00", "02:00")).toBe(true); // past midnight
 
 In a passage, `{if clock.is("night")}Stars wheel overhead.{else}The sky is grey.{/if}` varies a description, and a link's `{when …}` or an action's `check` can vary what's offered.
 
-**Opening hours** go on a door or other obstacle on an exit, with `openingHours`. Outside them, it blocks the way with why, before its own reason, as a locked door does. `on` takes weekdays or any calendar check, and a `close` earlier than `open` closes after midnight, counted as the day it opened:
+**Opening hours** go on a door or other obstacle on an exit, with `openingHours`, and `of` names the place whose hours they are. Outside them, the way into that place is blocked with why, before the door's own reason, as a locked door does. The way out is never closed by the hours, so someone inside at closing time can always leave; the door's own reason, such as being locked, still applies. `on` takes weekdays or any calendar check, and a `close` earlier than `open` closes after midnight, counted as the day it opened:
 
 <!-- example: packages/world/src/hours.test.ts#hours -->
 ```ts
 export const bakeryDoor = thing("bakeryDoor", {
   ...door,
   ...openingHours({
+    of: bakery,
     open: "09:00",
     close: "17:00",
     on: ["monday", "tuesday", "wednesday", "thursday", "friday"],
@@ -1088,7 +1089,7 @@ export const bakeryDoor = thing("bakeryDoor", {
 });
 export const tavernDoor = thing("tavernDoor", {
   ...door,
-  ...openingHours({ open: "17:00", close: "01:00" }), // until after midnight
+  ...openingHours({ of: tavern, open: "17:00", close: "01:00" }), // until after midnight
   name: "tavern door",
 });
 connect(street, { in: { to: bakery, via: bakeryDoor }, east: { to: tavern, via: tavernDoor } });

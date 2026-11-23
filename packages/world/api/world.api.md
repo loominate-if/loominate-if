@@ -456,6 +456,7 @@ export type HolidayRule = {
 
 // @public
 export type Hours = {
+    readonly of: ObjectRef;
     readonly open: string;
     readonly close: string;
     readonly on?: string | readonly string[] | CalendarQuery;
@@ -780,6 +781,7 @@ export function startClock(options: ClockStart): void;
 
 // @public
 export type StoredHours = {
+    of: ObjectRef;
     open: string;
     close: string;
     on: CalendarQuery | null;
