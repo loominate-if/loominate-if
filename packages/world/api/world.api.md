@@ -9,6 +9,7 @@ import { EffectContext } from '@loominate-if/core';
 import { Handle } from '@loominate-if/core';
 import { LinkNode } from '@loominate-if/core';
 import { ListedThing } from '@loominate-if/presentation';
+import { MenuChoice } from '@loominate-if/presentation';
 import { ObjectDefinition } from '@loominate-if/core';
 import { ObjectRef } from '@loominate-if/core';
 import { ObjectTemplate } from '@loominate-if/core';
@@ -62,11 +63,13 @@ export type Advanced = {
     readonly minutes: number;
     readonly interrupted: boolean;
     readonly by?: string;
+    readonly reached?: boolean;
 };
 
 // @public
 export type AdvanceOptions = {
     readonly stopsFor?: (by: string) => boolean;
+    readonly until?: () => boolean;
 };
 
 // @public
@@ -705,5 +708,27 @@ export type Vocabulary = {
     readonly adjectives?: readonly string[];
     readonly plurals?: readonly string[];
 };
+
+// @public
+export const wait: Action<    {
+readonly minutes: number;
+}>;
+
+// @public
+export function waitCondition(name: string, holds: () => boolean): void;
+
+// @public
+export function waitMenu(choices: readonly MenuChoice[] | (() => readonly MenuChoice[])): void;
+
+// @public
+export type WaitUntil = {
+    readonly time?: string;
+    readonly fires?: string;
+    readonly condition?: string;
+    readonly atMost?: number;
+};
+
+// @public
+export const waitUntil: Action<WaitUntil>;
 
 ```

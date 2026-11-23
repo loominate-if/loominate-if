@@ -6,6 +6,7 @@
 import { message } from "@loominate-if/core";
 import "../messages.js";
 import { widget, type WidgetDefinition } from "./layout.js";
+import type { MenuChoice } from "./menus.js";
 
 /** One thing a things widget lists: its ID, and how it's named, such as "an iron key". */
 export type ListedThing = { readonly id: string; readonly label: string };
@@ -62,6 +63,50 @@ export function thingsWidget(options: ThingsWidgetOptions): WidgetDefinition<{
           update: show,
           unmount: () => {
             box.remove();
+          },
+        };
+      },
+    },
+  });
+}
+
+/** How {@link menuWidget} shows its button and its menu. */
+export type MenuWidgetOptions = {
+  /** The button's label, such as "Wait". */
+  readonly label: () => string;
+  /** The choices its menu lists, worked out each time it opens. */
+  readonly choices: () => readonly MenuChoice[];
+};
+
+/**
+ * A widget that's a button opening a menu of actions, as a thing's name
+ * does, but of the choices it's given: the world model's Wait menu is one.
+ * Choices whose action verify hides aren't listed, and those check
+ * disables are, with why.
+ */
+export function menuWidget(options: MenuWidgetOptions): WidgetDefinition<{
+  readonly label: string;
+}> {
+  return widget({
+    data: () => ({ label: options.label() }),
+    view: {
+      mount(element, data, host) {
+        const doc = element.ownerDocument;
+        const holder = doc.createElement("span");
+        holder.className = "loominate-has-menu loominate-menu-widget";
+        const b = doc.createElement("button");
+        b.type = "button";
+        b.className = "loominate-link";
+        b.textContent = data.label;
+        holder.append(b);
+        host.menu(b, options.choices);
+        element.append(holder);
+        return {
+          update: (d) => {
+            b.textContent = d.label;
+          },
+          unmount: () => {
+            holder.remove();
           },
         };
       },

@@ -41,8 +41,11 @@ export {
 } from "./saves/play.js";
 export {
   addToHeader,
+  menuWidget,
   thingsWidget,
   type ListedThing,
+  type MenuWidgetOptions,
   type ThingsWidgetOptions,
 } from "./page/things.js";
+export { type MenuChoice, type MenuSource } from "./page/menus.js";
 export { textWidget, type TextWidgetOptions } from "./page/text.js";

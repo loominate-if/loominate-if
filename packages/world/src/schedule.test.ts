@@ -100,7 +100,7 @@ export const smoke = daemon("smoke", { every: minutes(100), standsOut: true }, (
 // #endregion
 const night = [chimes, rooks, pipes, mouse, smoke];
 
-const wait = action<{ thing: typeof bridge }>("wait", {
+const wait = action<{ thing: typeof bridge }>("linger", {
   label: "Wait",
   minutes: 30,
 });

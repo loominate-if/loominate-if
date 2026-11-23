@@ -9,10 +9,12 @@ import {
 } from "@loominate-if/core";
 import axe from "axe-core";
 import { describe, expect, it } from "vitest";
+import { layouts, widgets } from "./layout.js";
 import { mountPage, type ActionMove } from "./page.js";
+import { menuWidget } from "./things.js";
 
 const bell = object("menu-bell", { name: "brass bell", rung: 0, polished: false });
-action<{ thing: typeof bell }>("ring", {
+const ring = action<{ thing: typeof bell }>("ring", {
   on: bell,
   label: "Ring the bell",
   run: ({ thing }) => {
@@ -20,12 +22,12 @@ action<{ thing: typeof bell }>("ring", {
   },
   report: "Ding!",
 });
-action<{ thing: typeof bell }>("polish", {
+const polish = action<{ thing: typeof bell }>("polish", {
   on: bell,
   label: "Polish the bell",
   check: () => "You have no cloth.",
 });
-action<{ thing: typeof bell }>("hide", {
+const hide = action<{ thing: typeof bell }>("hide", {
   for: (t) => t.id === bell.id,
   label: "Hide the bell",
   verify: () => "There's nowhere to hide it.",
@@ -128,5 +130,39 @@ describe("a thing's menu", () => {
     expect(story.actions).toEqual([]);
     document.body.click();
     expect(items()).toEqual([]);
+  });
+});
+
+describe("a menu widget", () => {
+  it("opens a menu of the choices it's given, with their own labels, and takes one", () => {
+    widgets.register(
+      "bell-menu",
+      menuWidget({
+        label: () => "Bell",
+        choices: () => [
+          { call: ring({ thing: bell }), label: "Give it a ring" },
+          { call: polish({ thing: bell }) },
+          { call: hide({ thing: bell }) },
+        ],
+      }),
+    );
+    const page = layouts.get("page");
+    if (!page) throw new Error("no page layout");
+    layouts.replace("page", { ...page, widgets: { header: ["bell-menu"] } });
+    try {
+      const { container, moves, items } = play();
+      const button = container.querySelector<HTMLButtonElement>(".loominate-menu-widget button");
+      expect(button?.textContent).toBe("Bell");
+      expect(button?.getAttribute("aria-haspopup")).toBe("menu");
+      button?.click();
+      expect(items().map((i) => [i.textContent, i.getAttribute("aria-disabled")])).toEqual([
+        ["Give it a ring", null],
+        ["Polish the bell", "true"],
+      ]);
+      items()[0]?.click();
+      expect(moves.at(-1)).toEqual({ type: "action", label: "Give it a ring" });
+    } finally {
+      layouts.replace("page", page);
+    }
   });
 });
