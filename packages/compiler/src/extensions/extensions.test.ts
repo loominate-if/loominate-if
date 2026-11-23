@@ -311,7 +311,9 @@ describe("loading extensions", () => {
   });
 });
 
-describe("in a project", () => {
+// These tests build real TypeScript programs against the libraries, which takes seconds, longer under load
+// from parallel test files and as the libraries grow (#314), as in project.test.ts.
+describe("in a project", { timeout: 30_000 }, () => {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const root = path.join(here, "__game__");
   const compilerOptions = { customConditions: ["source"] };
