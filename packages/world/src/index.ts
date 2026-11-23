@@ -129,3 +129,16 @@ export {
 } from "./standard.js";
 export { inventory } from "./inventory.js";
 export { clock, clockWidget, startClock, timeOfDay, type Clock, type ClockStart } from "./clock.js";
+export {
+  daemon,
+  fuse,
+  minutes,
+  moves,
+  type Daemon,
+  type DaemonOptions,
+  type Delay,
+  type Firing,
+  type Fuse,
+  type FuseOptions,
+  type Scheduled,
+} from "./schedule.js";

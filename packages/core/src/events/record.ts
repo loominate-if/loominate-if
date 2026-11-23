@@ -86,6 +86,14 @@ export interface EventKinds {
     /** The thing that was noticed, if any. */
     readonly source?: StateId;
   };
+  /**
+   * What a fuse or daemon said when it fired, such as "Somewhere behind
+   * you, timber gives way." The page shows it with the move's notices.
+   */
+  scheduled: ProseFields & {
+    /** The fuse or daemon's ID. */
+    readonly source: StateId;
+  };
   /** The player took an action, such as from an `{act …}` link: a move that stays on the passage. */
   action: {
     /** The action's name. */

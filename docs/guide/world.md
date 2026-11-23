@@ -638,7 +638,7 @@ You step back as it swings wide.
 {continue -> Hall}
 ```
 
-`{notices}` works in any passage, with or without the world model, since actions' results (`action-result` events) go there too. The story-so-far drawer keeps notices after their part's text either way.
+`{notices}` works in any passage, with or without the world model, since actions' results (`action-result` events) go there too, as does what [fuses and daemons](#fuses-and-daemons) say (`scheduled` events). The story-so-far drawer keeps notices after their part's text either way.
 
 - Only the mind the player controls is told. Every mind that notices, the player's and NPCs', in control or riding along as a passenger, learns `reveals` and sees what it saw.
 - Without `heard`, only those who see it notice; without `far`, nothing is heard from other rooms. Sound carries through exits the way they lead, whatever's in the way.
@@ -707,6 +707,42 @@ expect(now()).toBe("day 1, 9:44 pm, 4 moves");
 `clock.minutes` is the time since the game began; `clock.day`, `clock.hour` (0–23), and `clock.minute` say when it is, from the start time. `timeOfDay()` words it through the `clock.time` message, "9:45 pm" by default. `clock.moves` counts the player's moves: links followed, actions taken, and travel, but not beginning or undoing. The `clockAdvance` hook runs after time moves on, with the minutes before and after.
 
 The clock and the move count are state, so undo, saves, and replays restore them, and nothing reads the computer's clock.
+
+### Fuses and daemons
+
+A **fuse** runs once, a delay after it starts; a **daemon** runs again and again, every so often. A delay is counted in the clock's minutes, `minutes(30)`, or in the player's moves, `moves(3)`, for things that happen "every move" whether or not time passes. Whatever one returns is shown to the player with the move's notices, after the passage's text and before its choices.
+
+<!-- example: packages/world/src/schedule.test.ts#fuse -->
+```ts
+export const bridge = thing("bridge", { name: "rope bridge", isStanding: true });
+export const collapse = fuse("collapse", { after: minutes(30) }, () => {
+  bridge.isStanding = false;
+  return `At ${timeOfDay()}, somewhere behind you, timber gives way with a roar.`;
+});
+```
+
+<!-- example: packages/world/src/schedule.test.ts#daemons -->
+```ts
+export const bells = daemon("bells", { every: minutes(15) }, () => `Bells ring at ${timeOfDay()}.`);
+export const drip = daemon("drip", { every: moves(2), running: true }, () => "Water drips.");
+```
+
+Define them in `story.ts`, or a module it imports, with an ID of their own, because their code can't be saved: only whether each is running and when it's due is state, so undo, saves, and replays restore it. Each waits until it's started, unless it says `running: true`:
+
+- `collapse.start()`, in an effect such as `{on enter: collapse.start()}`, starts it, counting its delay from now. Starting it while it's running starts it over.
+- `collapse.cancel()` stops a fuse, and `bells.stop()` stops a daemon. Either can be started again.
+- `isRunning` says whether it's waiting to fire, and `firesAt` when it will next: the clock's `minutes`, or the move count, as its `unit` says.
+
+When time jumps past several firings, as a 30-minute wait past a daemon every 15 minutes, the clock stops at each, so each fires at its own time and sees it: the bells ring at 12:15 and again at 12:30. Those due at the same moment fire in the order they were defined.
+
+<!-- example: packages/world/src/schedule.test.ts#moves -->
+```ts
+choose("Look around");
+expect(said()).toEqual([]);
+choose("Look around"); // the second move
+expect(said()).toEqual(["drip: Water drips."]);
+expect(drip.firesAt).toBe(4);
+```
 
 ### Showing the time
 

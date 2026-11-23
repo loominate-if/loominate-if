@@ -123,8 +123,29 @@ export const container: {
 export function contents(parent: ObjectRef): Thing[];
 
 // @public
+export type Daemon = Scheduled & {
+    stop(): void;
+};
+
+// @public
+export function daemon(id: StateId, options: DaemonOptions, fire: Firing): Daemon;
+
+// @public
+export type DaemonOptions = {
+    readonly every: Delay;
+    readonly running?: boolean;
+};
+
+// @public
 export function defineFacts<D extends Record<string, string | FactOptions>>(definitions: D): {
     readonly [K in keyof D & string]: Fact<K>;
+};
+
+// @public
+export type Delay = {
+    readonly minutes: number;
+} | {
+    readonly moves: number;
 };
 
 // @public
@@ -243,10 +264,27 @@ export type FactSource = {
 };
 
 // @public
+export type Firing = () => string | Text | undefined;
+
+// @public
 export type FullVocabulary = {
     readonly nouns: readonly string[];
     readonly adjectives: readonly string[];
     readonly plurals: readonly string[];
+};
+
+// @public
+export type Fuse = Scheduled & {
+    cancel(): void;
+};
+
+// @public
+export function fuse(id: StateId, options: FuseOptions, fire: Firing): Fuse;
+
+// @public
+export type FuseOptions = {
+    readonly after: Delay;
+    readonly running?: boolean;
 };
 
 // @public
@@ -389,7 +427,13 @@ export type MindOf<D> = Omit<D, keyof MindFields | keyof MindKnowledge> & MindFi
 export function mindOf(b: ObjectRef): Mind | undefined;
 
 // @public
+export function minutes(n: number): Delay;
+
+// @public
 export function move(t: ObjectRef, to: ObjectRef | null): void;
+
+// @public
+export function moves(n: number): Delay;
 
 // @public
 export const obstacle: {
@@ -516,6 +560,15 @@ export function reveal(args: RevealArguments, context?: EffectContext): void;
 export type RevealArguments = {
     readonly fact: Fact;
     readonly from?: ObjectRef;
+};
+
+// @public
+export type Scheduled = {
+    readonly id: StateId;
+    readonly isRunning: boolean;
+    readonly firesAt: number | undefined;
+    readonly unit: "minutes" | "moves";
+    start(): void;
 };
 
 // @public

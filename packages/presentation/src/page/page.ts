@@ -127,9 +127,9 @@ function regionLabel(region: string): string {
 const PROSE_KINDS: readonly EventKind[] = ["narrative", "scene", "dialogue", "room-description"];
 /**
  * Events recorded during a move that the page shows after the passage's text, before its choices: what
- * the player noticed, and what their actions did.
+ * the player noticed, what their actions did, and what fuses and daemons said.
  */
-const NOTICE_KINDS: readonly EventKind[] = ["perception", "action-result"];
+const NOTICE_KINDS: readonly EventKind[] = ["perception", "action-result", "scheduled"];
 
 /**
  * Shows a story in `container`: the current passage in the main view, and

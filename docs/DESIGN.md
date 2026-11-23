@@ -299,12 +299,12 @@ The primary clock is an in-world clock measured in minutes; most actions are fre
 - **Action costs.** Zero by default. Travel derives its cost from the route. Any action or inline code can advance time, including partway through an action.
 - **Action counter.** A secondary per-action counter exists for things that should happen "every move."
 - **The clock** is the world model's `clock`: minutes since the game began, the day, hour, and minute from `startClock({ at })`, and the moves made, all in state. Actions' `minutes` reach it through core's `actionTime` hook. Travel takes the exit's `minutes` or the game's `travelMinutes`, which defaults to 0. A `clock` widget shows the time when a game adds it to the header ([ADR 0049](decisions/0049-game-clock.md), [guide](guide/world.md#time)).
-- **Fuses and daemons.** A fuse fires once at a time or after a delay; a daemon recurs. Both are cancellable objects in the state store, visible to save, undo, and the inspector.
+- **Fuses and daemons.** A fuse fires once at a time or after a delay; a daemon recurs. Both are cancellable objects in the state store, visible to save, undo, and the inspector. Each is defined when the game loads with an ID, as `fuse("collapse", { after: minutes(30) }, fire)` or `daemon("drip", { every: moves(2) }, fire)`, and only its timing is state. It waits until `start()` unless it's `running: true`. What it returns is shown with the move's notices, as a `scheduled` event. A long advance of the clock steps to each firing in turn ([ADR 0050](decisions/0050-fuses-and-daemons.md), [guide](guide/world.md#fuses-and-daemons)).
 
 ```ts
-const collapse = fuse({ after: minutes(30) }, () => {
+const collapse = fuse("collapse", { after: minutes(30) }, () => {
   bridge.collapse();
-  narrate(t`Somewhere behind you, timber gives way with a roar.`);
+  return t`Somewhere behind you, timber gives way with a roar.`;
 });
 ```
 

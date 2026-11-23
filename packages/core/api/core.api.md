@@ -255,6 +255,9 @@ export interface EventKinds {
         readonly beat?: number;
     };
     scene: ProseFields;
+    scheduled: ProseFields & {
+        readonly source: StateId;
+    };
     system: ProseFields;
 }
 

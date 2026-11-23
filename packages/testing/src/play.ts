@@ -58,8 +58,9 @@ export interface Walkthrough {
   /** The prose on screen, one paragraph per line, with links inside paragraphs as their labels. */
   readonly text: string;
   /**
-   * What the player noticed during the last move, and what their actions did,
-   * one per line: the perception and action-result events the page shows
+   * What the player noticed during the last move, what their actions did,
+   * and what fuses and daemons said, one per line: the perception,
+   * action-result, and scheduled events the page shows
    * where the passage's `{notices}` is, or else after its text, before its
    * choices. They're in {@link Walkthrough.text} there too.
    */
@@ -158,11 +159,11 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
   store.commit();
 
   const page = (): RenderedPassage => story.render();
-  /** The texts of the perception and action-result events since the move on screen began. */
+  /** The texts of the perception, action-result, and scheduled events since the move on screen began. */
   const notices = (): string[] => {
     const out: string[] = [];
     for (const e of record.events({
-      kinds: ["perception", "action-result", "navigation", "action", "beat"],
+      kinds: ["perception", "action-result", "scheduled", "navigation", "action", "beat"],
     })) {
       if (
         e.kind === "navigation" ||
@@ -234,6 +235,7 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
             "dialogue",
             "room-description",
             "action-result",
+            "scheduled",
           ],
         })
         .map((e) => (e as { text: string }).text)
