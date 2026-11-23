@@ -9,6 +9,7 @@
  */
 import {
   object,
+  NameTaken,
   StateError,
   useVisitMemory,
   type EffectContext,
@@ -144,7 +145,7 @@ export function fact<Id extends string>(id: Id, options: FactOptions): Fact<Id> 
     throw new StateError("fact: the ID must be a non-empty string.");
   }
   if (allFacts.has(id)) {
-    throw new StateError(`${where}: another fact has this ID. Give each fact its own.`);
+    throw new NameTaken(`${where}: another fact has this ID. Give each fact its own.`);
   }
   const defined: Fact<Id> = Object.freeze({ id, text: options.text });
   allFacts.set(id, defined);

@@ -15,6 +15,7 @@ import {
   actLink,
   message,
   redirect,
+  NameTaken,
   StateError,
   type LinkGuard,
   type ObjectRef,
@@ -56,7 +57,7 @@ const journeys = new Map<string, JourneyOptions>();
  */
 export function journey(name: string, options: JourneyOptions = {}): void {
   if (journeys.has(name)) {
-    throw new StateError(
+    throw new NameTaken(
       `journey ${JSON.stringify(name)}: another journey has this name. Give each its own.`,
     );
   }

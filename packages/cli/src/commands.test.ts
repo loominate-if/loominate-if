@@ -152,6 +152,71 @@ describe("loominate build", () => {
     expect(warned.join("\n")).not.toMatch(/room `(cellar|hall)`/);
   }, 60_000);
 
+  it("fails when two listed packages register the same name, naming both, before building (#74)", async () => {
+    /** A package that registers the widget `forecast`, with a compiler extension so it can be listed. */
+    const pkg = (name: string) => ({
+      [`node_modules/${name}/package.json`]: JSON.stringify({
+        name,
+        type: "module",
+        main: "./index.js",
+        loominate: { extension: "./extension.js" },
+      }),
+      [`node_modules/${name}/extension.js`]: `export default { name: ${JSON.stringify(name)} };\n`,
+      [`node_modules/${name}/index.js`]: `import { textWidget, widgets } from "@loominate-if/presentation";
+widgets.register("forecast", textWidget({ text: () => "Rain", label: () => "Forecast" }), { source: ${JSON.stringify(name)} });
+`,
+    });
+    const root = game({
+      "loominate.config.ts": `import { defineConfig } from "@loominate-if/cli";
+export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, start: "Start", extensions: ["weather-kit", "seasons-kit"] });
+`,
+      "start.weft": START,
+      ...pkg("weather-kit"),
+      ...pkg("seasons-kit"),
+    });
+    await expect(build(options(root))).rejects.toThrow(
+      'loominate.config.ts: seasons-kit, listed second in `extensions`, registers a name that\'s taken: registry "widgets": "forecast" is already registered by weather-kit; use replace() to substitute it.',
+    );
+    expect(existsSync(path.join(root, "dist"))).toBe(false);
+  }, 60_000);
+
+  it("fails when story.ts registers a name a package already has (#74)", async () => {
+    const root = game({
+      "start.weft": START,
+      "story.ts": `import { textWidget, widgets } from "@loominate-if/presentation";
+widgets.register("status-line", textWidget({ text: () => "Mine", label: () => "Status" }));
+`,
+    });
+    await expect(build(options(root))).rejects.toThrow(
+      'story.ts registers a name that\'s taken: registry "widgets": "status-line" is already registered by @loominate-if/presentation',
+    );
+  }, 60_000);
+
+  it("loads the listed packages first, in order, in the built game (#74)", async () => {
+    const pkg = (name: string) => ({
+      [`node_modules/${name}/package.json`]: JSON.stringify({
+        name,
+        type: "module",
+        main: "./index.js",
+        loominate: { extension: "./extension.js" },
+      }),
+      [`node_modules/${name}/extension.js`]: `export default { name: ${JSON.stringify(name)} };\n`,
+      [`node_modules/${name}/index.js`]: `globalThis.loaded = [...(globalThis.loaded ?? []), ${JSON.stringify(name)}];\n`,
+    });
+    const root = game({
+      "loominate.config.ts": `import { defineConfig } from "@loominate-if/cli";
+export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, start: "Start", extensions: ["second-kit", "first-kit"] });
+`,
+      "start.weft": START,
+      ...pkg("first-kit"),
+      ...pkg("second-kit"),
+    });
+    await build({ ...options(root), target: "single" });
+    const html = readFileSync(path.join(root, "dist/test-game.html"), "utf8");
+    expect(html.indexOf("second-kit")).toBeGreaterThan(-1);
+    expect(html.indexOf("second-kit")).toBeLessThan(html.indexOf("first-kit"));
+  }, 60_000);
+
   it("builds the game as a static site, with relative URLs", async () => {
     const root = game({ "start.weft": START });
     await build(options(root));

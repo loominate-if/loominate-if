@@ -12,7 +12,7 @@
  * itself is authored, like passages, so it isn't. Nothing reads the
  * computer's date.
  */
-import { message, messages, StateError } from "@loominate-if/core";
+import { message, messages, NameTaken, StateError } from "@loominate-if/core";
 import { checkPart, clock, dayAt, dayOffset, partAt, startDate } from "./clock.js";
 
 declare module "@loominate-if/core" {
@@ -465,7 +465,7 @@ const holidays = new Map<string, HolidayRule>();
  */
 export function holiday(name: string, rule: HolidayRule): void {
   if (holidays.has(name)) {
-    throw new StateError(
+    throw new NameTaken(
       `holiday ${JSON.stringify(name)}: another holiday has this name. Give each its own.`,
     );
   }

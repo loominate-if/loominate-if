@@ -117,6 +117,9 @@ export function loominateApp(config: ResolvedConfig, options: AppOptions = {}): 
               ...config.inspectorModules.map((m) => `import ${JSON.stringify(m)};`),
             ]
           : []),
+        // The packages the config lists, in its order, before the game's own code,
+        // so the config sets the order they load in and register things (#74).
+        ...config.runtimePackages.map((p) => `import ${JSON.stringify(p)};`),
         ...imports,
         `const passages = [${files.map((_, i) => `...p${String(i)}`).join(", ")}];`,
         'const container = document.querySelector("#app") ?? document.body;',

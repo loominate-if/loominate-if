@@ -12,6 +12,7 @@ import {
   type ViteDevServer,
 } from "vite";
 import { loadConfig, type ResolvedConfig } from "./config/config.js";
+import { findConflict } from "./vite/conflicts.js";
 import { loominateApp } from "./vite/app.js";
 import { singleFile, singleFileConfig } from "./vite/single.js";
 import { loominateWalkthrough, WALKTHROUGH_SETUP } from "./vite/walkthrough.js";
@@ -88,7 +89,14 @@ export async function dev(options: CommandOptions = {}): Promise<ViteDevServer> 
   const config = await loadConfig(options.root ?? process.cwd(), {
     ...(options.conditions && { conditions: options.conditions }),
   });
-  return createServer(viteConfig(config, options));
+  const server = await createServer(viteConfig(config, options));
+  // A clash between packages' names is reported in the terminal as the server starts (#74).
+  void findConflict(config, options.conditions ? { conditions: options.conditions } : {}).then(
+    (conflict) => {
+      if (conflict !== undefined) server.config.logger.error(conflict, { timestamp: true });
+    },
+  );
+  return server;
 }
 
 /**
@@ -104,6 +112,12 @@ export async function build(options: BuildOptions = {}): Promise<void> {
   const config = await loadConfig(options.root ?? process.cwd(), {
     ...(options.conditions && { conditions: options.conditions }),
   });
+  // A clash between packages' names fails the build before it starts (#74).
+  const conflict = await findConflict(
+    config,
+    options.conditions ? { conditions: options.conditions } : {},
+  );
+  if (conflict !== undefined) throw new Error(conflict);
   const base = viteConfig(config, options);
   await viteBuild(
     target === "single"
