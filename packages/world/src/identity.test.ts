@@ -6,11 +6,14 @@ import {
   type StateStore,
 } from "@loominate-if/core";
 import { beforeEach, describe, expect, it } from "vitest";
+
+declare module "@loominate-if/world" {
+  interface Dimensions {
+    regard: true;
+  }
+}
 import {
   actor,
-  attitude,
-  attitudeTo,
-  changeAttitude,
   disguise,
   disguisedAs,
   expose,
@@ -18,8 +21,12 @@ import {
   mind,
   place,
   possess,
+  changeRelationship,
+  relationship,
+  relationships,
+  relationshipTo,
+  setRelationship,
   seesThrough,
-  setAttitude,
   startAs,
   undisguise,
   whoIs,
@@ -32,12 +39,13 @@ export const roy = actor("roy", { body: { name: "Roy", isProper: true, location:
 export const captain = actor("captain", { body: { name: "captain", location: gate } });
 export const guard = actor("guard", { body: { name: "guard", location: gate } });
 export const bob = mind("bob", { name: "Bob" });
+relationships({ regard: {} });
 // In story.ts, as the game loads, these set how things start.
-setAttitude(guard, captain, 5);
-setAttitude(guard, roy, -3);
+setRelationship(guard, captain, { regard: 5 });
+setRelationship(guard, roy, { regard: -3 });
 /** What the guard says to whoever he takes `someone` for. */
 export const greeting = (someone: typeof roy): string => {
-  const feeling = attitudeTo(guard, someone);
+  const feeling = relationshipTo(guard, someone).regard;
   return feeling > 0
     ? "“Evening, sir. Go on through.”"
     : feeling < 0
@@ -68,7 +76,7 @@ describe("perceived identity", () => {
       "captain:mind",
       "“Evening, sir. Go on through.”",
     ]);
-    expect(attitude(guard, roy)).toBe(-3); // how he feels about Roy hasn't changed
+    expect(relationship(guard, roy).regard).toBe(-3); // how he feels about Roy hasn't changed
     // #endregion
     expect(seesThrough(guard, roy)).toBe(false);
   });
@@ -104,26 +112,32 @@ describe("perceived identity", () => {
     expect(name(whoIs(guard, roy))).toBe("roy:mind");
   });
 
-  it("keeps attitudes by mind, and is undone with the game", () => {
+  it("keeps relationships by mind, and is undone with the game", () => {
     const history = createHistory(store);
     history.checkpoint("begun");
-    expect(changeAttitude(guard, roy, 4)).toBe(1);
+    expect(changeRelationship(guard, roy, { regard: 4 }).regard).toBe(1);
     disguise(roy, { as: captain });
     history.checkpoint("changed");
     history.undo();
-    expect([attitude(guard, roy), disguisedAs(roy)]).toEqual([-3, undefined]);
+    expect([relationship(guard, roy).regard, disguisedAs(roy)]).toEqual([-3, undefined]);
   });
 
   it("starts as story.ts sets it, in every new game, under what changes in play", () => {
-    expect([attitude(guard, captain), name(whoIs(guard, spy))]).toEqual([5, "captain:mind"]);
-    setAttitude(guard, captain, 0);
+    expect([relationship(guard, captain).regard, name(whoIs(guard, spy))]).toEqual([
+      5,
+      "captain:mind",
+    ]);
+    setRelationship(guard, captain, { regard: 0 });
     undisguise(spy);
-    expect([attitude(guard, captain), name(whoIs(guard, spy))]).toEqual([0, "spy:mind"]);
+    expect([relationship(guard, captain).regard, name(whoIs(guard, spy))]).toEqual([0, "spy:mind"]);
     const again = createStore(); // a new game
     createStory(again, createEventRecord(again), [{ id: "Start", tags: [], body: () => [] }], {
       start: "Start",
     }).begin();
-    expect([attitude(guard, captain), name(whoIs(guard, spy))]).toEqual([5, "captain:mind"]);
+    expect([relationship(guard, captain).regard, name(whoIs(guard, spy))]).toEqual([
+      5,
+      "captain:mind",
+    ]);
   });
 
   it("explains a disguise for something that isn't a body", () => {

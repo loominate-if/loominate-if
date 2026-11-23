@@ -185,15 +185,25 @@ export { scene, type Endings, type Scene, type SceneOptions } from "./scenes.js"
 export { journey, type JourneyOptions } from "./journeys.js";
 export { compass, type CompassSettings } from "./compass.js";
 export {
-  attitude,
-  attitudeTo,
-  changeAttitude,
   disguise,
   disguisedAs,
   expose,
   seesThrough,
-  setAttitude,
   undisguise,
   whoIs,
   type DisguiseAs,
 } from "./identity.js";
+export {
+  changeRelationship,
+  relationship,
+  relationships,
+  relationshipTo,
+  setRelationship,
+  threshold,
+  type Crossing,
+  type Dimension,
+  type Dimensions,
+  type DimensionSpec,
+  type Relationship,
+  type ThresholdSpec,
+} from "./relationships.js";

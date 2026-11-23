@@ -77,12 +77,6 @@ export type AdvanceOptions = {
 };
 
 // @public
-export function attitude(observer: ObjectRef, toward: ObjectRef): number;
-
-// @public
-export function attitudeTo(observer: ObjectRef, b: ObjectRef): number;
-
-// @public
 export function blockedReason(exit: Exit, traveler: ObjectRef): string | undefined;
 
 // @public
@@ -151,7 +145,9 @@ export function canReach(observer: ObjectRef, target: ObjectRef): boolean;
 export function canSee(observer: ObjectRef, target: ObjectRef): boolean;
 
 // @public
-export function changeAttitude(observer: ObjectRef, toward: ObjectRef, by: number): number;
+export function changeRelationship(observer: ObjectRef, toward: ObjectRef, by: {
+    readonly [D in Dimension]?: number;
+}): Relationship;
 
 // @public
 export type Clause = (repeated: Repeated) => string | Text;
@@ -238,6 +234,15 @@ export type CountedDaysOptions = {
 };
 
 // @public
+export type Crossing = {
+    readonly observer: ObjectRef;
+    readonly toward: ObjectRef;
+    readonly dimension: Dimension;
+    readonly from: number;
+    readonly to: number;
+};
+
+// @public
 export type Daemon = Scheduled & {
     stop(): void;
 };
@@ -288,6 +293,20 @@ export type Delay = {
     readonly minutes: number;
 } | {
     readonly moves: number;
+};
+
+// @public
+export type Dimension = keyof Dimensions & string;
+
+// @public
+export interface Dimensions {
+}
+
+// @public
+export type DimensionSpec = {
+    readonly start?: number;
+    readonly min?: number;
+    readonly max?: number;
 };
 
 // @public
@@ -775,6 +794,22 @@ export function registerRoom(room: Place, passage: {
 }): void;
 
 // @public
+export type Relationship = {
+    readonly [D in Dimension]: number;
+};
+
+// @public
+export function relationship(observer: ObjectRef, toward: ObjectRef): Relationship;
+
+// @public
+export function relationships(dimensions: {
+    readonly [D in Dimension]?: DimensionSpec;
+}): void;
+
+// @public
+export function relationshipTo(observer: ObjectRef, body: ObjectRef): Relationship;
+
+// @public
 export type Repeated = {
     readonly count: number;
     readonly from: number;
@@ -869,10 +904,12 @@ export type SentenceWording = (joined: {
 }) => string | Text;
 
 // @public
-export function setAttitude(observer: ObjectRef, toward: ObjectRef, value: number): void;
+export function setExit(from: ObjectRef, name: DirectionName, exit: ObjectRef | ExitSpec | null): void;
 
 // @public
-export function setExit(from: ObjectRef, name: DirectionName, exit: ObjectRef | ExitSpec | null): void;
+export function setRelationship(observer: ObjectRef, toward: ObjectRef, values: {
+    readonly [D in Dimension]?: number;
+}): Relationship;
 
 // @public
 export function startAs(m: ObjectRef): void;
@@ -936,6 +973,20 @@ export function thingTemplate<D extends ObjectDefinition<D> & {
     location?: ObjectRef | null;
     vocab?: Vocabulary;
 } & ThisType<Handle<ThingOf<D>>>): ObjectTemplate<ThingOf<D>>;
+
+// @public
+export function threshold(id: string, spec: ThresholdSpec, fire: (crossing: Crossing) => string | Text | undefined): void;
+
+// @public
+export type ThresholdSpec = {
+    readonly dimension: Dimension;
+} & ({
+    readonly reaches: number;
+    readonly falls?: never;
+} | {
+    readonly falls: number;
+    readonly reaches?: never;
+});
 
 // @public
 export function timeOfDay(minutes?: number): string;
