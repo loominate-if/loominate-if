@@ -128,7 +128,15 @@ export {
   type ActingOn,
 } from "./standard.js";
 export { inventory } from "./inventory.js";
-export { clock, clockWidget, startClock, timeOfDay, type Clock, type ClockStart } from "./clock.js";
+export {
+  clock,
+  clockWidget,
+  startClock,
+  timeOfDay,
+  type Advanced,
+  type Clock,
+  type ClockStart,
+} from "./clock.js";
 export {
   daemon,
   fuse,

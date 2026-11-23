@@ -69,6 +69,17 @@ export type FuseOptions = {
   readonly after: Delay;
   /** Whether it starts when the game begins. Defaults to `false`: start it with `start()`. */
   readonly running?: boolean;
+  /**
+   * Whether firing stops a jump of the clock there, as waking someone who
+   * sleeps. Its code can decide instead, with `clock.interrupt()`.
+   * Defaults to `false`.
+   */
+  readonly interrupts?: boolean;
+  /**
+   * Which fires first when several are due at the same moment: higher
+   * first. Defaults to 0; equal ones go in the order they were defined.
+   */
+  readonly priority?: number;
 };
 
 /** How {@link daemon} takes its timing. */
@@ -77,6 +88,17 @@ export type DaemonOptions = {
   readonly every: Delay;
   /** Whether it starts when the game begins. Defaults to `false`: start it with `start()`. */
   readonly running?: boolean;
+  /**
+   * Whether firing stops a jump of the clock there, as waking someone who
+   * sleeps. Its code can decide instead, with `clock.interrupt()`.
+   * Defaults to `false`.
+   */
+  readonly interrupts?: boolean;
+  /**
+   * Which fires first when several are due at the same moment: higher
+   * first. Defaults to 0; equal ones go in the order they were defined.
+   */
+  readonly priority?: number;
 };
 
 type Timer = {
@@ -85,6 +107,8 @@ type Timer = {
   readonly unit: "minutes" | "moves";
   readonly delay: number;
   readonly repeats: boolean;
+  readonly interrupts: boolean;
+  readonly priority: number;
   readonly fire: Firing;
   readonly state: Handle<{ running: boolean; due: number | null }>;
 };
@@ -96,12 +120,21 @@ function define(
   kind: "fuse" | "daemon",
   id: StateId,
   delay: Delay,
-  running: boolean,
+  options: {
+    readonly running?: boolean;
+    readonly interrupts?: boolean;
+    readonly priority?: number;
+  },
   fire: Firing,
 ): Timer {
+  const running = options.running ?? false;
   const where = `${kind} ${JSON.stringify(id)}`;
   if (timers.some((t) => t.id === id)) {
     throw new StateError(`${where}: another fuse or daemon has this ID. Give each its own.`);
+  }
+  const priority = options.priority ?? 0;
+  if (!Number.isFinite(priority)) {
+    throw new StateError(`${where}: priority ${String(priority)} isn't a number.`);
   }
   if (typeof fire !== "function") {
     throw new StateError(`${where}: give it a function to run when it fires.`);
@@ -114,6 +147,8 @@ function define(
     unit,
     delay: n,
     repeats: kind === "daemon",
+    interrupts: options.interrupts ?? false,
+    priority,
     fire,
     // Begun running, it's due its delay after the game begins.
     state: object(`world:${kind}:${id}`, {
@@ -166,7 +201,7 @@ const halt = (t: Timer): void => {
  * @throws StateError if another fuse or daemon has the ID, or the delay isn't valid.
  */
 export function fuse(id: StateId, options: FuseOptions, fire: Firing): Fuse {
-  const t = define("fuse", id, options.after, options.running ?? false, fire);
+  const t = define("fuse", id, options.after, options, fire);
   return Object.freeze(
     Object.defineProperties({ cancel: () => halt(t) }, Object.getOwnPropertyDescriptors(handle(t))),
   ) as Fuse;
@@ -185,31 +220,54 @@ export function fuse(id: StateId, options: FuseOptions, fire: Firing): Fuse {
  * @throws StateError if another fuse or daemon has the ID, or the delay isn't valid.
  */
 export function daemon(id: StateId, options: DaemonOptions, fire: Firing): Daemon {
-  const t = define("daemon", id, options.every, options.running ?? false, fire);
+  const t = define("daemon", id, options.every, options, fire);
   return Object.freeze(
     Object.defineProperties({ stop: () => halt(t) }, Object.getOwnPropertyDescriptors(handle(t))),
   ) as Daemon;
 }
 
-/** The running timer counted in `unit` due soonest, by `upTo`, ties going to the first defined. */
+/**
+ * The running timer counted in `unit` due soonest, by `upTo`: of those due
+ * at the same moment, the highest priority, then the first defined.
+ */
 function nextDue(unit: Timer["unit"], upTo: number): Timer | undefined {
   let best: Timer | undefined;
   for (const t of timers) {
     const due = t.state.due;
     if (t.unit !== unit || !t.state.running || due === null || due > upTo) continue;
-    if (!best || due < (best.state.due ?? Infinity)) best = t;
+    const bestDue = best?.state.due ?? Infinity;
+    if (!best || due < bestDue || (due === bestDue && t.priority > best.priority)) best = t;
   }
   return best;
 }
 
-/** Fires `t`, rescheduling a daemon first so its code can stop it, and tells the player what it said. */
-function fire(t: Timer): void {
+/** The fuse or daemon firing now, if one is. */
+let firing: StateId | undefined;
+
+/** The fuse or daemon firing now, for `clock.interrupt()` to name. @internal */
+export function firingNow(): StateId | undefined {
+  return firing;
+}
+
+/**
+ * Fires `t`, rescheduling a daemon first so its code can stop it, and tells
+ * the player what it said. Returns whether it interrupts, by its option.
+ */
+function fire(t: Timer): boolean {
   const due = t.state.due ?? now(t.unit);
   if (t.repeats) t.state.due = due + t.delay;
   else halt(t);
-  const said = t.fire();
+  const outer = firing;
+  firing = t.id;
+  let said: ReturnType<Firing>;
+  try {
+    said = t.fire();
+  } finally {
+    firing = outer;
+  }
   const text = typeof said === "function" ? said() : said;
   if (typeof text === "string" && text !== "") emit("scheduled", { text, source: t.id });
+  return t.interrupts;
 }
 
 /**
@@ -218,13 +276,15 @@ function fire(t: Timer): void {
  */
 export function nextInMinutes(
   upTo: number,
-): { readonly at: number; readonly fire: () => void } | undefined {
+): { readonly at: number; readonly id: StateId; readonly fire: () => boolean } | undefined {
   const t = nextDue("minutes", upTo);
   if (!t || t.state.due === null) return undefined;
-  return { at: t.state.due, fire: () => fire(t) };
+  return { at: t.state.due, id: t.id, fire: () => fire(t) };
 }
 
 /** Fires every timer counted in moves that's due now, in order. @internal */
 export function fireMoves(): void {
-  for (let t = nextDue("moves", clock.moves); t; t = nextDue("moves", clock.moves)) fire(t);
+  for (let t = nextDue("moves", clock.moves); t; t = nextDue("moves", clock.moves)) {
+    fire(t);
+  }
 }

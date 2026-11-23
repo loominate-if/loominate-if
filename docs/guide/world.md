@@ -733,7 +733,7 @@ Define them in `story.ts`, or a module it imports, with an ID of their own, beca
 - `collapse.cancel()` stops a fuse, and `bells.stop()` stops a daemon. Either can be started again.
 - `isRunning` says whether it's waiting to fire, and `firesAt` when it will next: the clock's `minutes`, or the move count, as its `unit` says.
 
-When time jumps past several firings, as a 30-minute wait past a daemon every 15 minutes, the clock stops at each, so each fires at its own time and sees it: the bells ring at 12:15 and again at 12:30. Those due at the same moment fire in the order they were defined.
+When time jumps past several firings, as a 30-minute wait past a daemon every 15 minutes, the clock stops at each, so each fires at its own time and sees it: the bells ring at 12:15 and again at 12:30. Those due at the same moment fire by their `priority`, higher first (0 unless they say), then in the order they were defined, so the order is the same in every playthrough.
 
 <!-- example: packages/world/src/schedule.test.ts#moves -->
 ```ts
@@ -743,6 +743,32 @@ choose("Look around"); // the second move
 expect(said()).toEqual(["drip: Water drips."]);
 expect(drip.firesAt).toBe(4);
 ```
+
+### Interrupting a jump
+
+Any fuse or daemon can stop a jump of the clock where it fires, as footsteps waking someone who sleeps: give it `interrupts: true`, or call `clock.interrupt()` from its code when it depends.
+
+<!-- example: packages/world/src/schedule.test.ts#interrupt -->
+```ts
+export const footsteps = fuse("footsteps", { after: minutes(180), interrupts: true }, () => {
+  return "You're woken by footsteps.";
+});
+export const owl = daemon("owl", { every: minutes(60) }, () => {
+  if (owlWakes) clock.interrupt();
+  return `An owl hoots at ${timeOfDay()}.`;
+});
+```
+
+`clock.advance(…)` then stops at that moment, after whatever else is due at that same minute, and says how far it got:
+
+<!-- example: packages/world/src/schedule.test.ts#sleep -->
+```ts
+const slept = clock.advance(8 * 60);
+expect(slept).toEqual({ minutes: 180, interrupted: true, by: "footsteps" });
+expect(timeOfDay()).toBe("3:00 am");
+```
+
+Every advance can be interrupted, including an action's `minutes` and travel: the action still happens, but takes only the time up to the interruption. A sleep or wait action reads the result to say what happened, as in "You sleep until 3 a.m."
 
 ### Showing the time
 

@@ -11,7 +11,7 @@
 import { hook, message, messages, object, StateError } from "@loominate-if/core";
 import { textWidget, widgets } from "@loominate-if/presentation";
 import { exitsOf } from "./exits.js";
-import { fireMoves, nextInMinutes } from "./schedule.js";
+import { fireMoves, firingNow, nextInMinutes } from "./schedule.js";
 import type { Place } from "./things.js";
 
 declare module "@loominate-if/core" {
@@ -123,12 +123,37 @@ export type Clock = {
   travelMinutes: number;
   /**
    * Moves time on by `minutes`. Call it in an effect or an action stage,
-   * including partway through an action.
+   * including partway through an action. It stops at each fuse and daemon
+   * due on the way, firing each at its own time, and stops early where one
+   * interrupts. It returns how far it got.
    *
    * @throws StateError if `minutes` isn't a whole number, 0 or more.
    */
-  advance(minutes: number): void;
+  advance(minutes: number): Advanced;
+  /**
+   * Stops the clock's jump at this moment, as waking someone who sleeps.
+   * Call it from a fuse or daemon as it fires; whatever else is due at the
+   * same minute still fires.
+   *
+   * @throws StateError if the clock isn't moving on.
+   */
+  interrupt(): void;
 };
+
+/** How far {@link Clock.advance} moved the clock, and whether something stopped it. */
+export type Advanced = {
+  /** The minutes that passed: all that were asked for, unless it was interrupted. */
+  readonly minutes: number;
+  /** Whether a fuse or daemon stopped it early. */
+  readonly interrupted: boolean;
+  /** The ID of the fuse or daemon that stopped it, if one did. */
+  readonly by?: string;
+};
+
+/** A jump of the clock in progress, and what interrupted it, if anything did. */
+type Jump = { by?: string };
+/** The jumps in progress, innermost last: a fuse can move the clock on as it fires. */
+const jumps: Jump[] = [];
 
 const at = (): number => start.minuteOfDay + state.elapsed;
 
@@ -164,15 +189,39 @@ export const clock: Clock = Object.freeze({
     if (!isMinutes(n)) throw minutesError("clock.travelMinutes", n);
     state.travelMinutes = n;
   },
-  advance(minutes: number) {
+  advance(minutes: number): Advanced {
     if (!isMinutes(minutes)) throw minutesError("clock.advance", minutes);
-    const target = state.elapsed + minutes;
-    // Step to each fuse and daemon due on the way, so each fires at its own time.
-    for (let next = nextInMinutes(target); next; next = nextInMinutes(target)) {
-      step(next.at);
-      next.fire();
+    const from = state.elapsed;
+    const target = from + minutes;
+    const jump: Jump = {};
+    jumps.push(jump);
+    try {
+      // Step to each fuse and daemon due on the way, so each fires at its own time.
+      for (let next = nextInMinutes(target); next; next = nextInMinutes(target)) {
+        step(next.at);
+        if (next.fire()) jump.by ??= next.id;
+        // Interrupted: what's due at this same minute still fires, but no later.
+        if (jump.by !== undefined) {
+          for (let now = nextInMinutes(state.elapsed); now; now = nextInMinutes(state.elapsed)) {
+            now.fire();
+          }
+          return { minutes: state.elapsed - from, interrupted: true, by: jump.by };
+        }
+      }
+      step(target);
+      return { minutes, interrupted: false };
+    } finally {
+      jumps.pop();
     }
-    step(target);
+  },
+  interrupt() {
+    const jump = jumps.at(-1);
+    if (!jump) {
+      throw new StateError(
+        "clock.interrupt: the clock isn't moving on now. Call it from a fuse or daemon as it fires, to stop the jump there.",
+      );
+    }
+    jump.by ??= firingNow() ?? "clock.interrupt";
   },
 });
 

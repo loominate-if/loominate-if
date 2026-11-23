@@ -28,6 +28,19 @@ export const drip = daemon("drip", { every: moves(2), running: true }, () => "Wa
 // #endregion
 /** Due at the same minute as the bells, but defined after them, so it fires after them. */
 const echo = fuse("echo", { after: minutes(15) }, () => "An echo answers.");
+// #region interrupt
+export const footsteps = fuse("footsteps", { after: minutes(180), interrupts: true }, () => {
+  return "You're woken by footsteps.";
+});
+export const owl = daemon("owl", { every: minutes(60) }, () => {
+  if (owlWakes) clock.interrupt();
+  return `An owl hoots at ${timeOfDay()}.`;
+});
+// #endregion
+let owlWakes = false;
+/** Due with the footsteps, at a higher priority, so it fires first, and with a lower one after. */
+const creak = fuse("creak", { after: minutes(180), priority: 1 }, () => "The floor creaks.");
+const wind = fuse("wind", { after: minutes(180), priority: -1 }, () => "The wind rises.");
 
 const wait = action<{ thing: typeof bridge }>("wait", {
   label: "Wait",
@@ -145,6 +158,62 @@ describe("daemons", () => {
   });
 });
 
+describe("time jumps", () => {
+  it("stop where a fuse interrupts, after all that's due at that minute, in priority order", () => {
+    owl.start();
+    footsteps.start();
+    creak.start();
+    wind.start();
+    // #region sleep
+    const slept = clock.advance(8 * 60);
+    expect(slept).toEqual({ minutes: 180, interrupted: true, by: "footsteps" });
+    expect(timeOfDay()).toBe("3:00 am");
+    // #endregion
+    expect(said().filter((s) => !s.startsWith("drip"))).toEqual([
+      "owl: An owl hoots at 1:00 am.",
+      "owl: An owl hoots at 2:00 am.",
+      "creak: The floor creaks.",
+      "footsteps: You're woken by footsteps.", // defined before the owl
+      "owl: An owl hoots at 3:00 am.",
+      "wind: The wind rises.",
+    ]);
+    // The rest of the night is still to come.
+    expect(clock.advance(60)).toEqual({ minutes: 60, interrupted: false });
+    expect(said().at(-1)).toBe("owl: An owl hoots at 4:00 am.");
+  });
+
+  it("stop where a daemon's code says, through clock.interrupt()", () => {
+    owl.start();
+    owlWakes = true;
+    try {
+      expect(clock.advance(150)).toEqual({ minutes: 60, interrupted: true, by: "owl" });
+    } finally {
+      owlWakes = false;
+    }
+    expect(() => {
+      clock.interrupt();
+    }).toThrow("clock.interrupt: the clock isn't moving on now.");
+  });
+
+  it("fire in the same order every time", () => {
+    const run = (): string[] => {
+      begin();
+      story.begin();
+      owl.start();
+      footsteps.start();
+      creak.start();
+      wind.start();
+      bells.start();
+      echo.start();
+      choose("Wait");
+      clock.advance(300);
+      return said();
+    };
+    const first = run();
+    expect(run()).toEqual(first);
+  });
+});
+
 describe("fuses and daemons, as state", () => {
   it("are undone, saved, and replayed with the game", () => {
     const history = createHistory(store);
@@ -171,5 +240,8 @@ describe("fuses and daemons, as state", () => {
     );
     expect(() => minutes(0)).toThrow("minutes: 0 isn't a whole number, 1 or more.");
     expect(() => moves(1.5)).toThrow("moves: 1.5 isn't a whole number, 1 or more.");
+    expect(() => fuse("odd", { after: minutes(1), priority: NaN }, () => undefined)).toThrow(
+      'fuse "odd": priority NaN isn\'t a number.',
+    );
   });
 });
