@@ -5,7 +5,7 @@
  * to interrupt stops it. An opt-in Wait menu in the header lists the
  * waits a game offers.
  */
-import { action, message, messages, StateError } from "@loominate-if/core";
+import { action, message, messages, NameTaken, StateError } from "@loominate-if/core";
 import { addToHeader, menuWidget, widgets, type MenuChoice } from "@loominate-if/presentation";
 import { clock, parseTime, timeOfDay, type Advanced } from "./clock.js";
 import { scheduledById, timesFired } from "./schedule.js";
@@ -74,7 +74,7 @@ const conditions = new Map<string, () => boolean>();
  */
 export function waitCondition(name: string, holds: () => boolean): void {
   if (conditions.has(name)) {
-    throw new StateError(
+    throw new NameTaken(
       `waitCondition ${JSON.stringify(name)}: another condition has this name. Give each its own.`,
     );
   }

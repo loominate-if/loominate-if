@@ -9,7 +9,7 @@
  * Every rule records the package that added it, and `explain` shows what each
  * rule did, for the inspector (design principle 5).
  */
-import { StateError } from "../state/value.js";
+import { NameTaken, StateError } from "../state/value.js";
 
 /** Who added a rule, hook handler, or registry entry when nothing says otherwise: the game itself. */
 export const GAME_SOURCE = "game";
@@ -209,7 +209,7 @@ export function ruleList<F>(
 } {
   if (name.length === 0) throw new StateError(`${what}: the name must be non-empty.`);
   const where = `${what} ${JSON.stringify(name)}`;
-  if (names.has(where)) throw new StateError(`${where}: there's already one with that name.`);
+  if (names.has(where)) throw new NameTaken(`${where}: there's already one with that name.`);
   names.add(where);
 
   const entries = new Map<string, Entry<F>>();
@@ -288,7 +288,7 @@ export function ruleList<F>(
     rule(rule, fn, options = {}) {
       if (rule.length === 0) throw new StateError(`${where}: a rule name must be non-empty.`);
       if (entries.has(rule)) {
-        throw new StateError(
+        throw new NameTaken(
           `${where}: there's already a rule named ${JSON.stringify(rule)}; use replace() to change it.`,
         );
       }

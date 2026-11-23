@@ -3,7 +3,7 @@
  * layouts, and library classes are registered by name, so an extension can
  * substitute its own implementation.
  */
-import { StateError } from "../state/value.js";
+import { NameTaken, StateError } from "../state/value.js";
 import { GAME_SOURCE } from "./rules.js";
 
 /** A registry entry, as the inspector shows it. */
@@ -52,7 +52,7 @@ const names = new Set<string>();
 export function registry<T>(name: string): Registry<T> {
   const where = `registry ${JSON.stringify(name)}`;
   if (name.length === 0) throw new StateError("registry: the name must be non-empty.");
-  if (names.has(name)) throw new StateError(`${where}: there's already one with that name.`);
+  if (names.has(name)) throw new NameTaken(`${where}: there's already one with that name.`);
   names.add(name);
   const entries = new Map<string, { value: T; source: string }>();
   const existing = (key: string, verb: string) => {
@@ -70,7 +70,7 @@ export function registry<T>(name: string): Registry<T> {
       if (key.length === 0) throw new StateError(`${where}: a key must be non-empty.`);
       const taken = entries.get(key);
       if (taken) {
-        throw new StateError(
+        throw new NameTaken(
           `${where}: ${JSON.stringify(key)} is already registered by ${taken.source}; use replace() to substitute it.`,
         );
       }

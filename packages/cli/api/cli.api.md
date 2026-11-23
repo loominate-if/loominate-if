@@ -99,6 +99,7 @@ export type ResolvedConfig = LoominateConfig & {
     readonly root: string;
     readonly loaded: readonly CompilerExtension[];
     readonly inspectorModules: readonly string[];
+    readonly runtimePackages: readonly string[];
 };
 
 // @public

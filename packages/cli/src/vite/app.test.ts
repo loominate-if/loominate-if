@@ -36,6 +36,7 @@ const config = {
   game: { id: "test-game", version: "1.0.0" },
   loaded: [],
   inspectorModules: [],
+  runtimePackages: [],
 } as unknown as ResolvedConfig;
 
 /** A plugin hook's code, for a module ID. */

@@ -13,6 +13,7 @@ import {
   message,
   messages,
   object,
+  NameTaken,
   StateError,
   type Handle,
   type StateId,
@@ -267,7 +268,7 @@ function define(
   const running = options.running ?? false;
   const where = `${kind} ${JSON.stringify(id)}`;
   if (timers.some((t) => t.id === id)) {
-    throw new StateError(`${where}: another fuse or daemon has this ID. Give each its own.`);
+    throw new NameTaken(`${where}: another fuse or daemon has this ID. Give each its own.`);
   }
   const priority = options.priority ?? 0;
   if (!Number.isFinite(priority)) {
@@ -546,7 +547,7 @@ const sentences = new Map<string, SentenceWording>();
  */
 export function sentence(group: string, wording: SentenceWording): void {
   if (sentences.has(group)) {
-    throw new StateError(
+    throw new NameTaken(
       `sentence ${JSON.stringify(group)}: this group's sentence already has a wording. Give it one.`,
     );
   }

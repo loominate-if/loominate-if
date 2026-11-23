@@ -26,6 +26,17 @@ export class StateError extends Error {
   override readonly name = "StateError";
 }
 
+/**
+ * The error for registering a name that's taken: a widget, a rule, an
+ * action, a fuse, and so on, that something else registered first. It's
+ * marked `taken`, so tools such as the CLI can tell a clash between
+ * packages from other mistakes, and report it before the game opens (#74).
+ */
+export class NameTaken extends StateError {
+  /** Always `true`: the name was taken. */
+  readonly taken = true;
+}
+
 /** Describes `value` for error messages without dumping large structures. */
 function describe(value: unknown): string {
   if (value === undefined) return "undefined";

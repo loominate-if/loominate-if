@@ -25,7 +25,7 @@ import {
   type RuleList,
   type RuleStep,
 } from "../rules/rules.js";
-import { StateError } from "../state/value.js";
+import { NameTaken, StateError } from "../state/value.js";
 import { message, messages } from "../text/messages.js";
 
 declare module "../text/messages.js" {
@@ -273,7 +273,7 @@ export function action<A extends Readonly<Record<string, unknown>>>(
   definition: ActionDefinition<A> = {},
 ): Action<A> {
   if (actions.has(name)) {
-    throw new StateError(
+    throw new NameTaken(
       `action ${JSON.stringify(name)}: another action has this name, perhaps one a package such as the world model defines. Give yours another name, or change that one with its rules, as in ${name}.check.rule(…).`,
     );
   }

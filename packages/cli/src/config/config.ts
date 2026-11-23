@@ -75,6 +75,12 @@ export type ResolvedConfig = LoominateConfig & {
    * the packages' in order, then the game's own.
    */
   readonly inspectorModules: readonly string[];
+  /**
+   * The listed packages that have a runtime entry, in the order listed: the
+   * game's entry imports them first, in this order, so the config sets the
+   * order packages load in, at runtime as in the compiler (#74).
+   */
+  readonly runtimePackages: readonly string[];
 };
 
 /** Options for {@link loadConfig}. */
@@ -140,6 +146,7 @@ export async function loadConfig(
     root: dir,
     loaded: packages.extensions,
     inspectorModules: [...packages.inspectorModules, ...own],
+    runtimePackages: packages.runtimePackages,
   };
 }
 
@@ -182,10 +189,15 @@ function check(value: unknown): LoominateConfig {
 async function loadPackages(
   root: string,
   names: readonly string[],
-): Promise<{ extensions: CompilerExtension[]; inspectorModules: string[] }> {
+): Promise<{
+  extensions: CompilerExtension[];
+  inspectorModules: string[];
+  runtimePackages: string[];
+}> {
   const from = pathToFileURL(path.join(root, "package.json"));
   const extensions: CompilerExtension[] = [];
   const inspectorModules: string[] = [];
+  const runtimePackages: string[] = [];
   for (const name of names) {
     let manifest: string | undefined;
     try {
@@ -200,7 +212,14 @@ async function loadPackages(
     }
     const pkg = JSON.parse(readFileSync(manifest, "utf8")) as {
       loominate?: { extension?: unknown; inspector?: unknown };
+      main?: unknown;
+      exports?: unknown;
     };
+    // A package the game can import has a runtime entry: its main, or its "." export.
+    const exportsRoot =
+      typeof pkg.exports === "string" ||
+      (typeof pkg.exports === "object" && pkg.exports !== null && "." in pkg.exports);
+    if (typeof pkg.main === "string" || exportsRoot) runtimePackages.push(name);
     const { extension: entry, inspector } = pkg.loominate ?? {};
     if (typeof entry !== "string" && typeof inspector !== "string") {
       throw new Error(
@@ -226,5 +245,5 @@ async function loadPackages(
     }
     extensions.push(extension as CompilerExtension);
   }
-  return { extensions, inspectorModules };
+  return { extensions, inspectorModules, runtimePackages };
 }

@@ -82,3 +82,11 @@ export default defineConfig({
 ```
 
 Install each one with npm too. A package that's listed but not installed is an error naming it. Listed packages can also add tabs to the [inspector](inspector.md#adding-your-own), and so can your game, with `inspector: "inspector.ts"`.
+
+The list sets the order everything loads in: the compiler's syntax, the inspector's tabs, and the game itself, whose entry loads each listed package first, in this order, then your `story.ts`. Whatever registers a name first, such as a widget, a rule, an action, or a direction, owns it. If a later package, or your `story.ts`, registers the same name, that's an error before the game is built, or as `loominate dev` starts, naming both:
+
+```
+loominate.config.ts: @acme/seasons, listed second in `extensions`, registers a name that's taken: registry "widgets": "forecast" is already registered by @acme/weather; use replace() to substitute it.
+```
+
+To take a name over on purpose, use `replace()`, as in `widgets.replace("forecast", …)`, which isn't a clash. Otherwise rename one of them, or remove a package from the list.

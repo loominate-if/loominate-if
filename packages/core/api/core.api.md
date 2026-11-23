@@ -561,6 +561,11 @@ export type NamedEffectNode = {
     readonly options?: Readonly<Record<string, unknown>>;
 };
 
+// @public
+export class NameTaken extends StateError {
+    readonly taken = true;
+}
+
 // @internal
 export function _noticeParagraphs<E extends {
     readonly kind: string;

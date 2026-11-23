@@ -17,6 +17,7 @@ import {
   emit,
   hook,
   object,
+  NameTaken,
   StateError,
   type Period,
   type RuleList,
@@ -138,7 +139,7 @@ const said = (text: string | Text | undefined): string =>
 export function scene(id: string, options: SceneOptions = {}): Scene {
   const where = `scene ${JSON.stringify(id)}`;
   if (scenes.some((s) => s.scene.id === id)) {
-    throw new StateError(`${where}: another scene has this ID. Give each its own.`);
+    throw new NameTaken(`${where}: another scene has this ID. Give each its own.`);
   }
   const recurring = options.recurring ?? false;
   if (typeof recurring === "number" && (!Number.isInteger(recurring) || recurring < 1)) {
