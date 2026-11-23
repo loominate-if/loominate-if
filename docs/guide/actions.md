@@ -143,6 +143,53 @@ expect(menu(chest)).toEqual([
 - Their words are in the message table, as `take.label` ("Take the iron key"), `take.done` ("You take the iron key."), and so on ([Rewording the library](messages.md)).
 - Each is an ordinary action, exported from `@loominate-if/world`, so change one with its rules, as in `take.check.rule("too heavy", …)`. A game's own action can't reuse their names: call it something else, or change theirs.
 
+### Actions with more than one thing
+
+"Pry the crate open with the crowbar" has two things: the crate, its `thing`, and the crowbar, its `tool`. `with` names each of an action's other things for menus to fill in, as a fixed thing or a test for things that suit:
+
+<!-- example: packages/world/src/multi.test.ts#pry -->
+```ts
+export const pry = action<{ thing: typeof crate; tool: Thing }>("pry", {
+  on: crate,
+  with: { tool: crowbar },
+  label: t`Pry {the thing} open with {the tool}`,
+  verify: ({ thing }) => (thing.isOpen ? "It's open already." : undefined),
+  run: ({ thing }) => {
+    thing.open();
+  },
+  report: t`You lever {the thing} open with {the tool}.`,
+});
+```
+
+<!-- example: packages/world/src/multi.test.ts#cut -->
+```ts
+const isSharp = (t: object): boolean => "isSharp" in t && t.isSharp === true;
+export const cut = action<{ thing: Thing; blade: Thing }>("cut", {
+  for: (t) => t.id === "rope",
+  with: { blade: isSharp },
+  label: t`Cut {the thing} with {the blade}`,
+  report: t`You cut {the thing} with {the blade}.`,
+});
+```
+
+The action is offered on every participant's menu, the crate's and the crowbar's, and only when all of them are in reach:
+
+<!-- example: packages/world/src/multi.test.ts#menus -->
+```ts
+expect(menu(crate)).toEqual(["Pry the crate open with the crowbar"]);
+expect(menu(crowbar)).toEqual(["Pry the crate open with the crowbar"]);
+```
+
+A test is tried on every thing the player can reach, never the thing in another role, and the menu has one entry for each thing that passes:
+
+<!-- example: packages/world/src/multi.test.ts#suits -->
+```ts
+expect(menu(rope)).toEqual(["Cut the rope with the axe", "Cut the rope with the knife"]);
+expect(menu(knife)).toEqual(["Cut the rope with the knife"]);
+```
+
+A passage can still offer one directly, with every thing given: `[[Pry it open]]{act pry({ thing: crate, tool: crowbar })}`. Without the world model, menus fill only the fixed things, unless the game says what to try with `useCandidates(() => […])`.
+
 ### The inventory
 
 The world model adds an inventory to the page's header: "You carry: an iron key, a map", or "nothing". Each name opens the thing's menu. A game that replaces the `page` layout places the `inventory` widget itself, and presentation's `thingsWidget` makes others like it.

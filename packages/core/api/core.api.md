@@ -42,6 +42,9 @@ export type ActionDefinition<A> = {
     readonly minutes?: number | ((context: ActionContext<A>) => number);
     readonly on?: ObjectRef | readonly ObjectRef[];
     readonly for?: (thing: ObjectRef) => boolean;
+    readonly with?: {
+        readonly [K in Exclude<keyof A, "thing">]?: Participant;
+    };
 };
 
 // @public
@@ -561,6 +564,9 @@ export function openPersistent(options: {
 export function pageBreak(args?: Readonly<Record<string, never>>): BeatNode;
 
 // @public
+export type Participant = ObjectRef | ((thing: ObjectRef) => boolean);
+
+// @public
 export interface Passage {
     readonly beats?: readonly BeatEffects[];
     readonly body: (context: RenderContext) => readonly PassageNode[];
@@ -1055,6 +1061,9 @@ export function useActor(who: (() => {
     readonly actor?: ObjectRef;
     readonly body?: ObjectRef;
 } | undefined) | undefined): void;
+
+// @public
+export function useCandidates(things: (() => readonly ObjectRef[]) | undefined): void;
 
 // @public
 export function useVisitMemory(visitMemory: VisitMemory | undefined): void;

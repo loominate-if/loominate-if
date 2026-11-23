@@ -236,7 +236,7 @@ action("tune-emergency", {
 });
 ```
 
-Multi-object actions ("Use the crowbar on the crate") are offered only when all participants are present. The inspector can list which conditions hid any action.
+Multi-object actions ("Use the crowbar on the crate") are offered only when all participants are present. An action's `with` names its other things by role, as a fixed thing or a test that menus try on the things in reach. The action is offered on every participant's menu ([ADR 0047](decisions/0047-multi-object-actions.md)). The inspector can list which conditions hid any action.
 
 A thing's name in the text, `[[brass bell]]{menu bell}`, opens its menu: the actions `on` it or `for` things like it, verify-hidden ones left out and check-disabled ones shown with their reason, keyboard-operable as a menu button, and taken as the same `act` move as an action link. The world model offers standard actions (examine, take, drop, open, close, lock, unlock) and an inventory in the header ([ADR 0046](decisions/0046-context-menus.md), [guide](guide/actions.md#things-menus)).
 
