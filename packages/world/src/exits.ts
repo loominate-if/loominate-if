@@ -19,6 +19,7 @@ import {
 } from "@loominate-if/core";
 import { currentPlayerBody } from "./actors.js";
 import { directionNamed, directions, type Direction, type DirectionName } from "./directions.js";
+import { closedReason } from "./hours.js";
 import { arrivalPassage, visitsTo } from "./rooms.js";
 import { isPlace, openable, placeOf, thingFor, type Place, type Thing } from "./things.js";
 
@@ -227,9 +228,14 @@ export function connectedRooms(): Place[] {
   });
 }
 
-/** Why `exit` is blocked for `traveler`, or `undefined` if the way is clear. */
+/**
+ * Why `exit` is blocked for `traveler`, or `undefined` if the way is clear:
+ * its door's or obstacle's opening hours, then its own reason.
+ */
 export function blockedReason(exit: Exit, traveler: ObjectRef): string | undefined {
-  return (exit.via as (Thing & Blocker) | undefined)?.blocks?.(traveler);
+  const via = exit.via as (Thing & Blocker) | undefined;
+  if (!via) return undefined;
+  return closedReason(via, exit.to) ?? via.blocks?.(traveler);
 }
 
 /** The doors and obstacles on `room`'s exits, which can be sensed from it. @internal */

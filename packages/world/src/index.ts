@@ -131,6 +131,7 @@ export { inventory } from "./inventory.js";
 export {
   clock,
   clockWidget,
+  dayParts,
   startClock,
   timeOfDay,
   type AdvanceOptions,
@@ -178,3 +179,4 @@ export {
   type HolidayRule,
   type SeasonsByMonth,
 } from "./calendar.js";
+export { isOpenNow, openingHours, type Hours, type StoredHours } from "./hours.js";
