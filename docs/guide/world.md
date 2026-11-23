@@ -925,14 +925,14 @@ export const alarm = fuse("alarm", { after: minutes(15), interrupts: true }, () 
 choose("Wait until train");
 expect([timeOfDay(), told()]).toEqual([
   "5:55 am",
-  ["A train pulls in.", "You wait until 5:55 am."],
+  ["A train pulls in.", "You wait 25 minutes."],
 ]);
 choose("Wait until kiosk opens");
 expect(timeOfDay()).toBe("6:10 am");
-expect(told().slice(2)).toEqual(["The kiosk's shutter rattles up.", "You wait until 6:10 am."]);
+expect(told().slice(2)).toEqual(["The kiosk's shutter rattles up.", "You wait 15 minutes."]);
 ```
 
-A wait is passive, so anything that interrupts stops it: "A fire alarm shrieks! Your wait ends at 5:45 am." Its reports are messages you can reword: `wait.done`, `waitUntil.done`, `wait.interrupted`, and `waitUntil.gaveUp`.
+A wait is passive, so anything that interrupts stops it: "A fire alarm shrieks! Your wait ends at 5:45 am." Its report says how it ended. Waiting for a fuse, a daemon, or a condition, it says how long it took ("You wait 25 minutes."), since what came says what happened. Waiting for a time of day, it says the time ("You wait until 6:00 am."). The reports are messages you can reword: `wait.done`, `waitUntil.done`, `waitUntil.came`, `wait.interrupted`, and `waitUntil.gaveUp`.
 
 The Wait menu is opt-in. `waitMenu` adds a Wait button to the header, listing the waits you give it, each with its own label or yours. Like a thing's menu, it leaves out waits that aren't offered.
 

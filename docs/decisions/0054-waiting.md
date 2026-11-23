@@ -21,7 +21,7 @@
   - `atMost` caps `fires` and `condition`, and defaults to a day.
 - **Ending a wait:** `clock.advance` takes an `until` check, run after each fuse or daemon fires, since only firings change the world while time passes. When it holds, the advance ends after that minute's firings, and its result says `reached`.
 - **Interruptions:** a wait is passive, so anything that interrupts stops it. It doesn't set a `stopsFor`.
-- **Reports:** messages say how a wait ended: `wait.done`, `waitUntil.done`, `wait.interrupted`, or `waitUntil.gaveUp`. Labels are `wait.label` and `waitUntil.label`.
+- **Reports:** messages say how a wait ended: `wait.done`, `waitUntil.done`, `waitUntil.came`, `wait.interrupted`, or `waitUntil.gaveUp`. A wait for a fuse, daemon, or condition reports how long it took ("You wait 25 minutes."), since what came already says what happened. A wait until a time of day reports the time. Labels are `wait.label` and `waitUntil.label`.
 - **Mistakes:** naming nothing, more than one thing, an unknown fuse or condition, or a bad time or count is an error that explains it.
 
 ## Consequences

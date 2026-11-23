@@ -129,11 +129,11 @@ describe("waiting", () => {
     choose("Wait until train");
     expect([timeOfDay(), told()]).toEqual([
       "5:55 am",
-      ["A train pulls in.", "You wait until 5:55 am."],
+      ["A train pulls in.", "You wait 25 minutes."],
     ]);
     choose("Wait until kiosk opens");
     expect(timeOfDay()).toBe("6:10 am");
-    expect(told().slice(2)).toEqual(["The kiosk's shutter rattles up.", "You wait until 6:10 am."]);
+    expect(told().slice(2)).toEqual(["The kiosk's shutter rattles up.", "You wait 15 minutes."]);
     // #endregion
     expect(statusOf(waitUntil({ condition: "kiosk opens" })).hidden).toBe(
       "There's no need to wait.",

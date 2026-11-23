@@ -18,8 +18,10 @@ declare module "@loominate-if/core" {
     "waitUntil.label": { readonly what: string };
     /** After a wait that ran its course: "You wait 10 minutes." */
     "wait.done": { readonly minutes: number; readonly time: string };
-    /** After a wait-until whose time came, or whose fuse fired, or whose condition held: "You wait until 6:00 am." */
+    /** After a wait until a time of day, when it came: "You wait until 6:00 am." */
     "waitUntil.done": { readonly time: string };
+    /** After a wait until a fuse or daemon fired, or a condition held: how long it took, "You wait fifteen minutes." */
+    "waitUntil.came": { readonly minutes: number; readonly time: string };
     /** After a wait something interrupted: "Your wait ends at 3:00 am." */
     "wait.interrupted": { readonly time: string };
     /** After a wait-until that waited as long as it would: "You give up waiting at 7:00 am." */
@@ -47,6 +49,7 @@ say("wait.label", ({ minutes }) =>
 say("waitUntil.label", ({ what }) => `Wait until ${what}`);
 say("wait.done", ({ minutes }) => `You wait ${minutesWords(minutes)}.`);
 say("waitUntil.done", ({ time }) => `You wait until ${time}.`);
+say("waitUntil.came", ({ minutes }) => `You wait ${minutesWords(minutes)}.`);
 say("wait.interrupted", ({ time }) => `Your wait ends at ${time}.`);
 say("waitUntil.gaveUp", ({ time }) => `You give up waiting at ${time}.`);
 say("waitUntil.now", ({ what }) => `It's ${what} now.`);
@@ -86,18 +89,25 @@ const whole = (where: string, n: unknown): number => {
 };
 
 /** What the last wait came to, from its action stage for its report. */
-let last: { readonly advanced: Advanced; readonly until: boolean } | undefined;
+let last:
+  { readonly advanced: Advanced; readonly until: "minutes" | "time" | "something" } | undefined;
 
 const told = (): string => {
   const done = last;
   last = undefined;
   if (!done) return "";
   const time = timeOfDay();
-  if (done.advanced.reached === true) return message("waitUntil.done", { time });
+  const minutes = done.advanced.minutes;
+  if (done.advanced.reached === true) {
+    // Waiting for a time, the time is the news; waiting for something, how long it took is.
+    return done.until === "time"
+      ? message("waitUntil.done", { time })
+      : message("waitUntil.came", { minutes, time });
+  }
   if (done.advanced.interrupted) return message("wait.interrupted", { time });
-  return done.until
-    ? message("waitUntil.gaveUp", { time })
-    : message("wait.done", { minutes: done.advanced.minutes, time });
+  return done.until === "minutes"
+    ? message("wait.done", { minutes, time })
+    : message("waitUntil.gaveUp", { time });
 };
 
 /** Waits a number of minutes, unless something interrupts. */
@@ -109,7 +119,7 @@ export const wait = action<{ readonly minutes: number }>("wait", {
     return undefined;
   },
   run: ({ minutes }) => {
-    last = { advanced: clock.advance(minutes), until: false };
+    last = { advanced: clock.advance(minutes), until: "minutes" };
   },
   report: told,
 });
@@ -192,7 +202,10 @@ export const waitUntil = action<WaitUntil>("waitUntil", {
     const advanced = clock.advance(plan.minutes, plan.until ? { until: plan.until } : {});
     // Waiting until a time succeeds when it runs its course.
     const reached = plan.until === undefined && !advanced.interrupted;
-    last = { advanced: reached ? { ...advanced, reached } : advanced, until: true };
+    last = {
+      advanced: reached ? { ...advanced, reached } : advanced,
+      until: plan.until === undefined ? "time" : "something",
+    };
   },
   report: told,
 });
