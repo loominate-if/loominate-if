@@ -49,25 +49,41 @@ export function continueTo(args: {
   };
 }
 
-/** A timed pause, from `{beat 1.5s}`: what follows appears after `duration` milliseconds. */
-export function beat(args: { readonly duration: number }): BeatNode {
-  return { type: "beat", duration: args.duration };
+/** Checks a beat's game minutes: a whole number, 0 or more. */
+function gameMinutes(where: string, minutes: number | undefined): { minutes?: number } {
+  if (minutes === undefined) return {};
+  if (!Number.isInteger(minutes) || minutes < 0) {
+    throw new StateError(
+      `${where}: minutes ${String(minutes)} isn't a number of game minutes. Give a whole number, 0 or more, as in {beat 2s, minutes: 30}.`,
+    );
+  }
+  return { minutes };
 }
 
 /**
- * A pause until the player moves on, from `{wait}`. It takes no arguments;
- * the parameter is the empty object every directive call passes.
+ * A timed pause, from `{beat 1.5s}`: what follows appears after `duration`
+ * milliseconds. With `minutes`, `{beat 2s, minutes: 30}`, that much game
+ * time passes as the player moves past it.
  */
-export function wait(args: Readonly<Record<string, never>> = {}): BeatNode {
-  return { ...args, type: "beat" };
+export function beat(args: { readonly duration: number; readonly minutes?: number }): BeatNode {
+  return { type: "beat", duration: args.duration, ...gameMinutes("{beat}", args.minutes) };
+}
+
+/**
+ * A pause until the player moves on, from `{wait}`, or `{wait minutes: 60}`
+ * for game time to pass as they do.
+ */
+export function wait(args: { readonly minutes?: number } = {}): BeatNode {
+  return { type: "beat", ...gameMinutes("{wait}", args.minutes) };
 }
 
 /**
  * A page break, from `{page}`: a pause until the player moves on, after which
- * what follows replaces what came before on screen.
+ * what follows replaces what came before on screen. `{page minutes: 600}`
+ * passes game time too, as between chapters.
  */
-export function pageBreak(args: Readonly<Record<string, never>> = {}): BeatNode {
-  return { ...args, type: "beat", page: true };
+export function pageBreak(args: { readonly minutes?: number } = {}): BeatNode {
+  return { type: "beat", page: true, ...gameMinutes("{page}", args.minutes) };
 }
 
 /**

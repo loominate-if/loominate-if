@@ -185,6 +185,12 @@ export type BeatNode = {
   readonly duration?: number;
   /** True when what follows replaces what came before on screen. */
   readonly page?: true;
+  /**
+   * How many game minutes pass as the player moves past it, apart from the
+   * real time it takes on screen: `{beat 2s, minutes: 30}`. A game clock,
+   * such as the world model's, hears it through the `beatTime` hook.
+   */
+  readonly minutes?: number;
 };
 
 /**
@@ -880,6 +886,10 @@ export function createStory(
       store.set(RANDOM_ID, MOVE_FIELD, `${String(n)}.${String(attempt)}`);
       store.set(STORY_ID, STEP_FIELD, step + 1);
       emitIn(id)("beat", { passage: id, step: step + 1, ...(beat.page && { page: true }) });
+      // Game time passes before the next part, so its effects and text see the new time.
+      if (beat.minutes !== undefined && beat.minutes > 0) {
+        hook("beatTime").run({ passage: id, minutes: beat.minutes });
+      }
       const effects = passage.beats?.[step];
       if (visits(id) === 1) runEffect(passage, "firstVisit", effects?.firstVisit, step + 1);
       runEffect(passage, "enter", effects?.enter, step + 1);

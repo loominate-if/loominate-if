@@ -199,6 +199,15 @@ describe("generatePassageModule", () => {
     expect(beats).not.toContain("a()");
   });
 
+  it("passes beats' game minutes on, so a cut scene says what game time it costs (#90)", () => {
+    const { code } = generate(
+      ":: A\nOne.\n{beat 2s, minutes: 120}\nTwo.\n{wait minutes: 30}\nThree.\n{page minutes: 600}\nFour.",
+    );
+    expect(code).toContain("$rt_beat({ duration: 2000, minutes: 120 })");
+    expect(code).toContain("$rt_wait({ minutes: 30 })");
+    expect(code).toContain("$rt_pageBreak({ minutes: 600 })");
+  });
+
   it("reports beats inside blocks, and leave effects after a beat", () => {
     expect(
       errors(":: A\n{if x}{wait}{/if}\nOne.\n{beat 1s}\n{on leave: y()}", {
