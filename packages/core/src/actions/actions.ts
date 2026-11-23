@@ -69,7 +69,18 @@ export type ActionDefinition<A> = {
    * thing this says yes to, as in `for: (thing) => "isOpen" in thing`.
    */
   readonly for?: (thing: ObjectRef) => boolean;
+  /**
+   * Its other things, by role, for menus to fill in: a fixed thing, as in
+   * `with: { tool: crowbar }`, or a test for things that suit, as in
+   * `with: { tool: (t) => isLever(t) }`, which menus try on the things
+   * {@link useCandidates} gives. A menu offers one entry per way to fill
+   * them, on each participant's menu.
+   */
+  readonly with?: { readonly [K in Exclude<keyof A, "thing">]?: Participant };
 };
+
+/** How a menu fills one of an action's other roles: a fixed thing, or a test for things that suit. */
+export type Participant = ObjectRef | ((thing: ObjectRef) => boolean);
 
 /** One action taken, with its things: what a link or menu offers, and what's performed. */
 export type ActionCall<A = Readonly<Record<string, unknown>>> = {
@@ -129,6 +140,10 @@ export const everyAction: {
 
 /** Every action, by name, so a logged move can be replayed. */
 const actions = new Map<string, Action<never>>();
+/** Each action's other roles, by action name, for menus to fill. */
+const roles = new Map<string, readonly (readonly [string, Participant])[]>();
+/** The things each action is `on`, by action name. */
+const ons = new Map<string, readonly ObjectRef[]>();
 /** Names an action's things can't have, since its rules see these too. */
 const RESERVED = new Set(["action", "actor", "body"]);
 
@@ -144,6 +159,18 @@ export function useActor(
   who: (() => { readonly actor?: ObjectRef; readonly body?: ObjectRef } | undefined) | undefined,
 ): void {
   acting = who;
+}
+
+/** The things a menu tries in an action's other roles, as a world model says. */
+let candidates: (() => readonly ObjectRef[]) | undefined;
+
+/**
+ * Sets the things menus try in actions' other roles, where `with` gives a
+ * test: the world model gives the things in the player's reach. Without
+ * it, menus fill only roles `with` gives a fixed thing.
+ */
+export function useCandidates(things: (() => readonly ObjectRef[]) | undefined): void {
+  candidates = things;
 }
 
 /** A stage whose rules all run, named for the inspector. */
@@ -207,6 +234,16 @@ export function action<A extends Readonly<Record<string, unknown>>>(
   const report = rulebook<C, string>(`${name}: report`, { kind: "decide" });
   const minutes = rulebook<number, C>(`${name}: minutes`, { kind: "fold" });
   const d = definition;
+  const others = Object.entries(
+    (d.with ?? {}) as Readonly<Record<string, Participant | undefined>>,
+  ).filter((e): e is [string, Participant] => e[1] !== undefined);
+  for (const [role] of others) {
+    if (role === "thing" || RESERVED.has(role)) {
+      throw new StateError(
+        `action ${JSON.stringify(name)}: \`with\` can't fill "${role}". It names the action's other things; "thing" is the one whose menu offers it, and "actor" and "body" are who's acting.`,
+      );
+    }
+  }
   if (d.verify) verify.rule(own, d.verify);
   if (d.check) check.rule(own, d.check);
   if (d.run) perform.rule(own, d.run);
@@ -235,14 +272,8 @@ export function action<A extends Readonly<Record<string, unknown>>>(
     perform,
     report,
     minutes,
-    offeredFor: (thing: ObjectRef): boolean => {
-      const on = d.on;
-      if (on !== undefined) {
-        const list: readonly ObjectRef[] = Array.isArray(on) ? on : [on as ObjectRef];
-        if (list.some((t) => t.id === thing.id)) return true;
-      }
-      return d.for?.(thing) ?? false;
-    },
+    offeredFor: (thing: ObjectRef): boolean =>
+      (ons.get(name) ?? []).some((t) => t.id === thing.id) || (d.for?.(thing) ?? false),
     label: (args: A): string => {
       const l = d.label;
       return l === undefined
@@ -253,6 +284,9 @@ export function action<A extends Readonly<Record<string, unknown>>>(
     },
   }) as Action<A>;
   actions.set(name, made as unknown as Action<never>);
+  roles.set(name, others);
+  const on = d.on;
+  ons.set(name, on === undefined ? [] : Array.isArray(on) ? on : [on as ObjectRef]);
   return made;
 }
 
@@ -267,20 +301,69 @@ function contextFor<A>(call: ActionCall<A>): ActionContext<A> {
   }) as ActionContext<A>;
 }
 
+/** Whether `thing` can fill a role. */
+const fits = (p: Participant, thing: ObjectRef): boolean =>
+  typeof p === "function" ? p(thing) : p.id === thing.id;
+
 /**
- * The actions a menu for `thing` offers, in the order they were defined,
- * each called with the thing as its `thing`: those `on` it, and those `for`
- * things like it. Whether each is shown, and allowed, is up to
+ * The actions a menu for `thing` offers, in the order they were defined:
+ * those `on` it or `for` things like it, with it as their `thing`, and
+ * those whose `with` it fits, in that role. Their other roles are filled
+ * every way they can be, from fixed things and {@link useCandidates}'s,
+ * never with a thing twice. Whether each is shown, and allowed, is up to
  * {@link statusOf}.
  */
 export function actionsFor(thing: ObjectRef): ActionCall[] {
   // The object itself, so a `for` rule can read its properties, given only its ID.
   thing = handleFor(thing.id, "actionsFor") as ObjectRef;
+  let pool: readonly ObjectRef[] | undefined;
+  const things = (): readonly ObjectRef[] =>
+    (pool ??= (candidates?.() ?? []).map((t) => handleFor(t.id, "actionsFor") as ObjectRef));
   const out: ActionCall[] = [];
   for (const a of actions.values()) {
-    const offered = a as unknown as Action<{ thing: ObjectRef }>;
-    if (offered.offeredFor(thing)) {
-      out.push(offered({ thing }) as unknown as ActionCall);
+    const offered = a as unknown as Action<Readonly<Record<string, ObjectRef>>>;
+    const others = roles.get(a.actionName) ?? [];
+    const seen = new Set<string>();
+    /** Fills the roles left, every way they can be, and offers each. */
+    const fill = (args: Readonly<Record<string, ObjectRef>>, left: typeof others): void => {
+      const [next, ...rest] = left;
+      if (!next) {
+        const key = Object.keys(args)
+          .sort()
+          .map((k) => `${k}=${args[k]?.id ?? ""}`)
+          .join(",");
+        if (!seen.has(key)) {
+          seen.add(key);
+          out.push(offered(args) as unknown as ActionCall);
+        }
+        return;
+      }
+      const [role, p] = next;
+      const used = new Set(Object.values(args).map((t) => t.id));
+      const options =
+        typeof p === "function"
+          ? things().filter((t) => p(t))
+          : [handleFor(p.id, `action ${JSON.stringify(a.actionName)}`) as ObjectRef];
+      for (const t of options) if (!used.has(t.id)) fill({ ...args, [role]: t }, rest);
+    };
+    // As its main thing.
+    if (offered.offeredFor(thing)) fill({ thing }, others);
+    // As one of its other things, with every thing it's offered on as the main one.
+    for (const [role, p] of others) {
+      if (!fits(p, thing)) continue;
+      const on = (ons.get(a.actionName) ?? []).map(
+        (t) => handleFor(t.id, `action ${JSON.stringify(a.actionName)}`) as ObjectRef,
+      );
+      const mains = [...on, ...things()].filter(
+        (t, i, all) =>
+          t.id !== thing.id && all.findIndex((u) => u.id === t.id) === i && offered.offeredFor(t),
+      );
+      for (const main of mains) {
+        fill(
+          { thing: main, [role]: thing },
+          others.filter(([r]) => r !== role),
+        );
+      }
     }
   }
   return out;

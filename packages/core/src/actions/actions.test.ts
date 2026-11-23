@@ -6,7 +6,15 @@ import { readReplay, writeReplay } from "../replay/replay.js";
 import { hook } from "../rules/hooks.js";
 import { createHistory } from "../state/history.js";
 import { createStore, type StateStore } from "../state/store.js";
-import { action, actLink, everyAction, perform, statusOf } from "./actions.js";
+import {
+  action,
+  actionsFor,
+  actLink,
+  everyAction,
+  perform,
+  statusOf,
+  useCandidates,
+} from "./actions.js";
 
 const door = object("door", {
   name: "cellar door",
@@ -17,6 +25,8 @@ const door = object("door", {
   },
 });
 const bell = object("bell", { name: "bell", rung: 0 });
+const hammer = object("hammer", { name: "hammer", isHeavy: true });
+const spoon = object("spoon", { name: "spoon", isHeavy: false });
 
 // #region open
 export const open = action<{ thing: typeof door }>("open", {
@@ -199,5 +209,35 @@ describe("stages", () => {
     );
     const odd = action<{ actor: typeof door }>("odd");
     expect(() => odd({ actor: door })).toThrow('a thing can\'t be called "actor"');
+  });
+});
+
+describe("other things, filled in by menus", () => {
+  const strike = action<{ thing: typeof bell; tool: typeof hammer }>("strike", {
+    on: bell,
+    with: { tool: (t) => "isHeavy" in t && t.isHeavy === true },
+    label: ({ thing, tool }) => `Strike the ${thing.name} with the ${tool.name}`,
+  });
+  const tap = action<{ thing: typeof bell; tool: typeof spoon }>("tap", {
+    on: bell,
+    with: { tool: spoon },
+    label: ({ tool }) => `Tap it with the ${tool.name}`,
+  });
+  const labels = (of: { id: string }) =>
+    actionsFor(of)
+      .filter((c) => c.action === (strike as unknown) || c.action === (tap as unknown))
+      .map((c) => statusOf(c).label);
+
+  it("are fixed things, or, with candidates, the things that suit", () => {
+    begin();
+    expect(labels(bell)).toEqual(["Tap it with the spoon"]); // no candidates
+    useCandidates(() => [door, hammer, spoon]);
+    added.push(() => {
+      useCandidates(undefined);
+    });
+    expect(labels(bell)).toEqual(["Strike the bell with the hammer", "Tap it with the spoon"]);
+    expect(labels(hammer)).toEqual(["Strike the bell with the hammer"]);
+    expect(labels(spoon)).toEqual(["Tap it with the spoon"]);
+    expect(labels(door)).toEqual([]);
   });
 });

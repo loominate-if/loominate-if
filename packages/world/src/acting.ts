@@ -6,9 +6,17 @@
  * action needs a body to act with, and its things in reach; otherwise it
  * isn't offered.
  */
-import { everyAction, message, messages, t, useActor, type ObjectRef } from "@loominate-if/core";
+import {
+  everyAction,
+  message,
+  messages,
+  t,
+  useActor,
+  useCandidates,
+  type ObjectRef,
+} from "@loominate-if/core";
 import { currentPlayerBody, currentPlayerMind } from "./actors.js";
-import { canReach } from "./scope.js";
+import { canReach, inScope } from "./scope.js";
 import { thingFor } from "./things.js";
 
 declare module "@loominate-if/core" {
@@ -23,6 +31,12 @@ declare module "@loominate-if/core" {
 const SOURCE = "@loominate-if/world";
 messages.register("action.noBody", "You have no body to act with.", { source: SOURCE });
 messages.register("action.outOfReach", t`{The subj thing} {is} out of reach.`, { source: SOURCE });
+
+// Menus fill actions' other things from what the player can reach.
+useCandidates(() => {
+  const body = currentPlayerBody();
+  return body ? inScope(body, "reach") : [];
+});
 
 // The player's mind acts, through its body.
 useActor(() => {
