@@ -333,6 +333,69 @@ expect(tom.mood).toBe("sleepy"); // the actor's own mind, wherever it is
 
 `bodyOf(mind)`, `mindOf(body)`, and `passengersOf(body)` say who's where. Every change is state, so undo, saves, and the inspector see it.
 
+### Who others take you for
+
+Others see bodies, not minds. Who they think they're facing is a belief: by default, the person the body belongs to, an actor's own mind, whichever mind is in it now. A disguise makes a body pass for someone else, another actor, or a stranger:
+
+<!-- example: packages/world/src/identity.test.ts#people -->
+```ts
+export const roy = actor("roy", { body: { name: "Roy", isProper: true, location: gate } });
+export const captain = actor("captain", { body: { name: "captain", location: gate } });
+export const guard = actor("guard", { body: { name: "guard", location: gate } });
+export const bob = mind("bob", { name: "Bob" });
+/** What the guard says to whoever he takes `someone` for. */
+export const greeting = (someone: typeof roy): string => {
+  const feeling = attitudeTo(guard, someone);
+  return feeling > 0
+    ? "“Evening, sir. Go on through.”"
+    : feeling < 0
+      ? "“You. Turn around.”"
+      : "“State your business.”";
+};
+```
+
+<!-- example: packages/world/src/identity.test.ts#disguise -->
+```ts
+expect([name(whoIs(guard, roy)), greeting(roy)]).toEqual(["roy:mind", "“You. Turn around.”"]);
+disguise(roy, { as: captain });
+expect([name(whoIs(guard, roy)), greeting(roy)]).toEqual([
+  "captain:mind",
+  "“Evening, sir. Go on through.”",
+]);
+expect(attitude(guard, roy)).toBe(-3); // how he feels about Roy hasn't changed
+```
+
+- `whoIs(observer, body)` is who the observer believes the body is, or `undefined` for a stranger.
+- **Attitudes:** `attitude(observer, someone)` is how they feel about a mind: a number, 0 unless `setAttitude` or `changeAttitude` says. `attitudeTo(observer, body)` is how they feel about whoever they believe the body is: what an NPC acts on. So a disguise changes what they do, but never how they feel about the real person.
+- **Seeing through:** `expose(body, observer)` means the observer has seen who's really there, through the disguise and past whose body it is. A new disguise, or another mind in the body, can fool them again. `seesThrough(observer, body)` says whether they do.
+
+<!-- example: packages/world/src/identity.test.ts#expose -->
+```ts
+expose(roy, guard);
+expect([name(whoIs(guard, roy)), greeting(roy), seesThrough(guard, roy)]).toEqual([
+  "roy:mind",
+  "“You. Turn around.”",
+  true,
+]);
+disguise(roy, { as: "a hooded figure" });
+expect([name(whoIs(guard, roy)), greeting(roy)]).toEqual([
+  "a stranger",
+  "“State your business.”",
+]);
+```
+
+Possession and body swaps fool people the same way: Bob in Roy's body is taken for Roy, until someone learns better.
+
+<!-- example: packages/world/src/identity.test.ts#possession -->
+```ts
+possess(bob, roy);
+expect(name(whoIs(guard, roy))).toBe("roy:mind"); // the guard sees Roy's body
+expose(roy, guard);
+expect(name(whoIs(guard, roy))).toBe("bob");
+```
+
+Everyone recognises everyone, so there's no "have we met". A game that wants strangers can treat whoever it likes as one in its own rules.
+
 ## Rooms and regions
 
 A **room** is a place a passage describes. Tag the passage with `room:` and the place it describes, and arriving at the passage moves the player there and counts a visit:
