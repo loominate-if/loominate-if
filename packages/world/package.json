@@ -23,7 +23,8 @@
     }
   },
   "loominate": {
-    "extension": "./dist/extension.js"
+    "extension": "./dist/extension.js",
+    "inspector": "./dist/inspector/inspector.js"
   },
   "files": [
     "dist",
@@ -32,6 +33,19 @@
   "dependencies": {
     "@loominate-if/core": "workspace:^",
     "@loominate-if/presentation": "workspace:^"
+  },
+  "peerDependencies": {
+    "@loominate-if/inspector": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@loominate-if/inspector": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@loominate-if/inspector": "workspace:^",
+    "axe-core": "4.14.0",
+    "jsdom": "30.1.3"
   },
   "publishConfig": {
     "access": "public"

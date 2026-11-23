@@ -159,6 +159,7 @@ export type DaemonOptions = {
     readonly standsOut?: boolean;
     readonly joins?: string;
     readonly clause?: Clause;
+    readonly source?: string;
 };
 
 // @public
@@ -230,6 +231,9 @@ export const door: {
 export const drop: Action<    {
 thing: ActingOn;
 }>;
+
+// @public
+export type Ended = "fired" | "cancelled" | "stopped";
 
 // @public
 export function enterRoom(room: Place, context?: EffectContext): void;
@@ -316,6 +320,7 @@ export type FuseOptions = {
     readonly standsOut?: boolean;
     readonly joins?: string;
     readonly clause?: Clause;
+    readonly source?: string;
 };
 
 // @public
@@ -608,6 +613,21 @@ export type Scheduled = {
     readonly firesAt: number | undefined;
     readonly unit: "minutes" | "moves";
     start(): void;
+};
+
+// @internal
+export function _scheduled(): readonly _ScheduledInfo[];
+
+// @internal
+export type _ScheduledInfo = Scheduled & {
+    readonly kind: "fuse" | "daemon";
+    readonly delay: number;
+    readonly priority: number;
+    readonly interrupts: boolean;
+    readonly standsOut: boolean;
+    readonly joins: string | undefined;
+    readonly source: string;
+    readonly ended: Ended | undefined;
 };
 
 // @public
