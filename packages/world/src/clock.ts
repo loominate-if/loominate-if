@@ -11,7 +11,7 @@
 import { hook, message, messages, object, StateError } from "@loominate-if/core";
 import { textWidget, widgets } from "@loominate-if/presentation";
 import { exitsOf } from "./exits.js";
-import { fireMoves, firingNow, nextInMinutes } from "./schedule.js";
+import { fireMoves, firingNow, holdNotices, nextInMinutes, tellHeld } from "./schedule.js";
 import type { Place } from "./things.js";
 
 declare module "@loominate-if/core" {
@@ -207,6 +207,9 @@ export const clock: Clock = Object.freeze({
     const target = from + minutes;
     const jump: Jump = {};
     jumps.push(jump);
+    // What fuses and daemons say on the way is written up at the end, so repeats can be summed up.
+    const holding = holdNotices();
+    let done = false;
     try {
       // Step to each fuse and daemon due on the way, so each fires at its own time.
       for (let next = nextInMinutes(target); next; next = nextInMinutes(target)) {
@@ -219,13 +222,16 @@ export const clock: Clock = Object.freeze({
           for (let now = nextInMinutes(state.elapsed); now; now = nextInMinutes(state.elapsed)) {
             now.fire();
           }
+          done = true;
           return { minutes: state.elapsed - from, interrupted: true, by: jump.by };
         }
       }
       step(target);
+      done = true;
       return { minutes, interrupted: false };
     } finally {
       jumps.pop();
+      if (holding) tellHeld(done ? jump.by : undefined);
     }
   },
   interrupt() {
@@ -239,9 +245,21 @@ export const clock: Clock = Object.freeze({
   },
 });
 
-/** The time of day now, worded through the message table, such as "9:45 pm". */
-export function timeOfDay(): string {
-  return message("clock.time", { day: clock.day, hour: clock.hour, minute: clock.minute });
+/**
+ * The time of day, worded through the message table, such as "9:45 pm":
+ * now, or at `minutes` on the clock, such as a summary's `from`.
+ */
+export function timeOfDay(minutes?: number): string {
+  if (minutes === undefined) {
+    return message("clock.time", { day: clock.day, hour: clock.hour, minute: clock.minute });
+  }
+  if (!isMinutes(minutes)) throw minutesError("timeOfDay", minutes);
+  const t = start.minuteOfDay + minutes;
+  return message("clock.time", {
+    day: start.day + Math.floor(t / DAY),
+    hour: Math.floor((t % DAY) / 60),
+    minute: t % 60,
+  });
 }
 
 /**
@@ -280,7 +298,7 @@ hook("turnEnd").rule(
  * unless the game adds it, as with `addToHeader("clock")`.
  */
 export const clockWidget = textWidget({
-  text: timeOfDay,
+  text: () => timeOfDay(),
   label: () => message("clock.label"),
   className: "loominate-clock",
 });

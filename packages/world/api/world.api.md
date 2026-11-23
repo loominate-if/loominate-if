@@ -149,6 +149,7 @@ export type DaemonOptions = {
     readonly running?: boolean;
     readonly interrupts?: boolean;
     readonly priority?: number;
+    readonly summary?: Summary;
 };
 
 // @public
@@ -302,6 +303,7 @@ export type FuseOptions = {
     readonly running?: boolean;
     readonly interrupts?: boolean;
     readonly priority?: number;
+    readonly summary?: Summary;
 };
 
 // @public
@@ -571,6 +573,14 @@ export function registerRoom(room: Place, passage: {
 }): void;
 
 // @public
+export type Repeated = {
+    readonly count: number;
+    readonly from: number;
+    readonly to: number;
+    readonly lines: readonly string[];
+};
+
+// @public
 export function reveal(args: RevealArguments, context?: EffectContext): void;
 
 // @public
@@ -599,6 +609,9 @@ export function startAs(m: ObjectRef): void;
 
 // @public
 export function startClock(options: ClockStart): void;
+
+// @public
+export type Summary = (repeated: Repeated) => string | Text | undefined;
 
 // @public
 export const surface: {
@@ -647,7 +660,7 @@ export function thingTemplate<D extends ObjectDefinition<D> & {
 } & ThisType<Handle<ThingOf<D>>>): ObjectTemplate<ThingOf<D>>;
 
 // @public
-export function timeOfDay(): string;
+export function timeOfDay(minutes?: number): string;
 
 // @public
 export function totalVisitsTo(room: ObjectRef): number;
