@@ -298,6 +298,7 @@ The primary clock is an in-world clock measured in minutes; most actions are fre
 
 - **Action costs.** Zero by default. Travel derives its cost from the route. Any action or inline code can advance time, including partway through an action.
 - **Action counter.** A secondary per-action counter exists for things that should happen "every move."
+- **The clock** is the world model's `clock`: minutes since the game began, the day, hour, and minute from `startClock({ at })`, and the moves made, all in state. Actions' `minutes` reach it through core's `actionTime` hook. Travel takes the exit's `minutes` or the game's `travelMinutes`, which defaults to 0. A `clock` widget shows the time when a game adds it to the header ([ADR 0049](decisions/0049-game-clock.md), [guide](guide/world.md#time)).
 - **Fuses and daemons.** A fuse fires once at a time or after a delay; a daemon recurs. Both are cancellable objects in the state store, visible to save, undo, and the inspector.
 
 ```ts

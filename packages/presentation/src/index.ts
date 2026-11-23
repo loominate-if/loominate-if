@@ -45,3 +45,4 @@ export {
   type ListedThing,
   type ThingsWidgetOptions,
 } from "./page/things.js";
+export { textWidget, type TextWidgetOptions } from "./page/text.js";
