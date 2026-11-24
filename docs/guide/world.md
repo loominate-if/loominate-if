@@ -1133,6 +1133,29 @@ everyTurn(villain, "steals", ({ npc }) => {
 - **Order:** an NPC's rules run in the order they're added, and NPCs take their turns in ID order, so the same moves always give the same results. A continue isn't a move, so it gives no turns, and a long wait gives one turn, not one per minute.
 - **In the inspector:** each NPC's turn is its own hook, `npc:` and their ID, in the Rules tab, so you can see whose turn ran and what each rule did. `getsTurn(npc)` says whether an NPC gets one now.
 
+### Catching up
+
+An observed-only NPC takes no turns while unseen, so whatever they'd have done offstage doesn't happen. `catchUp` works it out when they're next seen: it runs once, just before their first turn after a stretch without one, with how long that was. It changes state directly, not through actions, since nobody saw it:
+
+<!-- example: packages/world/src/catch-up.test.ts#catch-up -->
+```ts
+catchUp(butler, "tidied the hall", ({ npc, minutes, moves }) => {
+  caught.push({ minutes, moves });
+  // Long enough away, and the hall got tidied, unseen.
+  if (minutes >= 30 && cake.location?.id === "hall") move(cake, npc);
+});
+```
+
+Which to use for what happens offstage:
+
+| | For | Cost |
+| --- | --- | --- |
+| `catchUp` | an NPC's own doings, worked out when they're next seen | nothing while they're unseen |
+| fuses and daemons | timed effects on the world, whoever's watching: "the baker restocks at 6 am" | one check per minute or move each |
+| `simulate` | the few characters who must act every move, wherever they are | a turn every move |
+
+`catchUp` fires when the NPC is seen again, not when a room they changed is. For that, use a fuse or daemon, or `simulate`. In the inspector, each NPC's catching up is the hook `catchUp:` and their ID.
+
 ## Scenes
 
 A **scene** is a named period of the story, as Inform 7 and adv3Lite have them: a storm, a dinner party, a chase. It starts when something holds, at a time, or when your code says, and ends the same ways, and while it's happening it can add rules and actions. (It isn't a cut scene, a passage of timed beats.)
