@@ -1490,6 +1490,21 @@ topic(maid, { askOrTell: anything, says: "“I wouldn't know, miss.”" });
 - **Telling an NPC a fact** teaches it to them, from the player, whatever they reply, unless the entry says `informs: false`.
 - The player can't ask or tell about a fact they don't know: "You don't know anything about that."
 
+## Companions
+
+A companion is an ordinary NPC with extra states: one who's accompanying the player goes where they go, and one who's waiting stays put.
+
+<!-- example: packages/world/src/companions.test.ts#companions -->
+```ts
+companion(mira, { starts: "accompanying" });
+companion(tom, { starts: "waiting" });
+```
+
+- **Accompanying:** when the player goes from one room to another, every accompanying companion who was with them comes too, and the move is told once, before the new room's text: "You and Mira head north.", "You, Mira, and Tom head north.", or, with no exit between, as a jump in a passage, "Mira comes with you." They aren't told as arriving apart, and they see what's there, as their own knowledge. A companion who isn't with the player when they move stays where they are.
+- **Waiting:** `waitHere(mira)` has them stay: "Mira waits here." `accompany(mira)` has them come along again: "Mira comes along." Both are game state; in `story.ts`, they set how a companion starts. `companionState(mira)` says which, or `undefined` for an NPC who isn't a companion.
+- **Timetables** don't move a companion while they're accompanying the player.
+- Orders the player gives as actions, such as "Ask Mira to wait", come next; these are what they call.
+
 ## Scenes
 
 A **scene** is a named period of the story, as Inform 7 and adv3Lite have them: a storm, a dinner party, a chase. It starts when something holds, at a time, or when your code says, and ends the same ways, and while it's happening it can add rules and actions. (It isn't a cut scene, a passage of timed beats.)

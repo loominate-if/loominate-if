@@ -19,6 +19,7 @@ const passages: Passage[] = [
       { type: "text", text: "A shop." },
       { type: "link", label: "Fall through", target: "Trapdoor" },
       { type: "link", label: "Pay", target: "Paid" },
+      { type: "link", label: "Out", target: "Garden" },
     ],
   },
   {
@@ -31,6 +32,18 @@ const passages: Passage[] = [
       },
     },
     body: () => [{ type: "text", text: "A trapdoor." }],
+  },
+  {
+    // What led here, told on arrival with the `lead` tag, as companions coming along (#121).
+    id: "Garden",
+    tags: [],
+    effects: {
+      enter: ({ emit }) => {
+        emit("action-result", { text: "You and Mira head out." }, ["lead"]);
+        emit("action-result", { text: "A bee buzzes." });
+      },
+    },
+    body: () => [{ type: "text", text: "A garden." }],
   },
   {
     id: "Paid",
@@ -92,6 +105,12 @@ describe("a redirected move on the page", () => {
     expect([story.current, errors]).toEqual(["Street", []]);
     // What led to the redirect comes first, before the passage the player was sent to.
     expect(passage()).toEqual(["The floor gives way!", "A street.", "Back in"]);
+  });
+
+  it("puts a notice tagged lead before the passage's text, wherever it was recorded", () => {
+    const { click, passage } = play();
+    click("Out");
+    expect(passage()).toEqual(["You and Mira head out.", "A garden.", "A bee buzzes."]);
   });
 
   it("puts what led to it between the two passages in the story so far", () => {

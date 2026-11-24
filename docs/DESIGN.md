@@ -461,6 +461,7 @@ A game has one player character plus optional companions, who are ordinary NPCs 
 | Waiting | Stays put when asked |
 | Independent | Sent off with an agenda (go, explore, return or wait), handled by the scheduled or simulated NPC levels |
 
+- **Accompanying and waiting.** `companion(npc, { starts })` makes a companion; `accompany` and `waitHere` change their state, as game state. When the player goes from one room to another, accompanying companions who were with them come too, told once before the new room's text ("You and Mira head north."), through a `lead` tag on the notice; timetables don't move them meanwhile ([ADR 0098](decisions/0098-companions.md)).
 - **Following.** The player can follow any NPC who leaves, reusing the same movement machinery, as TADS's follow command did.
 - **Orders are actions.** "Ask Mira to wait here" or "Ask Tom to pick the lock" go through verify and check, so companions can refuse, and their own skills and inventory are used. Giving and taking items between characters are ordinary actions.
 - **Splitting up.** What a companion sees while away becomes their knowledge, sourced to them. On reunion, "What did you find?" becomes a topic that reveals those facts; the story log records the report as dialogue. Offstage danger is a fuse or daemon.

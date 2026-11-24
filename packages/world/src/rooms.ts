@@ -47,11 +47,20 @@ export function enterRoom(room: Place, context?: EffectContext): void {
   if (from?.id !== room.id) {
     move(body, room);
     if (from) travelled(from, room);
+    if (from) for (const l of moving) l(from, room);
   }
   visits.counts[room.id] = totalVisitsTo(room) + 1;
   rememberRoomVisit(playerMind(), room);
   // Every mind in the body sees the room, the one in control and its passengers.
   noteSights(body, mindsIn(body));
+}
+
+/** What's told when the player goes from one room to another, as companions coming along. */
+const moving: ((from: Place, to: Place) => void)[] = [];
+
+/** Calls `listener` each time the player goes from one room to another, after they've moved. @internal */
+export function _whenPlayerMoves(listener: (from: Place, to: Place) => void): void {
+  moving.push(listener);
 }
 
 /** The passages that describe each room, by the room's ID, in the order the game loaded them. */

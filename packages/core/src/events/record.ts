@@ -278,7 +278,9 @@ export function _leadingNotices<E extends { readonly kind: string }>(
   const rest: E[] = [];
   events.forEach((e, i) => {
     if (e.kind === "navigation") return;
-    if (i < last && !_isAtmosphere(e)) lead.push(e);
+    // An event tagged `lead` says what led to the passage, as "You and Mira head north.", wherever it was recorded.
+    const leads = (e as { readonly tags?: readonly string[] }).tags?.includes("lead") === true;
+    if (leads || (i < last && !_isAtmosphere(e))) lead.push(e);
     else rest.push(e);
   });
   return { lead, rest };

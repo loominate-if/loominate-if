@@ -68,6 +68,8 @@ A message's text is one of three things:
 | `conversation.locked` | `who` | Why goodbye and exits are disabled under a hard lock with no `objects` line: "You can't leave until you answer the inspector." |
 | `conversation.cast`, `conversation.topics` | | What conversation mode's cast and topics are called, for screen readers: "In the conversation", "Topics" |
 | `conversation.room` | `room` (the player's place) | What the disclosure of the room's own links is called in conversation mode: "In the study" |
+| `companions.together` | `companions`, `way` (a direction's name, if there's an exit) | Moving with companions: "You and Mira head north.", "Mira comes with you." |
+| `companions.waits`, `companions.accompanies` | `companion` | "Mira waits here.", "Mira comes along." |
 | `topic.player.ask`, `topic.player.tell` | `who`, `about` | The player's line: "You ask the maid about the gold." |
 | `topic.player.show`, `topic.player.give` | `who`, `thing` | "You show the brooch to the maid." |
 | `topic.player.hello`, `topic.player.bye`, `topic.player.yes`, `topic.player.no` | `who` | "You greet the maid.", "You say goodbye to the maid.", "You say yes." |

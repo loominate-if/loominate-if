@@ -31,6 +31,9 @@ import { WidgetDefinition } from '@loominate-if/presentation';
 export function accept(text: string | Text, then?: () => void): Reaction;
 
 // @public
+export function accompany(npc: ObjectRef): void;
+
+// @public
 export function actAs(who: ObjectRef, call: ActionCall<any>): ActionOutcome;
 
 // @public
@@ -303,6 +306,17 @@ export type ClosingStep = {
 
 // @public
 export function closingTime(door: ObjectRef, steps: readonly ClosingStep[]): void;
+
+// @public
+export function companion(npc: ObjectRef, options?: {
+    readonly starts?: CompanionState;
+}): void;
+
+// @public
+export type CompanionState = "accompanying" | "waiting";
+
+// @public
+export function companionState(npc: ObjectRef): CompanionState | undefined;
 
 // @public
 export function compass(settings?: CompassSettings): WidgetDefinition<CompassData>;
@@ -1802,6 +1816,9 @@ readonly minutes: number;
 
 // @public
 export function waitCondition(name: string, holds: () => boolean): void;
+
+// @public
+export function waitHere(npc: ObjectRef): void;
 
 // @public
 export function waitMenu(choices: readonly MenuChoice[] | (() => readonly MenuChoice[])): void;
