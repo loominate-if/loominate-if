@@ -1049,6 +1049,9 @@ export type SceneOptions = {
 };
 
 // @public
+export function schedule(npc: ObjectRef, entries: readonly TimetableEntry[]): void;
+
+// @public
 export type Scheduled = {
     readonly id: StateId;
     readonly isRunning: boolean;
@@ -1287,6 +1290,13 @@ export type ThresholdSpec = {
 export function timeOfDay(minutes?: number): string;
 
 // @public
+export type TimetableEntry = {
+    readonly at: string;
+    readonly in: ObjectRef;
+    readonly on?: CalendarQuery;
+};
+
+// @public
 export function totalVisitsTo(room: ObjectRef): number;
 
 // @public
@@ -1352,6 +1362,9 @@ export type WaitUntil = {
 
 // @public
 export const waitUntil: Action<WaitUntil>;
+
+// @public
+export function whereScheduled(npc: ObjectRef, minutes?: number): ObjectRef | undefined;
 
 // @public
 export function whoIs(observer: ObjectRef, b: ObjectRef): Mind | undefined;
