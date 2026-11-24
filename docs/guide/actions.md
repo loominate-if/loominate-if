@@ -29,6 +29,7 @@ export const open = action<{ thing: typeof door }>("open", {
 - `verify` and `check` return why not, or `undefined`.
 - `report` is text, or a function of the things, recorded as an `action-result` event. A `t` template works, naming things by name, as `{the thing}`.
 - `minutes` is how long it takes. Core has no clock; the game clock (#84) will count it, through the `actionTime` hook.
+- `seen` is what onlookers see when someone other than the player takes it, as "The butler rings the bell.": text, or a function of its things and who's acting. With the world model, `actAs` tells whoever can see them.
 
 ## Offering one from a passage
 

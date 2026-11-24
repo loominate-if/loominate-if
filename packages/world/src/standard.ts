@@ -68,6 +68,15 @@ declare module "@loominate-if/core" {
     "show.label": { readonly thing: ObjectRef; readonly to: ObjectRef };
     /** What happens when no rule in `showing` answers: "The toll keeper glances at the pass." */
     "show.unmoved": { readonly thing: ObjectRef; readonly to: ObjectRef };
+    /** What onlookers see when someone other than the player takes something: "The butler takes the iron key." `actor` is their body. */
+    "take.seen": { readonly actor: ObjectRef; readonly thing: ObjectRef };
+    "drop.seen": { readonly actor: ObjectRef; readonly thing: ObjectRef };
+    "open.seen": { readonly actor: ObjectRef; readonly thing: ObjectRef };
+    "close.seen": { readonly actor: ObjectRef; readonly thing: ObjectRef };
+    "lock.seen": { readonly actor: ObjectRef; readonly thing: ObjectRef };
+    "unlock.seen": { readonly actor: ObjectRef; readonly thing: ObjectRef };
+    "give.seen": { readonly actor: ObjectRef; readonly thing: ObjectRef; readonly to: ObjectRef };
+    "show.seen": { readonly actor: ObjectRef; readonly thing: ObjectRef; readonly to: ObjectRef };
     "open.label": { readonly thing: ObjectRef };
     "open.done": { readonly thing: ObjectRef };
     "open.already": { readonly thing: ObjectRef };
@@ -118,6 +127,14 @@ say("give.label", t`Give {the thing} to {the to}`);
 say("give.declined", t`{The subj to} {does}n't want {the thing}.`);
 say("show.label", t`Show {the thing} to {the to}`);
 say("show.unmoved", t`{The subj to} {glances} at {the thing}.`);
+say("take.seen", t`{The subj actor} {takes} {the thing}.`);
+say("drop.seen", t`{The subj actor} {drops} {the thing}.`);
+say("open.seen", t`{The subj actor} {opens} {the thing}.`);
+say("close.seen", t`{The subj actor} {closes} {the thing}.`);
+say("lock.seen", t`{The subj actor} {locks} {the thing}.`);
+say("unlock.seen", t`{The subj actor} {unlocks} {the thing}.`);
+say("give.seen", t`{The subj actor} {gives} {the thing} to {the to}.`);
+say("show.seen", t`{The subj actor} {shows} {the to} {the thing}.`);
 say("open.label", t`Open {the thing}`);
 say("open.done", t`You open {the thing}.`);
 say("open.already", t`{The subj thing} {is} already open.`);
@@ -188,6 +205,7 @@ export const examine = action<{ thing: ActingOn }>("examine", {
 /** Takes a thing, into the actor's body. */
 export const take = action<{ thing: ActingOn }>("take", {
   source: SOURCE,
+  seen: ({ thing, body }) => (body ? message("take.seen", { actor: body, thing }) : ""),
   verbs: [
     "take {thing}",
     "get {thing}",
@@ -211,6 +229,7 @@ export const take = action<{ thing: ActingOn }>("take", {
 /** Drops a thing the actor carries, where the actor is. */
 export const drop = action<{ thing: ActingOn }>("drop", {
   source: SOURCE,
+  seen: ({ thing, body }) => (body ? message("drop.seen", { actor: body, thing }) : ""),
   verbs: ["drop {thing}", "put down {thing}", "put {thing} down", "drop all (of) {thing}"],
   for: isPortable,
   label: ({ thing }) =>
@@ -372,6 +391,7 @@ let reacted = "";
 /** Gives something the actor carries to someone present, who reacts through {@link giving}. */
 export const give = action<{ thing: ActingOn; to: ActingOn }>("give", {
   source: SOURCE,
+  seen: ({ thing, to, body }) => (body ? message("give.seen", { actor: body, thing, to }) : ""),
   verbs: [
     "give {thing} to {to}",
     "give {to} {thing}",
@@ -391,7 +411,11 @@ export const give = action<{ thing: ActingOn; to: ActingOn }>("give", {
       ...(c.body && { body: c.body }),
     };
     answer(
-      giving.run(offer) ?? react(message("give.declined", { thing: c.thing, to: c.to })),
+      giving.run(offer) ??
+        // The player can't refuse what they're given; an NPC declines unless a rule says otherwise.
+        (c.to.id === currentPlayerBody()?.id
+          ? accept("")
+          : react(message("give.declined", { thing: c.thing, to: c.to }))),
       offer,
       true,
     );
@@ -402,6 +426,7 @@ export const give = action<{ thing: ActingOn; to: ActingOn }>("give", {
 /** Shows something the actor carries to someone present, who reacts through {@link showing}. */
 export const show = action<{ thing: ActingOn; to: ActingOn }>("show", {
   source: SOURCE,
+  seen: ({ thing, to, body }) => (body ? message("show.seen", { actor: body, thing, to }) : ""),
   verbs: ["show {thing} to {to}", "show {to} {thing}"],
   for: isCarried,
   with: { to: isSomeone },
@@ -416,7 +441,10 @@ export const show = action<{ thing: ActingOn; to: ActingOn }>("show", {
       ...(c.body && { body: c.body }),
     };
     answer(
-      showing.run(offer) ?? react(message("show.unmoved", { thing: c.thing, to: c.to })),
+      showing.run(offer) ??
+        (c.to.id === currentPlayerBody()?.id
+          ? react("")
+          : react(message("show.unmoved", { thing: c.thing, to: c.to }))),
       offer,
       false,
     );
@@ -427,6 +455,7 @@ export const show = action<{ thing: ActingOn; to: ActingOn }>("show", {
 /** Opens something openable, unless it's locked. */
 export const open = action<{ thing: ActingOn }>("open", {
   source: SOURCE,
+  seen: ({ thing, body }) => (body ? message("open.seen", { actor: body, thing }) : ""),
   verbs: ["open {thing}"],
   for: isOpenable,
   label: ({ thing }) => message("open.label", { thing }),
@@ -441,6 +470,7 @@ export const open = action<{ thing: ActingOn }>("open", {
 /** Closes something openable. */
 export const close = action<{ thing: ActingOn }>("close", {
   source: SOURCE,
+  seen: ({ thing, body }) => (body ? message("close.seen", { actor: body, thing }) : ""),
   verbs: ["close {thing}", "shut {thing}"],
   for: isOpenable,
   label: ({ thing }) => message("close.label", { thing }),
@@ -454,6 +484,7 @@ export const close = action<{ thing: ActingOn }>("close", {
 /** Locks something lockable, with its key if it has one; it must be closed. */
 export const lock = action<{ thing: ActingOn }>("lock", {
   source: SOURCE,
+  seen: ({ thing, body }) => (body ? message("lock.seen", { actor: body, thing }) : ""),
   verbs: ["lock {thing}"],
   for: isLockable,
   label: ({ thing }) => message("lock.label", { thing }),
@@ -469,6 +500,7 @@ export const lock = action<{ thing: ActingOn }>("lock", {
 /** Unlocks something lockable, with its key if it has one. */
 export const unlock = action<{ thing: ActingOn }>("unlock", {
   source: SOURCE,
+  seen: ({ thing, body }) => (body ? message("unlock.seen", { actor: body, thing }) : ""),
   verbs: ["unlock {thing}"],
   for: isLockable,
   label: ({ thing }) => message("unlock.label", { thing }),

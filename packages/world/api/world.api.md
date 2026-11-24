@@ -5,6 +5,8 @@
 ```ts
 
 import { Action } from '@loominate-if/core';
+import { ActionCall } from '@loominate-if/core';
+import { ActionOutcome } from '@loominate-if/core';
 import { CompassData } from '@loominate-if/presentation';
 import { DecideRulebook } from '@loominate-if/core';
 import { EffectContext } from '@loominate-if/core';
@@ -24,6 +26,9 @@ import { WidgetDefinition } from '@loominate-if/presentation';
 
 // @public
 export function accept(text: string | Text, then?: () => void): Reaction;
+
+// @public
+export function actAs(who: ObjectRef, call: ActionCall<any>): ActionOutcome;
 
 // @public
 export type ActingOn = Thing & {
@@ -544,6 +549,11 @@ to: ActingOn;
 
 // @public
 export const giving: DecideRulebook<Offer, Reaction | undefined>;
+
+// @public
+export const go: Action<    {
+way: string;
+}>;
 
 // @public
 export type Grammar = {
