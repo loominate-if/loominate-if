@@ -323,6 +323,7 @@ export {
   _topicEntries,
   _topicExplanations,
   type ActorState,
+  type ListOrder,
   type Says,
   type Subject,
   type Topic,
