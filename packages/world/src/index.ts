@@ -367,3 +367,4 @@ export {
   waitHere,
   type CompanionState,
 } from "./companions.js";
+export { follow } from "./following.js";

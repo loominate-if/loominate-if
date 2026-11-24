@@ -70,6 +70,8 @@ A message's text is one of three things:
 | `conversation.room` | `room` (the player's place) | What the disclosure of the room's own links is called in conversation mode: "In the study" |
 | `companions.together` | `companions`, `way` (a direction's name, if there's an exit) | Moving with companions: "You and Mira head north.", "Mira comes with you." |
 | `companions.waits`, `companions.accompanies` | `companion` | "Mira waits here.", "Mira comes along." |
+| `follow.label`, `follow.done` | `who`, `way` | Following someone the player saw leave: "Follow the butler", "You follow the butler west." |
+| `follow.unknown`, `follow.here`, `follow.self` | `who` | Why following isn't offered: "You don't know where the butler went.", "The butler is right here.", "You can't follow yourself." |
 | `topic.player.ask`, `topic.player.tell` | `who`, `about` | The player's line: "You ask the maid about the gold." |
 | `topic.player.show`, `topic.player.give` | `who`, `thing` | "You show the brooch to the maid." |
 | `topic.player.hello`, `topic.player.bye`, `topic.player.yes`, `topic.player.no` | `who` | "You greet the maid.", "You say goodbye to the maid.", "You say yes." |

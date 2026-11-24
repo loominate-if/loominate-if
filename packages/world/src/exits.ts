@@ -272,6 +272,19 @@ export function waysOut(room: ObjectRef): Thing[] {
  */
 export function exitLinks(args: Readonly<Record<string, never>> = {}): LinkNode[] {
   void args; // `{exits}` takes no arguments; directives pass them as an object.
+  return [...ways(), ...extraLinks.flatMap((more) => more())];
+}
+
+/** Links other modules add after the exits, as following someone the player saw leave. */
+const extraLinks: (() => LinkNode[])[] = [];
+
+/** Adds links that `{exits}` shows after the exits. @internal */
+export function _addExitLinks(links: () => LinkNode[]): void {
+  extraLinks.push(links);
+}
+
+/** The links for the ways out of the player's room. */
+function ways(): LinkNode[] {
   const body = currentPlayerBody();
   const here = body ? placeOf(body) : undefined;
   if (!body || !here) return [];

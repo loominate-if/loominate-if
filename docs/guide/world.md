@@ -1505,6 +1505,15 @@ companion(tom, { starts: "waiting" });
 - **Timetables** don't move a companion while they're accompanying the player.
 - Orders the player gives as actions, such as "Ask Mira to wait", come next; these are what they call.
 
+### Following
+
+The player can follow an NPC they saw leave, the way they went:
+
+- **The trail:** when the player sees someone leave their room by an exit ("The butler leaves to the west."), they remember which way. Leaving the room, or the NPC coming back, forgets it. It's game state.
+- **`{exits}`** offers "Follow the butler" after the exits while the trail is known. `follow({ who })` is a standard action, so `{act follow({ who: butler })}` and the parser can take it too.
+- **Following** says "You follow the butler west." before the new room, and goes through the exit as its link would: accompanying companions come along, and a door locked behind them disables it, with why ("The cellar door is locked.").
+- Otherwise it isn't offered: "You don't know where the butler went.", or "The butler is right here."
+
 ## Scenes
 
 A **scene** is a named period of the story, as Inform 7 and adv3Lite have them: a storm, a dinner party, a chase. It starts when something holds, at a time, or when your code says, and ends the same ways, and while it's happening it can add rules and actions. (It isn't a cut scene, a passage of timed beats.)
