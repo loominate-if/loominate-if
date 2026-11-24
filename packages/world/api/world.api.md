@@ -452,6 +452,9 @@ export type Endings = (() => boolean) | {
 export function enterRoom(room: Place, context?: EffectContext): void;
 
 // @public
+export function everyTurn(npc: ObjectRef, name: string, rule: (turn: NpcTurn) => void): void;
+
+// @public
 export const examine: Action<    {
 thing: ActingOn;
 }>;
@@ -540,6 +543,9 @@ export type FuseOptions = {
     readonly clause?: Clause;
     readonly source?: string;
 };
+
+// @public
+export function getsTurn(npc: ObjectRef): boolean;
 
 // @public
 export const give: Action<    {
@@ -644,6 +650,9 @@ export function isPortable(t: ObjectRef): boolean;
 
 // @public
 export function isRegion(ref: ObjectRef): boolean;
+
+// @public
+export function isSimulated(npc: ObjectRef): boolean;
 
 // @public
 export function isStack(t: ObjectRef): boolean;
@@ -789,6 +798,13 @@ export function move(t: ObjectRef, to: ObjectRef | null): void;
 
 // @public
 export function moves(n: number): Delay;
+
+// @public
+export type NpcTurn = {
+    readonly npc: ObjectRef;
+    readonly mind: Mind;
+    readonly body: ObjectRef;
+};
 
 // @public
 export const obstacle: {
@@ -1069,6 +1085,9 @@ to: ActingOn;
 
 // @public
 export const showing: DecideRulebook<Offer, Reaction | undefined>;
+
+// @public
+export function simulate(npc: ObjectRef, on?: boolean): void;
 
 // @public
 export function spend(who: ObjectRef, name: StatName, amount: number): number;

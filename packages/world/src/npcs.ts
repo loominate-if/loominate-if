@@ -6,9 +6,12 @@
  * an agenda to react to.
  */
 import {
+  _storyRunning,
   action,
+  hook,
   message,
   messages,
+  object,
   perform,
   StateError,
   t,
@@ -16,12 +19,17 @@ import {
   type ActionOutcome,
   type ObjectRef,
 } from "@loominate-if/core";
-import { bodyOf, currentPlayerBody, isBody, mindFor } from "./actors.js";
+import { bodyOf, currentPlayerBody, isBody, mindFor, type Mind } from "./actors.js";
+import { canHear, canSee } from "./scope.js";
 import { blockedReason, exitsOf, type Exit } from "./exits.js";
 import { happen } from "./perception.js";
 import { move, placeOf } from "./things.js";
 
 declare module "@loominate-if/core" {
+  interface HookKinds {
+    /** An NPC's turn, after the player's move, as `npc:butler`: the rules {@link everyTurn} adds. */
+    [name: `npc:${string}`]: NpcTurn;
+  }
   interface Messages {
     /** Why `go` isn't taken: there's no way that way. */
     "go.noWay": { readonly way: string };
@@ -100,3 +108,94 @@ export const go = action<{ way: string }>("go", {
     if (exit && body) move(body, exit.to);
   },
 });
+
+/** What an NPC's turn rules are given. */
+export type NpcTurn = {
+  /** The NPC, as {@link everyTurn} was given it: act as them with `actAs(npc, …)`. */
+  readonly npc: ObjectRef;
+  /** Their mind. */
+  readonly mind: Mind;
+  /** The body they act through now. */
+  readonly body: ObjectRef;
+};
+
+/** The NPCs with turn rules, by mind ID, as {@link everyTurn} was given each. */
+const npcs = new Map<string, ObjectRef>();
+/** NPCs simulated from the start, set as the game loads. */
+const startingSimulated = new Set<string>();
+const state = object("world:npcs", {
+  /** Changes in play to which NPCs are simulated, by mind ID: true or false. */
+  simulated: {} as Record<string, boolean>,
+});
+
+/**
+ * Adds a rule to an NPC's turn, which comes after each of the player's
+ * moves, as long as the NPC gets one: by default, while the player can see
+ * or hear them; with {@link simulate}, always. An NPC's rules run in the
+ * order they're added, and NPCs take their turns in ID order. In the
+ * inspector, each NPC's turn is the hook `npc:` and their ID.
+ *
+ * @example
+ * ```ts
+ * everyTurn(butler, "tidies the hall", ({ npc }) => {
+ *   if (cake.location?.id === "hall") actAs(npc, take({ thing: cake }));
+ * });
+ * ```
+ */
+export function everyTurn(npc: ObjectRef, name: string, rule: (turn: NpcTurn) => void): void {
+  const mind = mindFor(npc, "everyTurn");
+  if (!npcs.has(mind.id)) npcs.set(mind.id, npc);
+  hook(`npc:${mind.id}`).rule(name, rule);
+}
+
+/**
+ * Makes an NPC simulated: they take a turn after every move, wherever they
+ * are, acting offstage too. `simulate(npc, false)` makes them observed only
+ * again. In `story.ts`, as the game loads, it's how they start.
+ */
+export function simulate(npc: ObjectRef, on = true): void {
+  const mind = mindFor(npc, "simulate");
+  if (!_storyRunning()) {
+    if (on) startingSimulated.add(mind.id);
+    else startingSimulated.delete(mind.id);
+    return;
+  }
+  state.simulated = { ...state.simulated, [mind.id]: on };
+}
+
+/** Whether an NPC is simulated, acting wherever they are, rather than observed only. */
+export function isSimulated(npc: ObjectRef): boolean {
+  const id = mindFor(npc, "isSimulated").id;
+  return Object.hasOwn(state.simulated, id)
+    ? state.simulated[id] === true
+    : startingSimulated.has(id);
+}
+
+/**
+ * Whether an NPC gets a turn now: always, if simulated; otherwise only while
+ * the player can see or hear their body. Never the player's own.
+ */
+export function getsTurn(npc: ObjectRef): boolean {
+  const mind = mindFor(npc, "getsTurn");
+  const body = bodyOf(mind);
+  const player = currentPlayerBody();
+  if (!body || body.id === player?.id) return false;
+  if (isSimulated(mind)) return true;
+  return player !== undefined && (canSee(player, body) || canHear(player, body));
+}
+
+// After each of the player's moves, every NPC with a turn takes it, in ID order.
+hook("turnEnd").rule(
+  "npc turns",
+  ({ move }) => {
+    // A continue only acknowledges what was read, so it isn't a move (#311).
+    if (move === "continue") return;
+    for (const [id, npc] of [...npcs].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+      if (!getsTurn(npc)) continue;
+      const mind = mindFor(npc, "npc turns");
+      const body = bodyOf(mind);
+      if (body) hook(`npc:${id}`).run({ npc, mind, body });
+    }
+  },
+  { source: SOURCE, after: "move counter" },
+);
