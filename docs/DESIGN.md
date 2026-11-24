@@ -290,7 +290,7 @@ swapBodies(you, tom);    // classic body swap
 ### Storylets and stackable items
 
 - **Storylets.** A pool of events that become eligible as conditions are met (relationship level, weather, place, day). The runtime selects among eligible events by priority, with once-only rules, cooldowns, and recency, in the style of quality-based narrative. Useful across genres: dating and life sims, roguelikes, open worlds. A storylet is a passage that `storylet(passage, { when, priority, once, cooldown, deck })` in `story.ts` makes one, in core, so a plain branching story can use them. `{storylets deck, limit: n}` offers a hand of links, and `{storylet deck}` draws the first as the player arrives. The order is priority, then the one seen longest ago, then a tie-break from the seed and the move, worked out without changing state. Cooldowns count moves, or with the world model, `minutes(…)` and `days(…)`; the inspector's Choices tab says why each isn't eligible ([ADR 0070](decisions/0070-storylets.md), [guide](guide/storylets.md)).
-- **Stackable quantities.** Countable stacks that split and merge, so ninety-nine turnips are one stack, not ninety-nine objects.
+- **Stackable quantities.** Countable stacks that split and merge, so ninety-nine turnips are one stack, not ninety-nine objects. A kind is `stackable("turnip", { name })`, a template; a stack is one thing with a count, authored with `stack(id, kind, { count, location })`. `split` makes a new stack whose ID comes from its origin, stacks of a kind merge whenever they meet (unless the kind says `merges: false`), and a stack's name, article, and verbs follow its count. Menus offer taking or dropping one or all ([ADR 0071](decisions/0071-stacks.md), [guide](guide/world.md#stacks)).
 
 ## Time and scheduling
 

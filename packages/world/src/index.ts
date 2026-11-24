@@ -119,11 +119,13 @@ export { vocabOf, type FullVocabulary } from "./vocabulary.js";
 export {
   close,
   drop,
+  dropOne,
   examine,
   isPortable,
   lock,
   open,
   take,
+  takeOne,
   unlock,
   type ActingOn,
 } from "./standard.js";
@@ -230,3 +232,14 @@ export {
   type Stats,
   type StatSpec,
 } from "./stats.js";
+export {
+  countOf,
+  isStack,
+  setCount,
+  split,
+  stack,
+  stackable,
+  stackIn,
+  type StackFields,
+  type StackKind,
+} from "./stacks.js";

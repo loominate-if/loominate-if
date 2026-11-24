@@ -252,6 +252,9 @@ export type CountedDaysOptions = {
 };
 
 // @public
+export function countOf(s: ObjectRef): number;
+
+// @public
 export type Crossing = {
     readonly observer: ObjectRef;
     readonly toward: ObjectRef;
@@ -401,6 +404,11 @@ export const door: {
 
 // @public
 export const drop: Action<    {
+thing: ActingOn;
+}>;
+
+// @public
+export const dropOne: Action<    {
 thing: ActingOn;
 }>;
 
@@ -594,6 +602,9 @@ export function isPortable(t: ObjectRef): boolean;
 
 // @public
 export function isRegion(ref: ObjectRef): boolean;
+
+// @public
+export function isStack(t: ObjectRef): boolean;
 
 // @public
 export function isWithin(t: ObjectRef, ancestor: ObjectRef): boolean;
@@ -961,6 +972,9 @@ export type SentenceWording = (joined: {
 }) => string | Text;
 
 // @public
+export function setCount(s: ObjectRef, count: number): void;
+
+// @public
 export function setExit(from: ObjectRef, name: DirectionName, exit: ObjectRef | ExitSpec | null): void;
 
 // @public
@@ -973,6 +987,38 @@ export function setStat(who: ObjectRef, name: StatName, value: number): number;
 
 // @public
 export function spend(who: ObjectRef, name: StatName, amount: number): number;
+
+// @public
+export function split(s: ObjectRef, n: number): Thing & StackFields;
+
+// @public
+export function stack<Id extends StateId, D>(id: Id, kind: StackKind<D>, options: {
+    readonly count: number;
+    readonly location?: ObjectRef | null;
+}): Handle<ThingOf<D> & StackFields, Id>;
+
+// @public
+export function stackable<D extends ObjectDefinition<D> & {
+    name: string;
+}>(kind: string, definition: D & {
+    readonly plural?: string;
+    readonly merges?: boolean;
+}): StackKind<D>;
+
+// @public
+export type StackFields = {
+    count: number;
+    readonly stackOf: string;
+};
+
+// @public
+export function stackIn(holder: ObjectRef, kind: StackKind | string): (Thing & StackFields) | undefined;
+
+// @public
+export type StackKind<D = object> = {
+    readonly name: string;
+    readonly template: ObjectTemplate<ThingOf<D> & StackFields>;
+};
 
 // @public
 export function startAs(m: ObjectRef): void;
@@ -1032,6 +1078,11 @@ export function swapBodies(a: ObjectRef, b: ObjectRef): void;
 
 // @public
 export const take: Action<    {
+thing: ActingOn;
+}>;
+
+// @public
+export const takeOne: Action<    {
 thing: ActingOn;
 }>;
 
