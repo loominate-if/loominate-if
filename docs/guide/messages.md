@@ -108,6 +108,10 @@ An actor can still give its own `arrives` and `leaves`, which win over these.
 
 The game is played through presentation, so these keys type-check in `story.ts` though it never imports presentation: `loominate` includes presentation's declarations when it checks the game. A rewording in `story.ts` can come before presentation has loaded, as in a walkthrough test, which never loads it; the rewording is kept.
 
+## Translating
+
+The library ships in English. To translate a game, replace every message, as above, and the world model's grammar: its message parameters (`{the}`, `{a}`, the pronouns) and its verb fallback are registries too, so a language package replaces them with `messageParameters.replace` and `messageFallbacks.replace`. A test in the world model replaces all of them and plays a game through the player shell, so no player-facing word can slip past them. Errors for authors, and the inspector, stay in English.
+
 ## Parameters of your own
 
 A game can register message parameters of its own, as `messageParameters.register("shout", ({ args }) => …)`. Registered with a literal name in the game's code, it's known when the game compiles, so `t` templates that use it aren't reported.
