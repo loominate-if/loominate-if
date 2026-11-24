@@ -1236,6 +1236,42 @@ lockConversation({ by: "accusation", level: "hard" }); // a conversation node's
 
 `conversation.exit` is the strictest: `free`, `soft` (the NPC objects, but the player can insist), or `hard` (they can't leave). `unlockConversation(owner)` removes one, a participant's go when they leave, and all go when it ends.
 
+### Topics
+
+A topic entry is what an NPC says when the player asks or tells them about something, says yes or no, greets them, or says goodbye. The subject is a thing, a fact, a named topic from `topics`, or `anything`, for whatever they have no particular entry for:
+
+<!-- example: packages/world/src/topics.test.ts#entries -->
+```ts
+const { war } = topics({ war: "the war" });
+const [onDuty, offDuty] = actorStates(butler, ["onDuty", "offDuty"], { starts: "onDuty" });
+
+topic(butler, { ask: letter, says: "“I placed it on the desk myself, sir.”" });
+topic(butler, { ask: letter, in: offDuty, says: "“Off the record? I took it.”" });
+topic(butler, { ask: letter, in: storm, says: "“Not now, sir, the windows!”" });
+topic(butler, { ask: war, says: "“I'd rather not, sir.”" });
+topic(butler, { ask: facts.missingLetter, says: "“Missing, sir? Surely not.”" });
+topic(butler, { askOrTell: anything, says: "“I couldn't say, sir.”" });
+topic(butler, { hello: true, says: "“Sir?”" });
+topic(butler, { bye: true, implicit: false, says: "“Very good, sir.”" });
+topic(butler, { bye: true, implicit: true, says: "The butler bows as you go." });
+```
+
+- **Kinds:** `ask`, `tell`, `askOrTell`, `yes`, `no`, `hello`, and `bye`. A `hello` or `bye` with `implicit: true` is said only when nothing was: talking starts with a question, or the conversation ends without goodbye. With `implicit: false`, only when it's said; with neither, both.
+- **`says`** is the text, or a function that returns it and can change state, given `{ npc, about, how }`; `how` says how a conversation ended for a `bye`: `goodbye`, `apart`, or `ended`.
+- **When it applies:** `when`, a condition; `in`, an actor state of theirs or a scene, so it applies only in that state or while the scene is happening; and `priority`, higher first.
+- **Which answers:** among entries that apply, the highest priority, then the most specific (a scene's, then an actor state's, then the actor's; a particular subject over `anything`), then the first defined. With none, the NPC gives a default response: "The butler has nothing to say about that." The inspector's Choices tab shows which entry answers each, and why each other doesn't.
+
+**Actor states**, as adv3Lite's, are named states an NPC is in, such as on duty and off duty. `actorStates(npc, names, { starts })` gives them, `setActorState(npc, state)` changes it (in `story.ts`, how they start), and `actorStateOf(npc)` says which is current.
+
+**The player talks** through standard actions, as any action is taken: by `{act …}` links, menus, or the parser later.
+
+- `ask({ who, about })` and `tell({ who, about })` name a thing or topic, or a fact by its ID, as `about: facts.missingLetter.id`. They start a conversation with `who` if need be, with any implicit hello, or bring them into it, and address them.
+- `hello({ who })` greets someone; `goodbye({})` ends the conversation, with the addressee's goodbye; and `yes({})` and `no({})` answer the addressee.
+- Each exchange takes a minute of game time.
+- When a conversation ends without goodbye, as when the player walks off, each participant says their implicit goodbye.
+
+What NPCs say is recorded as `action-result` events tagged `topic` and `speaker:` and their body's ID, so the page shows it after the move.
+
 ## Scenes
 
 A **scene** is a named period of the story, as Inform 7 and adv3Lite have them: a storm, a dinner party, a chase. It starts when something holds, at a time, or when your code says, and ends the same ways, and while it's happening it can add rules and actions. (It isn't a cut scene, a passage of timed beats.)

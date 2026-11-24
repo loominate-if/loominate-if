@@ -372,6 +372,7 @@ The player has one conversation at a time, held as game state: its participants 
 - Topics are suggested only when the player knows the subject. Responses can reveal facts to the player and inform NPCs.
 - Showing and giving are ordinary actions that route to show and give topics.
 - With the autocomplete command line, "ask butler about" offers every known topic, with sensible defaults for topics the NPC has no special response to.
+- In TypeScript, `topic(npc, { ask | tell | askOrTell: subject, yes, no, hello, bye, says, when, in, priority })` adds an entry; a subject is a thing, a fact, a named topic from `topics`, or `anything`. Which answers: the highest priority, then the most specific (scene, then actor state, then actor; a particular subject over `anything`), then the first defined, or a default response. Actor states are named, set as game state (`actorStates`, `setActorState`). The player talks through standard actions, `ask`, `tell`, `hello`, `goodbye`, `yes`, and `no`, a minute each; asking starts a conversation with an implicit hello, and ending one without goodbye runs implicit goodbyes. The inspector's Choices tab says which entry answers and why each other doesn't ([ADR 0088](decisions/0088-topic-entries.md)).
 
 ### Authoring
 

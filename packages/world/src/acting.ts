@@ -52,12 +52,24 @@ everyAction.verify.rule(
   { source: SOURCE },
 );
 
+/** Things that don't need to be in reach, by action name: what's talked about, or to. */
+const unreached = new Map<string, ReadonlySet<string>>();
+
+/**
+ * Says an action's things named `keys` needn't be in reach, as what the
+ * player asks about. The action checks them itself. @internal
+ */
+export function _reachNotNeeded(action: { readonly actionName: string }, ...keys: string[]): void {
+  unreached.set(action.actionName, new Set([...(unreached.get(action.actionName) ?? []), ...keys]));
+}
+
 everyAction.verify.rule(
   "things in reach",
   (c) => {
     if (c.body === undefined) return undefined;
+    const skip = unreached.get(c.action);
     for (const [key, value] of Object.entries(c)) {
-      if (key === "actor" || key === "body" || key === "action") continue;
+      if (key === "actor" || key === "body" || key === "action" || skip?.has(key)) continue;
       const thing =
         typeof value === "object" && value !== null ? thingFor(value as ObjectRef) : undefined;
       if (thing && !canReach(c.body, thing)) return message("action.outOfReach", { thing });

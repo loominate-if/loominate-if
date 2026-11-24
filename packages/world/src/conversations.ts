@@ -117,8 +117,28 @@ export function startConversation(withWhom: ObjectRef | readonly ObjectRef[]): v
   state.locks = [];
 }
 
+/**
+ * How someone left the conversation: the player said goodbye, they're no
+ * longer together, or the game took them out or ended it.
+ */
+export type LeftBy = "goodbye" | "apart" | "ended";
+
+/** What's told when someone leaves, before they're gone: implicit goodbyes. */
+const leaving: ((mind: string, how: LeftBy) => void)[] = [];
+
+/** Calls `listener` as each participant leaves, while they're still in it. @internal */
+export function _whenLeaving(listener: (mind: string, how: LeftBy) => void): void {
+  leaving.push(listener);
+}
+
 /** Ends the player's conversation, with its locks. Does nothing if there isn't one. */
 export function endConversation(): void {
+  _endConversation("ended");
+}
+
+/** Ends the conversation, telling how. @internal */
+export function _endConversation(how: LeftBy): void {
+  for (const mind of [...state.participants]) for (const l of leaving) l(mind, how);
   state.participants = [];
   state.addressee = null;
   state.locks = [];
@@ -145,16 +165,17 @@ export function joinConversation(npc: ObjectRef): void {
  * those left; with no one left, the conversation ends.
  */
 export function leaveConversation(npc: ObjectRef): void {
-  remove(mindFor(npc, "leaveConversation").id);
+  remove(mindFor(npc, "leaveConversation").id, "ended");
 }
 
-function remove(mind: string): void {
+function remove(mind: string, how: LeftBy): void {
   if (!state.participants.includes(mind)) return;
   const left = state.participants.filter((m) => m !== mind);
   if (left.length === 0) {
-    endConversation();
+    _endConversation(how);
     return;
   }
+  for (const l of leaving) l(mind, how);
   state.participants = left;
   state.locks = state.locks.filter((l) => l.by !== mind);
   if (state.addressee === mind) state.addressee = left[0] ?? null;
@@ -240,7 +261,7 @@ hook("turnEnd").rule(
     for (const mind of [...state.participants]) {
       const body = bodyFor(mind);
       const there = body ? placeOf(body) : undefined;
-      if (!here || !there || there.id !== here.id) remove(mind);
+      if (!here || !there || there.id !== here.id) remove(mind, "apart");
     }
   },
   { source: "@loominate-if/world", after: "npc turns" },
