@@ -353,7 +353,7 @@ describe("loominate dev", () => {
     });
     const text = () => page().querySelector(".loominate-passage")?.textContent ?? "";
     const button = (label: string) => {
-      const link = [...page().querySelectorAll(".loominate-passage button")].find((b) =>
+      const link = [...page().querySelectorAll(".loominate-passage :is(a, button)")].find((b) =>
         b.textContent?.startsWith(label),
       );
       if (!link) throw new Error(`no link ${label} in: ${text()}`);
@@ -395,7 +395,7 @@ describe("loominate dev", () => {
       expect(text()).toContain("You know who did it, from note.");
       expect(text()).not.toContain("Read the note");
       // The note's name opens its menu, from the world model's standard actions.
-      const name = [...page().querySelectorAll(".loominate-passage button")].find(
+      const name = [...page().querySelectorAll(".loominate-passage :is(a, button)")].find(
         (b) => b.textContent === "note",
       );
       name?.click();
@@ -452,9 +452,11 @@ storylet("Letter", { deck: "mornings", once: true });
     });
     const text = () => page().querySelector(".loominate-passage")?.textContent ?? "";
     const labels = () =>
-      [...page().querySelectorAll(".loominate-passage button")].map((b) => b.textContent ?? "");
+      [...page().querySelectorAll(".loominate-passage :is(a, button)")].map(
+        (b) => b.textContent ?? "",
+      );
     const follow = (label: string) => {
-      const link = [...page().querySelectorAll(".loominate-passage button")].find(
+      const link = [...page().querySelectorAll(".loominate-passage :is(a, button)")].find(
         (b) => b.textContent === label,
       );
       if (!link) throw new Error(`no link ${label} in: ${labels().join(", ")}`);

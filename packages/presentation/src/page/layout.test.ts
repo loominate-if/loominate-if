@@ -89,7 +89,9 @@ function play() {
       (r) => `${r.dataset.region ?? ""}${r.hidden ? " (hidden)" : ""}`,
     );
   const click = (label: string) => {
-    const b = [...root.querySelectorAll("button")].find((x) => x.textContent === label);
+    const b = [...root.querySelectorAll<HTMLElement>("a, button")].find(
+      (x) => x.textContent === label,
+    );
     if (!b) throw new Error(`no button "${label}"`);
     b.click();
   };
@@ -118,7 +120,8 @@ describe("layouts", () => {
     expect(root.dataset.layout).toBe("conversation");
     expect(regions()).toEqual(["portraits", "main"]);
     expect(root.querySelector("main")).toBe(main);
-    expect(document.activeElement).toBe(passage);
+    // Focus is in the passage, on the heading before its text (#352).
+    expect(passage?.contains(document.activeElement)).toBe(true);
     expect(root.querySelector(".loominate-status")?.textContent).toBe("ButlerMoves: 1");
     click("Never mind");
     expect(root.dataset.layout).toBe("page");

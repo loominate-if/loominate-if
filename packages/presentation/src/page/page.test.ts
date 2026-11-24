@@ -96,7 +96,9 @@ function play(snapshot?: StateSnapshot, onMove?: () => void) {
   const main = () => container.querySelector(".loominate-passage") as HTMLElement;
   const drawer = () => container.querySelector("details") as HTMLDetailsElement;
   const click = (label: string) => {
-    const b = [...main().querySelectorAll("button")].find((x) => x.textContent === label);
+    const b = [...main().querySelectorAll<HTMLElement>("a, button")].find(
+      (x) => x.textContent === label,
+    );
     if (!b) throw new Error(`no button "${label}"`);
     b.click();
   };
@@ -110,12 +112,12 @@ function play(snapshot?: StateSnapshot, onMove?: () => void) {
 describe("the page", () => {
   it("shows the current passage: prose with its styles, links, and continue points", () => {
     const { main, click } = play();
-    expect(main().getAttribute("aria-live")).toBe("polite");
+    // Not a live region: focus goes to it, so a live region would read it twice (#352).
+    expect(main().hasAttribute("aria-live")).toBe(false);
     expect(main().querySelector("p")?.innerHTML).toBe("The kitchen is <em>warm</em>.");
-    expect([...main().querySelectorAll("button")].map((b) => b.textContent)).toEqual([
-      "Take the lantern",
-      "Go to the stairs",
-    ]);
+    expect(
+      [...main().querySelectorAll<HTMLElement>("a, button")].map((b) => b.textContent),
+    ).toEqual(["Take the lantern", "Go to the stairs"]);
     click("Take the lantern");
     expect(main().querySelector("p:not(.loominate-notice)")?.innerHTML).toBe(
       "You light it. <strong>Finally<em> light</em></strong>.",
@@ -123,22 +125,40 @@ describe("the page", () => {
     expect(main().querySelector("button.loominate-continue")?.textContent).toBe("Continue");
   });
 
-  it("replaces the main view on each move, focuses it, and reports the move", () => {
+  it("replaces the main view on each move, focuses a heading before it, and reports the move", () => {
     const moved = vi.fn();
     const { main, click } = play(undefined, moved);
     click("Go to the stairs");
     expect(main().textContent).toContain("The steps go down.");
     expect(main().textContent).not.toContain("kitchen");
-    expect(document.activeElement).toBe(main());
+    // A heading only screen readers see, so they read on from it, naming links as links (#352).
+    const heading = document.activeElement as HTMLElement;
+    expect([heading.tagName, heading.textContent, heading.className]).toEqual([
+      "H2",
+      "Passage",
+      "loominate-sr-only loominate-passage-heading",
+    ]);
+    expect(heading.nextElementSibling?.textContent).toMatch(/^The steps go down\./);
     expect(moved).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts a screen reader at the story when it loads, and keeps it there through a redraw (#352)", () => {
+    const { page } = play();
+    const heading = () => document.activeElement as HTMLElement;
+    expect([heading().tagName, heading().textContent]).toEqual(["H2", "Passage"]);
+    // The shell redraws just after mounting; focus mustn't fall to the body.
+    page.refresh();
+    expect([heading().tagName, heading().textContent]).toEqual(["H2", "Passage"]);
   });
 
   it("shows disabled links with their reasons, for sight and for screen readers", () => {
     const { main, click } = play();
     click("Go to the stairs");
-    const down = [...main().querySelectorAll("button")].find((b) => b.textContent === "Go down");
+    const down = [...main().querySelectorAll<HTMLElement>("a, button")].find(
+      (b) => b.textContent === "Go down",
+    );
     expect(down?.getAttribute("aria-disabled")).toBe("true");
-    expect(down?.disabled).toBe(false);
+    expect(down?.tagName).toBe("A"); // a link, not disabled, so it stays in the tab order
     const reason = document.getElementById(down?.getAttribute("aria-describedby") ?? "");
     expect(reason?.textContent).toBe("It's too dark to see the steps.");
   });
@@ -151,7 +171,7 @@ describe("the page", () => {
     const visible = paragraph?.cloneNode(true) as HTMLElement;
     for (const t of visible.querySelectorAll(".loominate-tooltip")) t.remove();
     expect(visible.textContent).toBe("The steps go down. You could go back or feel your way.");
-    const inline = paragraph?.querySelectorAll<HTMLButtonElement>("button.loominate-inline");
+    const inline = paragraph?.querySelectorAll<HTMLElement>("a.loominate-inline");
     expect([...(inline ?? [])].map((b) => [b.textContent, b.ariaDisabled])).toEqual([
       ["go back", null],
       ["feel your way", "true"],
@@ -170,7 +190,9 @@ describe("a disabled link's reason", () => {
   it("is a tooltip, shown on a tap and hidden by Escape or a tap elsewhere", () => {
     const { main, click } = play();
     click("Go to the stairs");
-    const down = [...main().querySelectorAll("button")].find((b) => b.textContent === "Go down");
+    const down = [...main().querySelectorAll<HTMLElement>("a, button")].find(
+      (b) => b.textContent === "Go down",
+    );
     const holder = down?.closest(".loominate-has-reason");
     expect(holder?.querySelector(".loominate-tooltip")?.textContent).toBe(
       "It's too dark to see the steps.",
@@ -207,12 +229,16 @@ describe("what the player noticed", () => {
   it("shows after the passage's text and before its choices, for the move it happened in", () => {
     const { main, click } = play();
     click("Take the lantern");
-    expect([...main().children].map((c) => c.className || c.tagName).slice(0, 2)).toEqual([
-      "P",
-      "loominate-notice",
-    ]);
+    expect(
+      [...main().children]
+        .filter((c) => !c.classList.contains("loominate-sr-only"))
+        .map((c) => c.className || c.tagName)
+        .slice(0, 2),
+    ).toEqual(["P", "loominate-notice"]);
     expect(main().querySelector(".loominate-notice")?.textContent).toBe("Something skitters away.");
-    expect(main().lastElementChild?.querySelector("button")?.textContent).toBe("Continue");
+    expect(main().lastElementChild?.querySelector<HTMLElement>("a, button")?.textContent).toBe(
+      "Continue",
+    );
     click("Continue");
     expect(main().querySelector(".loominate-notice")).toBeNull();
   });
@@ -248,8 +274,11 @@ describe("{notices}", () => {
     const container = document.createElement("div");
     document.body.append(container);
     mountPage(container, { story, record });
-    container.querySelector("button")?.click();
-    const shown = [...(container.querySelector(".loominate-passage")?.children ?? [])];
+    container.querySelector<HTMLElement>("a, button")?.click();
+    // What the player sees: the heading that takes focus is for screen readers only.
+    const shown = [...(container.querySelector(".loominate-passage")?.children ?? [])].filter(
+      (c) => !c.classList.contains("loominate-sr-only"),
+    );
     expect(shown.map((c) => c.textContent)).toEqual(["The hall.", "Out", "A clock strikes."]);
   });
 });
@@ -286,14 +315,14 @@ describe("atmosphere from fuses and daemons", () => {
     const container = document.createElement("div");
     document.body.append(container);
     mountPage(container, { story, record });
-    container.querySelector("button")?.click();
+    container.querySelector<HTMLElement>("a, button")?.click();
     const notices = [...container.querySelectorAll(".loominate-passage .loominate-notice")];
     expect(notices.map((c) => c.textContent)).toEqual([
       "Rain patters. An owl hoots.",
       "A door slams.",
       "You smell smoke!",
     ]);
-    container.querySelector<HTMLButtonElement>(".loominate-passage button")?.click();
+    container.querySelector<HTMLElement>(".loominate-passage :is(a, button)")?.click();
     const drawn = [...container.querySelectorAll(".loominate-turn")].at(-1);
     expect([...(drawn?.children ?? [])].map((c) => c.textContent)).toEqual([
       "The hall.",
@@ -341,7 +370,7 @@ describe("an error in the story's code", () => {
     try {
       mountPage(container, { story, record }, { onError: (e) => errors.push(e) });
       store.commit(); // as the player shell does after each move, so a failed one rolls back
-      container.querySelector("button")?.click();
+      container.querySelector<HTMLElement>("a, button")?.click();
       const alert = container.querySelector(".loominate-error");
       expect(alert?.getAttribute("role")).toBe("alert");
       expect(alert?.textContent).toContain(

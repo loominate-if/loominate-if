@@ -88,7 +88,9 @@ function play(options: PageOptions = {}, snapshot?: StateSnapshot, start = "Trai
   const passage = () => root.querySelector(".loominate-passage") as HTMLElement;
   const shown = () => [...passage().querySelectorAll("p")].map((p) => p.textContent);
   const click = (label: string) => {
-    const b = [...root.querySelectorAll("button")].find((x) => x.textContent === label);
+    const b = [...root.querySelectorAll<HTMLElement>("a, button")].find(
+      (x) => x.textContent === label,
+    );
     if (!b) throw new Error(`no button "${label}"`);
     b.click();
   };
@@ -120,14 +122,15 @@ describe("beats on the page", () => {
     vi.advanceTimersByTime(1500);
     vi.advanceTimersByTime(60_000);
     expect(shown().at(-1)).toBe("Continue Skip");
-    const next = [...passage().querySelectorAll("button")].find(
+    const next = [...passage().querySelectorAll<HTMLElement>("a, button")].find(
       (b) => b.textContent === "Continue",
     );
     next?.focus();
     click("Continue");
     expect(shown()).toEqual(["The train slows.", "Brakes scream.", "Silence.", "Get off"]);
-    // The first new paragraph, not the whole passage: a screen reader reads on from there.
-    expect(document.activeElement?.textContent).toBe("Silence.");
+    // A heading only screen readers see, just before what's new: they read on from it (#352).
+    expect(document.activeElement?.textContent).toBe("More");
+    expect(document.activeElement?.nextElementSibling?.textContent).toBe("Silence.");
   });
 
   it("move focus to what's revealed when the player skips, even if the click didn't focus Skip", () => {
@@ -135,15 +138,22 @@ describe("beats on the page", () => {
     // As on macOS, where clicking a button doesn't focus it.
     (document.activeElement as HTMLElement | null)?.blur();
     click("Skip");
-    expect(document.activeElement?.textContent).toBe("Brakes scream.");
+    expect(document.activeElement?.textContent).toBe("More");
+    expect(document.activeElement?.nextElementSibling?.textContent).toBe("Brakes scream.");
     expect(passage().contains(document.activeElement)).toBe(true);
   });
 
-  it("leave focus alone when a timed pause passes while the player is elsewhere", () => {
+  it("leave focus alone when a timed pause passes while the player is elsewhere, and read what's new", () => {
     const { passage } = play();
     (document.activeElement as HTMLElement | null)?.blur();
     vi.advanceTimersByTime(1500);
     expect(passage().contains(document.activeElement)).toBe(false);
+    // The passage isn't a live region; a separate one reads only the new part.
+    const live = document.querySelector(".loominate-announce");
+    expect([live?.getAttribute("aria-live"), live?.textContent]).toEqual([
+      "polite",
+      "Brakes scream.",
+    ]);
   });
 
   it("hurry a timed pause when the player clicks the page", () => {

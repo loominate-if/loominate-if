@@ -20,7 +20,7 @@ Loominate IF is a programmer-oriented authoring system for interactive fiction. 
 5. **Everything can be explained.** New rules, actions, topics, and scheduled events must be visible to the inspector, including why something is hidden or disabled.
 6. **Catch it at compile time.** Prefer designs where author mistakes become compiler errors reported against the author's source lines.
 7. **Open library.** Library behavior is built from the same rulebooks, hooks, and registries authors use. Don't hard-code behavior an author might want to change.
-8. **Accessible by default.** Keyboard operable, screen-reader friendly (live regions for new text), and respectful of reduced-motion preferences.
+8. **Accessible by default.** Keyboard operable, screen-reader friendly (focus moved to new text after the player's moves, live regions for changes they didn't make), and respectful of reduced-motion preferences.
 9. **Stable public surface.** Anything exported from a package's public entry point is public API. Everything else is internal and marked `@internal`.
 
 ## Key data-model rules
