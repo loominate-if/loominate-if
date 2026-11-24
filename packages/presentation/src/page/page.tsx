@@ -355,10 +355,12 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     label: ComponentChildren,
     className: string,
     describedBy?: string,
+    key?: string | number,
   ): ComponentChildren => {
     if (node.type === "link" && !node.available) {
       return (
         <button
+          key={key}
           type="button"
           className={className}
           aria-disabled="true"
@@ -371,13 +373,14 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     // A thing's name opens its menu, instead of being followed.
     if (node.type === "link" && node.guard?.menu !== undefined) {
       return (
-        <MenuName menus={menus} source={node.guard.menu} className={className}>
+        <MenuName key={key} menus={menus} source={node.guard.menu} className={className}>
           {label}
         </MenuName>
       );
     }
     return (
       <button
+        key={key}
         type="button"
         className={className}
         onClick={() => {
@@ -666,11 +669,19 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
             (link: RenderedInlineLink, label, k) => {
               const id =
                 link.reason === undefined ? undefined : reasonId(`${item.key}:${String(k)}`);
-              const b = button(link, label, "loominate-link loominate-inline", id);
-              if (id === undefined || link.reason === undefined) return <span key={k}>{b}</span>;
-              if (tooltips) return withTooltip(b, reason(id, link.reason, true), k);
+              // A link sits straight in the sentence; only one with a tooltip has a holder.
+              if (id === undefined || link.reason === undefined) {
+                return button(link, label, "loominate-link loominate-inline", undefined, k);
+              }
+              if (tooltips) {
+                return withTooltip(
+                  button(link, label, "loominate-link loominate-inline", id),
+                  reason(id, link.reason, true),
+                  k,
+                );
+              }
               after.push({ id, text: link.reason });
-              return <span key={k}>{b}</span>;
+              return button(link, label, "loominate-link loominate-inline", id, k);
             },
           )}
         </p>
