@@ -81,6 +81,23 @@ export type ActorHalves<M> = {
 };
 
 // @public
+export type ActorState = {
+    readonly id: string;
+    readonly name: string;
+    readonly mind: string;
+};
+
+// @public
+export function actorStateOf(npc: ObjectRef): ActorState | undefined;
+
+// @public
+export function actorStates<const N extends readonly string[]>(npc: ObjectRef, names: N, options?: {
+    readonly starts?: N[number];
+}): {
+    readonly [I in keyof N]: ActorState;
+};
+
+// @public
 export function address(npc: ObjectRef): void;
 
 // @public
@@ -112,6 +129,17 @@ export type AgendaItem = {
 export type AgendaTurn = NpcTurn & {
     done(): void;
 };
+
+// @public
+export const anything: {
+    readonly anything: true;
+};
+
+// @public
+export const ask: Action<    {
+who: ObjectRef;
+about: ObjectRef | string;
+}>;
 
 // @public
 export function baseStat(who: ObjectRef, name: StatName): number;
@@ -615,6 +643,9 @@ way: string;
 }>;
 
 // @public
+export const goodbye: Action<Record<never, never>>;
+
+// @public
 export type Grammar = {
     readonly isProper?: boolean;
     readonly isPlural?: boolean;
@@ -641,6 +672,11 @@ export type HappenOptions = {
     readonly carries?: number;
     readonly reveals?: Fact;
 };
+
+// @public
+export const hello: Action<    {
+who: ObjectRef;
+}>;
 
 // @public
 export type Holding = "in" | "on";
@@ -768,6 +804,9 @@ export type LeaveOptions = {
 };
 
 // @public
+export type LeftBy = "goodbye" | "apart" | "ended";
+
+// @public
 export const lightSource: {
     isLit: boolean;
     light(): void;
@@ -805,6 +844,12 @@ export function lockConversation(lock: {
 
 // @public
 export type LockLevel = "soft" | "hard";
+
+// @internal
+export function _matchTopic(npc: ObjectRef, kind: TopicKind, about?: ObjectRef | Fact, implicit?: boolean): {
+    readonly winner: string | undefined;
+    readonly candidates: readonly TopicCandidate[];
+};
 
 // @public
 export type Mind = Handle<MindFields> & MindKnowledge;
@@ -873,6 +918,9 @@ export function move(t: ObjectRef, to: ObjectRef | null): void;
 
 // @public
 export function moves(n: number): Delay;
+
+// @public
+export const no: Action<Record<never, never>>;
 
 // @internal
 export type _NpcAgendaItem = {
@@ -1102,6 +1150,9 @@ export type RevealArguments = {
 export function say(npc: ObjectRef, text: string): void;
 
 // @public
+export type Says = string | ((context: TopicContext) => string | undefined);
+
+// @public
 export type Scene = Period & {
     readonly name: string;
     readonly hasHappened: boolean;
@@ -1180,6 +1231,9 @@ export type SentenceWording = (joined: {
     readonly list: string;
     readonly clauses: readonly string[];
 }) => string | Text;
+
+// @public
+export function setActorState(npc: ObjectRef, to: ActorState): void;
 
 // @public
 export function setCount(s: ObjectRef, count: number): void;
@@ -1300,6 +1354,9 @@ export type StoredHours = {
 };
 
 // @public
+export type Subject = ObjectRef | Fact | typeof anything;
+
+// @public
 export type Summary = (repeated: Repeated) => string | Text | undefined;
 
 // @public
@@ -1324,6 +1381,12 @@ thing: ActingOn;
 export const takeSome: Action<    {
 thing: ActingOn;
 count: number;
+}>;
+
+// @public
+export const tell: Action<    {
+who: ObjectRef;
+about: ObjectRef | string;
 }>;
 
 // @public
@@ -1381,6 +1444,83 @@ export type TimetableEntry = {
     readonly at: string;
     readonly in: ObjectRef;
     readonly on?: CalendarQuery;
+};
+
+// @public
+export type Topic = ObjectRef & {
+    readonly name: string;
+};
+
+// @public
+export function topic(npc: ObjectRef, entry: TopicEntry): void;
+
+// @public
+export type TopicCandidate = {
+    readonly id: string;
+    readonly wins: boolean;
+    readonly why?: string;
+    readonly priority: number;
+};
+
+// @public
+export type TopicContext = {
+    readonly npc: ObjectRef;
+    readonly about?: ObjectRef | Fact;
+    readonly how?: LeftBy;
+};
+
+// @internal
+export function _topicEntries(npc: ObjectRef): readonly {
+    readonly id: string;
+    readonly kinds: readonly TopicKind[];
+    readonly subject?: string;
+    readonly subjectName?: string;
+}[];
+
+// @public
+export type TopicEntry = TopicOptions & ({
+    readonly ask: Subject;
+} | {
+    readonly tell: Subject;
+} | {
+    readonly askOrTell: Subject;
+} | {
+    readonly yes: true;
+} | {
+    readonly no: true;
+}
+/** `implicit: true` only when talking starts without a greeting; `false` only for a greeting. Both if not given. */
+| {
+    readonly hello: true;
+    readonly implicit?: boolean;
+}
+/** `implicit: true` only when the conversation ends without goodbye; `false` only for goodbye. Both if not given. */
+| {
+    readonly bye: true;
+    readonly implicit?: boolean;
+});
+
+// @internal
+export function _topicExplanations(): readonly {
+    readonly label: string;
+    readonly available: boolean;
+    readonly why?: string;
+}[];
+
+// @public
+export type TopicKind = "ask" | "tell" | "yes" | "no" | "hello" | "bye";
+
+// @public
+export type TopicOptions = {
+    readonly says: Says;
+    readonly when?: () => boolean;
+    readonly in?: ActorState | Period;
+    readonly priority?: number;
+};
+
+// @public
+export function topics<D extends Readonly<Record<string, string>>>(definitions: D): {
+    readonly [K in keyof D]: Topic;
 };
 
 // @public
@@ -1471,5 +1611,8 @@ export type _WorldTree = {
 
 // @internal
 export function _worldTree(): _WorldTree;
+
+// @public
+export const yes: Action<Record<never, never>>;
 
 ```

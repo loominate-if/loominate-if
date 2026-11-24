@@ -10,12 +10,13 @@
  * project, with DOM types the rest of the world model doesn't have, and
  * reaches the world model through its entry point, like any package.
  */
-import { panels, type InspectorPanel } from "@loominate-if/inspector";
+import { explainers, panels, type InspectorPanel } from "@loominate-if/inspector";
 import { npcPanel } from "./npc-panel.js";
 import { worldPanel } from "./world-panel.js";
 import {
   _scheduled,
   _statsTable,
+  _topicExplanations,
   clock,
   timeOfDay,
   type _ScheduledInfo,
@@ -203,5 +204,11 @@ panels.register("schedule", schedulePanel, { source: SOURCE });
 panels.register("stats", statsPanel, { source: SOURCE });
 panels.register("world", worldPanel, { source: SOURCE });
 panels.register("npcs", npcPanel, { source: SOURCE });
+// Topic entries (#111): which answers each exchange now, and why the others don't.
+explainers.register(
+  "topics",
+  { title: "Topics", hideWhenEmpty: true, explain: () => _topicExplanations() },
+  { source: SOURCE },
+);
 
 export { npcPanel, worldPanel };

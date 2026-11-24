@@ -53,6 +53,12 @@ A message's text is one of three things:
 | `go.noWay` | `way` | Why `go` can't be taken: "There's no way north from here." |
 | `go.player` | | Why the player doesn't take `go`: they move through the story's passages and exits |
 | `say.seen`, `say.heard` | `actor` (their body), `text` | An NPC's line, with `say`: "The butler says, “Fire!”", "Someone says, “Fire!”" |
+| `topic.noResponse` | `who` (their body) | What someone with no entry for it says to being asked or told about something: "The butler has nothing to say about that." |
+| `topic.hello`, `topic.bye` | `who` | Greeting or saying goodbye to someone with no entry for it: "The butler nods to you.", "You take your leave of the butler." |
+| `topic.noAnswer` | `who` | Saying yes or no when they have no entry for it: "The butler wasn't asking you anything." |
+| `topic.notSomeone`, `topic.notHere`, `topic.self` | `who` | Why the player can't talk to them: "You can't talk to the letter.", "The butler isn't here.", "Talking to yourself won't help." |
+| `topic.alreadyTalking`, `topic.notTalking` | `who` | Why greeting or saying goodbye can't be done: "You're already talking to the butler.", "You aren't talking to anyone." |
+| `topic.noSubject` | `about` | Why asking about an unknown fact ID can't be done |
 | `examine.nothing` | `thing` | "You see nothing special about the statue." |
 | `take.held`, `drop.notHeld`, `open.already`, `close.already`, `lock.already`, `unlock.notLocked` | `thing` | Why they aren't offered |
 | `open.locked`, `lock.open` | `thing` | "The oak chest is locked.", "You'll have to close the oak chest first." |

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { createEventRecord, createStore, createStory } from "@loominate-if/core";
-import { panels, type PanelContext } from "@loominate-if/inspector";
+import { explainers, panels, type PanelContext } from "@loominate-if/inspector";
 import axe from "axe-core";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
@@ -101,5 +101,14 @@ describe("the Stats panel (#95)", () => {
       "hero (hero:mind) | wits | 3 | 6 | insight ×2, until removed",
     ]);
     expect((await axe.run(element)).violations).toEqual([]);
+  });
+});
+
+describe("the Topics explainer", () => {
+  it("is in the Choices tab, left out when no one here has topics", () => {
+    const topics = explainers.get("topics");
+    expect(topics?.title).toBe("Topics");
+    expect(topics?.hideWhenEmpty).toBe(true);
+    expect(topics?.explain({ player: {} } as unknown as PanelContext)).toEqual([]);
   });
 });

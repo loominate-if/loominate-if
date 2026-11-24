@@ -84,6 +84,8 @@ The **Choices** tab lists every choice where the player is: the links and contin
 
 Its **Actions** section lists the actions on things' menus: those of the things with a `{menu …}` link in the passage, and, with the world model, everything else the player can reach or carries. An action with more than one thing is listed once. For each action that can't be taken, and each action link, it says whether verify hid it or check disabled it, the reason, and the rule that decided, with its rulebook and the package that added it: "Decided by the verify rule `things in reach` in `every action: verify`, from @loominate-if/world." An action's own rules are named after it, such as `open: own`, and come from the package its `source:` names, or `game`.
 
+With the world model, a **Topics** section lists the topic entries of everyone the player is talking to, or, when they aren't talking, of everyone in the room. For each it says whether it would answer now, and if not, why: its condition is false, its actor state isn't current, its scene isn't happening, it's only for an unprompted goodbye, or another entry outranks it, by name: "Outranked by butler:mind:ask:letter#2."
+
 Its **Storylets** section, in a game with storylets, lists each one with its deck, priority, and place in the order, and while one isn't eligible, why: the named tests in its `when` that don't hold, that it's once only and has been seen, or how long it has left to rest. The [storylets guide](storylets.md) has more.
 
 ## Which rules ran
@@ -182,7 +184,7 @@ panels.register("where", {
 
 The panel's element is inside the inspector's shadow root, so the game's styles don't reach it.
 
-The Choices tab is built the same way: each kind of choice has an explainer in `explainers`, which lists the choices of that kind on offer now and says why any can't be made. Links are the first and things' actions the second; kits will add theirs, such as conversation topics. The world model adds its Fuses and daemons panel from an inspector module of its own.
+The Choices tab is built the same way: each kind of choice has an explainer in `explainers`, which lists the choices of that kind on offer now and says why any can't be made. Links are the first and things' actions the second; the world model adds conversation topics. The world model adds its Fuses and daemons panel from an inspector module of its own.
 
 The Rules tab hears about rule runs through core's `traceRules(listener)`, which tools of your own can use too.
 
