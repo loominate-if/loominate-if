@@ -1,5 +1,6 @@
 // The acceptance games in examples/ (ADR 0027): each passes its walkthroughs,
 // builds to both targets, and, for gate 1, carries no world-model code.
+// Gate 2 is the world-model piece.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -55,5 +56,25 @@ describe("gate 1: examples/branching-story", () => {
       "@loominate-if/core",
       "@loominate-if/presentation",
     ]);
+  }, 120_000);
+});
+
+describe("gate 2: examples/world-model", () => {
+  const root = join(repo, "examples/world-model");
+
+  it("passes its walkthroughs", async () => {
+    const result = await test(options(root));
+    expect(result.failed).toBe(0);
+    expect(result.passed).toBe(true);
+    expect(result.tests).toBeGreaterThanOrEqual(7);
+  }, 120_000);
+
+  it("builds to the static site and the single file, with the world model", async () => {
+    await build(options(root));
+    await build({ ...options(root), target: "single" });
+    const dist = join(root, "dist");
+    expect(existsSync(join(dist, "index.html"))).toBe(true);
+    const single = readFileSync(join(dist, "the-tollhouse.html"), "utf8");
+    expect(single).toContain("toll keeper");
   }, 120_000);
 });

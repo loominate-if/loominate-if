@@ -1,0 +1,16 @@
+:: Road [room: road]
+The river road runs east to a tollhouse, where a gate bars the bridge. {if pebble.location?.id === "road"}A [[river pebble]]{menu pebble} lies in the dust.{/if}
+You carry a [[satchel]]{menu satchel}, which holds {listContents(satchel)}.
+{exits}
+
+:: Tollhouse [room: tollhouse]
+A cramped room smelling of pipe smoke. The [[toll keeper]]{menu keeper} sits by a [[strongbox]]{menu strongbox}{if strongbox.isOpen}, open{if gateKey.location?.id === "strongbox"}, holding an [[iron key]]{menu gateKey}{else}, and empty{/if}{else}, shut tight{/if}. North, the [[toll gate]]{menu gate} bars the bridge.
+{notices}
+{exits}
+
+:: Bridge [room: bridge]
+Planks creak under you. The river runs fast and brown below.
+{exits}
+
+:: Far Bank [room: farBank]
+You step off the bridge onto the far bank. The road goes on, and so do you.
