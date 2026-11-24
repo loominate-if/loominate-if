@@ -1160,6 +1160,9 @@ export type Presses = string | (() => string | undefined);
 export type Pronoun = "she" | "he" | "they" | "it";
 
 // @public
+export function reachNotNeeded<A>(action: Action<A>, ...things: readonly (keyof A & string)[]): void;
+
+// @public
 export function react(text: string | Text, then?: () => void): Reaction;
 
 // @public

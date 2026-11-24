@@ -9,7 +9,7 @@ import "./grammar.js";
 // Registers the world model's messages, which a game can reword.
 import "./messages.js";
 // Says who acts, and adds the rules every action needs: a body, and its things in reach.
-import "./acting.js";
+export { reachNotNeeded } from "./acting.js";
 export {
   container,
   contents,

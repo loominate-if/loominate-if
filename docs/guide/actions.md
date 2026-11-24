@@ -141,6 +141,17 @@ The world model says who acts and adds rules every action follows:
 
 - The player's mind acts, through its body: an action's rules see them as `actor` and `body`, and they follow `playAs()` and possession.
 - An action isn't offered to a mind with no body ("You have no body to act with."), or when one of its things is out of the player's reach ("The barrel is out of reach."). A door is in reach from both rooms it joins.
+- An action whose things can be anywhere, as what the player thinks or asks about, says so with `reachNotNeeded(action, "thing")` in `story.ts`, and checks them itself if it needs to. The world model's `ask` and `tell` do, for who's asked and what about:
+
+<!-- example: packages/world/src/acting.test.ts#reach -->
+```ts
+// Thinking about something doesn't need it in reach.
+export const thinkAbout = action<{ thing: Thing }>("thinkAbout", {
+  verbs: ["think about {thing}"],
+  report: "You think it over.",
+});
+reachNotNeeded(thinkAbout, "thing");
+```
 
 <!-- example: packages/world/src/acting.test.ts#kick -->
 ```ts
