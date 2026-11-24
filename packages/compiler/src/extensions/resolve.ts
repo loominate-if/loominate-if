@@ -122,6 +122,9 @@ function checkDirective(from: string, d: DirectiveDefinition): void {
   if (d.kind === "arrival" && (d.runtime as RuntimeExport | undefined) === undefined) {
     fail(`${where}: an arrival directive needs a \`runtime\` export to call.`);
   }
+  if (d.kind === "section" && (d.runtime as RuntimeExport | undefined) === undefined) {
+    fail(`${where}: a section directive needs a \`runtime\` export to call.`);
+  }
 }
 
 /**
@@ -242,7 +245,9 @@ export function resolveExtensions(extensions: readonly CompilerExtension[]): Res
     };
   });
   const paragraphEnds = new Set([
-    ...[...directives].filter(([, defs]) => defs[0]?.definition.kind === "content").map(([n]) => n),
+    ...[...directives]
+      .filter(([, defs]) => ["content", "section"].includes(defs[0]?.definition.kind ?? ""))
+      .map(([n]) => n),
   ]);
 
   return {

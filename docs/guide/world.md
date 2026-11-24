@@ -1291,6 +1291,32 @@ topic(cook, {
 
 What NPCs say is recorded as `action-result` events tagged `topic` and `speaker:` and their body's ID, so the page shows it after the move.
 
+### Topics in passage files
+
+An NPC's topics can be written as blocks in an actor passage, the prose of each block its response:
+
+<!-- example: packages/cli/src/fixtures/butler.weft#Butler -->
+```
+:: Butler [actor: butler, state: onDuty]
+
+{hello}
+"Sir?"
+
+{ask weather}
+"Grey, sir. And it was the butler, if you take my meaning."
+{reveal facts.culprit, from: butler}
+
+{ask weather, again}
+"As I said, sir. Grey."
+```
+
+- **`[actor: butler]`** makes the passage the butler's, and it's made only of blocks; anything before the first is an error. `state: onDuty` or `scene: storm` on the passage scope every block in it.
+- **Blocks:** `{ask …}`, `{tell …}`, `{ask or tell …}`, `{show …}`, `{give …}`, and `{show or give …}` take a subject; `{yes}`, `{no}`, `{hello}`, and `{bye}` don't. After the subject, a block can say `again`, and a give `takes`; `{hello}` and `{bye}` can say `implicit` or `explicit`. Named, they take `when:`, `priority:`, `in:`, `suggested:`, and, for `{tell}`, `informs:`.
+- **Checked as code:** the actor, states, scenes, and subjects are TypeScript, so a misspelled one is an error at its line: "`wether` isn't defined. Did you mean `weather`?"
+- **The response** is the block's prose, `{if}` and printed values included, each paragraph said with its line ID. `{reveal …}` and `{on enter: …}` run each time the block answers, `{on first visit: …}` the first time. Links, beats, and `{on leave: …}` can't go in a block.
+- **`again`** applies only once the NPC has answered the same exchange before, by any entry, and comes first among entries of its priority: the first block answers the first time, the `again` block every time after. In TypeScript it's `again: true`.
+- Lists that cycle or shuffle are TypeScript only, for now.
+
 ### Showing and giving
 
 Showing and giving are the ordinary `show` and `give` actions. When the game's own `giving` and `showing` rules don't answer, the addressee's topic entries do, before the default refusal:

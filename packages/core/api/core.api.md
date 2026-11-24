@@ -238,6 +238,9 @@ export interface EffectContext extends Omit<RenderContext, "state" | "persistent
     readonly state: StateWriter;
 }
 
+// @internal
+export function _effectContext(passage: PassageId): EffectContext;
+
 // @public
 export type EffectPhase = "firstVisit" | "enter" | "leave";
 

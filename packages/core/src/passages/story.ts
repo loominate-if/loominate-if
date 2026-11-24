@@ -546,6 +546,25 @@ function moveKind(action: StoryAction): MoveKind | undefined {
   return action.type;
 }
 
+/** The running story's effect context, for {@link _effectContext}. */
+let runningContext: ((passage: PassageId) => EffectContext) | undefined;
+
+/**
+ * The running story's effect context, as an effect phase of `passage` gets
+ * it, for packages that run authored effects outside passages, such as the
+ * world model's topic blocks. Its visit counts are the passage's.
+ * @internal
+ * @throws StateError if no story is running.
+ */
+export function _effectContext(passage: PassageId): EffectContext {
+  if (!runningContext) {
+    throw new StateError(
+      "no story is running, so there's no effect context. Create one with createStory first.",
+    );
+  }
+  return runningContext(passage);
+}
+
 /**
  * Creates the passage runtime.
  * @throws {@link StateError} if two passages share an ID or the start passage doesn't exist.
@@ -721,6 +740,10 @@ export function createStory(
       visited: (id) => visits(id) > 0,
     };
   };
+
+  // Packages that run authored effects outside passages, such as the world
+  // model's topic blocks, get this story's context (#115).
+  runningContext = contextFor;
 
   const hookContext = () => {
     const { state, persistent, emit } = contextFor(current() ?? options.start);

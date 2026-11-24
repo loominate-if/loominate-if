@@ -133,6 +133,49 @@ const KNOWN_VERBS = [
   ...["isn't", "aren't", "wasn't", "weren't", "hasn't", "haven't", "doesn't", "don't"],
 ];
 
+/** The topic blocks of actor passages, `{ask letter}` and the rest (#115). */
+function topicDirectives() {
+  const runtime = { module: WORLD, export: "topicBlock" };
+  const scoping = [
+    { name: "when", kind: "condition", named: true },
+    { name: "priority", kind: "expression", named: true },
+    { name: "in", kind: "expression", named: true },
+  ] as const;
+  const about = { name: "about", kind: "expression", required: true } as const;
+  const again = { name: "again", kind: "choice", choices: ["again"] } as const;
+  const takes = { name: "takes", kind: "choice", choices: ["takes"] } as const;
+  const suggested = { name: "suggested", kind: "expression", named: true } as const;
+  const block = (name: string, example: string, args: readonly object[]) => ({
+    name,
+    kind: "section" as const,
+    roles: ["actor"],
+    example,
+    args: [...args, ...scoping],
+    runtime,
+  });
+  return [
+    block("ask", "{ask letter}", [about, again, suggested]),
+    block("tell", "{tell war}", [
+      about,
+      again,
+      suggested,
+      { name: "informs", kind: "expression", named: true },
+    ]),
+    block("ask or tell", "{ask or tell anything}", [about, again, suggested]),
+    block("show", "{show photograph}", [about, again, suggested]),
+    block("give", "{give locket, takes}", [about, again, takes, suggested]),
+    block("show or give", "{show or give cake}", [about, again, takes, suggested]),
+    block("yes", "{yes}", [again]),
+    block("no", "{no}", [again]),
+    block("hello", "{hello}", [
+      { name: "implicit", kind: "choice", choices: ["implicit", "explicit"] },
+    ]),
+    block("bye", "{bye implicit}", [
+      { name: "implicit", kind: "choice", choices: ["implicit", "explicit"] },
+    ]),
+  ];
+}
+
 const extension = {
   name: WORLD,
   tagRoles: [
@@ -142,6 +185,15 @@ const extension = {
       arrival: { module: WORLD, export: "enterRoom" },
       register: { module: WORLD, export: "registerRoom" },
     },
+    // Actor passages hold an NPC's topic blocks (#115).
+    {
+      name: "actor",
+      entry: true,
+      sections: true,
+      register: { module: WORLD, export: "registerActorPassage" },
+    },
+    { name: "state", register: { module: WORLD, export: "registerStatePassage" } },
+    { name: "scene", register: { module: WORLD, export: "registerScenePassage" } },
   ],
   directives: [
     {
@@ -159,6 +211,7 @@ const extension = {
       args: [],
       runtime: { module: WORLD, export: "topicLinks" },
     },
+    ...topicDirectives(),
     {
       name: "reveal",
       kind: "arrival",

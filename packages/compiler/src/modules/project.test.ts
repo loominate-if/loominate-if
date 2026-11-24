@@ -906,3 +906,167 @@ describe("a tag role that runs on arrival", { timeout: 30_000 }, () => {
     expect(found).toHaveLength(2);
   });
 });
+
+describe("section directives (#115)", { timeout: 30_000 }, () => {
+  const out = mkdtempSync(path.join(here, "__run-"));
+  afterAll(() => {
+    rmSync(out, { recursive: true, force: true });
+  });
+
+  /** A `speaker:` role whose passages are made of `{say …}` blocks, as the world model's actors are of topics. */
+  const speakers: CompilerExtension = {
+    name: "speakers",
+    tagRoles: [
+      {
+        name: "speaker",
+        entry: true,
+        sections: true,
+        register: { module: "./story.js", export: "noteSpeaker" },
+      },
+    ],
+    directives: [
+      {
+        name: "say",
+        kind: "section",
+        roles: ["speaker"],
+        example: "{say hello}",
+        args: [
+          { name: "about", kind: "expression", required: true },
+          { name: "again", kind: "choice", choices: ["again"] },
+          { name: "loud", kind: "choice", choices: ["loud"] },
+          { name: "when", kind: "condition", named: true },
+        ],
+        runtime: { module: "./story.js", export: "addBlock" },
+      },
+    ],
+  };
+  const scope = [
+    'import { object, type ConditionArgument, type Passage } from "@loominate-if/core";',
+    'export const lamp = object("sectionLamp", { lit: false });',
+    'export const log = object("sectionLog", { said: [] as string[] });',
+    'export const bob = { id: "bob" };',
+    "export const blocks: { args: { about: string; again?: string; loud?: string; when?: () => ConditionArgument }; block: Passage; info: { id: string; directive: string; roles: Readonly<Record<string, unknown>> } }[] = [];",
+    "export function noteSpeaker(who: { id: string }, passage: { id: string; tags: readonly string[] }): void {",
+    "  void who;",
+    "  void passage;",
+    "}",
+    'export function addBlock(args: { about: string; again?: "again"; loud?: "loud"; when?: () => ConditionArgument }, block: Passage, info: { id: string; directive: string; roles: Readonly<Record<string, unknown>> }): void {',
+    "  blocks.push({ args, block, info });",
+    "}",
+  ].join("\n");
+  const build = (dir: string, weft: string) =>
+    compileProject({
+      root: dir,
+      compilerOptions,
+      extensions: [speakers],
+      files: [
+        { path: "story.ts", text: scope },
+        { path: "bob.weft", text: weft },
+      ],
+    });
+  const where = (r: ReturnType<typeof build>, dir: string): string[] =>
+    r.diagnostics.map(
+      (d) => `${path.relative(dir, d.file)}:${String(d.line)}:${String(d.column)} ${d.message}`,
+    );
+
+  it("gives each block to its package as the game loads: arguments, prose with line IDs, effects, and the passage's roles", async () => {
+    const dir = path.join(out, "blocks");
+    mkdirSync(dir);
+    const result = build(
+      dir,
+      [
+        ":: Bob [speaker: bob]",
+        "",
+        '{say "weather", when: lamp.lit}',
+        "It's *cold*.",
+        '{on enter: log.said.push("weather")}',
+        "",
+        "Very cold.",
+        "",
+        '{say "weather", loud}',
+        "IT'S COLD.",
+        "",
+      ].join("\n"),
+    );
+    expect(where(result, dir)).toEqual([]);
+    writeFileSync(path.join(dir, "story.ts"), scope);
+    writeFileSync(result.passageNames.path, result.passageNames.code);
+    const [module] = result.modules.values();
+    if (!module) throw new Error("no module");
+    writeFileSync(module.path, module.code);
+    // Loading runs every block's call; its condition, which reads state, isn't evaluated yet.
+    const { passages } = (await import(module.path)) as { passages: Passage[] };
+    const { blocks } = (await import(path.join(dir, "story.ts"))) as {
+      blocks: {
+        args: {
+          about: string;
+          again?: string;
+          loud?: string;
+          when?: () => { value: boolean; text: string };
+        };
+        block: Passage;
+        info: { id: string; directive: string; roles: Readonly<Record<string, unknown>> };
+      }[];
+    };
+    expect(passages.map((p) => p.id)).toEqual(["Bob"]);
+    expect(blocks.map((b) => [b.args.about, b.args.loud, b.info.directive, b.info.roles])).toEqual([
+      ["weather", undefined, "say", { speaker: { id: "bob" } }],
+      ["weather", "loud", "say", { speaker: { id: "bob" } }],
+    ]);
+    const [first, second] = blocks;
+    if (!first || !second) throw new Error("no blocks");
+    expect(first.block.id).toMatch(/^Bob#/);
+    expect(first.block.id).not.toBe(second.block.id);
+    const store = createStore();
+    createStory(store, createEventRecord(store), passages, { start: "Bob" }).begin();
+    expect(first.args.when?.()).toMatchObject({ value: false, text: "lamp.lit" });
+    const context = {
+      state: { get: () => undefined, has: () => false, entity: () => undefined },
+      persistent: { get: () => undefined, has: () => false, entity: () => undefined },
+      passage: first.block.id,
+      visits: 1,
+      firstVisit: true,
+      visited: () => false,
+    };
+    const nodes = first.block.body(context as never);
+    expect(
+      nodes.map((n) =>
+        n.type === "text" ? [n.text, n.styles?.[0]?.style, typeof n.line] : n.type,
+      ),
+    ).toEqual([
+      ["It's cold.", "emphasis", "string"],
+      ["Very cold.", undefined, "string"],
+    ]);
+    first.block.effects?.enter?.({ ...context, emit: () => undefined } as never);
+    expect(store.entity("sectionLog")).toEqual({ said: ["weather"] });
+  });
+
+  it("reports what can't be in a passage of blocks, or in a block", () => {
+    const dir = path.join(out, "errors");
+    mkdirSync(dir);
+    const result = build(
+      dir,
+      [
+        ":: Bob [speaker: bob]",
+        "Before any block.",
+        "",
+        '{say "a"}',
+        "[[Leave -> Bob]]",
+        "{on leave: void 0}",
+        "",
+        "{say nonsense, again}",
+        "Hm.",
+        "",
+        ":: Other",
+        '{say "b"}',
+      ].join("\n"),
+    );
+    expect(where(result, dir)).toEqual([
+      "bob.weft:2:1 This passage is made of blocks, such as `{say hello}`, so everything goes in one. Start a block before this.",
+      "bob.weft:5:1 `{say}` is a block of what's said, so it can't have links. Put choices in the passages the player visits.",
+      "bob.weft:6:1 `{on leave: …}` runs when the player leaves a passage, so it can't go in a `{say}` block. Use `{on enter: …}`, which runs each time the block is said.",
+      expect.stringMatching(/^bob\.weft:8:6 `nonsense` isn't defined/),
+      "bob.weft:12:1 `{say}` from speakers only works in passages with the `speaker:` role.",
+    ]);
+  });
+});

@@ -67,6 +67,17 @@ export type ArgumentSpec = {
  *   runs when the passage is only shown, so it may change state.
  * - `annotation`: `{name args}` that generates no code, read by the compiler
  *   or by checks, like core's `{line}`.
+ * - `section`: `{name args}` at the top level of a passage, starting a block
+ *   that runs to the next section or the passage's end, like the world
+ *   model's topic blocks, `{ask letter}`. The block's prose and effect phases
+ *   compile to a passage-shaped object, and as the game loads `runtime` is
+ *   called once per block as `runtime(args, block, { id, directive, roles })`:
+ *   its arguments as one object, where a `condition` is passed as a function
+ *   that evaluates it, since the block isn't shown when it's defined; the
+ *   block, whose body renders its prose with line IDs and whose `enter` and
+ *   `firstVisit` effects hold its effect code and arrival directives; and
+ *   the passage's name, the directive's name, and the passage's tag role
+ *   values by role. A block can't have links, beats, or `{on leave: …}`.
  *
  * A `content` or `guard` directive without `runtime` is recognized and
  * checked, and reports `unsupported` where it's used.
@@ -124,6 +135,13 @@ export type DirectiveDefinition = {
       /** The arguments it takes. */
       readonly args?: readonly ArgumentSpec[];
     }
+  | {
+      readonly kind: "section";
+      /** The arguments it takes. */
+      readonly args?: readonly ArgumentSpec[];
+      /** The function called once per block as the game loads. */
+      readonly runtime: RuntimeExport;
+    }
 );
 
 /** A tag role, written `role: value` in a passage header, such as `room: platform`. */
@@ -152,6 +170,12 @@ export type TagRoleDefinition = {
    * describes each room before the player gets there.
    */
   readonly register?: RuntimeExport;
+  /**
+   * True if passages with this role are made of section directives, as the
+   * world model's `actor:` passages are of topic blocks: anything before the
+   * first section is an error.
+   */
+  readonly sections?: boolean;
 };
 
 /**

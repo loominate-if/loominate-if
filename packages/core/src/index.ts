@@ -58,6 +58,7 @@ export {
   type TextStyle,
 } from "./events/record.js";
 export {
+  _effectContext,
   createStory,
   redirect,
   type BeatEffects,
