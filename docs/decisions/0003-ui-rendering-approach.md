@@ -1,6 +1,6 @@
 # 0003. UI rendering approach
 
-- **Status:** Accepted, 2026-11-15
+- **Status:** Superseded by [ADR 0079](0079-preact-for-presentation.md), 2026-11-24
 - **Issue:** [#6](https://github.com/loominate-if/loominate-if/issues/6)
 - **Design:** [Layouts, regions, and widgets](../DESIGN.md#layouts-regions-and-widgets), [Open questions](../DESIGN.md#open-questions)
 

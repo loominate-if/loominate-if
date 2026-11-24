@@ -1,6 +1,6 @@
 # UI rendering benchmark
 
-The measurements behind [ADR 0003](../../docs/decisions/0003-ui-rendering-approach.md): how much a plain branching story pays for its UI with vanilla DOM, Preact, or Solid.
+The measurements behind [ADR 0003](../../docs/decisions/0003-ui-rendering-approach.md) and [ADR 0079](../../docs/decisions/0079-preact-for-presentation.md): how much a plain branching story pays for its UI with vanilla DOM, Preact, Preact with signals, or Solid.
 
 Every variant renders the same four-passage story on this checkout's `@loominate-if/core`, with the same features:
 - passage text, link buttons, and a continue button;
@@ -17,4 +17,6 @@ npm run build   # bundles each variant with esbuild and prints minified, gzip, a
 npm run smoke   # plays one script through each variant in jsdom; fails if they behave differently
 ```
 
-`baseline` is the runtime and story with no UI, so "UI cost" is each variant's size minus the baseline. Run it again at Gate 2, when the compass, inventory, and conversation widgets exist, to decide whether to revisit the ADR.
+`baseline` is the runtime and story with no UI, so "UI cost" is each variant's size minus the baseline.
+
+At Gate 2 (ADR 0079), the UI cost, gzipped, was 0.36 KB for vanilla DOM, 6.0 KB for Preact, 8.6 KB for Preact with signals, and 6.0 KB for Solid. Presentation moved to Preact with signals.

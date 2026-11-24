@@ -64,7 +64,7 @@ docs/                DESIGN.md, decisions/ (ADRs), author docs
 - Runtime dependencies flow downward only: `core` ← `presentation` ← `world` ← kits, never the reverse. Kits never depend on each other unless the design says so. Runtime packages never depend on tooling.
 - `world`, kits, and other optional packages extend the compiler and inspector through their extension APIs and registries. The compiler and inspector never import them.
 - `core` never touches the DOM. Nothing from `compiler` or `inspector` may reach a production game bundle.
-- `presentation` uses vanilla DOM and takes no UI framework dependency; widget views stay framework-agnostic ([ADR 0003](docs/decisions/0003-ui-rendering-approach.md)).
+- `presentation` is written in Preact, with `@preact/signals`, in TSX; widget views stay framework-agnostic, so games and kits can write theirs in anything ([ADR 0079](docs/decisions/0079-preact-for-presentation.md)).
 
 ## Tooling and commands
 
