@@ -6,6 +6,7 @@
  */
 import { action, message, messages, t, type ObjectRef, type Text } from "@loominate-if/core";
 import { isBody } from "./actors.js";
+import { countOf, isStack, oneOf, split } from "./stacks.js";
 import { isPlace, isWithin, move, placeOf, thingFor, type Thing } from "./things.js";
 
 declare module "@loominate-if/core" {
@@ -21,6 +22,16 @@ declare module "@loominate-if/core" {
     "drop.done": { readonly thing: ObjectRef };
     /** Why dropping something you don't have isn't offered. */
     "drop.notHeld": { readonly thing: ObjectRef };
+    /** Taking a whole stack: "Take all 99 turnips". */
+    "stack.takeAll": { readonly thing: ObjectRef; readonly count: number };
+    /** Dropping a whole stack: "Drop all 99 turnips". */
+    "stack.dropAll": { readonly thing: ObjectRef; readonly count: number };
+    /** Taking one from a stack: "Take a turnip". `one` is "a turnip". */
+    "stack.takeOne": { readonly thing: ObjectRef; readonly one: string };
+    "stack.takeOne.done": { readonly thing: ObjectRef; readonly one: string };
+    /** Dropping one from a stack: "Drop a turnip". */
+    "stack.dropOne": { readonly thing: ObjectRef; readonly one: string };
+    "stack.dropOne.done": { readonly thing: ObjectRef; readonly one: string };
     "open.label": { readonly thing: ObjectRef };
     "open.done": { readonly thing: ObjectRef };
     "open.already": { readonly thing: ObjectRef };
@@ -54,6 +65,12 @@ say("take.held", t`You already have {the thing}.`);
 say("drop.label", t`Drop {the thing}`);
 say("drop.done", t`You drop {the thing}.`);
 say("drop.notHeld", t`You don't have {the thing}.`);
+say("stack.takeAll", t`Take all {a thing}`);
+say("stack.dropAll", t`Drop all {a thing}`);
+say("stack.takeOne", ({ one }) => `Take ${one}`);
+say("stack.takeOne.done", ({ one }) => `You take ${one}.`);
+say("stack.dropOne", ({ one }) => `Drop ${one}`);
+say("stack.dropOne.done", ({ one }) => `You drop ${one}.`);
 say("open.label", t`Open {the thing}`);
 say("open.done", t`You open {the thing}.`);
 say("open.already", t`{The subj thing} {is} already open.`);
@@ -124,7 +141,10 @@ export const examine = action<{ thing: ActingOn }>("examine", {
 export const take = action<{ thing: ActingOn }>("take", {
   source: SOURCE,
   for: isPortable,
-  label: ({ thing }) => message("take.label", { thing }),
+  label: ({ thing }) =>
+    isStack(thing) && countOf(thing) > 1
+      ? message("stack.takeAll", { thing, count: countOf(thing) })
+      : message("take.label", { thing }),
   verify: ({ thing, body }) =>
     body && isWithin(thing, body) ? message("take.held", { thing }) : undefined,
   run: ({ thing, body }) => {
@@ -137,7 +157,10 @@ export const take = action<{ thing: ActingOn }>("take", {
 export const drop = action<{ thing: ActingOn }>("drop", {
   source: SOURCE,
   for: isPortable,
-  label: ({ thing }) => message("drop.label", { thing }),
+  label: ({ thing }) =>
+    isStack(thing) && countOf(thing) > 1
+      ? message("stack.dropAll", { thing, count: countOf(thing) })
+      : message("drop.label", { thing }),
   verify: ({ thing, body }) =>
     body && isWithin(thing, body) ? undefined : message("drop.notHeld", { thing }),
   run: ({ thing, body }) => {
@@ -145,6 +168,36 @@ export const drop = action<{ thing: ActingOn }>("drop", {
     if (here) move(thing, here);
   },
   report: ({ thing }) => message("drop.done", { thing }),
+});
+
+/** A stack of more than one, which one can be taken from or dropped from. */
+const isSeveral = (t: ObjectRef): boolean => isPortable(t) && isStack(t) && countOf(t) > 1;
+
+/** Takes one from a stack, as "Take a turnip", into the actor's body, where it joins any of its kind. */
+export const takeOne = action<{ thing: ActingOn }>("takeOne", {
+  source: SOURCE,
+  for: isSeveral,
+  label: ({ thing }) => message("stack.takeOne", { thing, one: oneOf(thing) }),
+  verify: ({ thing, body }) =>
+    body && isWithin(thing, body) ? message("take.held", { thing }) : undefined,
+  run: ({ thing, body }) => {
+    if (body) move(split(thing, 1), body);
+  },
+  report: ({ thing }) => message("stack.takeOne.done", { thing, one: oneOf(thing) }),
+});
+
+/** Drops one from a stack the actor carries, as "Drop a turnip", where the actor is. */
+export const dropOne = action<{ thing: ActingOn }>("dropOne", {
+  source: SOURCE,
+  for: isSeveral,
+  label: ({ thing }) => message("stack.dropOne", { thing, one: oneOf(thing) }),
+  verify: ({ thing, body }) =>
+    body && isWithin(thing, body) ? undefined : message("drop.notHeld", { thing }),
+  run: ({ thing, body }) => {
+    const here = body && (thingFor(body)?.location ?? placeOf(body));
+    if (here) move(split(thing, 1), here);
+  },
+  report: ({ thing }) => message("stack.dropOne.done", { thing, one: oneOf(thing) }),
 });
 
 /** Opens something openable, unless it's locked. */

@@ -38,6 +38,9 @@ A message's text is one of three things:
 | `direction.from` | `direction` | "from the north", "from above" |
 | `examine.label`, `take.label`, `drop.label`, `open.label`, `close.label`, `lock.label`, `unlock.label` | `thing` | The standard actions' labels: "Take the iron key" |
 | `take.done`, `drop.done`, `open.done`, `close.done`, `lock.done`, `unlock.done` | `thing` | What they report: "You take the iron key." |
+| `stack.takeAll`, `stack.dropAll` | `thing`, `count` | A whole stack's labels: "Take all 99 turnips" |
+| `stack.takeOne`, `stack.dropOne` | `thing`, `one` ("a turnip") | Taking or dropping one: "Take a turnip" |
+| `stack.takeOne.done`, `stack.dropOne.done` | `thing`, `one` | "You take a turnip." |
 | `examine.nothing` | `thing` | "You see nothing special about the statue." |
 | `take.held`, `drop.notHeld`, `open.already`, `close.already`, `lock.already`, `unlock.notLocked` | `thing` | Why they aren't offered |
 | `open.locked`, `lock.open` | `thing` | "The oak chest is locked.", "You'll have to close the oak chest first." |

@@ -85,6 +85,8 @@ export function pluralOf(thing: ObjectRef): string {
 
 /** What makes things alike enough to list together, or `undefined` if `t` stands alone. */
 function equivalence(t: Thing): string | undefined {
+  // A stack is listed with its own count, as "99 turnips"; one that doesn't merge stands alone.
+  if (typeof (t as Thing & { stackOf?: unknown }).stackOf === "string") return undefined;
   const made = templateOf(t);
   if (made !== undefined) return `template:${made}:${t.name}`;
   return (t as Thing & ListingFields).isEquivalent === true ? `name:${t.name}` : undefined;

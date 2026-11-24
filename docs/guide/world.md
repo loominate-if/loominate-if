@@ -198,6 +198,49 @@ expect(listContents(table)).toBe("a brass key, a map, and two mice");
 - Export it from `story.ts` to use it in passages, `export { listContents } from "@loominate-if/world";`, then write `The chest holds {listContents(chest)}.`
 - The words come from the message table: `list.empty` ("nothing"), `list.join` ("a, b, and c"), `list.group` ("three gold coins"), and `number.words` ("three", up to twelve, then digits) ([Rewording the library](messages.md)).
 
+## Stacks
+
+Ninety-nine turnips are one thing with a count, not ninety-nine things. Define a kind of stackable thing with `stackable`, and an authored stack with `stack`, which takes an ID like any thing:
+
+<!-- example: packages/world/src/stacks.test.ts#stacks -->
+```ts
+export const turnip = stackable("turnip", { name: "turnip" });
+export const crate = stack("crate", turnip, { count: 99, location: barn });
+export const ticket = stackable("ticket", { name: "raffle ticket", merges: false });
+```
+
+A stack's name follows its count. A stack of 99 is "the turnips" and "99 turnips", and takes plural verbs; a stack of one is "the turnip" and "a turnip". Listing shows a stack with its count: "99 turnips and a raffle ticket".
+
+- **Splitting:** `split(stack, n)` makes a new stack of `n`, of the same kind and in the same place. Its ID comes from the one it was split from, as `gen:crate:turnip-1`, so undo, saves, and replays agree.
+- **Merging:** stacks of a kind merge whenever one is moved to where another is. The one already there takes the count, so the player never carries "three turnips and two turnips". A kind with `merges: false`, such as numbered tickets, never merges.
+- **Counting:** `countOf(stack)` is how many it holds, and `setCount` changes it. At 0, it leaves the world. `stackIn(holder, kind)` finds the stack of a kind in or on something.
+
+<!-- example: packages/world/src/stacks.test.ts#split -->
+```ts
+const three = split(crate, 3); // gen:crate:turnip-1, still in the barn
+expect([three.id, countOf(three), countOf(crate)]).toEqual(["gen:crate:turnip-1", 3, 96]);
+move(three, you);
+const two = split(crate, 2);
+move(two, you); // joins the three you carry
+expect(countOf(three)).toBe(5);
+```
+
+A stack's menu offers taking one or all, and dropping one or all once it's carried. Taking one splits it off and moves it to the player, where it joins any of its kind:
+
+<!-- example: packages/world/src/stacks.test.ts#menus -->
+```ts
+expect(menu(crate)).toEqual(["Examine the turnips", "Take all 99 turnips", "Take a turnip"]);
+perform(takeOne({ thing: crate }));
+perform(takeOne({ thing: crate }));
+const held = stackIn(you, turnip);
+expect(held && countOf(held)).toBe(2);
+expect(held && menu(held)).toEqual([
+  "Examine the turnips",
+  "Drop all two turnips",
+  "Drop a turnip",
+]);
+```
+
 ## Moving things
 
 `move(thing, to)` moves a thing into or onto another, or out of the world with `move(thing, null)`. It's one change, so one undo takes it back. It refuses a move that makes no sense: into something that can't hold things, or into the thing itself or something inside it. Whether the player may make the move, such as into a locked chest, is for actions to decide.
