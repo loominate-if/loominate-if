@@ -361,6 +361,8 @@ Each NPC chooses one of three simulation levels, so authors spend effort only on
 
 Conversations follow adv3Lite's model of topic entries that declare when they apply, presented in a dedicated conversation mode and designed for group conversations from the start, with one-on-one as a group of one.
 
+The player has one conversation at a time, held as game state: its participants (NPC minds, in joining order), the one addressed, and its locks, one per owner (a participant or a node), each `soft` or `hard`, the strictest deciding the exit. `startConversation`, `address`, `joinConversation`, `leaveConversation`, and `endConversation` change it during play, and a participant no longer in the player's place leaves after the move; with no one left, it ends ([ADR 0087](decisions/0087-conversation-model.md)).
+
 ### Topic entries
 
 - Topics cover asking, telling, showing, giving, and yes/no answers, plus greetings and goodbyes (including implicit ones).

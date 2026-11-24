@@ -290,3 +290,18 @@ export {
   type _NpcRow,
   type _NpcTimetableEntry,
 } from "./npc-view.js";
+export {
+  address,
+  conversation,
+  endConversation,
+  inConversationWith,
+  joinConversation,
+  leaveConversation,
+  lockConversation,
+  startConversation,
+  unlockConversation,
+  type ConversationExit,
+  type ConversationLock,
+  type ConversationView,
+  type LockLevel,
+} from "./conversations.js";

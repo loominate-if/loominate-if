@@ -81,6 +81,9 @@ export type ActorHalves<M> = {
 };
 
 // @public
+export function address(npc: ObjectRef): void;
+
+// @public
 export type Advanced = {
     readonly minutes: number;
     readonly interrupted: boolean;
@@ -272,6 +275,28 @@ export const container: {
 
 // @public
 export function contents(parent: ObjectRef): Thing[];
+
+// @public
+export const conversation: ConversationView;
+
+// @public
+export type ConversationExit = "free" | LockLevel;
+
+// @public
+export type ConversationLock = {
+    readonly by: string;
+    readonly level: LockLevel;
+    readonly reason?: string;
+};
+
+// @public
+export type ConversationView = {
+    readonly active: boolean;
+    readonly participants: readonly Thing[];
+    readonly addressee: Thing | undefined;
+    readonly locks: readonly ConversationLock[];
+    readonly exit: ConversationExit;
+};
 
 // @public
 export function countedDays(options?: CountedDaysOptions): Calendar;
@@ -466,6 +491,9 @@ count: number;
 }>;
 
 // @public
+export function endConversation(): void;
+
+// @public
 export type Ended = "fired" | "cancelled" | "stopped";
 
 // @public
@@ -644,6 +672,9 @@ export type Hours = {
 };
 
 // @public
+export function inConversationWith(npc: ObjectRef): boolean;
+
+// @public
 export function inScope(observer: ObjectRef, sense: Sense): Thing[];
 
 // @public
@@ -689,6 +720,9 @@ export function isStack(t: ObjectRef): boolean;
 export function isWithin(t: ObjectRef, ancestor: ObjectRef): boolean;
 
 // @public
+export function joinConversation(npc: ObjectRef): void;
+
+// @public
 export function journey(name: string, options?: JourneyOptions): void;
 
 // @public
@@ -726,6 +760,9 @@ export type LearnOptions = FactSource;
 export function leaveBody(m: ObjectRef, options?: LeaveOptions): void;
 
 // @public
+export function leaveConversation(npc: ObjectRef): void;
+
+// @public
 export type LeaveOptions = {
     readonly restore?: boolean;
 };
@@ -758,6 +795,16 @@ export const lockable: {
     lock(): boolean;
     unlock(): void;
 };
+
+// @public
+export function lockConversation(lock: {
+    readonly by: ObjectRef | string;
+    readonly level: LockLevel;
+    readonly reason?: string;
+}): void;
+
+// @public
+export type LockLevel = "soft" | "hard";
 
 // @public
 export type Mind = Handle<MindFields> & MindKnowledge;
@@ -1205,6 +1252,9 @@ export function startAs(m: ObjectRef): void;
 export function startClock(options: ClockStart): void;
 
 // @public
+export function startConversation(withWhom: ObjectRef | readonly ObjectRef[]): void;
+
+// @public
 export function stat(who: ObjectRef, name: StatName): number;
 
 // @public
@@ -1358,6 +1408,9 @@ export function undisguise(b: ObjectRef): void;
 export const unlock: Action<    {
 thing: ActingOn;
 }>;
+
+// @public
+export function unlockConversation(by: ObjectRef | string): void;
 
 // @public
 export function unmodify(who: ObjectRef, name: StatName, from: string): void;
