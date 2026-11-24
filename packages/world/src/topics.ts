@@ -39,6 +39,7 @@ import {
   startConversation,
   type LeftBy,
 } from "./conversations.js";
+import { _isNode, closeNode, openNode, openNodeOf, type ConvNode } from "./nodes.js";
 import { _knowable, factNamed, player, type Fact } from "./knowledge.js";
 import { clock } from "./clock.js";
 import {
@@ -84,6 +85,12 @@ declare module "@loominate-if/core" {
     "topic.suggest.tell": { readonly about: string };
     /** The goodbye link among suggested topics. */
     "topic.suggest.bye": Record<never, never>;
+    /** An open node's yes, among suggested topics. */
+    "topic.suggest.yes": Record<never, never>;
+    /** An open node's no, among suggested topics. */
+    "topic.suggest.no": Record<never, never>;
+    /** What an NPC with an open, restrictive node and no `presses` line says to a change of subject. */
+    "topic.node.waits": { readonly who: ObjectRef };
     /** A suggested showing's link: "Show the photograph". */
     "topic.suggest.show": { readonly thing: ObjectRef };
     /** A suggested giving's link: "Give the locket". */
@@ -112,6 +119,9 @@ register("topic.unknown", () => "You don't know anything about that.");
 register("topic.suggest.ask", ({ about }) => `Ask about ${about}`);
 register("topic.suggest.tell", ({ about }) => `Tell about ${about}`);
 register("topic.suggest.bye", () => "Say goodbye");
+register("topic.suggest.yes", () => "Say yes");
+register("topic.suggest.no", () => "Say no");
+register("topic.node.waits", ({ who }) => t`{The subj who} {waits} for your answer.`({ who }));
 register("topic.suggest.show", ({ thing }) => t`Show {the thing}`({ thing }));
 register("topic.suggest.give", ({ thing }) => t`Give {the thing}`({ thing }));
 register("topic.noSubject", ({ about }) => `There's no subject called ${JSON.stringify(about)}.`);
@@ -267,7 +277,7 @@ export type TopicOptions = {
   /** Only while this holds. */
   readonly when?: () => boolean;
   /** Only in this actor state of theirs, or while this scene is happening. */
-  readonly in?: ActorState | Period;
+  readonly in?: ActorState | Period | ConvNode;
   /** Higher wins among entries that match. Defaults to 0. */
   readonly priority?: number;
   /** Facts the player learns when it answers, from the NPC, as does everyone else in the conversation. */
@@ -282,6 +292,10 @@ export type TopicOptions = {
    * priority, it comes first, so it answers every time after the first.
    */
   readonly again?: boolean;
+  /** A conversation node it opens after answering, as when the NPC asks a question. */
+  readonly opens?: ConvNode;
+  /** For an entry in a node: the node stays open after it answers. Otherwise it closes. */
+  readonly stays?: boolean;
   /** A stable ID for the entry, kept across edits, for saves and the inspector. Compiled topic blocks get one from their line. */
   readonly id?: string;
 };
@@ -345,9 +359,10 @@ const nameOf = (s: Subject): string => {
   return typeof name === "string" ? name : ref.id;
 };
 
-const isPeriod = (x: ActorState | Period): x is Period => "isHappening" in x;
+const isPeriod = (x: ActorState | Period | ConvNode): x is Period => "isHappening" in x;
 /** How specific an entry's context is: a scene over an actor state over the actor. */
-const contextLevel = (e: Entry): number => (e.in === undefined ? 0 : isPeriod(e.in) ? 2 : 1);
+const contextLevel = (e: Entry): number =>
+  e.in === undefined ? 0 : _isNode(e.in) ? 3 : isPeriod(e.in) ? 2 : 1;
 
 /**
  * Gives an NPC a topic entry, in `story.ts`: what they say when the player
@@ -429,6 +444,8 @@ function addEntry(npc: ObjectRef, entry: TopicEntry, block?: Passage): void {
     );
   }
   if (entry.in && !isPeriod(entry.in) && entry.in.mind !== mind) {
+    if (_isNode(entry.in))
+      throw new StateError(`${where}: ${JSON.stringify(entry.in.id)} is another NPC's node.`);
     throw new StateError(`${where}: ${JSON.stringify(entry.in.id)} is another NPC's state.`);
   }
   const list = entries.get(mind) ?? [];
@@ -482,7 +499,9 @@ function whyNot(
     return e.implicit ? "It's only for when nothing was said." : "It's only for when it's said.";
   }
   if (e.in) {
-    if (isPeriod(e.in)) {
+    if (_isNode(e.in)) {
+      if (openNodeOf({ id: e.mind })?.id !== e.in.id) return `Its node, ${e.in.name}, isn't open.`;
+    } else if (isPeriod(e.in)) {
       if (!e.in.isHappening) return `Its scene, ${e.in.name ?? e.in.id}, isn't happening.`;
     } else if (actorStateOf({ id: e.mind })?.id !== e.in.id) {
       return `Its actor state, ${e.in.name}, isn't current.`;
@@ -613,13 +632,20 @@ export function _topicExplanations(): readonly {
         e.about === undefined ? "" : e.about === anything ? "anything else" : nameOf(e.about);
       const when = e.implicit === true ? ", unprompted" : e.implicit === false ? ", in words" : "";
       const c = match(body, kind, about, e.implicit ?? false).candidates.find((x) => x.id === e.id);
+      // A restrictive node holds up everything but its own replies.
+      const node = openNodeOf(body);
+      const held = c?.wins === true && node?.restricts === true && !unheld(kind) && e.in !== node;
       const said = handed
         ? `${verb} ${subjectName} to ${who}`
         : `${verb} ${who}${e.about === undefined ? "" : ` about ${subjectName}`}${when}`;
       return {
         label: `${said} (${e.id})`,
-        available: c?.wins ?? false,
-        ...(c?.why !== undefined && { why: c.why }),
+        available: (c?.wins ?? false) && !held,
+        ...(held
+          ? {
+              why: `Its node, ${node.name}, is open and restrictive, so the NPC presses the point instead.`,
+            }
+          : c?.why !== undefined && { why: c.why }),
       };
     });
   });
@@ -717,6 +743,8 @@ function answer(
   fallback: string | undefined,
 ): Entry | undefined {
   const { winner } = match(who, kind, options.about, options.implicit ?? false);
+  const node = openNodeOf(who);
+  if (pressed(who, kind, node, winner)) return undefined;
   if (winner) {
     const key = exchangeKey(
       winner.mind,
@@ -731,7 +759,45 @@ function answer(
       ...(options.how !== undefined && { how: options.how }),
     });
   } else if (fallback !== undefined) say(fallback, who);
+  afterNode(who, kind, node, winner);
   return winner;
+}
+
+/** Exchanges a node never holds up: greeting and goodbye. */
+const unheld = (kind: TopicKind): boolean => kind === "hello" || kind === "bye";
+
+/**
+ * Whether a restrictive node holds the exchange up: it isn't one of the
+ * node's own replies, so the NPC presses the point instead of answering.
+ */
+function pressed(
+  who: ObjectRef,
+  kind: TopicKind,
+  node: ConvNode | undefined,
+  winner: Entry | undefined,
+): boolean {
+  if (!node?.restricts || unheld(kind) || winner?.in === node) return false;
+  pressPoint(who, node);
+  return true;
+}
+
+/** After an answer: a node reply closes its node, an entry may open one, and an open node presses the point. */
+function afterNode(
+  who: ObjectRef,
+  kind: TopicKind,
+  node: ConvNode | undefined,
+  winner: Entry | undefined,
+): void {
+  if (node && winner?.in === node && winner.stays !== true) closeNode(who);
+  else if (node && !unheld(kind) && winner?.in !== node && node.presses !== undefined)
+    pressPoint(who, node);
+  if (winner?.opens) openNode(who, winner.opens);
+}
+
+/** The NPC presses the point of their open node. */
+function pressPoint(who: ObjectRef, node: ConvNode): void {
+  const text = typeof node.presses === "function" ? node.presses() : node.presses;
+  say(text ?? message("topic.node.waits", { who }), who);
 }
 
 // --- The player's side ---
@@ -908,6 +974,20 @@ export function suggestedTopics(): readonly SuggestedTopic[] {
   if (!who || !mind) return [];
   const out: SuggestedTopic[] = [];
   const done = new Set<string>();
+  const node = openNodeOf(who);
+  // While a restrictive node is open, only its own replies are suggested.
+  const allowed = (winner: Entry): boolean => !node?.restricts || winner.in === node;
+  // An open node's yes and no come first, as answers to its question.
+  if (node) {
+    for (const kind of ["yes", "no"] as const) {
+      const { winner } = match(who, kind, undefined, false);
+      if (winner?.in !== node || winner.suggested === false) continue;
+      out.push({
+        label: message(kind === "yes" ? "topic.suggest.yes" : "topic.suggest.no", {}),
+        call: (kind === "yes" ? yes : no)({}) as unknown as SuggestedTopic["call"],
+      });
+    }
+  }
   for (const e of entries.get(mind.id) ?? []) {
     if (e.about === undefined || e.about === anything) continue;
     const about = e.about as ObjectRef | Fact;
@@ -916,7 +996,8 @@ export function suggestedTopics(): readonly SuggestedTopic[] {
       const key = `${kind}|${e.subject ?? ""}`;
       if (done.has(key) || !knownToPlayer(about)) continue;
       const { winner } = match(who, kind, about, false);
-      if (!winner || winner.subject === "*" || winner.suggested === false) continue;
+      if (!winner || winner.subject === "*" || winner.suggested === false || !allowed(winner))
+        continue;
       done.add(key);
       const arg = isFact(about) ? about.id : about;
       out.push({
@@ -941,7 +1022,8 @@ export function suggestedTopics(): readonly SuggestedTopic[] {
       const key = `${kind}|${e.subject ?? ""}`;
       if (done.has(key)) continue;
       const { winner } = match(who, kind, thing, false);
-      if (!winner || winner.subject === "*" || winner.suggested === false) continue;
+      if (!winner || winner.subject === "*" || winner.suggested === false || !allowed(winner))
+        continue;
       done.add(key);
       out.push({
         label: message(kind === "show" ? "topic.suggest.show" : "topic.suggest.give", { thing }),
@@ -985,12 +1067,18 @@ function handedTo(kind: "show" | "give", offer: Offer): Reaction | undefined {
   if (!player || offer.body?.id !== player.id) return undefined;
   if (!mindOf(offer.to)) return undefined;
   const { winner } = match(offer.to, kind, offer.thing, false);
+  const node = openNodeOf(offer.to);
+  if (pressed(offer.to, kind, node, winner)) {
+    clock.advance(EXCHANGE_MINUTES);
+    return react("");
+  }
   if (!winner) return undefined;
   turnTo(offer.to);
   const key = exchangeKey(winner.mind, kind, subjectKey(offer.thing));
   counts.entries = { ...counts.entries, [winner.id]: (counts.entries[winner.id] ?? 0) + 1 };
   counts.exchanges = { ...counts.exchanges, [key]: (counts.exchanges[key] ?? 0) + 1 };
   respond(winner, { npc: offer.to, about: offer.thing });
+  afterNode(offer.to, kind, node, winner);
   clock.advance(EXCHANGE_MINUTES);
   return kind === "give" && winner.takes === true ? accept("") : react("");
 }
@@ -1013,8 +1101,12 @@ export type TopicBlockArguments = {
   /** Only while this holds. */
   readonly when?: () => ConditionArgument;
   readonly priority?: number;
-  /** An actor state or scene, besides the passage's. */
-  readonly in?: ActorState | Period;
+  /** An actor state, scene, or node, besides the passage's. */
+  readonly in?: ActorState | Period | ConvNode;
+  /** A node it opens after answering. */
+  readonly opens?: ConvNode;
+  /** `stays`: a node reply that leaves its node open. */
+  readonly stays?: "stays";
   readonly suggested?: boolean;
   readonly informs?: boolean;
 };
@@ -1055,12 +1147,15 @@ export function topicBlock(
   const where = `topic block in ${JSON.stringify(passage.id)}`;
   const npc = passage.roles["actor"] as ObjectRef | undefined;
   if (!npc) throw new StateError(`${where}: give the passage an actor, as [actor: butler].`);
-  const scopes = [args.in, passage.roles["state"], passage.roles["scene"]].filter(
-    (x): x is ActorState | Period => x !== undefined,
-  );
+  const scopes = [
+    args.in,
+    passage.roles["state"],
+    passage.roles["scene"],
+    passage.roles["node"],
+  ].filter((x): x is ActorState | Period | ConvNode => x !== undefined);
   if (scopes.length > 1) {
     throw new StateError(
-      `${where}: it's scoped by more than one of the block's \`in:\` and the passage's \`state:\` and \`scene:\`. Give one.`,
+      `${where}: it's scoped by more than one of the block's \`in:\` and the passage's \`state:\`, \`scene:\`, and \`node:\`. Give one.`,
     );
   }
   const kind = BLOCK_KINDS[passage.directive];
@@ -1074,6 +1169,8 @@ export function topicBlock(
     ...(when && { when: () => when().value }),
     ...(args.priority !== undefined && { priority: args.priority }),
     ...(scopes[0] && { in: scopes[0] }),
+    ...(args.opens && { opens: args.opens }),
+    ...(args.stays && { stays: true }),
     ...(args.again && { again: true }),
     ...(args.takes && { takes: true }),
     ...(args.implicit && { implicit: args.implicit === "implicit" }),
@@ -1097,6 +1194,15 @@ export function registerStatePassage(
   passage: { readonly id: string; readonly tags: readonly string[] },
 ): void {
   void state;
+  void passage;
+}
+
+/** What `[node: proposal]` calls as the game loads: the value is checked as a conversation node. */
+export function registerNodePassage(
+  node: ConvNode,
+  passage: { readonly id: string; readonly tags: readonly string[] },
+): void {
+  void node;
   void passage;
 }
 

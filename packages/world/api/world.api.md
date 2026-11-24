@@ -275,6 +275,9 @@ thing: ActingOn;
 }>;
 
 // @public
+export function closeNode(npc: ObjectRef): void;
+
+// @public
 export type ClosingStep = {
     readonly after: Delay;
     readonly say?: string | Text;
@@ -327,6 +330,22 @@ export type ConversationView = {
     readonly locks: readonly ConversationLock[];
     readonly exit: ConversationExit;
 };
+
+// @public
+export type ConvNode = {
+    readonly id: string;
+    readonly name: string;
+    readonly mind: string;
+    readonly restricts: boolean;
+    readonly presses?: Presses;
+    readonly isNode: true;
+};
+
+// @public
+export function convNode(npc: ObjectRef, name: string, options?: {
+    readonly restricts?: boolean;
+    readonly presses?: Presses;
+}): ConvNode;
 
 // @public
 export function countedDays(options?: CountedDaysOptions): Calendar;
@@ -1004,6 +1023,12 @@ export function openingHours(hours: Hours): {
 };
 
 // @public
+export function openNode(npc: ObjectRef, node: ConvNode): void;
+
+// @public
+export function openNodeOf(npc: ObjectRef): ConvNode | undefined;
+
+// @public
 export function parentOf(t: ObjectRef): Thing | undefined;
 
 // @public
@@ -1067,6 +1092,9 @@ export type PossessOptions = {
 };
 
 // @public
+export type Presses = string | (() => string | undefined);
+
+// @public
 export type Pronoun = "she" | "he" | "they" | "it";
 
 // @public
@@ -1113,6 +1141,12 @@ export function regionsOf(t: ObjectRef): Region[];
 
 // @public
 export function registerActorPassage(actor: ObjectRef, passage: {
+    readonly id: string;
+    readonly tags: readonly string[];
+}): void;
+
+// @public
+export function registerNodePassage(node: ConvNode, passage: {
     readonly id: string;
     readonly tags: readonly string[];
 }): void;
@@ -1499,7 +1533,9 @@ export type TopicBlockArguments = {
     readonly implicit?: "implicit" | "explicit";
     readonly when?: () => ConditionArgument;
     readonly priority?: number;
-    readonly in?: ActorState | Period;
+    readonly in?: ActorState | Period | ConvNode;
+    readonly opens?: ConvNode;
+    readonly stays?: "stays";
     readonly suggested?: boolean;
     readonly informs?: boolean;
 };
@@ -1591,12 +1627,14 @@ export type TopicOptions = {
     readonly says: Says | readonly Says[];
     readonly order?: ListOrder;
     readonly when?: () => boolean;
-    readonly in?: ActorState | Period;
+    readonly in?: ActorState | Period | ConvNode;
     readonly priority?: number;
     readonly reveals?: Fact | readonly Fact[];
     readonly suggested?: boolean;
     readonly informs?: boolean;
     readonly again?: boolean;
+    readonly opens?: ConvNode;
+    readonly stays?: boolean;
     readonly id?: string;
 };
 

@@ -363,10 +363,11 @@ function butlerGame(butler: string): string {
   const root = worldGame();
   appendFileSync(
     path.join(root, "story.ts"),
-    `import { actorStates, hello, topics } from "@loominate-if/world";
+    `import { actorStates, convNode, hello, topics } from "@loominate-if/world";
 export const butler = actor("butler", { body: { name: "butler", location: hall } });
 export const [onDuty, offDuty] = actorStates(butler, ["onDuty", "offDuty"], { starts: "onDuty" });
-export const { weather } = topics({ weather: "the weather" });
+export const { weather, job } = topics({ weather: "the weather", job: "the job" });
+export const proposal = convNode(butler, "proposal", { restricts: true, presses: "\\"Well, sir?\\"" });
 export { hello };
 `,
   );
@@ -409,6 +410,13 @@ describe("loominate dev", () => {
       expect(text()).toContain('"Grey, sir. And it was the butler, if you take my meaning."');
       follow("Ask about the weather");
       expect(text()).toContain('"As I said, sir. Grey."');
+      // A block that opens a node: only its replies are offered, and changing the subject presses.
+      follow("Ask about the job");
+      expect(text()).toContain('"There is a post, sir. Will you take it?"');
+      expect(text()).not.toContain("Ask about the weather");
+      follow("Say yes");
+      expect(text()).toContain('"Splendid, sir."');
+      expect(text()).toContain("Ask about the weather");
       follow("Say goodbye");
       follow("Unlock the cellar door");
       follow("Continue");

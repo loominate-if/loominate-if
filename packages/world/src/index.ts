@@ -316,6 +316,7 @@ export {
   no,
   setActorState,
   registerActorPassage,
+  registerNodePassage,
   registerScenePassage,
   registerStatePassage,
   suggestedTopics,
@@ -343,3 +344,4 @@ export {
   type TopicKind,
   type TopicOptions,
 } from "./topics.js";
+export { closeNode, convNode, openNode, openNodeOf, type ConvNode, type Presses } from "./nodes.js";
