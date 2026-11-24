@@ -859,6 +859,9 @@ export function isOpenNow(thing: ObjectRef): boolean;
 export function isPlace(t: ObjectRef): boolean;
 
 // @public
+export function isPlayable(npc: ObjectRef): boolean;
+
+// @public
 export function isPortable(t: ObjectRef): boolean;
 
 // @public
@@ -1172,6 +1175,9 @@ export type PlaceFields = ThingFields & {
 
 // @public
 export function placeOf(t: ObjectRef): Place | undefined;
+
+// @public
+export function playable(npc: ObjectRef): void;
 
 // @public
 export function playAs(m: ObjectRef): void;
@@ -1574,8 +1580,16 @@ export const surface: {
 export function swapBodies(a: ObjectRef, b: ObjectRef): void;
 
 // @public
+export function switchTo(npc: ObjectRef): void;
+
+// @public
 export const take: Action<    {
 thing: ActingOn;
+}>;
+
+// @public
+export const takeControl: Action<    {
+thing: ObjectRef;
 }>;
 
 // @public

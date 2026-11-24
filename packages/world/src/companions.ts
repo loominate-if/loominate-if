@@ -14,7 +14,7 @@ import {
   t,
   type ObjectRef,
 } from "@loominate-if/core";
-import { bodyOf, mindFor, mindsIn } from "./actors.js";
+import { bodyOf, currentPlayerBody, mindFor, mindsIn } from "./actors.js";
 import { exitsOf } from "./exits.js";
 import { noteSights } from "./knowledge.js";
 import { happen } from "./perception.js";
@@ -181,7 +181,11 @@ export function _isAccompanying(mind: ObjectRef): boolean {
 _whenPlayerMoves((from: Place, to: Place) => {
   const coming = [...companions.keys()].sort().flatMap((mind) => {
     const body = bodyOf({ id: mind });
-    return body && companionState({ id: mind }) === "accompanying" && placeOf(body)?.id === from.id
+    // Not the one the player now plays, after a switch.
+    return body &&
+      body.id !== currentPlayerBody()?.id &&
+      companionState({ id: mind }) === "accompanying" &&
+      placeOf(body)?.id === from.id
       ? [body]
       : [];
   });

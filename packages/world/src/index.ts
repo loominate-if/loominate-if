@@ -380,3 +380,4 @@ export {
   stay,
   type Ordered,
 } from "./orders.js";
+export { isPlayable, playable, switchTo, takeControl } from "./switching.js";
