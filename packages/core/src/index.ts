@@ -197,6 +197,7 @@ export {
   menuLink,
   everyAction,
   perform,
+  _statusAs,
   statusOf,
   useActor,
   useCandidates,

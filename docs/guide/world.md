@@ -1503,7 +1503,43 @@ companion(tom, { starts: "waiting" });
 - **Accompanying:** when the player goes from one room to another, every accompanying companion who was with them comes too, and the move is told once, before the new room's text: "You and Mira head north.", "You, Mira, and Tom head north.", or, with no exit between, as a jump in a passage, "Mira comes with you." They aren't told as arriving apart, and they see what's there, as their own knowledge. A companion who isn't with the player when they move stays where they are.
 - **Waiting:** `waitHere(mira)` has them stay: "Mira waits here." `accompany(mira)` has them come along again: "Mira comes along." Both are game state; in `story.ts`, they set how a companion starts. `companionState(mira)` says which, or `undefined` for an NPC who isn't a companion.
 - **Timetables** don't move a companion while they're accompanying the player.
-- Orders the player gives as actions, such as "Ask Mira to wait", come next; these are what they call.
+- [Orders](#orders) the player gives, such as "Ask Mira to wait here", call these.
+
+### Orders
+
+The player can ask an NPC to do something. An order is an action the player takes; the NPC then does the action as themselves, with their own body, skills, and inventory:
+
+<!-- example: packages/world/src/orders.test.ts#orders -->
+```ts
+// Picking a lock needs a lockpick: Tom has one, Mira doesn't.
+export const pickLock = action<{ thing: Thing }>("pickLock", {
+  label: ({ thing }) => t`Pick {the thing}`({ thing }),
+  seen: ({ body }) => (body ? t`{The subj body} {picks} the lock.`({ body }) : ""),
+  verify: ({ thing }) =>
+    (thing as { isLocked?: boolean }).isLocked === true ? undefined : "It isn't locked.",
+  check: ({ body }) =>
+    body && [...["lockpick"]].some((id) => isWithin({ id }, body))
+      ? undefined
+      : "Not without a lockpick.",
+  run: ({ thing }) => {
+    (thing as unknown as { isLocked: boolean }).isLocked = false;
+  },
+});
+export const askToPick = order(pickLock);
+// What a companion won't do: Tom won't touch the vault.
+obeying.rule("Tom won't touch the vault", ({ who, call }) =>
+  who.id === "tom" && call.args["thing"] === vaultDoor
+    ? "Tom shakes his head. “Not the vault.”"
+    : undefined,
+);
+```
+
+- **`order(action)`** makes "Ask Tom to pick the cellar door" from any action. Its things are `who`, the NPC asked, and the action's own. It's offered when they're here and the action makes sense for them, by its verify as them. It takes a minute.
+- **Asking** says the player's line, "You ask Tom to pick the cellar door.", then the NPC answers:
+  - **refusing,** by the first rule in `obeying` to give a refusal, which is what they say. By default, companions obey and others refuse: "The cook has no reason to take orders from you.";
+  - **failing,** when they'd do it but can't, by the action's verify or check as them: "Mira can't: Not without a lockpick.";
+  - **or doing it,** narrated as their action: "Tom picks the lock."
+- **Standard orders:** a companion's menu has "Ask Mira to wait here" or "Ask Mira to come along". A thing someone here carries has "Ask Mira for the key", which they give through `give`, so the game's `giving` rules apply.
 
 ### Following
 

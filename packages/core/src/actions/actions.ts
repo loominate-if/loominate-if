@@ -559,7 +559,15 @@ function decide(
 
 /** Runs verify and check, without changing anything, for a link or menu. */
 export function statusOf<A>(call: ActionCall<A>): ActionStatus {
-  const c = contextFor(call) as ActionContext<Readonly<Record<string, unknown>>>;
+  return _statusAs(call);
+}
+
+/**
+ * Runs verify and check as `as` would take the action, as for an order to an
+ * NPC, without changing anything. @internal
+ */
+export function _statusAs<A>(call: ActionCall<A>, as?: PerformOptions["as"]): ActionStatus {
+  const c = contextFor(call, as) as ActionContext<Readonly<Record<string, unknown>>>;
   const a = call.action as unknown as Action<Readonly<Record<string, unknown>>>;
   const label = a.label(call.args as Readonly<Record<string, unknown>>);
   const hidden = decide("verify", [everyAction.verify, a.verify], c);

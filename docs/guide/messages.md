@@ -72,6 +72,12 @@ A message's text is one of three things:
 | `companions.waits`, `companions.accompanies` | `companion` | "Mira waits here.", "Mira comes along." |
 | `follow.label`, `follow.done` | `who`, `way` | Following someone the player saw leave: "Follow the butler", "You follow the butler west." |
 | `follow.unknown`, `follow.here`, `follow.self` | `who` | Why following isn't offered: "You don't know where the butler went.", "The butler is right here.", "You can't follow yourself." |
+| `order.label`, `order.asked` | `who`, `action` (its label) | An order: "Ask Tom to pick the lock", "You ask Tom to pick the lock." |
+| `order.refused` | `who` | The default refusal, from someone who isn't a companion: "The cook has no reason to take orders from you." |
+| `order.cant` | `who`, `reason` | Someone who'd obey but can't: "Mira can't: Not without a lockpick." |
+| `order.wait`, `order.come`, `order.already` | `who` | "Ask Mira to wait here", "Ask Mira to come along", "Mira already is." |
+| `order.askFor`, `order.askedFor` | `from`, `thing` | "Ask Mira for the key", "You ask Mira for the key." |
+| `order.notHere`, `order.self` | `who` | Why an order isn't offered |
 | `topic.player.ask`, `topic.player.tell` | `who`, `about` | The player's line: "You ask the maid about the gold." |
 | `topic.player.show`, `topic.player.give` | `who`, `thing` | "You show the brooch to the maid." |
 | `topic.player.hello`, `topic.player.bye`, `topic.player.yes`, `topic.player.no` | `who` | "You greet the maid.", "You say goodbye to the maid.", "You say yes." |

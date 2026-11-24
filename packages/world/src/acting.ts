@@ -95,11 +95,18 @@ export function reachNotNeeded<A>(
   );
 }
 
+/** Says none of an action's things need be in the player's reach, as for an order. @internal */
+export function _noReachFor(action: { readonly actionName: string }): void {
+  unreached.set(action.actionName, new Set(["*"]));
+}
+
 everyAction.verify.rule(
   "things in reach",
   (c) => {
     if (c.body === undefined) return undefined;
     const skip = unreached.get(c.action);
+    // An order: the NPC does the reaching, as the order's own check says.
+    if (skip?.has("*") === true) return undefined;
     for (const [key, value] of Object.entries(c)) {
       if (key === "actor" || key === "body" || key === "action" || skip?.has(key)) continue;
       const thing =

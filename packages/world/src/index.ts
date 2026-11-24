@@ -368,3 +368,13 @@ export {
   type CompanionState,
 } from "./companions.js";
 export { follow } from "./following.js";
+export {
+  askFor,
+  askToCome,
+  askToWait,
+  comeAlong,
+  obeying,
+  order,
+  stay,
+  type Ordered,
+} from "./orders.js";
