@@ -306,7 +306,8 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
 }
 /* The story log and transcript (#127): a tall dialog, the newest at the bottom. */
 .loominate-log { width: min(44rem, 100% - 2 * ${v("space")}); max-height: calc(100vh - 2 * ${v("space")}); }
-.loominate-log-body { max-height: 60vh; overflow-y: auto; font-family: ${v("font-body")}; }
+.loominate-log-body { max-height: 60vh; overflow-y: auto; overscroll-behavior: contain; font-family: ${v("font-body")}; }
+html.loominate-modal-open { overflow: hidden; }
 .loominate-log-entry { margin-block: 0.4em; }
 .loominate-log-turn { margin-block-start: 1em; }
 .loominate-log-speaker { font-weight: 600; }

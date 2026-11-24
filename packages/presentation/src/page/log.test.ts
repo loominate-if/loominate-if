@@ -165,6 +165,19 @@ describe("the log dialog (#127)", () => {
     ]);
   });
 
+  it("scrolls the log with the mouse wheel anywhere on it, and keeps the page behind still (#127)", () => {
+    const element = open("log");
+    expect(document.documentElement.classList.contains("loominate-modal-open")).toBe(true);
+    const body = element.querySelector<HTMLElement>(".loominate-log-body");
+    if (!body) throw new Error("no body");
+    body.scrollTop = 100;
+    const wheel = new WheelEvent("wheel", { deltaY: -40, bubbles: true, cancelable: true });
+    element.querySelector("h2")?.dispatchEvent(wheel);
+    expect([body.scrollTop, wheel.defaultPrevented]).toEqual([60, true]);
+    element.querySelector<HTMLButtonElement>("button:last-of-type")?.click();
+    expect(document.documentElement.classList.contains("loominate-modal-open")).toBe(false);
+  });
+
   it("passes automated accessibility checks", async () => {
     const element = open("log");
     expect((await axe.run(element)).violations).toEqual([]);

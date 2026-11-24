@@ -189,7 +189,24 @@ export function createLogDialog(
   const close = (): void => {
     if (typeof dialog.close === "function") dialog.close();
     else dialog.open = false;
+    doc.documentElement.classList.remove("loominate-modal-open");
   };
+  // However it closes, by Close or Escape, the page behind can scroll again.
+  dialog.addEventListener("close", () => {
+    doc.documentElement.classList.remove("loominate-modal-open");
+  });
+  // The mouse wheel anywhere on the dialog scrolls the log, not the page behind it.
+  dialog.addEventListener(
+    "wheel",
+    (event) => {
+      const scroller = dialog.querySelector<HTMLElement>(".loominate-log-body");
+      if (!scroller || scroller.contains(event.target as Node)) return;
+      const step = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? scroller.clientHeight : 1;
+      scroller.scrollTop += event.deltaY * step;
+      event.preventDefault();
+    },
+    { passive: false },
+  );
 
   const draw = (): void => {
     const all = events();
@@ -294,6 +311,8 @@ export function createLogDialog(
       draw();
       if (typeof dialog.showModal === "function") dialog.showModal();
       else dialog.open = true;
+      // While it's open, the page behind doesn't scroll.
+      doc.documentElement.classList.add("loominate-modal-open");
       dialog.querySelector<HTMLSelectElement>(`#${id}-filter`)?.focus();
       // The newest at the bottom, in view.
       const scroller = dialog.querySelector<HTMLElement>(".loominate-log-body");
