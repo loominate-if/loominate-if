@@ -6,7 +6,8 @@
  */
 import { action, message, messages, t, type ObjectRef, type Text } from "@loominate-if/core";
 import { isBody } from "./actors.js";
-import { countOf, isStack, oneOf, split } from "./stacks.js";
+import { pluralOf } from "./listing.js";
+import { amountOf, countOf, isStack, oneOf, split } from "./stacks.js";
 import { isPlace, isWithin, move, placeOf, thingFor, type Thing } from "./things.js";
 
 declare module "@loominate-if/core" {
@@ -32,6 +33,25 @@ declare module "@loominate-if/core" {
     /** Dropping one from a stack: "Drop a turnip". */
     "stack.dropOne": { readonly thing: ObjectRef; readonly one: string };
     "stack.dropOne.done": { readonly thing: ObjectRef; readonly one: string };
+    /** Taking some from a stack, choosing how many: "Take some turnips…". `plural` is "turnips". */
+    "stack.takeSome": { readonly thing: ObjectRef; readonly plural: string };
+    /** The button that takes them: "Take". */
+    "stack.takeSome.confirm": { readonly thing: ObjectRef };
+    /** What taking some reports. `some` is "ten turnips". */
+    "stack.takeSome.done": {
+      readonly thing: ObjectRef;
+      readonly count: number;
+      readonly some: string;
+    };
+    "stack.dropSome": { readonly thing: ObjectRef; readonly plural: string };
+    "stack.dropSome.confirm": { readonly thing: ObjectRef };
+    "stack.dropSome.done": {
+      readonly thing: ObjectRef;
+      readonly count: number;
+      readonly some: string;
+    };
+    /** What a stack's take some and drop some ask: "How many?". */
+    "stack.howMany": { readonly thing: ObjectRef };
     "open.label": { readonly thing: ObjectRef };
     "open.done": { readonly thing: ObjectRef };
     "open.already": { readonly thing: ObjectRef };
@@ -71,6 +91,13 @@ say("stack.takeOne", ({ one }) => `Take ${one}`);
 say("stack.takeOne.done", ({ one }) => `You take ${one}.`);
 say("stack.dropOne", ({ one }) => `Drop ${one}`);
 say("stack.dropOne.done", ({ one }) => `You drop ${one}.`);
+say("stack.takeSome", ({ plural }) => `Take some ${plural}…`);
+say("stack.takeSome.confirm", "Take");
+say("stack.takeSome.done", ({ some }) => `You take ${some}.`);
+say("stack.dropSome", ({ plural }) => `Drop some ${plural}…`);
+say("stack.dropSome.confirm", "Drop");
+say("stack.dropSome.done", ({ some }) => `You drop ${some}.`);
+say("stack.howMany", "How many?");
 say("open.label", t`Open {the thing}`);
 say("open.done", t`You open {the thing}.`);
 say("open.already", t`{The subj thing} {is} already open.`);
@@ -198,6 +225,49 @@ export const dropOne = action<{ thing: ActingOn }>("dropOne", {
     if (here) move(split(thing, 1), here);
   },
   report: ({ thing }) => message("stack.dropOne.done", { thing, one: oneOf(thing) }),
+});
+
+/** A stack of more than two, which the player can choose how many to take or drop from. */
+const isMany = (t: ObjectRef): boolean => isPortable(t) && isStack(t) && countOf(t) > 2;
+
+/** How many to take or drop: from one to the whole stack. */
+const howMany = {
+  label: ({ thing }: { readonly thing: ObjectRef }) => message("stack.howMany", { thing }),
+  min: 1,
+  max: ({ thing }: { readonly thing: ObjectRef }) => countOf(thing),
+};
+
+/** Takes some from a stack, as many as the player chooses, into the actor's body. */
+export const takeSome = action<{ thing: ActingOn; count: number }>("takeSome", {
+  source: SOURCE,
+  for: isMany,
+  label: ({ thing }) => message("stack.takeSome", { thing, plural: pluralOf(thing) }),
+  asks: { count: howMany },
+  confirm: ({ thing }) => message("stack.takeSome.confirm", { thing }),
+  verify: ({ thing, body }) =>
+    body && isWithin(thing, body) ? message("take.held", { thing }) : undefined,
+  run: ({ thing, body, count }) => {
+    if (body) move(split(thing, count), body);
+  },
+  report: ({ thing, count }) =>
+    message("stack.takeSome.done", { thing, count, some: amountOf(thing, count) }),
+});
+
+/** Drops some from a stack the actor carries, as many as the player chooses, where the actor is. */
+export const dropSome = action<{ thing: ActingOn; count: number }>("dropSome", {
+  source: SOURCE,
+  for: isMany,
+  label: ({ thing }) => message("stack.dropSome", { thing, plural: pluralOf(thing) }),
+  asks: { count: howMany },
+  confirm: ({ thing }) => message("stack.dropSome.confirm", { thing }),
+  verify: ({ thing, body }) =>
+    body && isWithin(thing, body) ? undefined : message("drop.notHeld", { thing }),
+  run: ({ thing, body, count }) => {
+    const here = body && (thingFor(body)?.location ?? placeOf(body));
+    if (here) move(split(thing, count), here);
+  },
+  report: ({ thing, count }) =>
+    message("stack.dropSome.done", { thing, count, some: amountOf(thing, count) }),
 });
 
 /** Opens something openable, unless it's locked. */

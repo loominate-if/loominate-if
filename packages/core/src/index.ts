@@ -207,6 +207,8 @@ export {
   type Participant,
   type ActionStage,
   type ActionStatus,
+  type Ask,
+  type AskedNumber,
   type LoggedCall,
 } from "./actions/actions.js";
 export {

@@ -16,6 +16,7 @@ import {
   contents,
   countOf,
   dropOne,
+  dropSome,
   listContents,
   move,
   place,
@@ -27,6 +28,7 @@ import {
   startAs,
   take,
   takeOne,
+  takeSome,
 } from "./index.js";
 
 const barn = place("barn", { name: "barn" });
@@ -90,7 +92,12 @@ describe("stacks", () => {
 
   it("offer taking one or all from their menus", () => {
     // #region menus
-    expect(menu(crate)).toEqual(["Examine the turnips", "Take all 99 turnips", "Take a turnip"]);
+    expect(menu(crate)).toEqual([
+      "Examine the turnips",
+      "Take all 99 turnips",
+      "Take a turnip",
+      "Take some turnips…",
+    ]);
     perform(takeOne({ thing: crate }));
     perform(takeOne({ thing: crate }));
     const held = stackIn(you, turnip);
@@ -120,5 +127,25 @@ describe("stacks", () => {
     history.checkpoint("took");
     history.undo();
     expect([countOf(crate), stackIn(you, turnip)]).toEqual([99, undefined]);
+  });
+
+  it("let the player choose how many to take or drop (#335)", () => {
+    const call = takeSome({ thing: crate } as never);
+    expect(statusOf(call)).toMatchObject({
+      label: "Take some turnips…",
+      asks: [{ name: "count", label: "How many?", min: 1, max: 99, start: 1 }],
+      confirm: "Take",
+    });
+    // #region some
+    perform(takeSome({ thing: crate, count: 10 }));
+    const held = stackIn(you, turnip);
+    expect([held && countOf(held), countOf(crate)]).toEqual([10, 89]);
+    if (held) perform(dropSome({ thing: held, count: 4 }));
+    expect([held && countOf(held), countOf(crate)]).toEqual([6, 93]);
+    // #endregion
+    expect(said()).toEqual(["You take ten turnips.", "You drop four turnips."]);
+    // Two or fewer: taking one or all is enough.
+    setCount(crate, 2);
+    expect(menu(crate)).toEqual(["Examine the turnips", "Take all two turnips", "Take a turnip"]);
   });
 });

@@ -157,6 +157,13 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   font-size: 0.85em;
   font-style: italic;
 }
+/* The numbers an action asks for, in place of its menu. */
+.loominate-menu-ask { padding: 0.25em 0.75em; }
+.loominate-menu-ask p { margin: 0.25em 0; }
+.loominate-menu-ask-title { font-weight: 600; }
+.loominate-menu-ask input { width: 5em; font: inherit; }
+.loominate-menu-ask .loominate-menu-reason { padding: 0; }
+.loominate-menu-ask .loominate-menu-reason:empty { display: none; }
 /* A disabled link's reason as a tooltip, below it, while it's hovered, focused, or tapped. */
 /* An inline block, so the tooltip sits below the whole link, not its line of text. */
 .loominate-has-reason { position: relative; display: inline-block; }

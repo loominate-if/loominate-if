@@ -41,6 +41,10 @@ A message's text is one of three things:
 | `stack.takeAll`, `stack.dropAll` | `thing`, `count` | A whole stack's labels: "Take all 99 turnips" |
 | `stack.takeOne`, `stack.dropOne` | `thing`, `one` ("a turnip") | Taking or dropping one: "Take a turnip" |
 | `stack.takeOne.done`, `stack.dropOne.done` | `thing`, `one` | "You take a turnip." |
+| `stack.takeSome`, `stack.dropSome` | `thing`, `plural` | Choosing how many: "Take some turnips…" |
+| `stack.takeSome.confirm`, `stack.dropSome.confirm` | `thing` | Their buttons: "Take", "Drop" |
+| `stack.takeSome.done`, `stack.dropSome.done` | `thing`, `count`, `some` ("ten turnips") | "You take ten turnips." |
+| `stack.howMany` | `thing` | What they ask: "How many?" |
 | `examine.nothing` | `thing` | "You see nothing special about the statue." |
 | `take.held`, `drop.notHeld`, `open.already`, `close.already`, `lock.already`, `unlock.notLocked` | `thing` | Why they aren't offered |
 | `open.locked`, `lock.open` | `thing` | "The oak chest is locked.", "You'll have to close the oak chest first." |
@@ -81,6 +85,10 @@ An actor can still give its own `arrives` and `leaves`, which win over these.
 | `compass.label` | | What the compass is, for screen readers: "Compass" |
 | `menu.undo`, `menu.save`, `menu.load`, `menu.restart` | | "Undo", "Save", "Load", "Restart" |
 | `menu.nothing` | | A thing's menu with nothing in it: "Nothing to do with it." |
+| `menu.ask.confirm` | | The button that takes an action once its numbers are given, when it has no `confirm`: "OK" (core) |
+| `menu.ask.back` | | Going back from the numbers to the menu: "Back" |
+| `menu.ask.of` | `max` | The limit beside a number: "of 99" |
+| `menu.ask.problem` | `min`, `max` | Why a number won't do: "Choose a whole number from 1 to 99." |
 | `things.nothing` | | An empty inventory: "nothing" |
 | `menu.confirmRestart`, `menu.confirmRestartLabel` | | "Confirm restart", and what a screen reader hears for it |
 | `menu.undoTip`, `menu.cannotUndoTip`, `menu.saveTip`, `menu.loadTip`, `menu.restartTip`, `menu.confirmRestartTip` | | Each button's tooltip, which says what it does whatever it's called, such as "Start the story over from the beginning. Your saves are kept." Screen readers read it as the button's description. |

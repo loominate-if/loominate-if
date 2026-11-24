@@ -173,6 +173,15 @@ export function oneOf(s: ObjectRef): string {
   return info ? `${indefinite(info.single)} ${info.single}` : "";
 }
 
+/** So many of a stack's kind, as words: "a turnip", "ten turnips". @internal */
+export function amountOf(s: ObjectRef, n: number): string {
+  const info = kinds.get(stackFor("amountOf", s).stackOf);
+  if (!info) return "";
+  return n === 1
+    ? `${indefinite(info.single)} ${info.single}`
+    : `${message("number.words", { count: n })} ${info.plural}`;
+}
+
 /** Whether `t` is a stack. */
 export function isStack(t: ObjectRef): boolean {
   return asStack(t) !== undefined;

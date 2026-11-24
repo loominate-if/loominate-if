@@ -68,6 +68,32 @@ An action says whose menus offer it:
 
 Either way, the menu's thing is the action's `thing`, so an action offered on menus names its thing `thing`: `action<{ thing: Bell }>("ring", { on: bell, … })`. `actionsFor(thing)` lists what a thing's menu offers, and `story.act(call)` takes one, as the menu does.
 
+### Asking for a number
+
+An action can ask the player for a number before it's taken, such as how many coins to bet. `asks` names each argument it asks for, with a label and limits, as text or worked out from its things, and `confirm` names the button that takes it:
+
+<!-- example: packages/core/src/actions/asks.test.ts#asks -->
+```ts
+export const bet = action<{ thing: typeof table; coins: number }>("bet", {
+  on: table,
+  label: "Bet some coins…",
+  asks: { coins: { label: "How many coins?", min: 1, max: () => purse.coins, start: 2 } },
+  confirm: "Bet",
+  run: ({ coins }) => {
+    purse.coins -= coins;
+    table.pot += coins;
+  },
+  report: ({ coins }) => `You push ${String(coins)} coins into the pot.`,
+});
+```
+
+- **In a menu,** choosing it puts a form where the menu was: a labelled number field for each number, with its limit ("of 12") beside it, and buttons to take it or go **Back** to the menu. Enter takes it, and Escape goes back.
+- **Checking the number:** a number outside its limits isn't taken. The form says why ("Choose a whole number from 1 to 12.") and stays open.
+- **The rules** see the number as the argument: `run: ({ coins }) => …`.
+- **Limits:** `min` defaults to 1, `start` to `min`, and `max` to no limit.
+- **In code,** give the number: `perform(bet({ thing: table, coins: 5 }))`. A call without it, or with one outside its limits, is refused with an error that says which.
+- **Rewording:** without `confirm`, the button says "OK", the `menu.ask.confirm` message.
+
 ## Rules
 
 Each stage is a rulebook, so an action's behavior can be added to, replaced, or removed without changing its definition, as TADS's `modify` does. The definition's own function is the rule `"<name>: own"`, so new rules can go before or after it:

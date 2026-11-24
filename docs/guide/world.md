@@ -229,7 +229,12 @@ A stack's menu offers taking one or all, and dropping one or all once it's carri
 
 <!-- example: packages/world/src/stacks.test.ts#menus -->
 ```ts
-expect(menu(crate)).toEqual(["Examine the turnips", "Take all 99 turnips", "Take a turnip"]);
+expect(menu(crate)).toEqual([
+  "Examine the turnips",
+  "Take all 99 turnips",
+  "Take a turnip",
+  "Take some turnips…",
+]);
 perform(takeOne({ thing: crate }));
 perform(takeOne({ thing: crate }));
 const held = stackIn(you, turnip);
@@ -239,6 +244,17 @@ expect(held && menu(held)).toEqual([
   "Drop all two turnips",
   "Drop a turnip",
 ]);
+```
+
+A stack of more than two also offers "Take some turnips…" and, once carried, "Drop some turnips…". They ask how many, from one to the whole stack, in a [number field in the menu](actions.md#asking-for-a-number):
+
+<!-- example: packages/world/src/stacks.test.ts#some -->
+```ts
+perform(takeSome({ thing: crate, count: 10 }));
+const held = stackIn(you, turnip);
+expect([held && countOf(held), countOf(crate)]).toEqual([10, 89]);
+if (held) perform(dropSome({ thing: held, count: 4 }));
+expect([held && countOf(held), countOf(crate)]).toEqual([6, 93]);
 ```
 
 ## Moving things
