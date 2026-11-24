@@ -34,7 +34,14 @@ test("lighting the lamp", () => {
 - `game.choose("Light the lamp")` makes the choice with that label. A continue point without a label is `"Continue"`.
 - `game.notices` is what the player noticed during the last move, such as "You hear a door slam from above.", one paragraph per line, as the page shows them: the atmosphere from fuses and daemons is one line. `game.text` has them where the page shows them: where the passage's `{notices}` is, or else after its text and before its choices.
 - `game.advance()` moves past the next beat (`{beat}`, `{wait}`, or `{page}`), and `game.skip()` moves past all of them.
+- `game.act("Ring the bell")` takes an action from a menu by its label: the menu of anything the player can act on, or that a link on screen opens a menu for. If it's disabled, the test fails with the reason.
 - `game.undo()` takes back the last move.
+
+<!-- example: packages/testing/src/menus.test.ts#act -->
+```ts
+const game = play({ passages, start: "Hall" }).act("Ring the bell");
+expect(game.notices).toBe("Ding!");
+```
 
 Each returns the game, so you can chain them: `game.choose("Go down").skip().choose("Open the door")`.
 
@@ -55,6 +62,8 @@ There's no choice "Go down" in passage "Stairs". "Go down" can't be followed: `l
 | `game.unavailable` | Links that can't be followed now, each with its `label`, `condition`, `reason` (if the player is told one), and whether it's `shown` disabled or hidden. |
 | `game.beat` | The beat waiting to be moved past, if any. |
 | `game.transcript` | Every paragraph the player has read so far. |
+| `game.menu(thing)` | A thing's menu: each entry's `label`, and why it's `disabled`, if it is. |
+| `game.compass` | The compass's ways out, each with its `label`, `title`, whether it's `available`, and its `reason`, or `undefined` if the game has no compass. |
 
 ## Seeds, saves, and replays
 

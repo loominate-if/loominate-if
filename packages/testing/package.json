@@ -26,7 +26,8 @@
     "!dist/**/*.test.*"
   ],
   "dependencies": {
-    "@loominate-if/core": "workspace:^"
+    "@loominate-if/core": "workspace:^",
+    "@loominate-if/presentation": "workspace:^"
   },
   "publishConfig": {
     "access": "public"

@@ -153,7 +153,7 @@ export const kick = action<{ thing: Thing }>("kick", {
 
 ### Standard actions
 
-The world model defines seven actions, each offered on the menus of the things it suits:
+The world model defines these actions, each offered on the menus of the things it suits:
 
 | Action | On | What it does |
 | --- | --- | --- |
@@ -162,6 +162,7 @@ The world model defines seven actions, each offered on the menus of the things i
 | `drop` | things the player carries | Puts it where they are. |
 | `open`, `close` | `openable` things | Opens or closes it. A locked one can't be opened. |
 | `lock`, `unlock` | `lockable` things | Locks or unlocks it, if the player carries its `key`. A lock with no `key` needs none. An open thing must be closed to lock. |
+| `give`, `show` | things the player carries, to someone present | Gives or shows it to them; a rule in `giving` or `showing` says how they react. |
 
 <!-- example: packages/world/src/standard.test.ts#things -->
 ```ts
@@ -192,6 +193,28 @@ expect(menu(chest)).toEqual([
 - A thing can't be taken if it's a place, a body, a door or obstacle, or marked `isFixed: true`.
 - Their words are in the message table, as `take.label` ("Take the iron key"), `take.done` ("You take the iron key."), and so on ([Rewording the library](messages.md)).
 - Each is an ordinary action, exported from `@loominate-if/world`, so change one with its rules, as in `take.check.rule("too heavy", …)`. A game's own action can't reuse their names: call it something else, or change theirs.
+
+### Giving and showing
+
+`give` and `show` are offered on what the player carries, to anyone present, and on that person's menu too: "Give the coin to the toll keeper". How they react is up to rules in the `giving` and `showing` rulebooks. The first rule to answer decides, with `accept(text, then?)`, so they take what they're given, or `react(text, then?)`, so they don't. `then` is anything else that happens:
+
+<!-- example: packages/world/src/giving.test.ts#reactions -->
+```ts
+giving.rule("the keeper takes the toll", ({ thing, to }) =>
+  to.id === keeper.id && thing.id === coin.id
+    ? accept("The keeper bites the coin, and nods.")
+    : undefined,
+);
+showing.rule("the keeper knows the pass", ({ thing, to }) =>
+  to.id === keeper.id && thing.id === pass.id
+    ? react("The keeper squints at the seal, and unlocks the gate.", () => {
+        gate.isLocked = false;
+      })
+    : undefined,
+);
+```
+
+With no answer, they decline: "The toll keeper doesn't want the pebble.", or for showing, "The toll keeper glances at the pebble." Those are the `give.declined` and `show.unmoved` messages.
 
 ### Actions with more than one thing
 

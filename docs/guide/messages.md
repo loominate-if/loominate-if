@@ -45,6 +45,9 @@ A message's text is one of three things:
 | `stack.takeSome.confirm`, `stack.dropSome.confirm` | `thing` | Their buttons: "Take", "Drop" |
 | `stack.takeSome.done`, `stack.dropSome.done` | `thing`, `count`, `some` ("ten turnips") | "You take ten turnips." |
 | `stack.howMany` | `thing` | What they ask: "How many?" |
+| `give.label`, `show.label` | `thing`, `to` | "Give the coin to the toll keeper" |
+| `give.declined` | `thing`, `to` | When no rule in `giving` answers: "The toll keeper doesn't want the pebble." |
+| `show.unmoved` | `thing`, `to` | When no rule in `showing` answers: "The toll keeper glances at the pebble." |
 | `examine.nothing` | `thing` | "You see nothing special about the statue." |
 | `take.held`, `drop.notHeld`, `open.already`, `close.already`, `lock.already`, `unlock.notLocked` | `thing` | Why they aren't offered |
 | `open.locked`, `lock.open` | `thing` | "The oak chest is locked.", "You'll have to close the oak chest first." |

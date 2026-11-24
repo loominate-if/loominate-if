@@ -6,6 +6,7 @@ export {
   _setGame,
   play,
   type GameDefinition,
+  type MenuEntry,
   type UnavailableChoice,
   type Walkthrough,
   type WalkthroughOptions,

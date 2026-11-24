@@ -118,6 +118,7 @@ export { listContents, pluralize, pluralOf, type ListingFields } from "./listing
 export { vocabOf, type FullVocabulary } from "./vocabulary.js";
 export {
   close,
+  accept,
   drop,
   dropOne,
   dropSome,
@@ -125,7 +126,14 @@ export {
   isPortable,
   lock,
   open,
+  give,
+  giving,
+  react,
+  show,
+  showing,
   take,
+  type Offer,
+  type Reaction,
   takeOne,
   takeSome,
   unlock,

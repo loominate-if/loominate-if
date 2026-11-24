@@ -4,8 +4,16 @@
  * is an ordinary action, so a game changes one with its rules, such as
  * `take.check.rule(…)`, and words them through the message table.
  */
-import { action, message, messages, t, type ObjectRef, type Text } from "@loominate-if/core";
-import { isBody } from "./actors.js";
+import {
+  action,
+  message,
+  messages,
+  rulebook,
+  t,
+  type ObjectRef,
+  type Text,
+} from "@loominate-if/core";
+import { currentPlayerBody, isBody } from "./actors.js";
 import { pluralOf } from "./listing.js";
 import { amountOf, countOf, isStack, oneOf, split } from "./stacks.js";
 import { isPlace, isWithin, move, placeOf, thingFor, type Thing } from "./things.js";
@@ -52,6 +60,14 @@ declare module "@loominate-if/core" {
     };
     /** What a stack's take some and drop some ask: "How many?". */
     "stack.howMany": { readonly thing: ObjectRef };
+    /** Giving something to someone: "Give the coin to the toll keeper". */
+    "give.label": { readonly thing: ObjectRef; readonly to: ObjectRef };
+    /** What happens when no rule in `giving` answers: "The toll keeper doesn't want the coin." */
+    "give.declined": { readonly thing: ObjectRef; readonly to: ObjectRef };
+    /** Showing something to someone: "Show the pass to the toll keeper". */
+    "show.label": { readonly thing: ObjectRef; readonly to: ObjectRef };
+    /** What happens when no rule in `showing` answers: "The toll keeper glances at the pass." */
+    "show.unmoved": { readonly thing: ObjectRef; readonly to: ObjectRef };
     "open.label": { readonly thing: ObjectRef };
     "open.done": { readonly thing: ObjectRef };
     "open.already": { readonly thing: ObjectRef };
@@ -98,6 +114,10 @@ say("stack.dropSome", ({ plural }) => `Drop some ${plural}…`);
 say("stack.dropSome.confirm", "Drop");
 say("stack.dropSome.done", ({ some }) => `You drop ${some}.`);
 say("stack.howMany", "How many?");
+say("give.label", t`Give {the thing} to {the to}`);
+say("give.declined", t`{The subj to} {does}n't want {the thing}.`);
+say("show.label", t`Show {the thing} to {the to}`);
+say("show.unmoved", t`{The subj to} {glances} at {the thing}.`);
 say("open.label", t`Open {the thing}`);
 say("open.done", t`You open {the thing}.`);
 say("open.already", t`{The subj thing} {is} already open.`);
@@ -281,6 +301,127 @@ export const dropSome = action<{ thing: ActingOn; count: number }>("dropSome", {
   },
   report: ({ thing, count }) =>
     message("stack.dropSome.done", { thing, count, some: amountOf(thing, count) }),
+});
+
+/** How someone reacts to being given or shown something, as a rule in {@link giving} or {@link showing} answers. */
+export type Reaction = {
+  /** Whether they take it: for giving, it moves to them. */
+  readonly takes: boolean;
+  /** What the player is told. */
+  readonly text: string | Text;
+  /** Anything else that happens, as a door unlocking. */
+  readonly then?: () => void;
+};
+
+/** A reaction where they take what they're given, with what the player is told, and anything else that happens. */
+export function accept(text: string | Text, then?: () => void): Reaction {
+  return { takes: true, text, ...(then && { then }) };
+}
+
+/** A reaction where they keep their hands to themselves, with what the player is told, and anything else that happens. */
+export function react(text: string | Text, then?: () => void): Reaction {
+  return { takes: false, text, ...(then && { then }) };
+}
+
+/** What a reaction rule is told: the thing, who it's given or shown to, and who's acting. */
+export type Offer = {
+  readonly thing: ObjectRef;
+  readonly to: ObjectRef;
+  readonly actor?: ObjectRef;
+  readonly body?: ObjectRef;
+};
+
+/**
+ * How someone reacts to being given something: the first rule to answer
+ * decides, with {@link accept}, so they take it, or {@link react}. With no
+ * answer, they decline, in the `give.declined` message.
+ *
+ * @example
+ * ```ts
+ * giving.rule("the keeper takes the toll", ({ thing, to }) =>
+ *   to === keeper && thing === coin ? accept("The keeper bites the coin.") : undefined,
+ * );
+ * ```
+ */
+export const giving = rulebook<Offer, Reaction>("giving", { kind: "decide" });
+
+/**
+ * How someone reacts to being shown something: the first rule to answer
+ * decides, with {@link react}. With no answer, they glance at it, in the
+ * `show.unmoved` message.
+ */
+export const showing = rulebook<Offer, Reaction>("showing", { kind: "decide" });
+
+/** Someone the player can give things to or show them: a body, not the player's own. */
+const isSomeone = (t: ObjectRef): boolean => isBody(t) && t.id !== currentPlayerBody()?.id;
+/** Something the player carries, which can be given or shown. */
+const isCarried = (t: ObjectRef): boolean => {
+  const body = currentPlayerBody();
+  return isPortable(t) && body !== undefined && isWithin(t, body);
+};
+
+/** A reaction, as text the action reports, after doing what it says. */
+const answer = (reaction: Reaction, offer: Offer, give: boolean): void => {
+  if (give && reaction.takes) move(offer.thing, offer.to);
+  reaction.then?.();
+  reacted = typeof reaction.text === "function" ? reaction.text() : reaction.text;
+};
+/** What the last give or show reported, for its report. */
+let reacted = "";
+
+/** Gives something the actor carries to someone present, who reacts through {@link giving}. */
+export const give = action<{ thing: ActingOn; to: ActingOn }>("give", {
+  source: SOURCE,
+  verbs: [
+    "give {thing} to {to}",
+    "give {to} {thing}",
+    "offer {thing} to {to}",
+    "hand {thing} to {to}",
+  ],
+  for: isCarried,
+  with: { to: isSomeone },
+  label: ({ thing, to }) => message("give.label", { thing, to }),
+  verify: ({ thing, body }) =>
+    body && isWithin(thing, body) ? undefined : message("drop.notHeld", { thing }),
+  run: (c) => {
+    const offer: Offer = {
+      thing: c.thing,
+      to: c.to,
+      ...(c.actor && { actor: c.actor }),
+      ...(c.body && { body: c.body }),
+    };
+    answer(
+      giving.run(offer) ?? react(message("give.declined", { thing: c.thing, to: c.to })),
+      offer,
+      true,
+    );
+  },
+  report: () => reacted,
+});
+
+/** Shows something the actor carries to someone present, who reacts through {@link showing}. */
+export const show = action<{ thing: ActingOn; to: ActingOn }>("show", {
+  source: SOURCE,
+  verbs: ["show {thing} to {to}", "show {to} {thing}"],
+  for: isCarried,
+  with: { to: isSomeone },
+  label: ({ thing, to }) => message("show.label", { thing, to }),
+  verify: ({ thing, body }) =>
+    body && isWithin(thing, body) ? undefined : message("drop.notHeld", { thing }),
+  run: (c) => {
+    const offer: Offer = {
+      thing: c.thing,
+      to: c.to,
+      ...(c.actor && { actor: c.actor }),
+      ...(c.body && { body: c.body }),
+    };
+    answer(
+      showing.run(offer) ?? react(message("show.unmoved", { thing: c.thing, to: c.to })),
+      offer,
+      false,
+    );
+  },
+  report: () => reacted,
 });
 
 /** Opens something openable, unless it's locked. */
