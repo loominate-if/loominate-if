@@ -148,12 +148,12 @@ describe("beats on the page", () => {
     (document.activeElement as HTMLElement | null)?.blur();
     vi.advanceTimersByTime(1500);
     expect(passage().contains(document.activeElement)).toBe(false);
-    // The passage isn't a live region; a separate one reads only the new part.
+    // The passage isn't a live region; a separate one reads only the new part,
+    // emptied at once and filled a moment later, as separate changes.
     const live = document.querySelector(".loominate-announce");
-    expect([live?.getAttribute("aria-live"), live?.textContent]).toEqual([
-      "polite",
-      "Brakes scream.",
-    ]);
+    expect([live?.getAttribute("aria-live"), live?.textContent]).toEqual(["polite", ""]);
+    vi.advanceTimersByTime(300);
+    expect(live?.textContent).toBe("Brakes scream.");
   });
 
   it("hurry a timed pause when the player clicks the page", () => {

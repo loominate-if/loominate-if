@@ -1,0 +1,14 @@
+{
+  "name": "screen-reader-bench",
+  "private": true,
+  "description": "Drives the real VoiceOver on macOS with Guidepup and records what it speaks, to check the page's screen-reader behaviour (#352). Not a workspace package.",
+  "type": "module",
+  "scripts": {
+    "setup": "guidepup",
+    "listen": "node listen.mjs"
+  },
+  "dependencies": {
+    "@guidepup/guidepup": "0.40.0",
+    "@guidepup/setup": "0.29.3"
+  }
+}

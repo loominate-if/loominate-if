@@ -282,15 +282,45 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
 
   /**
    * The heading only screen readers see, before the first new paragraph,
-   * which takes focus after a move or a beat, and what it says. Focusing a
-   * heading rather than the text means a screen reader reads on from it,
-   * naming the links in the text as links, rather than describing a block
-   * of text and skipping them (#352).
+   * which takes focus after a move or a beat, and what it says (#352).
+   * Focus alone announces only the heading, so the new text is then read
+   * through a live region: the pattern that worked with VoiceOver.
    */
   let heading: { readonly key: string; readonly text: string } | undefined;
   let headingElement: HTMLElement | null = null;
-  /** Moves focus to a heading before the paragraph with `key`: "Passage" after a move, "More" after a beat. */
-  const focusHeading = (key: string | undefined, kind: "passage" | "more"): void => {
+
+  /**
+   * What a hidden live region says: the new text after a change. The
+   * passage itself isn't a live region, so text the player moves focus to
+   * isn't read twice.
+   */
+  let announcement = "";
+  let announcing: ReturnType<typeof setTimeout> | undefined;
+  /**
+   * Reads `text` through the live region: emptied now, and filled a moment
+   * later, as separate changes, so a screen reader hears the focused heading
+   * first, and the same words again if they come again.
+   */
+  const announce = (text: string): void => {
+    if (announcing !== undefined) clearTimeout(announcing);
+    announcing = undefined;
+    announcement = "";
+    renderPage();
+    if (text === "") return;
+    // Presentation timing only: the story has already moved on.
+    announcing = setTimeout(() => {
+      announcing = undefined;
+      announcement = text;
+      renderPage();
+    }, 300);
+  };
+
+  /**
+   * Moves focus to a heading before the paragraph with `key`, "Passage"
+   * after a move or "More" after a beat, and, unless `quiet`, reads the new
+   * text from there through the live region.
+   */
+  const focusHeading = (key: string | undefined, kind: "passage" | "more", quiet = false): void => {
     if (key === undefined) {
       focusPassage();
       return;
@@ -301,21 +331,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     };
     renderPage();
     headingElement?.focus({ preventScroll: true });
-  };
-
-  /**
-   * What a hidden live region says: the new text of a change the player
-   * didn't make by moving focus, such as a timed beat passing, or undo. The
-   * passage itself isn't a live region, so text the player moved focus to
-   * isn't read twice.
-   */
-  let announcement = "";
-  const announce = (text: string): void => {
-    // Emptied first, so the same words are read again if they come again.
-    announcement = "";
-    renderPage();
-    announcement = text;
-    renderPage();
+    if (!quiet) announce(textFrom(key));
   };
   /** The text of the paragraphs from the one with `key` on, as a screen reader would hear it. */
   const textFrom = (key: string | undefined): string => {
@@ -1129,21 +1145,27 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
   // Effects play for a story starting here, not for one loaded from a save.
   const fresh = story.current === undefined;
   story.begin();
-  // A screen reader starts at the story, not the header's controls.
-  focusHeading(draw(fresh), "passage");
+  // A screen reader starts at the story, not the header's controls. It reads
+  // a newly loaded page by itself, so nothing is announced as well.
+  focusHeading(draw(fresh), "passage", true);
   return {
     element: root,
     refresh: () => {
-      // A redraw keeps focus on the heading if it was there, as just after a move.
-      const onHeading = headingElement !== null && doc.activeElement === headingElement;
+      // Undo, loading a save, or travel in the inspector: the passage is read
+      // if what's on screen changed, and a redraw that changes nothing, as
+      // the shell's just after mounting, is quiet.
+      const before = textFrom(items[0]?.key);
+      const inPassage = passage?.contains(doc.activeElement) ?? false;
       const first = draw();
-      if (onHeading) focusHeading(first, "passage");
-      // Undo, loading a save, or travel in the inspector: read the passage where the player is.
-      else announce(textFrom(first));
+      const changed = textFrom(first) !== before;
+      // Focus stays on the heading if it was in the passage.
+      if (inPassage) focusHeading(first, "passage", !changed);
+      else if (changed) announce(textFrom(first));
     },
     destroy() {
       finishEffects();
       stopTimer();
+      if (announcing !== undefined) clearTimeout(announcing);
       narrowQuery?.removeEventListener("change", onNarrow);
       render(null, root);
       root.remove();

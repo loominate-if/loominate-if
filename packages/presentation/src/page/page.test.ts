@@ -143,12 +143,42 @@ describe("the page", () => {
   });
 
   it("starts a screen reader at the story when it loads, and keeps it there through a redraw (#352)", () => {
-    const { page } = play();
-    const heading = () => document.activeElement as HTMLElement;
-    expect([heading().tagName, heading().textContent]).toEqual(["H2", "Passage"]);
-    // The shell redraws just after mounting; focus mustn't fall to the body.
-    page.refresh();
-    expect([heading().tagName, heading().textContent]).toEqual(["H2", "Passage"]);
+    vi.useFakeTimers();
+    try {
+      const { page } = play();
+      const heading = () => document.activeElement as HTMLElement;
+      const live = () => document.querySelector(".loominate-announce")?.textContent;
+      expect([heading().tagName, heading().textContent]).toEqual(["H2", "Passage"]);
+      // The shell redraws just after mounting; focus mustn't fall to the body.
+      page.refresh();
+      expect([heading().tagName, heading().textContent]).toEqual(["H2", "Passage"]);
+      // A screen reader reads a newly loaded page by itself, so nothing's announced too.
+      vi.advanceTimersByTime(1000);
+      expect(live()).toBe("");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reads new text after a move through a live region, after the heading takes focus (#352)", () => {
+    vi.useFakeTimers();
+    try {
+      const { click, history, page } = play();
+      const live = () => document.querySelector(".loominate-announce")?.textContent;
+      click("Go to the stairs");
+      expect((document.activeElement as HTMLElement).textContent).toBe("Passage");
+      // Emptied at once, and filled a moment later, so the heading is heard first.
+      expect(live()).toBe("");
+      vi.advanceTimersByTime(300);
+      expect(live()).toMatch(/^The steps go down\./);
+      // Undo changes what's on screen, so the passage it returns to is read.
+      history.undo();
+      page.refresh();
+      vi.advanceTimersByTime(300);
+      expect(live()).toMatch(/^The kitchen is warm\./);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("shows disabled links with their reasons, for sight and for screen readers", () => {
