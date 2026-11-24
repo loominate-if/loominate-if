@@ -103,7 +103,7 @@ describe("playing a game", () => {
     const header = container.querySelector('[data-region="header"]');
     expect(
       [...(header?.querySelectorAll<HTMLElement>("a, button") ?? [])].map((b) => b.textContent),
-    ).toEqual(["Undo", "Save", "Load", "Restart"]);
+    ).toEqual(["Undo", "Save", "Load", "Restart", "Story log", "Transcript"]);
     await vi.waitFor(async () => {
       expect(await autosaved(storage)).toBe("Road");
     });
@@ -111,6 +111,19 @@ describe("playing a game", () => {
     await vi.waitFor(async () => {
       expect(await autosaved(storage)).toBe("Bridge");
     });
+  });
+
+  it("opens the story log and transcript from the menu (#127)", async () => {
+    const { container, click } = await start({ storage: createMemoryStorage() });
+    click("Walk on");
+    click("Story log");
+    const log = container.ownerDocument.querySelector<HTMLDialogElement>(".loominate-log");
+    expect(log?.querySelector("h2")?.textContent).toBe("Story log");
+    expect(log?.textContent).toContain("A long road.");
+    click("Close");
+    click("Transcript");
+    expect(log?.querySelector("h2")?.textContent).toBe("Transcript");
+    expect(log?.textContent).toContain("[navigation]");
   });
 
   it("restarts from the menu after asking again, with a fresh seed, keeping saves", async () => {
@@ -150,7 +163,7 @@ describe("playing a game", () => {
       const header = container.querySelector('[data-region="header"]');
       expect(
         [...(header?.querySelectorAll<HTMLElement>("a, button") ?? [])].map((b) => b.textContent),
-      ).toEqual(["Undo", "Save", "Load", "Walk the plank"]);
+      ).toEqual(["Undo", "Save", "Load", "Walk the plank", "Story log", "Transcript"]);
       // The tooltips still say what the reworded buttons do.
       expect(button("Walk the plank").title).toBe(
         "Start the story over from the beginning. Your saves are kept.",

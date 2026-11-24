@@ -13,6 +13,7 @@ import {
 import {
   _actionListOf,
   display,
+  storyLog,
   widgets,
   type ActionListData,
   type CastData,
@@ -206,6 +207,16 @@ describe("conversation mode (#118)", () => {
       "Study",
       "conversation",
       "cook",
+    ]);
+  });
+
+  it("name speakers in the story log, by their bodies' names (#127)", () => {
+    act(ask({ who: butler, about: letter }));
+    expect(
+      storyLog(record.events()).map((e) => [e.speaker ?? (e.player ? "(you)" : ""), e.text]),
+    ).toEqual([
+      ["(you)", "You ask the butler about the letter."],
+      ["Butler", "“I couldn't say, sir.”"],
     ]);
   });
 

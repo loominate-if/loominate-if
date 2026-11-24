@@ -808,6 +808,8 @@ export function createStory(
   const recordProse = (passage: PassageId, nodes: readonly RenderedNode[]): void => {
     for (const node of nodes) {
       if (node.type !== "text") continue;
+      // A paragraph that's only a link, such as a name opening a menu, is a choice, not prose.
+      if (node.links?.some((l) => l.start === 0 && l.end === node.text.length) === true) continue;
       emitIn(passage)("narrative", {
         text: node.text,
         ...(node.styles !== undefined && node.styles.length > 0 && { styles: node.styles }),

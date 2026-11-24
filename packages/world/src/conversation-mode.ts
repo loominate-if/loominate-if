@@ -23,6 +23,7 @@ import {
   actionListWidget,
   castWidget,
   display,
+  nameSpeakers,
   layouts,
   widgets,
   type ActionListItem,
@@ -38,7 +39,7 @@ import {
   startConversation,
 } from "./conversations.js";
 import { _nodeById, openNode, openNodeOf, type ConvNode } from "./nodes.js";
-import { placeOf } from "./things.js";
+import { placeOf, thingFor } from "./things.js";
 import {
   _addressAction,
   _hideTopicLinksWhen,
@@ -393,3 +394,12 @@ export function _conversationNow(): _ConversationNow {
     }),
   };
 }
+
+// The story log names speakers by their bodies' names: "Mira", "Maid" (#127).
+nameSpeakers((id) => {
+  const body = thingFor({ id });
+  if (!body) return undefined;
+  if (body.id === currentPlayerBody()?.id) return "You";
+  const name = (body as { readonly name?: unknown }).name;
+  return typeof name === "string" ? `${name.charAt(0).toUpperCase()}${name.slice(1)}` : undefined;
+});

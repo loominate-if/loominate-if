@@ -40,6 +40,7 @@ import { layouts, widget, widgets, type WidgetDefinition } from "../page/layout.
 import { mountPage, type ActionMove, type Page, type PageOptions } from "../page/page.js";
 import { addStyles } from "../page/theme.js";
 import { headerWidgets } from "../page/things.js";
+import { createLogDialog } from "../page/log.js";
 import { createSaveMenu } from "./menu.js";
 import { createBrowserStorage } from "./storage.js";
 
@@ -173,6 +174,7 @@ type MenuActions = {
   readonly undo: () => void;
   readonly open: (focus: "save" | "load") => void;
   readonly restart: () => void;
+  readonly log: (view: "log" | "transcript") => void;
 };
 
 /** The game menu widget: Undo, Save, Load, and Restart buttons. */
@@ -245,6 +247,24 @@ function GameMenu({
         }}
       >
         {message(confirming ? "menu.confirmRestart" : "menu.restart")}
+      </button>
+      <button
+        type="button"
+        title={message("menu.storyLogTip")}
+        onClick={() => {
+          actions.log("log");
+        }}
+      >
+        {message("menu.storyLog")}
+      </button>
+      <button
+        type="button"
+        title={message("menu.transcriptTip")}
+        onClick={() => {
+          actions.log("transcript");
+        }}
+      >
+        {message("menu.transcript")}
       </button>
     </div>
   );
@@ -342,7 +362,12 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
     },
   });
 
+  // The story log and transcript read the game in play's record (#127).
+  const logs = createLogDialog(host, () => (store ? createEventRecord(store).events() : []));
   const menuWidget = gameMenu({
+    log: (view) => {
+      logs.open(view);
+    },
     canUndo: () => history?.canUndo ?? false,
     undo: () => {
       if (!history?.canUndo) return;
