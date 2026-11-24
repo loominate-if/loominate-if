@@ -4,7 +4,7 @@
  * compiler extensions and inspector modules, and its own inspector module. The dev server, builds, and tests all read it, so they
  * compile the game the same way.
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { findPackageJSON } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -227,7 +227,10 @@ async function loadPackages(
       );
     }
     if (typeof inspector === "string") {
-      inspectorModules.push(path.join(path.dirname(manifest), inspector));
+      // Its real path: a linked package, as in a workspace, is then served as source, reloaded
+      // when it's rebuilt, not through node_modules as a dependency the browser caches for good (#332).
+      const file = path.join(path.dirname(manifest), inspector);
+      inspectorModules.push(existsSync(file) ? realpathSync(file) : file);
     }
     if (typeof entry !== "string") continue;
     const mod = (await import(pathToFileURL(path.join(path.dirname(manifest), entry)).href)) as {
