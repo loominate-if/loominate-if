@@ -1,0 +1,23 @@
+{
+  "name": "@loominate-if/example-world-model",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Gate 2: a short world-model piece with a container, a locked door and its key, and an NPC who reacts through rules.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "loominate dev",
+    "build": "loominate build && loominate build --target single",
+    "test": "loominate test"
+  },
+  "dependencies": {
+    "@loominate-if/core": "workspace:*",
+    "@loominate-if/presentation": "workspace:*",
+    "@loominate-if/world": "workspace:*"
+  },
+  "devDependencies": {
+    "@loominate-if/cli": "workspace:*",
+    "@loominate-if/testing": "workspace:*",
+    "vitest": "5.1.0"
+  }
+}
