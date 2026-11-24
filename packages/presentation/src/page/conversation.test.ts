@@ -157,6 +157,7 @@ describe("conversation widgets (#118)", () => {
 
 describe("a layout placing the passage's parts (#118)", () => {
   const said = object("transcriptTest", { n: 0 });
+  const quiet = { on: false };
   const talk: Passage[] = [
     {
       id: "Talk",
@@ -164,6 +165,7 @@ describe("a layout placing the passage's parts (#118)", () => {
       effects: {
         enter: () => {
           display.layout = "placed";
+          if (quiet.on) return;
           said.n += 1;
           emit("action-result", { text: `Line ${String(said.n)}` }, ["topic"]);
         },
@@ -233,6 +235,18 @@ describe("a layout placing the passage's parts (#118)", () => {
     // Focus is on the heading just before what's new, in main.
     expect(document.activeElement?.textContent).toBe("Passage");
     expect(document.activeElement?.nextElementSibling?.textContent).toBe("Line 3");
+  });
+
+  it("show the last exchange after a move that says nothing, with focus before it", () => {
+    const { region, again } = playPlaced();
+    again();
+    quiet.on = true; // the next arrival says nothing, as coming back from a cut scene
+    again();
+    const notices = [...(region("main")?.querySelectorAll(".loominate-notice") ?? [])];
+    expect(notices.map((p) => p.textContent)).toEqual(["Line 1", "Line 2"]);
+    expect(document.activeElement?.textContent).toBe("Passage");
+    expect(document.activeElement?.nextElementSibling?.textContent).toBe("Line 2");
+    quiet.on = false;
   });
 
   it("follow undo: the transcript comes from the record", () => {

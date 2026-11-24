@@ -663,12 +663,13 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
   };
 
   /** What was noticed from event `since` up to the move on screen, for a transcript layout. */
-  const transcript = (since: number): Proseful[] => {
+  const transcript = (since: number): { earlier: Proseful[]; last: Proseful[] } => {
     const events = record.events({
       kinds: [...NOTICE_KINDS, "navigation", "action", "beat"],
       since,
     });
-    const kept: Proseful[] = [];
+    const earlier: Proseful[] = [];
+    let last: Proseful[] = [];
     let move: Proseful[] = [];
     for (const e of events) {
       const starts =
@@ -676,11 +677,15 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
         e.kind === "action" ||
         e.kind === "beat";
       if (starts) {
-        kept.push(...move);
+        // The last earlier move that said anything, shown when this one says nothing.
+        if (move.length > 0) {
+          earlier.push(...last);
+          last = move;
+        }
         move = [];
       } else if (NOTICE_KINDS.includes(e.kind)) move.push(e as Proseful);
     }
-    return kept;
+    return { earlier, last };
   };
 
   /**
@@ -697,9 +702,19 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
       // A transcript layout keeps what was noticed in earlier moves, from the record, so undo agrees.
       const since = layoutNow()?.passage?.transcriptSince?.(game);
       if (since !== undefined) {
-        for (const paragraph of _noticeParagraphs(transcript(since))) {
-          const events = paragraph as Proseful[];
-          items.push({ kind: "notices", key: `t:${String(events[0]?.seq ?? 0)}`, events });
+        const { earlier, last } = transcript(since);
+        for (const [events, prefix] of [
+          [earlier, "t"],
+          [last, "tl"],
+        ] as const) {
+          for (const paragraph of _noticeParagraphs(events)) {
+            const para = paragraph as Proseful[];
+            items.push({
+              kind: "notices",
+              key: `${prefix}:${String(para[0]?.seq ?? 0)}`,
+              events: para,
+            });
+          }
         }
       }
     }
@@ -1063,6 +1078,12 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
       const empty =
         region !== "main" && widgetsIn(region).length === 0 && passageParts(region).length === 0;
       const className = `loominate-region loominate-region-${region}`;
+      const headingAt =
+        heading === undefined
+          ? undefined
+          : items.some((item) => item.key === heading?.key && inMain(item))
+            ? heading.key
+            : items.find((item) => item.key.startsWith("tl:"))?.key;
       const side = sidebars[region];
       const expanded = !narrow || open.has(region);
       const panelId = `loominate-sidebar-${name}-${region}`;
@@ -1087,20 +1108,20 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
                     </p>
                   )}
                   {
-                    // A heading for new text that went to another region goes first in main.
-                    heading !== undefined &&
-                      !items.some((item) => item.key === heading?.key && inMain(item)) && (
-                        <h2
-                          key={`heading:${heading.key}`}
-                          className="loominate-sr-only loominate-passage-heading"
-                          tabIndex={-1}
-                          ref={(element) => {
-                            headingElement = element;
-                          }}
-                        >
-                          {heading.text}
-                        </h2>
-                      )
+                    // A heading for new text that went to another region goes before the
+                    // transcript's last exchange, or else first in main.
+                    heading !== undefined && headingAt === undefined && (
+                      <h2
+                        key={`heading:${heading.key}`}
+                        className="loominate-sr-only loominate-passage-heading"
+                        tabIndex={-1}
+                        ref={(element) => {
+                          headingElement = element;
+                        }}
+                      >
+                        {heading.text}
+                      </h2>
+                    )
                   }
                   {
                     // One flat list of keyed siblings, so a paragraph keeps its element
@@ -1108,7 +1129,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
                     items.filter(inMain).flatMap((item) => {
                       const drawn = paragraph(item);
                       const paragraphs = Array.isArray(drawn) ? drawn : [drawn];
-                      return heading?.key === item.key
+                      return headingAt === item.key
                         ? [
                             <h2
                               key={`heading:${item.key}`}
@@ -1118,7 +1139,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
                                 headingElement = element;
                               }}
                             >
-                              {heading.text}
+                              {heading?.text}
                             </h2>,
                             ...paragraphs,
                           ]
@@ -1229,7 +1250,10 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
       fitted = undefined;
       return;
     }
-    const latest = items.filter((item) => inMain(item) && !item.key.startsWith("t:"));
+    const kept = (item: Item): boolean => item.key.startsWith("t:") || item.key.startsWith("tl:");
+    const now = items.filter((item) => inMain(item) && !kept(item));
+    // A move that said nothing, as coming back from a cut scene, shows the last exchange that did.
+    const latest = now.length > 0 ? now : items.filter((item) => item.key.startsWith("tl:"));
     const key = latest.map((item) => item.key).join(" ");
     if (key === fitted) return;
     fitted = key;
