@@ -2,7 +2,7 @@
  * The world model's inspector module (#91, ADR 0055): a "Fuses and daemons"
  * panel listing every fuse and daemon, whether each is running, cancelled,
  * stopped, or has fired, when it fires next, and where it comes from; a
- * Stats panel (#95); and the World tree (#82).
+ * Stats panel (#95); the World tree (#82); and the NPCs panel (#108).
  *
  * It's named in package.json as `loominate.inspector`, so the CLI loads it
  * only where the inspector is; nothing else in the world model imports the
@@ -11,6 +11,7 @@
  * reaches the world model through its entry point, like any package.
  */
 import { panels, type InspectorPanel } from "@loominate-if/inspector";
+import { npcPanel } from "./npc-panel.js";
 import { worldPanel } from "./world-panel.js";
 import {
   _scheduled,
@@ -201,5 +202,6 @@ export const statsPanel: InspectorPanel = {
 panels.register("schedule", schedulePanel, { source: SOURCE });
 panels.register("stats", statsPanel, { source: SOURCE });
 panels.register("world", worldPanel, { source: SOURCE });
+panels.register("npcs", npcPanel, { source: SOURCE });
 
-export { worldPanel };
+export { npcPanel, worldPanel };

@@ -1175,6 +1175,8 @@ schedule(baker, [
 - **Agendas come first:** while they have an active, ready agenda item, the timetable doesn't move them. Afterwards they go where it says by then, so an entry they missed is skipped. Anything that depends on them being somewhere, such as a stall opening, should check where they are, `placeOf(baker)`, not the time.
 - **`whereScheduled(npc, minutes?)`** says where the timetable puts them, now or at any time.
 
+The inspector's **NPCs** tab shows each NPC's place, whether they get a turn and why, their agenda items and which acts next, and their timetable now and next, with a timeline of what they did offstage.
+
 ### Agendas
 
 An agenda item is a goal an NPC pursues across turns, as adv3Lite's are. In the NPC's turn, the highest-priority item that's active and ready takes one step, until it calls `done()`:

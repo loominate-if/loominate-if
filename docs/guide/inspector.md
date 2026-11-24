@@ -111,6 +111,17 @@ It's the world model's own inspector module, so games that don't use the world m
 
 With the world model, a **Stats** tab lists every body's stats: base, and now with modifiers applied, and each modifier's source and when it wears off. A mental stat names the mind it comes from, the one in the body now.
 
+## NPCs
+
+With the world model, an **NPCs** tab has a row for each NPC, the player aside:
+
+- **Where** they are, and their **level**: observed only, scheduled (they have a timetable), or simulated.
+- **Turn now:** whether they'll take a turn after the next move, and why: simulated, busy with an agenda item, seen or heard by the player, or out of sight.
+- **Agenda:** each item, with its priority, whether it's active and ready, and which acts next.
+- **Timetable:** the entry they're in now, and the next to begin, with when.
+
+Below it, a **Timeline** lists what NPCs did, newest first: each action, done or refused and why, each move their timetable made, and each time they caught up. It shows what happened offstage; **Include what the player saw** adds the rest. These are `npc` events in the event record, which the page never shows, so the Events tab lists them too, and undo, saves, and replays keep them.
+
 ## The world
 
 With the world model, a **World** tab shows the world as a tree: each place, with what's in it nested under it, then what's out of the world, and minds with no body. A body shows the mind in it now, and a stack its count. The tree starts open on the place the player is in, and keeps what you've opened as the game moves. **Show the player** opens the way to them again.
