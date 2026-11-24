@@ -151,6 +151,11 @@ export function _allNodes(): readonly ConvNode[] {
   return [...nodes.values()];
 }
 
+/** The node with ID `id`, if there is one. @internal */
+export function _nodeById(id: string): ConvNode | undefined {
+  return nodes.get(id);
+}
+
 /** Whether `x`, an entry's `in`, is a node. @internal */
 export function _isNode(x: unknown): x is ConvNode {
   return typeof x === "object" && x !== null && (x as { isNode?: unknown }).isNode === true;

@@ -709,7 +709,10 @@ export function generatePassageModule(
       const b = bind(block.d);
       if (!b?.ok || b.definition.kind !== "section") continue;
       usedIn(argumentCode(block.d));
-      const id = `${p.name.name}#${lineIds?.lineAt(block.d.span.start) ?? String(i + 1)}`;
+      // A block's ID is its first paragraph's line ID, which survives edits around it (#119).
+      const firstProse = block.content.find((n) => n.type === "text" && n.text.trim() !== "");
+      const line = firstProse === undefined ? undefined : lineIds?.lineAt(firstProse.span.start);
+      const id = line ?? `${p.name.name}#${String(i + 1)}`;
       inSection = block.d.name;
       const generated = capture(() => {
         write("{\n");

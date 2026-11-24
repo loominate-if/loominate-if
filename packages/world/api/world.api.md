@@ -342,6 +342,30 @@ export function conversationMode(options?: {
     readonly layout?: string;
 } | false): void;
 
+// @internal
+export type _ConversationNow = {
+    readonly active: boolean;
+    readonly exit: string;
+    readonly participants: readonly {
+        readonly id: string;
+        readonly name: string;
+        readonly addressed: boolean;
+        readonly node?: {
+            readonly name: string;
+            readonly restricts: boolean;
+            readonly exit?: string;
+        };
+    }[];
+    readonly locks: readonly {
+        readonly level: string;
+        readonly owner: string;
+        readonly reason?: string;
+    }[];
+};
+
+// @internal
+export function _conversationNow(): _ConversationNow;
+
 // @public
 export type ConversationView = {
     readonly active: boolean;
@@ -1598,6 +1622,9 @@ export type TopicCandidate = {
     readonly priority: number;
 };
 
+// @internal
+export function _topicCharacters(): readonly ObjectRef[];
+
 // @public
 export type TopicContext = {
     readonly npc: ObjectRef;
@@ -1682,6 +1709,35 @@ export type TopicOptions = {
     readonly expression?: string;
     readonly id?: string;
 };
+
+// @internal
+export type _TopicRow = {
+    readonly id: string;
+    readonly label: string;
+    readonly scope?: string;
+    readonly priority: number;
+    readonly flags: readonly string[];
+    readonly condition?: {
+        readonly text: string;
+        readonly value: boolean | string;
+        readonly parts?: readonly {
+            readonly text: string;
+            readonly value?: unknown;
+            readonly error?: string;
+        }[];
+    };
+    readonly answers: {
+        readonly now: boolean;
+        readonly why?: string;
+    };
+    readonly suggested: {
+        readonly now: boolean;
+        readonly why?: string;
+    };
+};
+
+// @internal
+export function _topicRows(npc: ObjectRef): readonly _TopicRow[];
 
 // @public
 export function topics<D extends Readonly<Record<string, TopicDefinition>>>(definitions: D): {
