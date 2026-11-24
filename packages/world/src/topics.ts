@@ -632,13 +632,20 @@ export function _topicExplanations(): readonly {
         e.about === undefined ? "" : e.about === anything ? "anything else" : nameOf(e.about);
       const when = e.implicit === true ? ", unprompted" : e.implicit === false ? ", in words" : "";
       const c = match(body, kind, about, e.implicit ?? false).candidates.find((x) => x.id === e.id);
+      // A restrictive node holds up everything but its own replies.
+      const node = openNodeOf(body);
+      const held = c?.wins === true && node?.restricts === true && !unheld(kind) && e.in !== node;
       const said = handed
         ? `${verb} ${subjectName} to ${who}`
         : `${verb} ${who}${e.about === undefined ? "" : ` about ${subjectName}`}${when}`;
       return {
         label: `${said} (${e.id})`,
-        available: c?.wins ?? false,
-        ...(c?.why !== undefined && { why: c.why }),
+        available: (c?.wins ?? false) && !held,
+        ...(held
+          ? {
+              why: `Its node, ${node.name}, is open and restrictive, so the NPC presses the point instead.`,
+            }
+          : c?.why !== undefined && { why: c.why }),
       };
     });
   });

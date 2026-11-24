@@ -12,6 +12,7 @@ import {
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   _matchTopic,
+  _topicExplanations,
   actor,
   ask,
   convNode,
@@ -139,6 +140,18 @@ describe("conversation nodes (#116)", () => {
     openNode(butler, proposal);
     expect(labels()).toEqual(["Say yes", "Say no", "Say goodbye"]);
     expect(() => openNode(maid, proposal)).toThrow("another NPC's node");
+  });
+
+  it("explain, while a restrictive node is open, that other entries are held up", () => {
+    act(ask({ who: butler, about: job }));
+    const shown = _topicExplanations().map(
+      (e) =>
+        `${e.available ? "✓" : "✗"} ${e.label.replace(/ \(.*\)$/, "")}${e.why ? `: ${e.why}` : ""}`,
+    );
+    expect(shown).toContain(
+      "✗ Ask the butler about the weather: Its node, proposal, is open and restrictive, so the NPC presses the point instead.",
+    );
+    expect(shown).toContain("✓ Say yes to the butler");
   });
 
   it("explain an entry whose node isn't open", () => {
