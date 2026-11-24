@@ -360,3 +360,10 @@ export {
   type Portrait,
   type _ConversationNow,
 } from "./conversation-mode.js";
+export {
+  accompany,
+  companion,
+  companionState,
+  waitHere,
+  type CompanionState,
+} from "./companions.js";

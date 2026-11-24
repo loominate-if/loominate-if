@@ -8,6 +8,7 @@
 import { emit, hook, StateError, type ObjectRef } from "@loominate-if/core";
 import { bodyOf, mindFor } from "./actors.js";
 import { _busyWithAgenda } from "./agendas.js";
+import { _isAccompanying } from "./companions.js";
 import { playerPerceives } from "./npcs.js";
 import { matchesAt, type CalendarQuery } from "./calendar.js";
 import { clock, dayOffset, minuteOfDayAt, parseTime } from "./clock.js";
@@ -151,7 +152,8 @@ export function _timetableOf(
 function place(narrated: boolean): void {
   for (const [, { npc }] of [...timetables].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
     const mind = mindFor(npc, "schedule");
-    if (_busyWithAgenda(mind)) continue;
+    // An agenda item, or going along with the player as a companion, holds them.
+    if (_busyWithAgenda(mind) || _isAccompanying(mind)) continue;
     const body = bodyOf(mind);
     const target = whereScheduled(npc);
     if (!body || !target || placeOf(body)?.id === target.id) continue;
