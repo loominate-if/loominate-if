@@ -5,8 +5,10 @@
 ```ts
 
 import { BeatNode } from '@loominate-if/core';
+import { CompassWay } from '@loominate-if/presentation';
 import { EventRecord } from '@loominate-if/core';
 import { History } from '@loominate-if/core';
+import { ObjectRef } from '@loominate-if/core';
 import { Passage } from '@loominate-if/core';
 import { PassageId } from '@loominate-if/core';
 import { Replay } from '@loominate-if/core';
@@ -20,6 +22,12 @@ export type GameDefinition = {
     readonly passages: readonly Passage[];
     readonly start: PassageId;
     readonly story?: Omit<StoryOptions, "start" | "seed">;
+};
+
+// @public
+export type MenuEntry = {
+    readonly label: string;
+    readonly disabled?: string;
 };
 
 // @public
@@ -38,11 +46,14 @@ export type UnavailableChoice = {
 
 // @public
 export interface Walkthrough {
+    act(label: string): this;
     advance(): this;
     readonly beat: BeatNode | undefined;
     readonly choices: readonly string[];
     choose(label: string): this;
+    readonly compass: readonly CompassWay[] | undefined;
     readonly history: History;
+    menu(thing: ObjectRef): readonly MenuEntry[];
     readonly notices: string;
     readonly passage: PassageId;
     readonly record: EventRecord;

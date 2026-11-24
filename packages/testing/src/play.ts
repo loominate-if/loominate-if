@@ -6,6 +6,8 @@
 import {
   _leadingNotices,
   _noticeParagraphs,
+  actionCandidates,
+  actionsFor,
   createEventRecord,
   createHistory,
   createStore,
@@ -22,7 +24,11 @@ import {
   type StateStore,
   type Story,
   type StoryOptions,
+  type ObjectRef,
+  statusOf,
+  type ActionCall,
 } from "@loominate-if/core";
+import { widgets, type CompassData, type CompassWay } from "@loominate-if/presentation";
 
 /** A game to play: its passages and where a new game starts. */
 export type GameDefinition = {
@@ -52,6 +58,13 @@ export type UnavailableChoice = {
   readonly reason?: string;
   /** Whether the player sees the link, disabled, or it's hidden. */
   readonly shown: boolean;
+};
+
+/** One entry in a thing's menu: what it says, and why it's disabled, if it is. */
+export type MenuEntry = {
+  readonly label: string;
+  /** Why it can't be taken now, as the menu shows it. */
+  readonly disabled?: string;
 };
 
 /** A game being played by a walkthrough test. */
@@ -97,6 +110,17 @@ export interface Walkthrough {
   undo(): this;
   /** The replay file for the playthrough so far, for a bug report or a determinism check. */
   replay(): Replay;
+  /** A thing's menu, as the player sees it: what's offered, with why each disabled entry is. */
+  menu(thing: ObjectRef): readonly MenuEntry[];
+  /**
+   * Takes an action from a menu by its label, as "Give the coin to the toll
+   * keeper": from the menu of anything the player can act on, or that a
+   * link on screen opens a menu for.
+   * @throws Error if no menu offers it, or it's disabled, saying why.
+   */
+  act(label: string): this;
+  /** The compass's ways out, as the game's `compass` widget gives them, or `undefined` if it has none. */
+  readonly compass: readonly CompassWay[] | undefined;
   /** The story, for anything this API doesn't cover. */
   readonly story: Story;
   /** The state store. */
@@ -276,6 +300,53 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
       story.follow(choice);
       moved();
       return game;
+    },
+    menu(thing) {
+      return actionsFor(thing)
+        .map(statusOf)
+        .filter((st) => st.hidden === undefined)
+        .map((st) => ({
+          label: st.label,
+          ...(st.disabled !== undefined && { disabled: st.disabled }),
+        }));
+    },
+    act(label) {
+      // What has a menu now: what the player can act on, and what links on screen open one for.
+      const linked = page().nodes.flatMap((n) => {
+        const links = n.type === "link" ? [n] : n.type === "text" ? (n.links ?? []) : [];
+        return links.flatMap((l) => (l.guard?.menu !== undefined ? [{ id: l.guard.menu }] : []));
+      });
+      const seen = new Set<string>();
+      const offered: { call: ActionCall; label: string; disabled?: string }[] = [];
+      for (const thing of [...actionCandidates(), ...linked]) {
+        if (seen.has(thing.id)) continue;
+        seen.add(thing.id);
+        for (const call of actionsFor(thing)) {
+          const st = statusOf(call);
+          if (st.hidden !== undefined || offered.some((o) => o.label === st.label)) continue;
+          offered.push({
+            call,
+            label: st.label,
+            ...(st.disabled !== undefined && { disabled: st.disabled }),
+          });
+        }
+      }
+      const found = offered.find((o) => o.label === label);
+      if (!found) {
+        throw new Error(
+          `No menu offers "${label}" in passage ${JSON.stringify(game.passage)}. The menus offer: ${offered.map((o) => JSON.stringify(o.label)).join(", ") || "nothing"}.`,
+        );
+      }
+      if (found.disabled !== undefined) {
+        throw new Error(`"${label}" can't be taken now: ${found.disabled}`);
+      }
+      story.act(found.call);
+      moved();
+      return game;
+    },
+    get compass() {
+      const widget = widgets.get("compass");
+      return widget ? (widget.data({ story } as never) as CompassData).ways : undefined;
     },
     advance() {
       if (!page().beat) {

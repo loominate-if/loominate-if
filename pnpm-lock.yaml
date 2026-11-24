@@ -299,6 +299,9 @@ importers:
       '@loominate-if/core':
         specifier: workspace:^
         version: link:../core
+      '@loominate-if/presentation':
+        specifier: workspace:^
+        version: link:../presentation
 
   packages/world:
     dependencies:

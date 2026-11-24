@@ -6,6 +6,7 @@
 
 import { Action } from '@loominate-if/core';
 import { CompassData } from '@loominate-if/presentation';
+import { DecideRulebook } from '@loominate-if/core';
 import { EffectContext } from '@loominate-if/core';
 import { Handle } from '@loominate-if/core';
 import { LinkNode } from '@loominate-if/core';
@@ -20,6 +21,9 @@ import { RuleOptions } from '@loominate-if/core';
 import { StateId } from '@loominate-if/core';
 import { Text } from '@loominate-if/core';
 import { WidgetDefinition } from '@loominate-if/presentation';
+
+// @public
+export function accept(text: string | Text, then?: () => void): Reaction;
 
 // @public
 export type ActingOn = Thing & {
@@ -533,6 +537,15 @@ export type FuseOptions = {
 };
 
 // @public
+export const give: Action<    {
+thing: ActingOn;
+to: ActingOn;
+}>;
+
+// @public
+export const giving: DecideRulebook<Offer, Reaction | undefined>;
+
+// @public
 export type Grammar = {
     readonly isProper?: boolean;
     readonly isPlural?: boolean;
@@ -773,6 +786,14 @@ export const obstacle: {
 };
 
 // @public
+export type Offer = {
+    readonly thing: ObjectRef;
+    readonly to: ObjectRef;
+    readonly actor?: ObjectRef;
+    readonly body?: ObjectRef;
+};
+
+// @public
 export const open: Action<    {
 thing: ActingOn;
 }>;
@@ -854,6 +875,16 @@ export type PossessOptions = {
 
 // @public
 export type Pronoun = "she" | "he" | "they" | "it";
+
+// @public
+export function react(text: string | Text, then?: () => void): Reaction;
+
+// @public
+export type Reaction = {
+    readonly takes: boolean;
+    readonly text: string | Text;
+    readonly then?: () => void;
+};
 
 // @public
 export type Region = Handle<RegionFields>;
@@ -1019,6 +1050,15 @@ export function setRelationship(observer: ObjectRef, toward: ObjectRef, values: 
 
 // @public
 export function setStat(who: ObjectRef, name: StatName, value: number): number;
+
+// @public
+export const show: Action<    {
+thing: ActingOn;
+to: ActingOn;
+}>;
+
+// @public
+export const showing: DecideRulebook<Offer, Reaction | undefined>;
 
 // @public
 export function spend(who: ObjectRef, name: StatName, amount: number): number;
