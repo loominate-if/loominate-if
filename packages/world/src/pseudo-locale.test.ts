@@ -126,7 +126,8 @@ const leftover = (text: string): string =>
 function words(root: El): { where: string; text: string }[] {
   const found: { where: string; text: string }[] = [];
   for (const el of Array.from(root.querySelectorAll("*"))) {
-    if (el.closest("style, script, [hidden], template")) continue;
+    // Content marked not to be translated, as the transcript's event kinds and fields, is data.
+    if (el.closest('style, script, [hidden], template, [translate="no"]')) continue;
     const where = el.tagName.toLowerCase() + (el.className ? `.${el.className}` : "");
     for (const n of Array.from(el.childNodes)) {
       if (n.nodeType === 3) found.push({ where, text: n.textContent ?? "" });

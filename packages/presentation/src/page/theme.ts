@@ -275,7 +275,7 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   flex-wrap: wrap;
   gap: calc(${v("space")} / 2);
 }
-.loominate-game-menu button, .loominate-saves button {
+.loominate-game-menu button, .loominate-saves button, .loominate-log button {
   padding: calc(${v("space")} / 4) calc(${v("space")} / 1.5);
   border: 1px solid ${v("color-border")};
   border-radius: ${v("radius")};
@@ -289,7 +289,7 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   color: ${v("color-muted")};
   cursor: not-allowed;
 }
-.loominate-saves {
+.loominate-saves, .loominate-log {
   color: ${v("color-text")};
   background: ${v("color-background")};
   line-height: ${v("line-height")};
@@ -299,11 +299,20 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   border-radius: ${v("radius")};
   font-family: ${v("font-ui")};
 }
-.loominate-saves::backdrop { background: rgb(0 0 0 / 0.4); }
-.loominate-saves :focus-visible {
+.loominate-saves::backdrop, .loominate-log::backdrop { background: rgb(0 0 0 / 0.4); }
+.loominate-saves :focus-visible, .loominate-log :focus-visible {
   outline: 2px solid ${v("color-focus")};
   outline-offset: 2px;
 }
+/* The story log and transcript (#127): a tall dialog, the newest at the bottom. */
+.loominate-log { width: min(44rem, 100% - 2 * ${v("space")}); max-height: calc(100vh - 2 * ${v("space")}); }
+.loominate-log-body { max-height: 60vh; overflow-y: auto; font-family: ${v("font-body")}; }
+.loominate-log-entry { margin-block: 0.4em; }
+.loominate-log-turn { margin-block-start: 1em; }
+.loominate-log-speaker { font-weight: 600; }
+.loominate-log-player { color: ${v("color-muted")}; font-style: italic; }
+.loominate-log-line { margin-block: 0.15em; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.85em; }
+.loominate-log-seq, .loominate-log-kind { color: ${v("color-muted")}; }
 .loominate-saves-list { padding: 0; list-style: none; }
 .loominate-saves-slot {
   padding-block: calc(${v("space")} / 2);

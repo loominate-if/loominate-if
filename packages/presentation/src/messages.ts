@@ -58,6 +58,31 @@ declare module "@loominate-if/core" {
     "menu.saveTip": None;
     "menu.loadTip": None;
     "menu.restartTip": None;
+    /** The game menu's button for the story log, and its tooltip. */
+    "menu.storyLog": None;
+    "menu.storyLogTip": None;
+    /** The game menu's button for the full transcript, and its tooltip. */
+    "menu.transcript": None;
+    "menu.transcriptTip": None;
+    /** The story log's title. */
+    "log.title": None;
+    /** The full transcript's title. */
+    "log.transcriptTitle": None;
+    /** The label of the log's filter. */
+    "log.show": None;
+    /** The story log's filters: everything, or what was said. */
+    "log.all": None;
+    "log.dialogue": None;
+    /** The transcript's filter for every kind of event. */
+    "log.allKinds": None;
+    /** Copying the transcript, and how it went. */
+    "log.copy": None;
+    "log.copied": None;
+    "log.copyFailed": None;
+    /** An empty log. */
+    "log.empty": None;
+    /** Closing the log. */
+    "log.close": None;
     /** Restart's tooltip while it asks once more. */
     "menu.confirmRestartTip": None;
     /** Restart, asking once more. */
@@ -151,6 +176,21 @@ register("menu.cannotUndoTip", "Nothing to undo yet.");
 register("menu.saveTip", "Save the game in a slot, to come back to.");
 register("menu.loadTip", "Load a saved game, leaving this one.");
 register("menu.restartTip", "Start the story over from the beginning. Your saves are kept.");
+register("menu.storyLog", "Story log");
+register("menu.storyLogTip", "Read the story so far, as a book of your playthrough.");
+register("menu.transcript", "Transcript");
+register("menu.transcriptTip", "Every event of the game so far, for testing and bug reports.");
+register("log.title", "Story log");
+register("log.transcriptTitle", "Transcript");
+register("log.show", "Show");
+register("log.all", "Everything");
+register("log.dialogue", "Dialogue only");
+register("log.allKinds", "Every kind");
+register("log.copy", "Copy");
+register("log.copied", "Copied.");
+register("log.copyFailed", "Couldn't copy: select the text and copy it instead.");
+register("log.empty", "Nothing yet.");
+register("log.close", "Close");
 register("menu.confirmRestartTip", "Click again to start over. Moving away cancels.");
 register("menu.confirmRestartLabel", "Confirm restart: start the story over. Saves are kept.");
 register("start.continue", "Continue");

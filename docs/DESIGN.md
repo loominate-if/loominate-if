@@ -576,6 +576,7 @@ One event record feeds three views: the page for playing, the story log for read
 - **Export.** Markdown, HTML, or EPUB, structured by author-placed chapter markers.
 - **Connective text.** Authors can supply alternate or connecting text used only in the story log, so prose written for standalone pages reads smoothly when strung together.
 - **Undo.** The log lives in the state (or is reconstructed from the deterministic action history), so undo trims it.
+- **In the player.** The game menu's Story log and Transcript open dialogs read from the event record. The story log takes narrative kinds and what was noticed, in the page's order for each move, a room's prose on its first visit only, and names each line's speaker (from a `speaker:` tag or a `dialogue` event, through `nameSpeakers`); the transcript lists every event with its kind. Tags `log` and `no-log` override ([ADR 0103](decisions/0103-story-log.md)).
 
 ## Extensibility
 

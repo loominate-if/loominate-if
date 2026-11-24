@@ -67,3 +67,11 @@ export {
   type CastMember,
   type CastOptions,
 } from "./page/conversation.js";
+export {
+  nameSpeakers,
+  storyLog,
+  transcript,
+  transcriptText,
+  type LogEntry,
+  type TranscriptLine,
+} from "./page/log.js";

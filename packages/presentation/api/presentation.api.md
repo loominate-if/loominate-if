@@ -13,6 +13,7 @@ import { Handle } from '@loominate-if/core';
 import { HistoryStep } from '@loominate-if/core';
 import { Passage } from '@loominate-if/core';
 import { PassageId } from '@loominate-if/core';
+import { RecordedEvent } from '@loominate-if/core';
 import { Registry } from '@loominate-if/core';
 import { Replay } from '@loominate-if/core';
 import { ReplayCheck } from '@loominate-if/core';
@@ -21,6 +22,7 @@ import { StateStore } from '@loominate-if/core';
 import { Story } from '@loominate-if/core';
 import { StoryAction } from '@loominate-if/core';
 import { StoryOptions } from '@loominate-if/core';
+import { TextStyle } from '@loominate-if/core';
 
 // @public
 export type ActionListData = {
@@ -160,6 +162,15 @@ export type ListedThing = {
 };
 
 // @public
+export type LogEntry = {
+    readonly text: string;
+    readonly styles?: readonly TextStyle[];
+    readonly speaker?: string;
+    readonly player?: boolean;
+    readonly move: number;
+};
+
+// @public
 export type MenuChoice = {
     readonly call: ActionCall<any>;
     readonly label?: string;
@@ -187,6 +198,9 @@ export interface MountedWidget<D> {
 
 // @public
 export function mountPage(container: HTMLElement, game: PageGame, options?: PageOptions): Page;
+
+// @public
+export function nameSpeakers(names: (id: string) => string | undefined): void;
 
 // @public
 export interface Page {
@@ -291,6 +305,9 @@ export type StatusLineOptions = {
 export const statusLineView: WidgetView<StatusLineData>;
 
 // @public
+export function storyLog(events: readonly RecordedEvent[]): LogEntry[];
+
+// @public
 export function textWidget(options: TextWidgetOptions): WidgetDefinition<{
     readonly text: string;
     readonly label: string;
@@ -324,6 +341,20 @@ export type ThingsWidgetOptions = {
     readonly things: () => readonly ListedThing[];
     readonly title: () => string;
 };
+
+// @public
+export function transcript(events: readonly RecordedEvent[]): TranscriptLine[];
+
+// @public
+export type TranscriptLine = {
+    readonly seq: number;
+    readonly kind: string;
+    readonly text: string;
+    readonly tags: readonly string[];
+};
+
+// @public
+export function transcriptText(lines: readonly TranscriptLine[]): string;
 
 // @public
 export function widget<D>(definition: WidgetDefinition<D>): WidgetDefinition<D>;
