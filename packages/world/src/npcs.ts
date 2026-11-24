@@ -20,6 +20,7 @@ import {
   type ObjectRef,
 } from "@loominate-if/core";
 import { bodyOf, currentPlayerBody, isBody, mindFor, type Mind } from "./actors.js";
+import { clock } from "./clock.js";
 import { canHear, canSee } from "./scope.js";
 import { blockedReason, exitsOf, type Exit } from "./exits.js";
 import { happen } from "./perception.js";
@@ -29,6 +30,8 @@ declare module "@loominate-if/core" {
   interface HookKinds {
     /** An NPC's turn, after the player's move, as `npc:butler`: the rules {@link everyTurn} adds. */
     [name: `npc:${string}`]: NpcTurn;
+    /** What an NPC did while unseen, as `catchUp:butler`: the rules {@link catchUp} adds. */
+    [name: `catchUp:${string}`]: CatchUp;
   }
   interface Messages {
     /** Why `go` isn't taken: there's no way that way. */
@@ -126,7 +129,44 @@ const startingSimulated = new Set<string>();
 const state = object("world:npcs", {
   /** Changes in play to which NPCs are simulated, by mind ID: true or false. */
   simulated: {} as Record<string, boolean>,
+  /**
+   * Each NPC's last turn, by mind ID: whether they got one after the last
+   * move, and the clock's minutes and the move count when they last did.
+   */
+  last: {} as Record<
+    string,
+    { readonly turned: boolean; readonly minutes: number; readonly moves: number }
+  >,
 });
+
+/** What an NPC's catch-up rules are given: the NPC, and how long they were unseen. */
+export type CatchUp = NpcTurn & {
+  /** Game minutes since their last turn, or since the game began. */
+  readonly minutes: number;
+  /** The player's moves since then. */
+  readonly moves: number;
+};
+
+/**
+ * Adds a rule working out what an observed-only NPC did while the player
+ * couldn't perceive them. It runs once, just before their first turn after
+ * a stretch without one, with how long that was. It changes state
+ * directly, not through actions: nobody saw it, so nothing is narrated or
+ * checked. A simulated NPC, who acts every move, never needs it. In the
+ * inspector, it's the hook `catchUp:` and their ID.
+ *
+ * @example
+ * ```ts
+ * catchUp(butler, "tidied the hall", ({ npc, minutes }) => {
+ *   if (minutes >= 30 && cake.location?.id === "hall") move(cake, npc);
+ * });
+ * ```
+ */
+export function catchUp(npc: ObjectRef, name: string, rule: (caught: CatchUp) => void): void {
+  const mind = mindFor(npc, "catchUp");
+  if (!npcs.has(mind.id)) npcs.set(mind.id, npc);
+  hook(`catchUp:${mind.id}`).rule(name, rule);
+}
 
 /**
  * Adds a rule to an NPC's turn, which comes after each of the player's
@@ -191,11 +231,46 @@ hook("turnEnd").rule(
     // A continue only acknowledges what was read, so it isn't a move (#311).
     if (move === "continue") return;
     for (const [id, npc] of [...npcs].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
-      if (!getsTurn(npc)) continue;
+      const before = state.last[id];
+      if (!getsTurn(npc)) {
+        if (before?.turned !== false) {
+          state.last = { ...state.last, [id]: { ...(before ?? now()), turned: false } };
+        }
+        continue;
+      }
       const mind = mindFor(npc, "npc turns");
       const body = bodyOf(mind);
-      if (body) hook(`npc:${id}`).run({ npc, mind, body });
+      if (!body) continue;
+      // Back in view after a stretch without a turn: what they did meanwhile, first.
+      if (before !== undefined && !before.turned) {
+        hook(`catchUp:${id}`).run({
+          npc,
+          mind,
+          body,
+          minutes: clock.minutes - before.minutes,
+          moves: clock.moves - before.moves,
+        });
+      }
+      state.last = { ...state.last, [id]: { turned: true, ...now() } };
+      hook(`npc:${id}`).run({ npc, mind, body });
     }
   },
   { source: SOURCE, after: "move counter" },
+);
+
+/** The clock's minutes and move count now. */
+const now = (): { minutes: number; moves: number } => ({
+  minutes: clock.minutes,
+  moves: clock.moves,
+});
+
+// As the game begins, every NPC counts as last seen now, if the player can perceive them.
+hook("gameStart").rule(
+  "npcs seen at the start",
+  () => {
+    const last: typeof state.last = {};
+    for (const [id, npc] of npcs) last[id] = { turned: getsTurn(npc), ...now() };
+    state.last = last;
+  },
+  { source: SOURCE },
 );

@@ -169,6 +169,15 @@ export function canSee(observer: ObjectRef, target: ObjectRef): boolean;
 export function canSpend(who: ObjectRef, name: StatName, amount: number): string | undefined;
 
 // @public
+export type CatchUp = NpcTurn & {
+    readonly minutes: number;
+    readonly moves: number;
+};
+
+// @public
+export function catchUp(npc: ObjectRef, name: string, rule: (caught: CatchUp) => void): void;
+
+// @public
 export function changeRelationship(observer: ObjectRef, toward: ObjectRef, by: {
     readonly [D in Dimension]?: number;
 }): Relationship;

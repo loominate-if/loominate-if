@@ -262,4 +262,14 @@ export {
   type _TreeNode,
   type _WorldTree,
 } from "./tree.js";
-export { actAs, everyTurn, getsTurn, go, isSimulated, simulate, type NpcTurn } from "./npcs.js";
+export {
+  actAs,
+  catchUp,
+  everyTurn,
+  getsTurn,
+  go,
+  isSimulated,
+  simulate,
+  type CatchUp,
+  type NpcTurn,
+} from "./npcs.js";
