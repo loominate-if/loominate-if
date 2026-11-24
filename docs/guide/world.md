@@ -1208,6 +1208,34 @@ startAgenda(butler, "warn the player");
 - **`stepToward(npc, target)`** takes one step along the shortest way to a place, or to where a thing or person is, through `go`, so a locked or closed door stops them. It returns true once they're there. Among equally short ways, it goes by direction order.
 - **`say(npc, text)`** narrates a line to whoever sees them, as "The butler says, “The east wing is on fire!”", or only hears them, as "Someone says, …". Write the speech with its quotation marks. These are the `say.seen` and `say.heard` messages.
 
+## Conversations
+
+Conversations follow adv3Lite's model, and are built for groups from the start: one-on-one is a group of one. Topics, conversation nodes, and conversation mode come next; underneath them is the conversation itself. There's one at a time, the player's:
+
+<!-- example: packages/world/src/conversations.test.ts#group -->
+```ts
+startConversation([butler, maid]); // the butler is addressed first
+address(maid);
+joinConversation(cook);
+leaveConversation(maid);
+```
+
+- **`startConversation(npc)`** or **`startConversation([npc, …])`** starts one; the first is addressed. **`address`** changes who the player is talking to, **`joinConversation`** and **`leaveConversation`** change who's in it, and **`endConversation`** ends it. They change game state, so do them during play: in a passage's effect, an action, or an NPC's turn, as an agenda item that comes to talk.
+- **`conversation`** says how it is now: `active`, `participants` and `addressee` (their bodies), `locks`, and `exit`. **`inConversationWith(npc)`** says whether someone's in it.
+- **Someone no longer with the player leaves it,** after each move: they walked off on their timetable, or the player left. With no one left, it ends.
+
+### Locks
+
+A lock says whether the player may leave. Its owner is a participant, or a conversation node by its ID, and each owner holds one; locking again replaces it:
+
+<!-- example: packages/world/src/conversations.test.ts#lock -->
+```ts
+lockConversation({ by: butler, level: "soft", reason: "He hasn't finished." });
+lockConversation({ by: "accusation", level: "hard" }); // a conversation node's
+```
+
+`conversation.exit` is the strictest: `free`, `soft` (the NPC objects, but the player can insist), or `hard` (they can't leave). `unlockConversation(owner)` removes one, a participant's go when they leave, and all go when it ends.
+
 ## Scenes
 
 A **scene** is a named period of the story, as Inform 7 and adv3Lite have them: a storm, a dinner party, a chase. It starts when something holds, at a time, or when your code says, and ends the same ways, and while it's happening it can add rules and actions. (It isn't a cut scene, a passage of timed beats.)
