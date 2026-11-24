@@ -1156,6 +1156,37 @@ Which to use for what happens offstage:
 
 `catchUp` fires when the NPC is seen again, not when a room they changed is. For that, use a fuse or daemon, or `simulate`. In the inspector, each NPC's catching up is the hook `catchUp:` and their ID.
 
+### Agendas
+
+An agenda item is a goal an NPC pursues across turns, as adv3Lite's are. In the NPC's turn, the highest-priority item that's active and ready takes one step, until it calls `done()`:
+
+<!-- example: packages/world/src/agendas.test.ts#warning -->
+```ts
+agenda(butler, "warn the player", {
+  priority: 10,
+  starts: false,
+  act: ({ npc, done }) => {
+    if (!stepToward(npc, you)) return; // one step a turn, until he's there
+    say(npc, "“The east wing is on fire!”");
+    done();
+  },
+});
+```
+
+An event gives the NPC the goal, as part of a move:
+
+<!-- example: packages/world/src/agendas.test.ts#fire -->
+```ts
+fire.isBurning = true;
+startAgenda(butler, "warn the player");
+```
+
+- **`priority`** decides among items that are ready, higher first, then the order they were added. **`ready`** says whether an item can act now; it defaults to always.
+- **`starts: false`** keeps an item waiting for `startAgenda`. `stopAgenda` sets one aside, and `isAgendaActive` says whether one is still to do. Which items are active is game state.
+- **While an NPC has an active, ready item, they act even unseen,** as if simulated, so the butler can cross the house to find the player. Once it's done, they're observed only again.
+- **`stepToward(npc, target)`** takes one step along the shortest way to a place, or to where a thing or person is, through `go`, so a locked or closed door stops them. It returns true once they're there. Among equally short ways, it goes by direction order.
+- **`say(npc, text)`** narrates a line to whoever sees them, as "The butler says, “The east wing is on fire!”", or only hears them, as "Someone says, …". Write the speech with its quotation marks. These are the `say.seen` and `say.heard` messages.
+
 ## Scenes
 
 A **scene** is a named period of the story, as Inform 7 and adv3Lite have them: a storm, a dinner party, a chase. It starts when something holds, at a time, or when your code says, and ends the same ways, and while it's happening it can add rules and actions. (It isn't a cut scene, a passage of timed beats.)

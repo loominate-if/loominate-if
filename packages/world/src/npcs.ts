@@ -221,7 +221,19 @@ export function getsTurn(npc: ObjectRef): boolean {
   const player = currentPlayerBody();
   if (!body || body.id === player?.id) return false;
   if (isSimulated(mind)) return true;
+  // Something else may have them act unseen, such as an agenda item they're pursuing.
+  if (actsUnseen.some((reason) => reason(mind))) return true;
   return player !== undefined && (canSee(player, body) || canHear(player, body));
+}
+
+/** Reasons an NPC acts even while unseen, such as an active agenda item. */
+const actsUnseen: ((mind: Mind) => boolean)[] = [];
+/**
+ * Adds a reason an NPC takes a turn even while the player can't perceive
+ * them, as agendas do while an item is active. @internal
+ */
+export function _actsUnseen(reason: (mind: Mind) => boolean): void {
+  actsUnseen.push(reason);
 }
 
 // After each of the player's moves, every NPC with a turn takes it, in ID order.
