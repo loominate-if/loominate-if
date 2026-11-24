@@ -4,7 +4,7 @@ You carry a [[satchel]]{menu satchel}, which holds {listContents(satchel)}.
 {exits}
 
 :: Tollhouse [room: tollhouse]
-A cramped room smelling of pipe smoke. The [[toll keeper]]{menu keeper} sits by a [[strongbox]]{menu strongbox}{if strongbox.isOpen}, open, holding {listContents(strongbox)}{else}, shut tight{/if}. North, the [[toll gate]]{menu gate} bars the bridge.
+A cramped room smelling of pipe smoke. The [[toll keeper]]{menu keeper} sits by a [[strongbox]]{menu strongbox}{if strongbox.isOpen}, open{if gateKey.location?.id === "strongbox"}, holding an [[iron key]]{menu gateKey}{else}, and empty{/if}{else}, shut tight{/if}. North, the [[toll gate]]{menu gate} bars the bridge.
 {notices}
 {exits}
 

@@ -79,6 +79,8 @@ describe("The Tollhouse", () => {
     // #endregion
     expect([coin.location?.id, keeper.isPaid, strongbox.isOpen]).toEqual([keeper.id, true, true]);
     expect(game.text).toContain("a strongbox, open, holding an iron key.");
+    // The key's name is a link, so the player can take it from its menu.
+    expect(game.choices).toContain("iron key");
     expect(pass.location?.id).toBe(satchel.id);
   });
 
