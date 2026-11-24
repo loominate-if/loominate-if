@@ -67,6 +67,15 @@ function walk(
       continue;
     }
     const tokenStart = scanner.getTokenStart();
+    // `-> Name` in a directive is a passage name, not code, so an apostrophe
+    // in "The maid's tale" doesn't start a string. TypeScript has no `->`.
+    if (kind === ts.SyntaxKind.MinusToken && source[tokenStart + 1] === ">") {
+      let after = tokenStart + 2;
+      while (after < limit && !",}\n".includes(source[after] ?? "")) after++;
+      scanner.resetTokenState(after);
+      previous = kind;
+      continue;
+    }
     const closes =
       kind === ts.SyntaxKind.CloseBraceToken ||
       kind === ts.SyntaxKind.CloseParenToken ||

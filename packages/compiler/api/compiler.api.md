@@ -17,6 +17,7 @@ export type ArgumentSpec = {
     readonly required?: boolean;
     readonly choices?: readonly string[];
     readonly excludes?: readonly string[];
+    readonly unless?: readonly string[];
 };
 
 // @public

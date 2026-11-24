@@ -142,6 +142,7 @@ function topicDirectives() {
     { name: "priority", kind: "expression", named: true },
     { name: "in", kind: "expression", named: true },
     { name: "opens", kind: "expression", named: true },
+    { name: "hearMeOut", kind: "passage" },
   ] as const;
   const about = { name: "about", kind: "expression", required: true } as const;
   const again = { name: "again", kind: "choice", choices: ["again"] } as const;

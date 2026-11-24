@@ -12,10 +12,12 @@ import {
   _storyRunning,
   action,
   emit,
+  hook,
   message,
   messages,
   object,
   randomStream,
+  redirect,
   StateError,
   t,
   actLink,
@@ -31,6 +33,9 @@ import { _reachNotNeeded } from "./acting.js";
 import { allBodies, bodyOf, currentPlayerBody, isBody, mindFor, mindOf } from "./actors.js";
 import {
   _endConversation,
+  _lockedReason,
+  _object,
+  _objectsToLeaving,
   _whenLeaving,
   address,
   conversation,
@@ -39,7 +44,7 @@ import {
   startConversation,
   type LeftBy,
 } from "./conversations.js";
-import { _isNode, closeNode, openNode, openNodeOf, type ConvNode } from "./nodes.js";
+import { _allNodes, _isNode, closeNode, openNode, openNodeOf, type ConvNode } from "./nodes.js";
 import { _knowable, factNamed, player, type Fact } from "./knowledge.js";
 import { clock } from "./clock.js";
 import {
@@ -296,6 +301,12 @@ export type TopicOptions = {
   readonly opens?: ConvNode;
   /** For an entry in a node: the node stays open after it answers. Otherwise it closes. */
   readonly stays?: boolean;
+  /**
+   * A cut scene the NPC tells after answering, as "hear me out": the player
+   * goes to this passage, the conversation held, and its `{continue back}`
+   * returns them to where they were talking.
+   */
+  readonly hearMeOut?: string;
   /** A stable ID for the entry, kept across edits, for saves and the inspector. Compiled topic blocks get one from their line. */
   readonly id?: string;
 };
@@ -760,6 +771,7 @@ function answer(
     });
   } else if (fallback !== undefined) say(fallback, who);
   afterNode(who, kind, node, winner);
+  if (winner?.hearMeOut !== undefined) redirect(winner.hearMeOut);
   return winner;
 }
 
@@ -904,7 +916,14 @@ export const goodbye = action<Record<never, never>>("goodbye", {
   verbs: ["goodbye", "bye", "say goodbye"],
   minutes: EXCHANGE_MINUTES,
   verify: () => (conversation.active ? undefined : message("topic.notTalking", {})),
+  // A hard lock keeps the player in the conversation (#117).
+  check: () => _lockedReason(),
   run: () => {
+    // A soft lock meets the first goodbye with an objection; the next insists.
+    if (_objectsToLeaving()) {
+      _object();
+      return;
+    }
     const who = conversation.addressee;
     if (who) answer(who, "bye", { implicit: false, how: "goodbye" }, message("topic.bye", { who }));
     _endConversation("goodbye");
@@ -1079,6 +1098,7 @@ function handedTo(kind: "show" | "give", offer: Offer): Reaction | undefined {
   counts.exchanges = { ...counts.exchanges, [key]: (counts.exchanges[key] ?? 0) + 1 };
   respond(winner, { npc: offer.to, about: offer.thing });
   afterNode(offer.to, kind, node, winner);
+  if (winner.hearMeOut !== undefined) redirect(winner.hearMeOut);
   clock.advance(EXCHANGE_MINUTES);
   return kind === "give" && winner.takes === true ? accept("") : react("");
 }
@@ -1107,6 +1127,8 @@ export type TopicBlockArguments = {
   readonly opens?: ConvNode;
   /** `stays`: a node reply that leaves its node open. */
   readonly stays?: "stays";
+  /** `-> Passage`: a cut scene the NPC tells after answering. */
+  readonly hearMeOut?: string;
   readonly suggested?: boolean;
   readonly informs?: boolean;
 };
@@ -1171,6 +1193,7 @@ export function topicBlock(
     ...(scopes[0] && { in: scopes[0] }),
     ...(args.opens && { opens: args.opens }),
     ...(args.stays && { stays: true }),
+    ...(args.hearMeOut !== undefined && { hearMeOut: args.hearMeOut }),
     ...(args.again && { again: true }),
     ...(args.takes && { takes: true }),
     ...(args.implicit && { implicit: args.implicit === "implicit" }),
@@ -1214,3 +1237,22 @@ export function registerScenePassage(
   void scene;
   void passage;
 }
+
+// --- Locks need a way out (#117) ---
+
+/**
+ * Checks, as the game starts, that every node with a hard lock has a reply
+ * that closes it, so the player can always get out. A node the game closes
+ * from code says `closedElsewhere: true`.
+ */
+function checkWaysOut(): void {
+  for (const node of _allNodes()) {
+    if (node.exit !== "hard" || node.closedElsewhere === true) continue;
+    const replies = (entries.get(node.mind) ?? []).filter((e) => e.in === node);
+    if (replies.some((e) => e.stays !== true)) continue;
+    throw new StateError(
+      `convNode ${JSON.stringify(node.name)} (${JSON.stringify(node.mind)}) locks the conversation hard, but ${replies.length === 0 ? "it has no replies" : "every reply it has stays"}, so the player could never leave. Give it a reply that closes it, as topic(npc, { yes: true, in: node, says }) or a block in a [node: ${node.name}] passage; if the game closes it with closeNode(), give the node closedElsewhere: true.`,
+    );
+  }
+}
+hook("gameStart").rule("locked nodes have a way out", checkWaysOut, { source: SOURCE });

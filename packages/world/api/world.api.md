@@ -338,6 +338,9 @@ export type ConvNode = {
     readonly mind: string;
     readonly restricts: boolean;
     readonly presses?: Presses;
+    readonly exit?: "soft" | "hard";
+    readonly objects?: Presses;
+    readonly closedElsewhere?: boolean;
     readonly isNode: true;
 };
 
@@ -345,6 +348,9 @@ export type ConvNode = {
 export function convNode(npc: ObjectRef, name: string, options?: {
     readonly restricts?: boolean;
     readonly presses?: Presses;
+    readonly exit?: "soft" | "hard";
+    readonly objects?: Presses;
+    readonly closedElsewhere?: boolean;
 }): ConvNode;
 
 // @public
@@ -1536,6 +1542,7 @@ export type TopicBlockArguments = {
     readonly in?: ActorState | Period | ConvNode;
     readonly opens?: ConvNode;
     readonly stays?: "stays";
+    readonly hearMeOut?: string;
     readonly suggested?: boolean;
     readonly informs?: boolean;
 };
@@ -1635,6 +1642,7 @@ export type TopicOptions = {
     readonly again?: boolean;
     readonly opens?: ConvNode;
     readonly stays?: boolean;
+    readonly hearMeOut?: string;
     readonly id?: string;
 };
 

@@ -170,7 +170,7 @@ describe("generatePassageModule", () => {
     ).toEqual([
       "2:20 `{when}` takes `hidden` or `disabled` here, not `sideways`.",
       "3:11 `{when}` can't take `hidden` and `reason:` together.",
-      "4:1 `{continue}` needs a passage, `-> Name`, like `{continue -> Platform}`.",
+      "4:1 `{continue}` needs a passage, `-> Name`, or `back`, like `{continue -> Platform}`.",
     ]);
   });
 

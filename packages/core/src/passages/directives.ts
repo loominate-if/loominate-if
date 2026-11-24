@@ -5,6 +5,7 @@
  */
 import { describeValue } from "../objects/objects.js";
 import { StateError } from "../state/value.js";
+import { _previousPassage } from "./story.js";
 import type {
   BeatNode,
   ConditionPart,
@@ -36,15 +37,26 @@ export function emitEvent(
 }
 
 /**
- * A continue point, from `{continue -> Target}` or `{continue -> Target, label: "…"}`.
+ * A continue point, from `{continue -> Target}` or `{continue -> Target, label: "…"}`;
+ * or `{continue back}`, to the passage the player was at before this one,
+ * as at the end of a cut scene played partway through a conversation.
  */
 export function continueTo(args: {
-  readonly target: PassageId;
+  readonly target?: PassageId;
+  readonly back?: "back";
   readonly label?: string;
 }): ContinueNode {
+  const target = args.back === "back" ? _previousPassage() : args.target;
+  if (target === undefined) {
+    throw new StateError(
+      args.back === "back"
+        ? "{continue back}: the player hasn't been anywhere before this passage to go back to."
+        : "{continue}: give it a passage, as {continue -> Platform}, or `back`.",
+    );
+  }
   return {
     type: "continue",
-    target: args.target,
+    target,
     ...(args.label !== undefined && { label: args.label }),
   };
 }

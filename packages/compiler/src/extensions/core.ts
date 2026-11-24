@@ -19,7 +19,8 @@ export const coreExtension: CompilerExtension = {
       kind: "content",
       example: "{continue -> Platform}",
       args: [
-        { name: "target", kind: "passage", required: true },
+        { name: "target", kind: "passage", required: true, unless: ["back"], excludes: ["back"] },
+        { name: "back", kind: "choice", choices: ["back"] },
         { name: "label", kind: "expression", named: true },
       ],
       runtime: core("continueTo"),

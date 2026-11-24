@@ -6,7 +6,18 @@
  * strictest decides. A participant who isn't with the player any more,
  * after a move, leaves it, and with no one left it ends.
  */
-import { _storyRunning, hook, object, StateError, type ObjectRef } from "@loominate-if/core";
+import {
+  _storyRunning,
+  action,
+  emit,
+  hook,
+  message,
+  messages,
+  object,
+  StateError,
+  t,
+  type ObjectRef,
+} from "@loominate-if/core";
 import { bodyOf, currentPlayerBody, mindFor, type Mind } from "./actors.js";
 import { placeOf, type Thing } from "./things.js";
 
@@ -26,6 +37,7 @@ export type ConversationLock = {
 /** Whether the player may leave: freely, over an objection, or not at all. */
 export type ConversationExit = "free" | LockLevel;
 
+const SOURCE = "@loominate-if/world";
 const state = object("world:conversation", {
   /** The NPCs in it, by mind ID, in the order they joined. Empty: no conversation. */
   participants: [] as string[],
@@ -33,6 +45,8 @@ const state = object("world:conversation", {
   addressee: null as string | null,
   /** Locks, one per owner, in the order they were made. */
   locks: [] as ConversationLock[],
+  /** Whether the player has already tried to leave against a soft lock, so trying again goes. */
+  insisted: false,
 });
 
 /** The player's conversation, as it is now. */
@@ -115,6 +129,7 @@ export function startConversation(withWhom: ObjectRef | readonly ObjectRef[]): v
   state.participants = unique;
   state.addressee = unique[0] ?? null;
   state.locks = [];
+  state.insisted = false;
 }
 
 /**
@@ -142,6 +157,7 @@ export function _endConversation(how: LeftBy): void {
   state.participants = [];
   state.addressee = null;
   state.locks = [];
+  state.insisted = false;
 }
 
 /**
@@ -266,3 +282,77 @@ hook("turnEnd").rule(
   },
   { source: "@loominate-if/world", after: "npc turns" },
 );
+
+// --- Exit control (#117) ---
+
+declare module "@loominate-if/core" {
+  interface Messages {
+    /** What an NPC says when the player tries to leave against a soft lock with no reason of its own. */
+    "conversation.objects": { readonly who: ObjectRef };
+    /** Why the player can't leave against a hard lock with no reason of its own. */
+    "conversation.locked": { readonly who: ObjectRef };
+  }
+}
+messages.register(
+  "conversation.objects",
+  ({ who }) => t`“Just a moment,” {the who} {says}. “I haven't finished.”`({ who }),
+  { source: SOURCE },
+);
+messages.register(
+  "conversation.locked",
+  ({ who }) => t`You can't leave until you answer {the who}.`({ who }),
+  { source: SOURCE },
+);
+
+/** The strictest lock, which decides the exit. */
+const strictest = (): ConversationLock | undefined =>
+  state.locks.find((l) => l.level === "hard") ?? state.locks[0];
+
+/** Who a lock's owner is, as a body to name: the participant, or the node's NPC. */
+function ownerBody(lock: ConversationLock): Thing | undefined {
+  const mind = state.participants.find((m) => lock.by === m || lock.by.startsWith(`${m}:node:`));
+  return bodyFor(mind ?? state.addressee ?? "");
+}
+
+/**
+ * Why the player can't leave the conversation now, against a hard lock, or
+ * `undefined`. Goodbye and the room's exits are disabled with it. @internal
+ */
+export function _lockedReason(): string | undefined {
+  const lock = strictest();
+  if (lock?.level !== "hard") return undefined;
+  const who = ownerBody(lock);
+  return lock.reason ?? (who ? message("conversation.locked", { who }) : undefined);
+}
+
+/**
+ * Whether leaving now meets an objection: a soft lock holds, and the player
+ * hasn't insisted yet. @internal
+ */
+export function _objectsToLeaving(): boolean {
+  return strictest()?.level === "soft" && !state.insisted;
+}
+
+/** The NPC objects to the player leaving; trying again insists. @internal */
+export function _object(): void {
+  const lock = strictest();
+  if (!lock) return;
+  const who = ownerBody(lock);
+  const text = lock.reason ?? (who ? message("conversation.objects", { who }) : "");
+  if (text !== "")
+    emit("action-result", { text }, ["topic", ...(who ? [`speaker:${who.id}`] : [])]);
+  state.insisted = true;
+}
+
+/**
+ * Tries to leave the conversation by a way out of the room, against a soft
+ * lock: the NPC objects, and trying again goes. What an exit link takes
+ * while a soft lock holds. @internal
+ */
+export const _excuseYourself = action<{ way: string }>("excuseYourself", {
+  source: SOURCE,
+  verify: () => (_objectsToLeaving() ? undefined : "There's nothing to excuse yourself from."),
+  run: () => {
+    _object();
+  },
+});

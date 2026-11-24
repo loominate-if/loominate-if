@@ -179,7 +179,8 @@ export type ContinueNode = {
 
 // @public
 export function continueTo(args: {
-    readonly target: PassageId;
+    readonly target?: PassageId;
+    readonly back?: "back";
     readonly label?: string;
 }): ContinueNode;
 

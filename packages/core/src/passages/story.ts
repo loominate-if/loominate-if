@@ -470,6 +470,8 @@ export interface Story {
 /** The state entity holding story progress. IDs starting with `$` are reserved for core. */
 const STORY_ID = "$story";
 const CURRENT_FIELD = "current";
+/** The passage the player was at before the current one, for `{continue back}`. */
+const PREVIOUS_FIELD = "previous";
 /** How many beats the player has moved past in the current passage, when any. */
 const STEP_FIELD = "step";
 /** The state entity holding visit counts, one field per visited passage. */
@@ -544,6 +546,17 @@ function moveKind(action: StoryAction): MoveKind | undefined {
   if (action.type === "follow") return action.choice.type === "continue" ? "continue" : "follow";
   if (action.type === "advance") return undefined;
   return action.type;
+}
+
+/** The passage the running story's player was at before the current one. */
+let runningPrevious: (() => PassageId | undefined) | undefined;
+
+/**
+ * The passage the player was at before the one they're at, or `undefined`
+ * if there's none, as `{continue back}` returns to. @internal
+ */
+export function _previousPassage(): PassageId | undefined {
+  return runningPrevious?.();
 }
 
 /** The running story's effect context, for {@link _effectContext}. */
@@ -744,6 +757,10 @@ export function createStory(
   // Packages that run authored effects outside passages, such as the world
   // model's topic blocks, get this story's context (#115).
   runningContext = contextFor;
+  runningPrevious = () => {
+    const id = store.get(STORY_ID, PREVIOUS_FIELD);
+    return typeof id === "string" ? id : undefined;
+  };
 
   const hookContext = () => {
     const { state, persistent, emit } = contextFor(current() ?? options.start);
@@ -838,6 +855,7 @@ export function createStory(
       to: to.id,
       ...(redirected && { redirected: true }),
     });
+    if (from !== undefined && from !== to.id) store.set(STORY_ID, PREVIOUS_FIELD, from);
     store.set(STORY_ID, CURRENT_FIELD, to.id);
     if (store.has(STORY_ID, STEP_FIELD)) store.delete(STORY_ID, STEP_FIELD);
     store.set(VISITS_ID, to.id, totalVisits(to.id) + 1);

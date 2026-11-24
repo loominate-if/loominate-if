@@ -1313,6 +1313,40 @@ topic(butler, { no: true, in: proposal, says: "“A pity, sir.”" });
 - **Closing:** it closes when one of its own entries answers, unless that entry says `stays: true`; on `closeNode(npc)`; or when the NPC leaves the conversation. Greeting and goodbye are never held up, so the player can always say goodbye. Exit control will add locks.
 - **`openNode(npc, node)`** opens one from code, as an agenda item that comes to ask something would. The NPC must be in the conversation. `openNodeOf(npc)` says which is open.
 
+### Exit control
+
+A node can hold the player in the conversation while it's open, with `exit`; the node owns the lock, and closing it unlocks:
+
+<!-- example: packages/world/src/topic-exits.test.ts#exits -->
+```ts
+export const accusation = convNode(inspector, "accusation", {
+  exit: "hard",
+  presses: "“Answer the question.”",
+});
+topic(inspector, { ask: murder, opens: accusation, says: "“Did you do it?”" });
+topic(inspector, { no: true, in: accusation, says: "“We'll see.”" });
+
+export const confession = convNode(widow, "confession", {
+  exit: "soft",
+  objects: "“Please, I haven't finished!”",
+});
+topic(widow, { ask: will, opens: confession, says: "“There's something you should know.”" });
+topic(widow, { ask: husband, hearMeOut: "The widow's tale", says: "“Let me tell you about him.”" });
+```
+
+| Level | What it does |
+| --- | --- |
+| Free (the default) | Goodbye and the room's exits always work. |
+| `exit: "soft"` | The first goodbye, or the first try at an exit, is met with the node's `objects` line, or "“Just a moment,” the widow says. “I haven't finished.”", and doesn't happen. Trying again insists, and goes. |
+| `exit: "hard"` | Goodbye and the room's exits are disabled, with the node's `objects` line or "You can't leave until you answer the inspector.", and only the node's replies are answered: a hard node is restrictive. |
+| `hearMeOut` | On an entry, a passage the NPC tells after answering: the player goes to that cut scene, the conversation held, and its `{continue back}` returns them to where they were talking. |
+
+- **A way out:** as the game starts, every hard node must have a reply that closes it, one without `stays`, or the game stops with an error naming the node. A node the game closes from code says `closedElsewhere: true`.
+- **Undo** always works, locks or not.
+- **The game's own links** are its own business: a lock holds goodbye and the room's exits, not every link a passage has.
+- **In passage files,** a block's `-> Passage` is its `hearMeOut`, checked like a link: `{ask husband, -> The widow's tale}`.
+- `lockConversation` still locks from code, for locks no node owns.
+
 ### Topics in passage files
 
 An NPC's topics can be written as blocks in an actor passage, the prose of each block its response:
@@ -1330,6 +1364,9 @@ An NPC's topics can be written as blocks in an actor passage, the prose of each 
 
 {ask weather, again}
 "As I said, sir. Grey."
+
+{ask past, -> The butler's tale}
+"Hear me out, sir."
 
 {ask job, opens: proposal}
 "There is a post, sir. Will you take it?"

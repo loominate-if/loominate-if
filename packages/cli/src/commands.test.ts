@@ -366,7 +366,7 @@ function butlerGame(butler: string): string {
     `import { actorStates, convNode, hello, topics } from "@loominate-if/world";
 export const butler = actor("butler", { body: { name: "butler", location: hall } });
 export const [onDuty, offDuty] = actorStates(butler, ["onDuty", "offDuty"], { starts: "onDuty" });
-export const { weather, job } = topics({ weather: "the weather", job: "the job" });
+export const { weather, job, past } = topics({ weather: "the weather", job: "the job", past: "his past" });
 export const proposal = convNode(butler, "proposal", { restricts: true, presses: "\\"Well, sir?\\"" });
 export { hello };
 `,
@@ -410,6 +410,11 @@ describe("loominate dev", () => {
       expect(text()).toContain('"Grey, sir. And it was the butler, if you take my meaning."');
       follow("Ask about the weather");
       expect(text()).toContain('"As I said, sir. Grey."');
+      // Hear me out: a cut scene, then back to the conversation (#117).
+      follow("Ask about his past");
+      expect(text()).toContain('"I was a sailor once, sir, before all this."');
+      follow("Continue");
+      expect(text()).toContain("Ask about the job");
       // A block that opens a node: only its replies are offered, and changing the subject presses.
       follow("Ask about the job");
       expect(text()).toContain('"There is a post, sir. Will you take it?"');
