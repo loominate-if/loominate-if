@@ -324,6 +324,19 @@ export type DerivedStat = {
     readonly derived: (who: ObjectRef) => number;
 };
 
+// @internal
+export type _Details = {
+    readonly id: string;
+    readonly name: string;
+    readonly kind: _TreeNode["kind"];
+    readonly within: readonly string[];
+    readonly mind?: string;
+    readonly body?: string;
+    readonly knowledge?: _Knowledge;
+    readonly seenBy?: readonly string[];
+    readonly knownOfBy?: readonly string[];
+};
+
 // @public
 export type Dimension = keyof Dimensions & string;
 
@@ -633,6 +646,19 @@ export type KeptStat = {
     readonly resource?: boolean;
 };
 
+// @internal
+export type _Knowledge = {
+    readonly mind: string;
+    readonly facts: readonly {
+        readonly id: string;
+        readonly text: string;
+        readonly from?: string;
+        readonly passage?: string;
+    }[];
+    readonly seen: readonly string[];
+    readonly knownOf: readonly string[];
+};
+
 // @public
 export type LearnOptions = FactSource;
 
@@ -807,6 +833,9 @@ export function playerBody(): Thing | undefined;
 
 // @public
 export function playerMind(): Mind;
+
+// @internal
+export function _playerPath(): readonly string[];
 
 // @public
 export function pluralize(name: string): string;
@@ -1156,6 +1185,16 @@ export const transparent: {
     isTransparent: boolean;
 };
 
+// @internal
+export type _TreeNode = {
+    readonly id: string;
+    readonly name: string;
+    readonly kind: "place" | "thing" | "body" | "mind";
+    readonly mind?: string;
+    readonly count?: number;
+    readonly children: readonly _TreeNode[];
+};
+
 // @public
 export function undisguise(b: ObjectRef): void;
 
@@ -1207,5 +1246,18 @@ export const waitUntil: Action<WaitUntil>;
 
 // @public
 export function whoIs(observer: ObjectRef, b: ObjectRef): Mind | undefined;
+
+// @internal
+export function _worldDetails(id: string): _Details | undefined;
+
+// @internal
+export type _WorldTree = {
+    readonly places: readonly _TreeNode[];
+    readonly nowhere: readonly _TreeNode[];
+    readonly bodiless: readonly _TreeNode[];
+};
+
+// @internal
+export function _worldTree(): _WorldTree;
 
 ```

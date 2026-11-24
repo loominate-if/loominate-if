@@ -108,6 +108,10 @@ function lookup(id: StateId): Thing | undefined {
 function everything(): Thing[] {
   return [...registry.values(), ...spawned()];
 }
+/** Every thing and place, those made during play too, sorted by ID. @internal */
+export function _allThings(): Thing[] {
+  return everything().sort(byId);
+}
 /** The IDs of places, which bound sight, reach, and hearing. */
 const places = new Set<StateId>();
 
