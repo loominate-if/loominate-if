@@ -16,6 +16,7 @@ import {
   type ObjectRef,
 } from "@loominate-if/core";
 import { bodyOf, currentPlayerBody, isBody, isMind } from "./actors.js";
+import { ARTICLES, PRONOUN_FORMS } from "./parameters.js";
 import { thingFor, type Thing } from "./things.js";
 
 /** How to refer to something: "she", "he", "they", or "it". */
@@ -160,13 +161,13 @@ function referentOf(call: MessageCall): Referent {
 const cased = (call: MessageCall, text: string): string =>
   /^\p{Lu}/u.test(call.name) ? capital(text) : text;
 
-for (const name of ["the", "The"]) {
+for (const name of ARTICLES.slice(0, 2)) {
   messageParameters.register(name, (call) => {
     const r = referentOf(call);
     return cased(call, r.proper ? r.name : `the ${r.name}`);
   });
 }
-for (const name of ["a", "A"]) {
+for (const name of ARTICLES.slice(2, 4)) {
   messageParameters.register(name, (call) => {
     const r = referentOf(call);
     return cased(call, r.proper || r.article === "" ? r.name : `${r.article} ${r.name}`);
@@ -176,23 +177,8 @@ messageParameters.register("subj", (call) => {
   referentOf({ ...call, args: [{ kind: "word", word: "subj" }, ...call.args] });
   return "";
 });
-// Each form, by any of the words for it: `{he}`, `{she}`, `{they}`, and
-// `{it}` are the same parameter. `her` is left out, being both `him` and `his`.
-const forms: Record<string, number> = {
-  he: 0,
-  she: 0,
-  they: 0,
-  it: 0,
-  him: 1,
-  them: 1,
-  his: 2,
-  their: 2,
-  its: 2,
-  himself: 3,
-  herself: 3,
-  themselves: 3,
-  itself: 3,
-};
+// Each form, by any of the words for it (parameters.ts).
+const forms = PRONOUN_FORMS;
 for (const [form, index] of Object.entries(forms)) {
   for (const name of [form, capital(form)]) {
     messageParameters.register(name, (call) => {

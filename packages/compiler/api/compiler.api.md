@@ -62,6 +62,7 @@ export type CompilerExtension = {
     readonly tagRoles?: readonly TagRoleDefinition[];
     readonly lineForms?: readonly LineFormDefinition[];
     readonly checks?: readonly ExtensionCheck[];
+    readonly messageParameters?: MessageParameterDeclaration;
     readonly suggests?: {
         readonly directive?: Readonly<Record<string, string>>;
         readonly tagRole?: Readonly<Record<string, string>>;
@@ -238,6 +239,15 @@ export type Mapping = {
     readonly generated: number;
     readonly source: number;
     readonly length: number;
+};
+
+// @public
+export type MessageParameterDeclaration = {
+    readonly names: readonly string[];
+    readonly fallback?: {
+        readonly reads: string;
+        readonly words?: readonly string[];
+    };
 };
 
 // @public

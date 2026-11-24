@@ -214,6 +214,18 @@ export type ExtensionCheck = {
   readonly run: (context: CheckContext) => readonly ExtensionDiagnostic[];
 };
 
+/** The message parameters a package registers, for checking `t` templates. */
+export type MessageParameterDeclaration = {
+  /** Every name it registers, in each case it's registered in, as `"the"` and `"The"`. */
+  readonly names: readonly string[];
+  /**
+   * A fallback it registers that reads any other name, as the world model
+   * reads verbs: what it reads a name as, `"a verb"`, and the words it
+   * knows, which are never taken for misspelled parameters.
+   */
+  readonly fallback?: { readonly reads: string; readonly words?: readonly string[] };
+};
+
 /** What a package adds to the compiler. Pass extensions to `compileProject` in load order. */
 export type CompilerExtension = {
   /** The package's name, such as `@loominate-if/world`, used in messages. */
@@ -226,6 +238,11 @@ export type CompilerExtension = {
   readonly lineForms?: readonly LineFormDefinition[];
   /** Checks it runs over the game. */
   readonly checks?: readonly ExtensionCheck[];
+  /**
+   * The message parameters it registers at runtime, such as `{the …}`, so
+   * the compiler can check the names in `t` templates (#235).
+   */
+  readonly messageParameters?: MessageParameterDeclaration;
   /**
    * Syntax from other packages this one works with, by package: when a game
    * uses it without loading that package, the error says which to install.

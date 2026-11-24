@@ -108,6 +108,19 @@ An actor can still give its own `arrives` and `leaves`, which win over these.
 
 The game is played through presentation, so these keys type-check in `story.ts` though it never imports presentation: `loominate` includes presentation's declarations when it checks the game. A rewording in `story.ts` can come before presentation has loaded, as in a walkthrough test, which never loads it; the rewording is kept.
 
+## Parameters of your own
+
+A game can register message parameters of its own, as `messageParameters.register("shout", ({ args }) => …)`. Registered with a literal name in the game's code, it's known when the game compiles, so `t` templates that use it aren't reported.
+
+A package's parameters are known from its compiler extension, which lists them in `messageParameters`, with any `fallback` that reads other names, as the world model's verbs:
+
+```ts
+messageParameters: {
+  names: ["the", "The", "a", "A"],
+  fallback: { reads: "a verb", words: ["is", "has"] },
+},
+```
+
 ## Messages of your own
 
 A kit or a game's own library registers its messages the same way, declaring each key and what it's about on the `Messages` interface:
