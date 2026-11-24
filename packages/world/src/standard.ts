@@ -371,6 +371,15 @@ export const giving = rulebook<Offer, Reaction>("giving", { kind: "decide" });
  */
 export const showing = rulebook<Offer, Reaction>("showing", { kind: "decide" });
 
+/**
+ * What answers giving and showing when no rule in {@link giving} or
+ * {@link showing} does, before the default refusal: topic entries. A
+ * separate step, so a game's own rules always come first. @internal
+ */
+export const _givingTopics = rulebook<Offer, Reaction>("giving: topics", { kind: "decide" });
+/** As {@link _givingTopics}, for showing. @internal */
+export const _showingTopics = rulebook<Offer, Reaction>("showing: topics", { kind: "decide" });
+
 /** Someone the player can give things to or show them: a body, not the player's own. */
 const isSomeone = (t: ObjectRef): boolean => isBody(t) && t.id !== currentPlayerBody()?.id;
 /** Something the player carries, which can be given or shown. */
@@ -412,6 +421,7 @@ export const give = action<{ thing: ActingOn; to: ActingOn }>("give", {
     };
     answer(
       giving.run(offer) ??
+        _givingTopics.run(offer) ??
         // The player can't refuse what they're given; an NPC declines unless a rule says otherwise.
         (c.to.id === currentPlayerBody()?.id
           ? accept("")
@@ -442,6 +452,7 @@ export const show = action<{ thing: ActingOn; to: ActingOn }>("show", {
     };
     answer(
       showing.run(offer) ??
+        _showingTopics.run(offer) ??
         (c.to.id === currentPlayerBody()?.id
           ? react("")
           : react(message("show.unmoved", { thing: c.thing, to: c.to }))),

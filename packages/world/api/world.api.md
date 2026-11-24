@@ -1518,6 +1518,16 @@ export type TopicEntry = TopicOptions & ({
 | {
     readonly bye: true;
     readonly implicit?: boolean;
+} | {
+    readonly show: ObjectRef | typeof anything;
+}
+/** `takes: true` and they take what they're given; otherwise they keep their hands to themselves. */
+| {
+    readonly give: ObjectRef | typeof anything;
+    readonly takes?: boolean;
+} | {
+    readonly showOrGive: ObjectRef | typeof anything;
+    readonly takes?: boolean;
 });
 
 // @internal
@@ -1528,7 +1538,7 @@ export function _topicExplanations(): readonly {
 }[];
 
 // @public
-export type TopicKind = "ask" | "tell" | "yes" | "no" | "hello" | "bye";
+export type TopicKind = "ask" | "tell" | "yes" | "no" | "hello" | "bye" | "show" | "give";
 
 // @public
 export function topicLinks(args?: Readonly<Record<string, never>>): LinkNode[];

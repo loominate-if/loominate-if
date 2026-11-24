@@ -61,6 +61,7 @@ A message's text is one of three things:
 | `topic.noSubject` | `about` | Why asking about an unknown fact ID can't be done |
 | `topic.unknown` | | Why asking or telling about a fact the player doesn't know can't be done: "You don't know anything about that." |
 | `topic.suggest.ask`, `topic.suggest.tell`, `topic.suggest.bye` | `about` (how the player refers to it) | Suggested topics' links, with `{topics}`: "Ask about the gold", "Tell about the war", "Say goodbye" |
+| `topic.suggest.show`, `topic.suggest.give` | `thing` | Suggested showing and giving, with `{topics}`: "Show the photograph", "Give the locket" |
 | `examine.nothing` | `thing` | "You see nothing special about the statue." |
 | `take.held`, `drop.notHeld`, `open.already`, `close.already`, `lock.already`, `unlock.notLocked` | `thing` | Why they aren't offered |
 | `open.locked`, `lock.open` | `thing` | "The oak chest is locked.", "You'll have to close the oak chest first." |
