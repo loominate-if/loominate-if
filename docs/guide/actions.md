@@ -112,6 +112,28 @@ open.check.rule(
 - `open.minutes` passes the count from rule to rule.
 - `everyAction.verify` and `everyAction.check` hold rules for every action, run before each action's own.
 
+## Verb phrases
+
+An action can say what a player might type for it, for the parser and autocomplete command line to come. Nothing reads them yet, but a game that has them works with a parser later. A phrase is words, a slot for each of the action's things by its role, and optional words in parentheses:
+
+<!-- example: packages/core/src/actions/verbs.test.ts#verbs -->
+```ts
+const unlock = action<{ thing: typeof door; tool: typeof key }>("verbs-unlock", {
+  on: door,
+  with: { tool: key },
+  verbs: [
+    "unlock {thing} with {tool}",
+    "use {tool} on {thing}",
+    "Turn (the) {tool} in {thing}",
+  ],
+});
+```
+
+- **Checked when the game compiles:** a slot that isn't one of the action's roles is an error at the phrase: "`{key}` isn't one of unlock's roles: thing, tool."
+- **Checked as the game loads:** braces and parentheses that don't match, and a phrase with no words outside its slots, are errors then.
+- **Reading them:** `unlock.verbs` gives each phrase as written and in parts (words, optional words, and slots), for a parser to match against.
+- **The standard actions** come with the usual phrases: "examine", "x", and "look at"; "take", "get", and "pick up"; "drop" and "put down"; and so on. Add to an action's phrases in its definition.
+
 ## With the world model
 
 The world model says who acts and adds rules every action follows:

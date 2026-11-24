@@ -14,6 +14,7 @@ export type Action<A> = ((args: A) => ActionCall<A>) & {
     readonly minutes: FoldRulebook<number, ActionContext<A>>;
     label(args: A): string;
     offeredFor(thing: ObjectRef): boolean;
+    readonly verbs: readonly VerbPhrase[];
 };
 
 // @public
@@ -54,6 +55,7 @@ export type ActionDefinition<A> = {
     readonly asks?: {
         readonly [K in keyof A]?: Ask<A>;
     };
+    readonly verbs?: readonly string[];
     readonly confirm?: string | ((context: ActionContext<A>) => string);
 };
 
@@ -652,6 +654,9 @@ export function pageBreak(args?: {
 }): BeatNode;
 
 // @public
+export function parseVerbPhrase(text: string, where?: string): VerbPhrase;
+
+// @public
 export type Participant = ObjectRef | ((thing: ObjectRef) => boolean);
 
 // @public
@@ -1217,6 +1222,24 @@ export function _useGameTime(minutes: () => number): void;
 
 // @public
 export function useVisitMemory(visitMemory: VisitMemory | undefined): void;
+
+// @public
+export type VerbPart = {
+    readonly kind: "word";
+    readonly word: string;
+} | {
+    readonly kind: "optional";
+    readonly words: readonly string[];
+} | {
+    readonly kind: "slot";
+    readonly role: string;
+};
+
+// @public
+export type VerbPhrase = {
+    readonly text: string;
+    readonly parts: readonly VerbPart[];
+};
 
 // @public
 export interface VisitMemory {

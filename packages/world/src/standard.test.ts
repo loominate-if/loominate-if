@@ -123,4 +123,11 @@ describe("the standard actions", () => {
       "You see nothing special about the iron key.",
     ]);
   });
+
+  it("come with verb phrases, for a parser to come (#79)", () => {
+    // #region verbs
+    expect(take.verbs.map((v) => v.text)).toContain("pick up {thing}");
+    // #endregion
+    expect(unlock.verbs.map((v) => v.text)).toEqual(["unlock {thing}"]);
+  });
 });
