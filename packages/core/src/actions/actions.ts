@@ -11,6 +11,7 @@
  * authors and packages add, replace, and remove rules for one action, or
  * for every action through {@link everyAction}.
  */
+import { parseVerbPhrase, type VerbPhrase } from "./verbs.js";
 import { emit, handleFor, type ObjectRef } from "../objects/objects.js";
 import type { LinkGuard } from "../passages/story.js";
 import { hook } from "../rules/hooks.js";
@@ -121,6 +122,14 @@ export type ActionDefinition<A> = {
    * ```
    */
   readonly asks?: { readonly [K in keyof A]?: Ask<A> };
+  /**
+   * What a player might type for it, for a parser to come: words, a slot
+   * for each of its things by role, and optional words in parentheses, as
+   * `["unlock {thing} with {tool}", "pick (up) {thing}"]`. The compiler
+   * checks each slot names one of its roles, and the phrase is read as the
+   * game loads.
+   */
+  readonly verbs?: readonly string[];
   /** The button that takes it once its numbers are given, as "Take". Defaults to the `menu.ask.confirm` message. */
   readonly confirm?: string | ((context: ActionContext<A>) => string);
 };
@@ -189,6 +198,8 @@ export type Action<A> = ((args: A) => ActionCall<A>) & {
   label(args: A): string;
   /** Whether a menu for `thing` offers it: it's `on` the thing, or `for` it. */
   offeredFor(thing: ObjectRef): boolean;
+  /** What a player might type for it, read into parts. */
+  readonly verbs: readonly VerbPhrase[];
 };
 
 /**
@@ -317,6 +328,10 @@ export function action<A extends Readonly<Record<string, unknown>>>(
       `action ${JSON.stringify(name)}: another action has this name, perhaps one a package such as the world model defines. Give yours another name, or change that one with its rules, as in ${name}.check.rule(…).`,
     );
   }
+  // Which roles its slots name is checked by the compiler, which knows them all (#79).
+  const verbs = (definition.verbs ?? []).map((text) =>
+    parseVerbPhrase(text, `action ${JSON.stringify(name)}: verb phrase`),
+  );
   type C = ActionContext<A>;
   const own = `${name}: own`;
   const verify = rulebook<C, string>(`${name}: verify`, { kind: "decide" });
@@ -370,6 +385,7 @@ export function action<A extends Readonly<Record<string, unknown>>>(
   };
   const made = Object.assign(call, {
     actionName: name,
+    verbs: Object.freeze(verbs),
     verify,
     check,
     perform,

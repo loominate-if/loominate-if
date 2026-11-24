@@ -4,6 +4,7 @@
  * everything together, mapping errors in generated code back to passage lines.
  */
 import { checkTextIn, registeredIn } from "./text-parameters.js";
+import { checkVerbPhrases } from "./verb-phrases.js";
 import path from "node:path";
 import ts from "typescript";
 import type { CompilerExtension } from "../extensions/extension.js";
@@ -613,6 +614,23 @@ export function createCompilerSession(options: ProjectOptions): CompilerSession 
         const { line, character } = source.getLineAndCharacterOfPosition(problem.start);
         diagnostics.push({
           severity: problem.severity,
+          source: "compiler",
+          file,
+          message: problem.message,
+          span: { start: problem.start, end: problem.end },
+          line: line + 1,
+          column: character + 1,
+        });
+      }
+    }
+    // Actions' verb phrases: each slot names one of the action's roles (#79).
+    for (const file of userFiles) {
+      const source = program.getSourceFile(file);
+      if (!source || !memory.has(file)) continue;
+      for (const problem of checkVerbPhrases(source, checker)) {
+        const { line, character } = source.getLineAndCharacterOfPosition(problem.start);
+        diagnostics.push({
+          severity: "error",
           source: "compiler",
           file,
           message: problem.message,

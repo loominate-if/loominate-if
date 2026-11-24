@@ -211,6 +211,7 @@ export {
   type AskedNumber,
   type LoggedCall,
 } from "./actions/actions.js";
+export { parseVerbPhrase, type VerbPart, type VerbPhrase } from "./actions/verbs.js";
 export {
   message,
   messages,

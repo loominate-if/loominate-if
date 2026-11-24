@@ -155,6 +155,7 @@ const needsKey = (thing: ActingOn, body: ObjectRef | undefined): string | undefi
 /** Examines a thing: says its `description`, or that there's nothing special about it. */
 export const examine = action<{ thing: ActingOn }>("examine", {
   source: SOURCE,
+  verbs: ["examine {thing}", "x {thing}", "look at {thing}", "inspect {thing}"],
   for: (t) => asThing(t) !== undefined,
   label: ({ thing }) => message("examine.label", { thing }),
   report: ({ thing }) => {
@@ -167,6 +168,13 @@ export const examine = action<{ thing: ActingOn }>("examine", {
 /** Takes a thing, into the actor's body. */
 export const take = action<{ thing: ActingOn }>("take", {
   source: SOURCE,
+  verbs: [
+    "take {thing}",
+    "get {thing}",
+    "pick up {thing}",
+    "pick {thing} up",
+    "take all (of) {thing}",
+  ],
   for: isPortable,
   label: ({ thing }) =>
     isStack(thing) && countOf(thing) > 1
@@ -183,6 +191,7 @@ export const take = action<{ thing: ActingOn }>("take", {
 /** Drops a thing the actor carries, where the actor is. */
 export const drop = action<{ thing: ActingOn }>("drop", {
   source: SOURCE,
+  verbs: ["drop {thing}", "put down {thing}", "put {thing} down", "drop all (of) {thing}"],
   for: isPortable,
   label: ({ thing }) =>
     isStack(thing) && countOf(thing) > 1
@@ -203,6 +212,7 @@ const isSeveral = (t: ObjectRef): boolean => isPortable(t) && isStack(t) && coun
 /** Takes one from a stack, as "Take a turnip", into the actor's body, where it joins any of its kind. */
 export const takeOne = action<{ thing: ActingOn }>("takeOne", {
   source: SOURCE,
+  verbs: ["take one {thing}", "take a {thing}", "get one {thing}"],
   for: isSeveral,
   label: ({ thing }) => message("stack.takeOne", { thing, one: oneOf(thing) }),
   verify: ({ thing, body }) =>
@@ -216,6 +226,7 @@ export const takeOne = action<{ thing: ActingOn }>("takeOne", {
 /** Drops one from a stack the actor carries, as "Drop a turnip", where the actor is. */
 export const dropOne = action<{ thing: ActingOn }>("dropOne", {
   source: SOURCE,
+  verbs: ["drop one {thing}", "drop a {thing}"],
   for: isSeveral,
   label: ({ thing }) => message("stack.dropOne", { thing, one: oneOf(thing) }),
   verify: ({ thing, body }) =>
@@ -240,6 +251,7 @@ const howMany = {
 /** Takes some from a stack, as many as the player chooses, into the actor's body. */
 export const takeSome = action<{ thing: ActingOn; count: number }>("takeSome", {
   source: SOURCE,
+  verbs: ["take {count} {thing}", "get {count} {thing}", "pick up {count} {thing}"],
   for: isMany,
   label: ({ thing }) => message("stack.takeSome", { thing, plural: pluralOf(thing) }),
   asks: { count: howMany },
@@ -256,6 +268,7 @@ export const takeSome = action<{ thing: ActingOn; count: number }>("takeSome", {
 /** Drops some from a stack the actor carries, as many as the player chooses, where the actor is. */
 export const dropSome = action<{ thing: ActingOn; count: number }>("dropSome", {
   source: SOURCE,
+  verbs: ["drop {count} {thing}", "put down {count} {thing}"],
   for: isMany,
   label: ({ thing }) => message("stack.dropSome", { thing, plural: pluralOf(thing) }),
   asks: { count: howMany },
@@ -273,6 +286,7 @@ export const dropSome = action<{ thing: ActingOn; count: number }>("dropSome", {
 /** Opens something openable, unless it's locked. */
 export const open = action<{ thing: ActingOn }>("open", {
   source: SOURCE,
+  verbs: ["open {thing}"],
   for: isOpenable,
   label: ({ thing }) => message("open.label", { thing }),
   verify: ({ thing }) => (thing.isOpen === true ? message("open.already", { thing }) : undefined),
@@ -286,6 +300,7 @@ export const open = action<{ thing: ActingOn }>("open", {
 /** Closes something openable. */
 export const close = action<{ thing: ActingOn }>("close", {
   source: SOURCE,
+  verbs: ["close {thing}", "shut {thing}"],
   for: isOpenable,
   label: ({ thing }) => message("close.label", { thing }),
   verify: ({ thing }) => (thing.isOpen === true ? undefined : message("close.already", { thing })),
@@ -298,6 +313,7 @@ export const close = action<{ thing: ActingOn }>("close", {
 /** Locks something lockable, with its key if it has one; it must be closed. */
 export const lock = action<{ thing: ActingOn }>("lock", {
   source: SOURCE,
+  verbs: ["lock {thing}"],
   for: isLockable,
   label: ({ thing }) => message("lock.label", { thing }),
   verify: ({ thing }) => (thing.isLocked === true ? message("lock.already", { thing }) : undefined),
@@ -312,6 +328,7 @@ export const lock = action<{ thing: ActingOn }>("lock", {
 /** Unlocks something lockable, with its key if it has one. */
 export const unlock = action<{ thing: ActingOn }>("unlock", {
   source: SOURCE,
+  verbs: ["unlock {thing}"],
   for: isLockable,
   label: ({ thing }) => message("unlock.label", { thing }),
   verify: ({ thing }) =>

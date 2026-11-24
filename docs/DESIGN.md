@@ -246,7 +246,7 @@ An optional keyboard-driven command line accepts only actions the menus would cu
 
 ### Future parser
 
-A full parser is a later optional package. To keep that possible, actions can optionally carry verb phrases and objects can optionally carry vocabulary from version one, so the parser becomes a second front end on the same pipeline with no changes to game logic. A thing's vocabulary is typed lists of nouns, adjectives, and plurals, and `vocabOf(thing)` adds the words of its name ([ADR 0043](decisions/0043-vocabulary.md)).
+A full parser is a later optional package. To keep that possible, actions can optionally carry verb phrases and objects can optionally carry vocabulary from version one, so the parser becomes a second front end on the same pipeline with no changes to game logic. A thing's vocabulary is typed lists of nouns, adjectives, and plurals, and `vocabOf(thing)` adds the words of its name ([ADR 0043](decisions/0043-vocabulary.md)). An action's `verbs` are phrases with a slot per role and optional words, as `"unlock {thing} with {tool}"` and `"pick (up) {thing}"`: the compiler checks each slot names one of the action's roles, `action.verbs` gives them in parts, and the world model's standard actions come with the usual ones ([ADR 0075](decisions/0075-verb-phrases.md), [guide](guide/actions.md#verb-phrases)).
 
 ## World model library
 
