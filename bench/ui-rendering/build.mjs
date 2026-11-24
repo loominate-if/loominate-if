@@ -28,6 +28,11 @@ const variants = {
   baseline: { entry: "src/baseline.ts" },
   vanilla: { entry: "src/vanilla.ts" },
   preact: { entry: "src/preact.tsx", jsx: "automatic", jsxImportSource: "preact" },
+  "preact-signals": {
+    entry: "src/preact-signals.tsx",
+    jsx: "automatic",
+    jsxImportSource: "preact",
+  },
   solid: { entry: "src/solid.tsx", plugins: [solidPlugin] },
 };
 

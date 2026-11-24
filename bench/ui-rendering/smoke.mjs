@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 // Plays one script through every variant; they must behave identically for the sizes to be comparable.
 const tick = () => new Promise((r) => setTimeout(r, 20));
 const results = new Map();
-for (const name of ["vanilla", "preact", "solid"]) {
+for (const name of ["vanilla", "preact", "preact-signals", "solid"]) {
   const code = await readFile(`dist/${name}.js`, "utf8");
   const dom = new JSDOM(`<!doctype html><div id="app"></div>`, { runScripts: "outside-only" });
   dom.window.eval(code);
