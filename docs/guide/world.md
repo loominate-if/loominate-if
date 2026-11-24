@@ -1112,6 +1112,27 @@ expect(actAs(butler, go({ way: "down" })).done).toBe(true);
 
 Each standard action has a `seen` message for onlookers, such as `take.seen`, which a game can reword. An action of your own says what onlookers see with `seen`.
 
+### Turns and simulation levels
+
+An NPC acts on its own in its turn, which comes after each of the player's moves. `everyTurn` adds a rule to an NPC's turn, and `simulate` makes an NPC act wherever they are:
+
+<!-- example: packages/world/src/npc-turns.test.ts#turns -->
+```ts
+everyTurn(butler, "tidies the hall", ({ npc }) => {
+  if (cake.location?.id === "hall") actAs(npc, take({ thing: cake }));
+});
+// The villain is simulated: they act wherever they are.
+simulate(villain);
+everyTurn(villain, "steals", ({ npc }) => {
+  if (gold.location?.id === "vault") actAs(npc, take({ thing: gold }));
+});
+```
+
+- **Observed only, the default:** an NPC takes a turn only while the player can see or hear them. Most characters need nothing more, and an NPC with no turn rules costs nothing.
+- **Simulated:** with `simulate(npc)`, they take a turn after every move, wherever they are, acting offstage too; what they do is narrated only if the player sees it. `simulate(npc, false)` makes them observed only again. It's game state, so it can change in play; in `story.ts`, it's how they start.
+- **Order:** an NPC's rules run in the order they're added, and NPCs take their turns in ID order, so the same moves always give the same results. A continue isn't a move, so it gives no turns, and a long wait gives one turn, not one per minute.
+- **In the inspector:** each NPC's turn is its own hook, `npc:` and their ID, in the Rules tab, so you can see whose turn ran and what each rule did. `getsTurn(npc)` says whether an NPC gets one now.
+
 ## Scenes
 
 A **scene** is a named period of the story, as Inform 7 and adv3Lite have them: a storm, a dinner party, a chase. It starts when something holds, at a time, or when your code says, and ends the same ways, and while it's happening it can add rules and actions. (It isn't a cut scene, a passage of timed beats.)
