@@ -10,7 +10,14 @@
  * reaches the world model through its entry point, like any package.
  */
 import { panels, type InspectorPanel } from "@loominate-if/inspector";
-import { _scheduled, clock, timeOfDay, type _ScheduledInfo } from "@loominate-if/world";
+import {
+  _scheduled,
+  _statsTable,
+  clock,
+  timeOfDay,
+  type _ScheduledInfo,
+  type _StatRow,
+} from "@loominate-if/world";
 
 type ScheduledInfo = _ScheduledInfo;
 
@@ -119,4 +126,75 @@ export const schedulePanel: InspectorPanel = {
   },
 };
 
+/** When a modifier wears off, or that it lasts until removed. */
+const wearsOff = (m: _StatRow["modifiers"][number]): string =>
+  m.until !== undefined
+    ? `until ${timeOfDay(m.until)}`
+    : m.untilMove !== undefined
+      ? `until move ${String(m.untilMove)}`
+      : "until removed";
+
+/** A modifier, as the panel shows it: "potion +2, until 9:30 pm". */
+export function describeModifier(m: _StatRow["modifiers"][number]): string {
+  const amount =
+    m.by !== undefined ? `${m.by >= 0 ? "+" : ""}${String(m.by)}` : `×${String(m.times)}`;
+  return `${m.from} ${amount}, ${wearsOff(m)}`;
+}
+
+/** The panel listing every body's stats, base and modified, with their modifiers (#95). */
+export const statsPanel: InspectorPanel = {
+  title: "Stats",
+  mount(element) {
+    const doc = element.ownerDocument;
+    const el = <K extends keyof HTMLElementTagNameMap>(
+      tag: K,
+      className?: string,
+      text?: string,
+    ) => {
+      const node = doc.createElement(tag);
+      if (className !== undefined) node.className = className;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    };
+    element.append(el("style", undefined, STYLES));
+    const body = el("div");
+    element.append(body);
+    const update = () => {
+      body.replaceChildren();
+      const rows = _statsTable();
+      if (rows.length === 0) {
+        body.append(el("p", "empty", "The game has no stats, or no bodies."));
+        return;
+      }
+      const table = el("table", "schedule");
+      const head = el("tr");
+      for (const h of ["Who", "Stat", "Base", "Now", "Modifiers"]) {
+        const th = el("th", undefined, h);
+        th.scope = "col";
+        head.append(th);
+      }
+      table.append(el("thead"), el("tbody"));
+      table.tHead?.append(head);
+      for (const r of rows) {
+        const row = el("tr", r.now === r.base ? "idle" : "running");
+        const who = el("th");
+        who.scope = "row";
+        who.append(el("code", undefined, r.mind === undefined ? r.body : `${r.body} (${r.mind})`));
+        row.append(
+          who,
+          el("td", undefined, r.stat),
+          el("td", undefined, String(r.base)),
+          el("td", undefined, String(r.now)),
+          el("td", undefined, r.modifiers.map(describeModifier).join("; ") || "—"),
+        );
+        table.tBodies[0]?.append(row);
+      }
+      body.append(table);
+    };
+    update();
+    return { update };
+  },
+};
+
 panels.register("schedule", schedulePanel, { source: SOURCE });
+panels.register("stats", statsPanel, { source: SOURCE });

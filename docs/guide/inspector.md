@@ -105,6 +105,10 @@ With the world model, a **Fuses and daemons** tab lists every fuse and daemon in
 
 It's the world model's own inspector module, so games that don't use the world model don't have it.
 
+## Stats
+
+With the world model, a **Stats** tab lists every body's stats: base, and now with modifiers applied, and each modifier's source and when it wears off. A mental stat names the mind it comes from, the one in the body now.
+
 ## Going back in time
 
 The **History** tab lists every move in the game, from **Start**, with the passage each one reached. Select a move to jump to just after it; select a later one to jump forward again. Jumping uses the game's undo history, so the game comes back exactly as it was.

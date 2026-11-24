@@ -36,6 +36,15 @@ export type ActingOn = Thing & {
 };
 
 // @public
+export type ActiveModifier = {
+    readonly from: string;
+    readonly by?: number;
+    readonly times?: number;
+    readonly until?: number;
+    readonly untilMove?: number;
+};
+
+// @public
 export type Actor<B, M, Id extends StateId = StateId> = Handle<ThingOf<B> & MindOf<M> & ActorHalves<M>, Id>;
 
 // @public
@@ -75,6 +84,9 @@ export type AdvanceOptions = {
     readonly stopsFor?: (by: string) => boolean;
     readonly until?: () => boolean;
 };
+
+// @public
+export function baseStat(who: ObjectRef, name: StatName): number;
 
 // @public
 export function blockedReason(exit: Exit, traveler: ObjectRef): string | undefined;
@@ -685,6 +697,25 @@ export function mindOf(b: ObjectRef): Mind | undefined;
 export function minutes(n: number): Delay;
 
 // @public
+export type Modifier = ({
+    readonly by: number;
+    readonly times?: never;
+} | {
+    readonly times: number;
+    readonly by?: never;
+}) & {
+    readonly from: string;
+    readonly lasts?: Delay;
+    readonly wearsOff?: string;
+};
+
+// @public
+export function modifiersOf(who: ObjectRef, name: StatName): readonly ActiveModifier[];
+
+// @public
+export function modify(who: ObjectRef, name: StatName, modifier: Modifier): void;
+
+// @public
 export function move(t: ObjectRef, to: ObjectRef | null): void;
 
 // @public
@@ -952,6 +983,16 @@ export function stat(who: ObjectRef, name: StatName): number;
 // @public
 export type StatName = keyof Stats & string;
 
+// @internal
+export type _StatRow = {
+    readonly body: string;
+    readonly mind?: string;
+    readonly stat: string;
+    readonly base: number;
+    readonly now: number;
+    readonly modifiers: readonly ActiveModifier[];
+};
+
 // @public
 export interface Stats {
 }
@@ -963,6 +1004,9 @@ export function stats(declared: {
 
 // @public
 export type StatSpec = KeptStat | DerivedStat;
+
+// @internal
+export function _statsTable(): readonly _StatRow[];
 
 // @public
 export type StoredHours = {
@@ -1053,6 +1097,9 @@ export function undisguise(b: ObjectRef): void;
 export const unlock: Action<    {
 thing: ActingOn;
 }>;
+
+// @public
+export function unmodify(who: ObjectRef, name: StatName, from: string): void;
 
 // @public
 export function useCalendar(calendar: Calendar): void;
