@@ -5,6 +5,7 @@ import {
   createHistory,
   createStore,
   createStory,
+  redirect,
   type Passage,
 } from "@loominate-if/core";
 import axe from "axe-core";
@@ -102,6 +103,47 @@ describe("the story log (#127)", () => {
       { start: "Study" },
     ).begin();
     expect(storyLog(record.events()).map((e) => e.text)).toEqual(["A quiet study."]);
+  });
+
+  it("puts what led to a redirect before the passage it went to, as hear me out does (#127)", () => {
+    const store = createStore();
+    const record = createEventRecord(store);
+    const story = createStory(
+      store,
+      record,
+      [
+        {
+          id: "Study",
+          tags: [],
+          body: () => [{ type: "link", label: "Ask", target: "Asked" }],
+        },
+        {
+          id: "Asked",
+          tags: [],
+          effects: {
+            enter: ({ emit }) => {
+              emit("action-result", { text: "You ask the maid." }, ["topic", "player"]);
+              emit("action-result", { text: "“Hear me out, miss.”" }, ["topic", "speaker:maid"]);
+              redirect("Tale");
+            },
+          },
+          body: () => [],
+        },
+        {
+          id: "Tale",
+          tags: ["cutscene"],
+          body: () => [{ type: "text", text: "I saw him, miss." }],
+        },
+      ],
+      { start: "Study" },
+    );
+    story.begin();
+    story.follow({ type: "link", label: "Ask", target: "Asked" });
+    expect(storyLog(record.events()).map((e) => e.text)).toEqual([
+      "You ask the maid.",
+      "“Hear me out, miss.”",
+      "I saw him, miss.",
+    ]);
   });
 
   it("follows undo, since it's read from the record", () => {

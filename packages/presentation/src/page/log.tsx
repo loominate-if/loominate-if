@@ -77,6 +77,10 @@ export function storyLog(events: readonly RecordedEvent[]): LogEntry[] {
       if (e.redirected !== true) {
         flush();
         move++;
+      } else {
+        // What led to a redirect comes first, before the passage it went to, as on the page.
+        leads.push(...noticed);
+        noticed = [];
       }
       continue;
     }
