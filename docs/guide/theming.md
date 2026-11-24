@@ -72,7 +72,7 @@ The page says which layout is showing as `data-layout` on `.loominate-page`, and
 .loominate-notice[data-tags~="player"] { opacity: 0.8; }
 ```
 
-A layout can also place the passage's parts, with `passage`: its prose in one region, `prose: "context"`; its links in another, in a `.loominate-placed-choices` disclosure, `choices: "more"`, named by `choicesLabel`; and, with `transcriptSince`, keep what's noticed in `main` across moves, from an event on, as a transcript. Conversation mode uses all three.
+A layout can also place the passage's parts, with `passage`: its prose in one region, `prose: "context"`; its links in another, in a `.loominate-placed-choices` disclosure, `choices: "more"`, named by `choicesLabel`; and, with `transcriptSince`, keep what's noticed in `main` across moves, from an event on, as a transcript; and, with `drawer`, put the story so far in a region of its own. Conversation mode uses all four, with the story so far at the very bottom.
 
 Conversation mode's portraits are `.loominate-portrait` buttons in a `.loominate-cast` list, pressed (`aria-pressed="true"`) for the one addressed, with `.loominate-portrait-image` or `.loominate-portrait-initials` and `.loominate-portrait-name`; its topics are `.loominate-action-list-item` buttons.
 

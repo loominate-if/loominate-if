@@ -266,13 +266,15 @@ layouts.register(
   {
     // The room's prose above, as context; the cast beside what's said; the topics;
     // and the room's own links below, in a disclosure.
-    regions: ["header", "context", "cast", "main", "topics", "more"],
+    regions: ["header", "context", "cast", "main", "topics", "more", "history"],
     sidebars: { cast: "start" },
     widgets: { cast: ["conversation-cast"], topics: ["conversation-topics"] },
     standardHeader: true,
     passage: {
       prose: "context",
       choices: "more",
+      // The story so far, at the very bottom.
+      drawer: "history",
       choicesLabel: () => {
         const player = currentPlayerBody();
         return message("conversation.room", { room: player ? placeOf(player) : undefined });

@@ -984,6 +984,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     for (const [part, region] of [
       ["prose", definition.passage?.prose],
       ["choices", definition.passage?.choices],
+      ["drawer", definition.passage?.drawer],
     ] as const) {
       if (region !== undefined && (!definition.regions.includes(region) || region === "main")) {
         throw new Error(
@@ -1055,6 +1056,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
           );
         }
       }
+      if (placed?.drawer === region) out.push(drawerView());
       return out;
     };
     const regionView = (region: string): ComponentChildren => {
@@ -1124,7 +1126,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
                 <div className="loominate-sr-only loominate-announce" aria-live="polite">
                   {announcement}
                 </div>
-                {drawerView()}
+                {placed?.drawer === undefined && drawerView()}
               </main>,
               slots(region),
             ]

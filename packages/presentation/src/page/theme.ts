@@ -129,6 +129,7 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
 /* A layout's placed passage parts: prose as a strip of context, links in a disclosure. */
 .loominate-region[data-region="context"] { font-family: ${v("font-body")}; font-size: 0.95em; color: ${v("color-muted")}; background: none; border: none; padding: 0; }
 .loominate-region[data-region="context"] p { margin-block: 0.25em; }
+.loominate-region[data-region="history"] { background: none; border: none; padding: 0; font-family: inherit; font-size: inherit; }
 .loominate-placed-choices > summary { cursor: pointer; color: ${v("color-muted")}; }
 .loominate-placed-choices[open] > summary { margin-block-end: 0.5em; }
 /* The compass: the eight points in a grid, and the other ways beside it. */

@@ -1356,6 +1356,7 @@ While the player's talking, the page switches to the `conversation` layout, whic
 - **`cast` beside `main`:** a portrait for each character in the conversation, the one addressed marked, and choosing another addresses them; beside it, the conversation so far, each line as it was said, the player's own lines ("You ask the maid about the gold.") muted. New lines are read to screen readers, and focus goes to just before them.
 - **`topics`:** the suggested topics as buttons, showing and giving included. A button that can't be taken now is shown disabled, with why, as goodbye under a hard lock.
 - **`more`:** the passage's own links, such as the room's exits, in a closed disclosure named after the room, "In the study". Locks still apply to them.
+- **`history`:** the story so far, at the very bottom.
 
 When the conversation ends, by goodbye, by walking off, or by the NPC leaving on their timetable, the page goes back to the layout before. Elsewhere during a conversation, as in a hear-me-out cut scene, the usual layout shows, and the conversation's comes back with the player. Which layout is showing is game state, so undo, saves, and replays agree, and the conversation so far is read from the event record, so undo takes back its lines too.
 

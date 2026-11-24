@@ -176,12 +176,13 @@ describe("a layout placing the passage's parts (#118)", () => {
   ];
   function playPlaced() {
     register(layouts, "placed", {
-      regions: ["context", "main", "more"],
+      regions: ["context", "main", "more", "history"],
       passage: {
         prose: "context",
         choices: "more",
         choicesLabel: () => "In the study",
         transcriptSince: () => 0,
+        drawer: "history",
       },
     });
     const store = createStore();
@@ -218,6 +219,9 @@ describe("a layout placing the passage's parts (#118)", () => {
       [...(main?.querySelectorAll(".loominate-notice") ?? [])].map((p) => p.textContent),
     ).toEqual(["Line 1", "Line 2", "Line 3"]);
     expect(main?.querySelector(".loominate-passage")?.textContent).not.toContain("A quiet study.");
+    // The story so far is in its own region, last.
+    expect(main?.querySelector(".loominate-drawer")).toBeNull();
+    expect(region("history")?.querySelector("details.loominate-drawer")).not.toBeNull();
     // Focus is on the heading just before what's new, in main.
     expect(document.activeElement?.textContent).toBe("Passage");
     expect(document.activeElement?.nextElementSibling?.textContent).toBe("Line 3");

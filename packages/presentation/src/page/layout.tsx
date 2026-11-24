@@ -71,6 +71,8 @@ export type PassagePlacement = {
    * `undefined` to keep only the latest move's, as usual.
    */
   readonly transcriptSince?: (game: PageGame) => number | undefined;
+  /** The region the story-so-far drawer goes in, as at the very bottom. */
+  readonly drawer?: string;
 };
 
 /** What a widget's view can do: read the game, and make a move as the player would. */
