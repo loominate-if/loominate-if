@@ -416,7 +416,7 @@ Nodes handle moments that need structure, such as an NPC asking a question. A no
 | Hard lock | Only the node's replies are available until one is chosen |
 | Hear me out | A cut scene within the conversation; control returns afterward |
 
-The compiler or test runner verifies every locked node has a reachable way out, the inspector shows active locks and their source, and undo always works through locks.
+The compiler or test runner verifies every locked node has a reachable way out, the inspector shows active locks and their source, and undo always works through locks. A node's `exit: "soft" | "hard"` locks the conversation while it's open, owned by the node: a soft lock meets the first goodbye or exit with the node's `objects` line and lets the player insist; a hard one disables goodbye and the room's exits, with that line as the reason, and is restrictive. An entry's `hearMeOut` plays a cut scene passage after it answers, which `{continue back}` leaves for where the player was. As the game starts, every hard node must have a reply that closes it, unless it says `closedElsewhere` ([ADR 0094](decisions/0094-exit-control.md)).
 
 ### Group conversations
 

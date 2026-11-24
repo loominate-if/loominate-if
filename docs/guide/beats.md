@@ -20,6 +20,7 @@ You are not, it seems, expected.
 - `{wait}` waits until the player moves on.
 - `{page}` waits until the player moves on, then shows what follows in place of what came before, for long introductions. Earlier pages stay in the story so far.
 - Beats go at the top level of a passage, not inside `{if}` or emphasis.
+- `{continue back}` goes back to the passage the player was at before this one, for a cut scene played from somewhere else, as an NPC's "hear me out" in a conversation.
 
 ## Things that happen mid-scene
 

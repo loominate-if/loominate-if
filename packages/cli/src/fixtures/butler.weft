@@ -10,6 +10,9 @@
 {ask weather, again}
 "As I said, sir. Grey."
 
+{ask past, -> The butler's tale}
+"Hear me out, sir."
+
 {ask job, opens: proposal}
 "There is a post, sir. Will you take it?"
 
@@ -20,3 +23,7 @@
 
 {no}
 "A pity, sir."
+
+:: The butler's tale [cutscene]
+"I was a sailor once, sir, before all this."
+{continue back}

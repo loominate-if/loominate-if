@@ -215,6 +215,11 @@ describe("braces", () => {
       { ask: ["letter", "when: f(a, b)", "again"] },
     ]);
     expect(body("{continue x ? 1 : 2, -> Next}")).toEqual([{ continue: ["x ? 1 : 2", "-> Next"] }]);
+    // A target is a passage name, not code: an apostrophe in it isn't a string (#117).
+    expect(body("{ask past, -> The butler's tale, when: a}", options)).toEqual([
+      { ask: ["past", "-> The butler's tale", "when: a"] },
+    ]);
+    expect(body("{continue -> Maid's room}")).toEqual([{ continue: ["-> Maid's room"] }]);
   });
 
   it("reports empty braces, unclosed braces, and the wrong directive form", () => {

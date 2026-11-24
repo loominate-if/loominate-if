@@ -173,7 +173,10 @@ export function bindArguments(
     if (spec.required === true && !args.some((b) => b.spec === spec)) {
       // A malformed argument was already reported; don't also call it missing.
       if (problems.length > 0) continue;
-      problem(`${name} needs ${describe(spec)}${like}.`, directive.span);
+      const instead = spec.unless ?? [];
+      if (args.some((b) => instead.includes(b.spec.name))) continue;
+      const or = instead.map((n) => `, or \`${n}\``).join("");
+      problem(`${name} needs ${describe(spec)}${or}${like}.`, directive.span);
     }
   }
   for (const b of args) {

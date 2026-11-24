@@ -49,6 +49,8 @@ export type ArgumentSpec = {
   readonly choices?: readonly string[];
   /** Arguments that can't be given with this one. */
   readonly excludes?: readonly string[];
+  /** For a required argument: others that can be given instead, as `back` for `{continue}`'s passage. */
+  readonly unless?: readonly string[];
 };
 
 /**

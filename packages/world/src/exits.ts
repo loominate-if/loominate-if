@@ -8,6 +8,7 @@
  * `{exits}` shows the player's room's exits as links.
  */
 import {
+  actLink,
   mixin,
   object,
   message,
@@ -18,6 +19,12 @@ import {
   type StateId,
 } from "@loominate-if/core";
 import { currentPlayerBody } from "./actors.js";
+import {
+  _excuseYourself,
+  _lockedReason,
+  _objectsToLeaving,
+  conversation,
+} from "./conversations.js";
 import { directionNamed, directions, type Direction, type DirectionName } from "./directions.js";
 import { closedReason } from "./hours.js";
 import { journeyLink } from "./journeys.js";
@@ -268,6 +275,8 @@ export function exitLinks(args: Readonly<Record<string, never>> = {}): LinkNode[
   const body = currentPlayerBody();
   const here = body ? placeOf(body) : undefined;
   if (!body || !here) return [];
+  const locked = conversation.active ? _lockedReason() : undefined;
+  const objects = conversation.active && _objectsToLeaving();
   return exitsOf(here).map((e): LinkNode => {
     const target = arrivalPassage(e.to);
     if (target === undefined) {
@@ -281,6 +290,29 @@ export function exitLinks(args: Readonly<Record<string, never>> = {}): LinkNode[
       visited: visitsTo(e.to) > 0,
     });
     // A journey is taken as an action, so it can be stopped partway and end somewhere else.
+    // A locked conversation holds the player (#117): a hard lock disables every
+    // way out, and a soft one meets the first try with an objection.
+    if (locked !== undefined) {
+      return {
+        type: "link",
+        label,
+        target,
+        guard: {
+          open: false,
+          condition: "the conversation isn't locked",
+          mode: "disabled-with-reason" as const,
+          reason: locked,
+        },
+      };
+    }
+    if (objects && blockedReason(e, body) === undefined) {
+      return {
+        type: "link",
+        label,
+        target,
+        guard: actLink({ call: _excuseYourself({ way: e.direction.name }) }),
+      };
+    }
     if (e.journey !== undefined) {
       return { type: "link", label, target, guard: journeyLink(e.direction.name) };
     }

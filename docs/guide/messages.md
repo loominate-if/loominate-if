@@ -64,6 +64,8 @@ A message's text is one of three things:
 | `topic.suggest.show`, `topic.suggest.give` | `thing` | Suggested showing and giving, with `{topics}`: "Show the photograph", "Give the locket" |
 | `topic.suggest.yes`, `topic.suggest.no` | | An open node's yes and no, with `{topics}`: "Say yes", "Say no" |
 | `topic.node.waits` | `who` | What an NPC whose restrictive node has no `presses` line says to a change of subject: "The butler waits for your answer." |
+| `conversation.objects` | `who` (the lock's NPC) | What an NPC says when the player tries to leave against a soft lock with no `objects` line: "“Just a moment,” the widow says. “I haven't finished.”" |
+| `conversation.locked` | `who` | Why goodbye and exits are disabled under a hard lock with no `objects` line: "You can't leave until you answer the inspector." |
 | `examine.nothing` | `thing` | "You see nothing special about the statue." |
 | `take.held`, `drop.notHeld`, `open.already`, `close.already`, `lock.already`, `unlock.notLocked` | `thing` | Why they aren't offered |
 | `open.locked`, `lock.open` | `thing` | "The oak chest is locked.", "You'll have to close the oak chest first." |
