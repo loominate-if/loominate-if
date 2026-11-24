@@ -37,6 +37,11 @@ topic(cook, {
   says: ["“I couldn't say.”", "She shrugs.", "“Ask the butler.”", "“Not now, dear.”"],
 });
 // #endregion
+const gardener = actor("gardener", { body: { name: "gardener", location: kitchen } });
+// #region again
+topic(gardener, { ask: letter, says: "“A letter? I burned it with the leaves.”" });
+topic(gardener, { ask: letter, again: true, says: "“Burned, I said.”" });
+// #endregion
 
 const passages: Passage[] = [
   { id: "Kitchen", tags: [], body: () => [{ type: "link", label: "Wait", target: "Kitchen" }] },
@@ -114,5 +119,13 @@ describe("topic event lists (#112)", () => {
     expect(() => topic(butler, { tell: letter, order: "cycle", says: "Hm." })).toThrow(
       "`order` is for a list of responses",
     );
+  });
+
+  it("answer `again` entries only once the exchange has been answered, and prefer them then", () => {
+    expect(askTimes(gardener, letter, 3)).toEqual([
+      "“A letter? I burned it with the leaves.”",
+      "“Burned, I said.”",
+      "“Burned, I said.”",
+    ]);
   });
 });

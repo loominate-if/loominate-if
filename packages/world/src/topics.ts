@@ -8,6 +8,7 @@
  * the inspector all see them.
  */
 import {
+  _effectContext,
   _storyRunning,
   action,
   emit,
@@ -20,7 +21,9 @@ import {
   actLink,
   type ActionCall,
   type LinkNode,
+  type ConditionArgument,
   type ObjectRef,
+  type Passage,
   type Period,
   type StateId,
 } from "@loominate-if/core";
@@ -273,6 +276,14 @@ export type TopicOptions = {
   readonly suggested?: boolean;
   /** For a `tell` about a fact: whether the NPC learns it, from the player. Defaults to true. */
   readonly informs?: boolean;
+  /**
+   * Only once the NPC has answered the same exchange before, by any entry:
+   * the same kind, about the same subject. Among entries of the same
+   * priority, it comes first, so it answers every time after the first.
+   */
+  readonly again?: boolean;
+  /** A stable ID for the entry, kept across edits, for saves and the inspector. Compiled topic blocks get one from their line. */
+  readonly id?: string;
 };
 
 /** A topic entry: what kind of exchange it answers, and its options. */
@@ -307,6 +318,8 @@ type Entry = {
   readonly implicit?: boolean;
   /** For giving: whether they take it. */
   readonly takes?: boolean;
+  /** A compiled topic block, which says its prose and runs its effects. */
+  readonly block?: Passage;
   readonly index: number;
 } & TopicOptions;
 
@@ -354,6 +367,10 @@ const contextLevel = (e: Entry): number => (e.in === undefined ? 0 : isPeriod(e.
  * @throws StateError if `in` is another NPC's state, or the entry has no kind.
  */
 export function topic(npc: ObjectRef, entry: TopicEntry): void {
+  addEntry(npc, entry);
+}
+
+function addEntry(npc: ObjectRef, entry: TopicEntry, block?: Passage): void {
   const mind = mindFor(npc, "topic").id;
   const where = `topic for ${JSON.stringify(mind)}`;
   const e = entry as TopicOptions &
@@ -416,9 +433,18 @@ export function topic(npc: ObjectRef, entry: TopicEntry): void {
   }
   const list = entries.get(mind) ?? [];
   const subject = subjectOf === undefined ? undefined : subjectKey(subjectOf);
+  const id =
+    entry.id ??
+    `${mind}:${kinds.join("|")}${subject === undefined ? "" : `:${subject}`}#${String(list.length + 1)}`;
+  if (list.some((other) => other.id === id)) {
+    throw new StateError(
+      `${where}: another entry has the ID ${JSON.stringify(id)}. Give each its own.`,
+    );
+  }
   list.push({
     ...entry,
-    id: `${mind}:${kinds.join("|")}${subject === undefined ? "" : `:${subject}`}#${String(list.length + 1)}`,
+    ...(block && { block }),
+    id,
     mind,
     kinds,
     ...(subjectOf !== undefined && { subject: subjectKey(subjectOf), about: subjectOf }),
@@ -428,6 +454,16 @@ export function topic(npc: ObjectRef, entry: TopicEntry): void {
   });
   entries.set(mind, list);
 }
+
+/** How often entries and exchanges have been answered: game state. */
+const counts = object("world:topicCounts", {
+  /** Times each entry has answered, by entry ID. */
+  entries: {} as Record<string, number>,
+  /** Times each exchange has been answered by any entry, by mind, kind, and subject. */
+  exchanges: {} as Record<string, number>,
+});
+const exchangeKey = (mind: string, kind: TopicKind, subject: string | undefined): string =>
+  `${mind}|${kind}|${subject ?? ""}`;
 
 /** Why an entry doesn't answer, or `undefined` if it matches. */
 function whyNot(
@@ -439,6 +475,9 @@ function whyNot(
   if (!e.kinds.includes(kind)) return "It answers something else.";
   if (subject !== undefined && e.subject !== "*" && e.subject !== subject)
     return "It's about something else.";
+  if (e.again === true && (counts.exchanges[exchangeKey(e.mind, kind, subject)] ?? 0) === 0) {
+    return "It's for when this has been answered before.";
+  }
   if (e.implicit !== undefined && e.implicit !== implicit) {
     return e.implicit ? "It's only for when nothing was said." : "It's only for when it's said.";
   }
@@ -467,6 +506,7 @@ export type TopicCandidate = {
 /** Ranks matching entries: priority, then context, then particular subject, then order. */
 const rank = (a: Entry, b: Entry): number =>
   (b.priority ?? 0) - (a.priority ?? 0) ||
+  Number(b.again === true) - Number(a.again === true) ||
   contextLevel(b) - contextLevel(a) ||
   Number(b.subject !== "*") - Number(a.subject !== "*") ||
   a.index - b.index;
@@ -617,6 +657,10 @@ function nextOf(e: Entry, count: number): number {
 }
 
 function respond(e: Entry, context: TopicContext): void {
+  if (e.block) {
+    sayBlock(e, e.block, context.npc);
+    return;
+  }
   const says = Array.isArray(e.says)
     ? (e.says as readonly Says[])[nextOf(e, e.says.length)]
     : (e.says as Says);
@@ -637,6 +681,30 @@ function respond(e: Entry, context: TopicContext): void {
 
 const isFactList = (x: Fact | readonly Fact[]): x is readonly Fact[] => Array.isArray(x);
 
+/**
+ * Says a compiled topic block: its effects, `{on first visit: …}` the first
+ * time it answers and `{on enter: …}` every time, then its prose, each
+ * paragraph with its line.
+ */
+function sayBlock(e: Entry, block: Passage, npc: ObjectRef): void {
+  const times = counts.entries[e.id] ?? 1;
+  const context = { ..._effectContext(block.id), visits: times, firstVisit: times === 1 };
+  if (times === 1) block.effects?.firstVisit?.(context);
+  block.effects?.enter?.(context);
+  for (const node of block.body(context)) {
+    if (node.type !== "text" || node.text.trim() === "") continue;
+    emit(
+      "action-result",
+      {
+        text: node.text,
+        ...(node.styles !== undefined && node.styles.length > 0 && { styles: node.styles }),
+        ...(node.line !== undefined && { line: node.line }),
+      },
+      ["topic", `speaker:${npc.id}`],
+    );
+  }
+}
+
 const say = (text: string, npc: ObjectRef): void => {
   emit("action-result", { text }, ["topic", `speaker:${npc.id}`]);
 };
@@ -650,6 +718,13 @@ function answer(
 ): Entry | undefined {
   const { winner } = match(who, kind, options.about, options.implicit ?? false);
   if (winner) {
+    const key = exchangeKey(
+      winner.mind,
+      kind,
+      options.about === undefined ? undefined : subjectKey(options.about),
+    );
+    counts.entries = { ...counts.entries, [winner.id]: (counts.entries[winner.id] ?? 0) + 1 };
+    counts.exchanges = { ...counts.exchanges, [key]: (counts.exchanges[key] ?? 0) + 1 };
     respond(winner, {
       npc: who,
       ...(options.about !== undefined && { about: options.about }),
@@ -912,6 +987,9 @@ function handedTo(kind: "show" | "give", offer: Offer): Reaction | undefined {
   const { winner } = match(offer.to, kind, offer.thing, false);
   if (!winner) return undefined;
   turnTo(offer.to);
+  const key = exchangeKey(winner.mind, kind, subjectKey(offer.thing));
+  counts.entries = { ...counts.entries, [winner.id]: (counts.entries[winner.id] ?? 0) + 1 };
+  counts.exchanges = { ...counts.exchanges, [key]: (counts.exchanges[key] ?? 0) + 1 };
   respond(winner, { npc: offer.to, about: offer.thing });
   clock.advance(EXCHANGE_MINUTES);
   return kind === "give" && winner.takes === true ? accept("") : react("");
@@ -919,3 +997,114 @@ function handedTo(kind: "show" | "give", offer: Offer): Reaction | undefined {
 
 _givingTopics.rule("topic entries", (offer) => handedTo("give", offer), { source: SOURCE });
 _showingTopics.rule("topic entries", (offer) => handedTo("show", offer), { source: SOURCE });
+
+// --- Compiled topic blocks (#115) ---
+
+/** A topic block's arguments, as `{ask letter, again, when: …}` gives them. */
+export type TopicBlockArguments = {
+  /** What it's about: for ask, tell, show, give, and their pairs. */
+  readonly about?: Subject;
+  /** `again`: only once the exchange has been answered before. */
+  readonly again?: "again";
+  /** `takes`: for giving, they take it. */
+  readonly takes?: "takes";
+  /** `implicit` or `explicit`: for hello and bye. */
+  readonly implicit?: "implicit" | "explicit";
+  /** Only while this holds. */
+  readonly when?: () => ConditionArgument;
+  readonly priority?: number;
+  /** An actor state or scene, besides the passage's. */
+  readonly in?: ActorState | Period;
+  readonly suggested?: boolean;
+  readonly informs?: boolean;
+};
+
+/** Where a topic block was written: its actor passage, the block's directive, and the passage's tag role values. */
+export type TopicBlockPassage = {
+  readonly id: string;
+  readonly directive: string;
+  readonly roles: Readonly<Record<string, unknown>>;
+};
+
+const BLOCK_KINDS: Readonly<Record<string, string>> = {
+  ask: "ask",
+  tell: "tell",
+  "ask or tell": "askOrTell",
+  show: "show",
+  give: "give",
+  "show or give": "showOrGive",
+  yes: "yes",
+  no: "no",
+  hello: "hello",
+  bye: "bye",
+};
+
+/**
+ * What a compiled topic block in an actor passage calls as the game loads:
+ * adds the topic entry it stands for, scoped by the passage's `state:` or
+ * `scene:` and its own `in:`, saying its prose and running its effects
+ * when it answers.
+ *
+ * @throws StateError if the passage scopes by both a state and a scene, or the block also gives `in:`.
+ */
+export function topicBlock(
+  args: TopicBlockArguments,
+  block: Passage,
+  passage: TopicBlockPassage,
+): void {
+  const where = `topic block in ${JSON.stringify(passage.id)}`;
+  const npc = passage.roles["actor"] as ObjectRef | undefined;
+  if (!npc) throw new StateError(`${where}: give the passage an actor, as [actor: butler].`);
+  const scopes = [args.in, passage.roles["state"], passage.roles["scene"]].filter(
+    (x): x is ActorState | Period => x !== undefined,
+  );
+  if (scopes.length > 1) {
+    throw new StateError(
+      `${where}: it's scoped by more than one of the block's \`in:\` and the passage's \`state:\` and \`scene:\`. Give one.`,
+    );
+  }
+  const kind = BLOCK_KINDS[passage.directive];
+  if (kind === undefined)
+    throw new StateError(`${where}: \`{${passage.directive}}\` isn't a topic block.`);
+  const when = args.when;
+  const entry = {
+    ...(args.about !== undefined ? { [kind]: args.about } : { [kind]: true }),
+    says: "",
+    id: block.id,
+    ...(when && { when: () => when().value }),
+    ...(args.priority !== undefined && { priority: args.priority }),
+    ...(scopes[0] && { in: scopes[0] }),
+    ...(args.again && { again: true }),
+    ...(args.takes && { takes: true }),
+    ...(args.implicit && { implicit: args.implicit === "implicit" }),
+    ...(args.suggested !== undefined && { suggested: args.suggested }),
+    ...(args.informs !== undefined && { informs: args.informs }),
+  } as unknown as TopicEntry;
+  addEntry(npc, entry, block);
+}
+
+/** What `[actor: butler]` calls as the game loads: checks it's someone with a mind. */
+export function registerActorPassage(
+  actor: ObjectRef,
+  passage: { readonly id: string; readonly tags: readonly string[] },
+): void {
+  mindFor(actor, `passage ${JSON.stringify(passage.id)}`);
+}
+
+/** What `[state: onDuty]` calls as the game loads: the value is checked as an actor state. */
+export function registerStatePassage(
+  state: ActorState,
+  passage: { readonly id: string; readonly tags: readonly string[] },
+): void {
+  void state;
+  void passage;
+}
+
+/** What `[scene: storm]` calls as the game loads: the value is checked as a scene. */
+export function registerScenePassage(
+  scene: Period,
+  passage: { readonly id: string; readonly tags: readonly string[] },
+): void {
+  void scene;
+  void passage;
+}

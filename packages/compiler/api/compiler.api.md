@@ -122,6 +122,10 @@ export type DirectiveDefinition = {
 } | {
     readonly kind: "annotation";
     readonly args?: readonly ArgumentSpec[];
+} | {
+    readonly kind: "section";
+    readonly args?: readonly ArgumentSpec[];
+    readonly runtime: RuntimeExport;
 });
 
 // @public
@@ -393,6 +397,7 @@ export type TagRoleDefinition = {
     readonly entry?: boolean;
     readonly arrival?: RuntimeExport;
     readonly register?: RuntimeExport;
+    readonly sections?: boolean;
 };
 
 // @public

@@ -1,0 +1,11 @@
+:: Butler [actor: butler, state: onDuty]
+
+{hello}
+"Sir?"
+
+{ask weather}
+"Grey, sir. And it was the butler, if you take my meaning."
+{reveal facts.culprit, from: butler}
+
+{ask weather, again}
+"As I said, sir. Grey."

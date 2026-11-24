@@ -148,6 +148,18 @@ export function bindArguments(
         bind(spec, a.value, a.span);
       }
     } else {
+      // An optional word can be left out: one a later optional choice takes skips to it.
+      const here = positional[next];
+      if (
+        here?.kind === "choice" &&
+        here.required !== true &&
+        !(here.choices ?? []).includes(a.value.code)
+      ) {
+        const later = positional.findIndex(
+          (s, i) => i > next && s.kind === "choice" && (s.choices ?? []).includes(a.value.code),
+        );
+        if (later >= 0) next = later;
+      }
       const spec = positional[next++];
       if (!spec) {
         problem(`${name} doesn't take \`${a.value.code}\` here. It takes ${takes(specs)}.`, a.span);

@@ -124,6 +124,21 @@ describe("loominate build", () => {
     );
   }, 60_000);
 
+  it("fails on an undefined actor or subject in an actor passage, at its line (#115)", async () => {
+    const root = butlerGame(`:: Butler [actor: buttler]
+
+{ask wether}
+"Grey, sir."
+`);
+    const failure = build({ ...options(root), target: "single" });
+    await expect(failure).rejects.toThrow(
+      /butler\.weft:1:19 error: `buttler` isn't defined\. Did you mean `butler`\?/,
+    );
+    await expect(failure).rejects.toThrow(
+      /butler\.weft:3:6 error: `wether` isn't defined\. Did you mean `weather`\?/,
+    );
+  }, 60_000);
+
   it("warns about a room passage no exit leads to, at its room tag (#72)", async () => {
     const root = worldGame();
     appendFileSync(
@@ -343,7 +358,69 @@ export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, start
   }, 60_000);
 });
 
+/** The world game with a butler in the hall and his topic blocks in an actor passage (#115). */
+function butlerGame(butler: string): string {
+  const root = worldGame();
+  appendFileSync(
+    path.join(root, "story.ts"),
+    `import { actorStates, hello, topics } from "@loominate-if/world";
+export const butler = actor("butler", { body: { name: "butler", location: hall } });
+export const [onDuty, offDuty] = actorStates(butler, ["onDuty", "offDuty"], { starts: "onDuty" });
+export const { weather } = topics({ weather: "the weather" });
+export { hello };
+`,
+  );
+  const rooms = path.join(root, "rooms.weft");
+  writeFileSync(
+    rooms,
+    readFileSync(rooms, "utf8").replace(
+      "{exits}\n[[Unlock",
+      "{exits}\n{topics}\n[[Talk to the butler]]{act hello({ who: butler })}\n[[Unlock",
+    ),
+  );
+  writeFileSync(path.join(root, "butler.weft"), butler);
+  return root;
+}
+
+const BUTLER = readFileSync(path.join(here, "fixtures/butler.weft"), "utf8");
+
 describe("loominate dev", () => {
+  it("plays an actor passage's topic blocks: greeting, asking, revealing, and again (#115)", async () => {
+    const root = butlerGame(BUTLER);
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const server = await dev({
+      ...options(root),
+      vite: { ...options(root).vite, server: { middlewareMode: true } },
+    });
+    const text = () => page().querySelector(".loominate-passage")?.textContent ?? "";
+    const follow = (label: string) => {
+      const link = [...page().querySelectorAll(".loominate-passage :is(a, button)")].find((b) =>
+        b.textContent?.startsWith(label),
+      );
+      if (!link) throw new Error(`no link ${label} in: ${text()}`);
+      link.click();
+    };
+    try {
+      page().body.innerHTML = '<div id="app"></div>';
+      await server.ssrLoadModule("/@loominate/main");
+      follow("Talk to the butler");
+      expect(text()).toContain('"Sir?"');
+      follow("Ask about the weather");
+      expect(text()).toContain('"Grey, sir. And it was the butler, if you take my meaning."');
+      follow("Ask about the weather");
+      expect(text()).toContain('"As I said, sir. Grey."');
+      follow("Say goodbye");
+      follow("Unlock the cellar door");
+      follow("Continue");
+      follow("Down");
+      // The block's {reveal} taught the player, from the butler.
+      expect(text()).toContain("You know who did it, from butler.");
+    } finally {
+      errors.mockRestore();
+      await server.close();
+    }
+  }, 60_000);
+
   it("plays room passages, exits, and revealed facts with the world model's extension (#63, #64, #67, #69)", async () => {
     const root = worldGame();
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);

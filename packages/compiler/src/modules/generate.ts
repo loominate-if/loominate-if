@@ -170,7 +170,12 @@ export function generatePassageModule(
   }
 
   /** Writes a call of `runtime` with the arguments as one object, then `extra` if given. */
-  function call(runtime: RuntimeExport, args: readonly BoundArgument[], extra?: string): void {
+  function call(
+    runtime: RuntimeExport,
+    args: readonly BoundArgument[],
+    extra?: string | (() => void),
+    lazy = false,
+  ): void {
     write(`${runtimeName(runtime)}({`);
     for (const [i, a] of args.entries()) {
       write(`${i === 0 ? " " : ", "}${a.spec.name}: `);
@@ -179,6 +184,8 @@ export function generatePassageModule(
           copy(a.code);
           break;
         case "condition": {
+          // A section's condition is evaluated when the package asks, not as the game loads.
+          if (lazy) write("() => (");
           write("{ value: Boolean(");
           copy(a.code);
           write(`), text: ${str(a.code.code)}`);
@@ -196,6 +203,7 @@ export function generatePassageModule(
             write("]");
           }
           write(" }");
+          if (lazy) write(")");
           break;
         }
         case "duration":
@@ -214,7 +222,11 @@ export function generatePassageModule(
       }
     }
     write(args.length > 0 ? " }" : "}");
-    if (extra !== undefined) write(`, ${extra}`);
+    if (typeof extra === "string") write(`, ${extra}`);
+    else if (extra) {
+      write(", ");
+      extra();
+    }
     write(")");
   }
 
@@ -300,7 +312,10 @@ export function generatePassageModule(
     for (const n of nodes) {
       if (n.type === "directive") {
         const word = n.name.split(" ")[0] ?? "";
-        if (options.scopeExports.has(word)) {
+        // A directive limited to this passage's roles, as `{ask}` in an actor's, can't be a print.
+        const found = syntax.directive(n.name, roles);
+        const limited = "definition" in found && found.definition.roles !== undefined;
+        if (options.scopeExports.has(word) && !limited) {
           const from = [...new Set((syntax.directives.get(n.name) ?? []).map((d) => d.from))];
           error(
             `\`${word}\` is a directive from ${listOf(from)} and also exported by the scope module. Write \`{(${word})}\` to print the export, or rename it.`,
@@ -319,6 +334,8 @@ export function generatePassageModule(
 
   /** Links on lines of their own, which stand between paragraphs; others are inline. */
   let standalone: ReadonlySet<LinkSyntax> = new Set();
+  /** The section directive whose block is being generated, if any. */
+  let inSection: string | undefined;
   let lineIds: PassageLines | undefined;
   let indent = "";
 
@@ -431,6 +448,14 @@ export function generatePassageModule(
   }
 
   function link(n: LinkSyntax, parts: string): void {
+    if (inSection !== undefined) {
+      error(
+        `\`{${inSection}}\` is a block of what's said, so it can't have links. Put choices in the passages the player visits.`,
+        n.span.start,
+        n.span.end,
+      );
+      return;
+    }
     if (n.label.some((l) => l.type === "emphasis")) {
       error(
         "Formatting in link labels isn't supported yet. Remove the `*` from this label.",
@@ -520,6 +545,13 @@ export function generatePassageModule(
       case "annotation":
       case "guard":
         return;
+      case "section":
+        error(
+          `\`{${d.name}}\` starts a block, so it goes at the top level of the passage, not inside another block.`,
+          d.span.start,
+          d.span.end,
+        );
+        return;
       case "content":
         if (!def.runtime) {
           error(
@@ -570,6 +602,7 @@ export function generatePassageModule(
 
   /** Tag roles' values in this file, in order: each becomes a constant of the module. */
   const roleValues: {
+    readonly name: string;
     readonly local: string;
     readonly code: CodeSyntax;
     readonly typedBy: RuntimeExport;
@@ -611,7 +644,14 @@ export function generatePassageModule(
       const code = { code: t.value, span: t.valueSpan };
       usedIn([code]);
       const local = `$role_${String(roleValues.length)}`;
-      roleValues.push({ local, code, typedBy: runtime, register: def.register, passage: p });
+      roleValues.push({
+        name: t.name,
+        local,
+        code,
+        typedBy: runtime,
+        register: def.register,
+        passage: p,
+      });
       if (def.arrival) arrivals.push({ runtime: def.arrival, local });
     }
     checkClashes(p.content);
@@ -619,10 +659,177 @@ export function generatePassageModule(
     lineIds = passageLines(p, source, syntax.paragraphEnds);
     for (const problem of lineIds.problems)
       error(problem.message, problem.span.start, problem.span.end);
+    // A passage of section blocks, such as an actor's topic blocks, or an ordinary one.
+    const sectioned =
+      p.tags.some(
+        (t) => t.value !== undefined && syntax.tagRoles.get(t.name)?.definition.sections === true,
+      ) || p.content.some((n) => sectionOf(n) !== undefined);
+    mark(p.header.start);
+    write("  {\n");
+    write(`    id: ${str(p.name.name)},\n`);
+    write(`    tags: ${tagList(p)},\n`);
+    if (!sectioned) {
+      passageParts(p.content, arrivals, p.header.end);
+      write("  },\n");
+      return;
+    }
+    if (arrivals.length > 0) {
+      write("    effects: {\n");
+      phases(new Map(), "      ", arrivals);
+      write("    },\n");
+    }
+    write("    body: (): $PassageNode[] => [],\n");
+    write("  },\n");
+    // Split at the sections; nothing but blank lines and annotations may come before the first.
+    let current: { d: DirectiveSyntax; content: ContentSyntax[] } | undefined;
+    let strayReported = false;
+    const blocks: { d: DirectiveSyntax; content: ContentSyntax[] }[] = [];
+    for (const n of p.content) {
+      if (sectionOf(n) !== undefined) {
+        current = { d: n as DirectiveSyntax, content: [] };
+        blocks.push(current);
+      } else if (current) {
+        current.content.push(n);
+      } else if (
+        !strayReported &&
+        !(n.type === "break" || (n.type === "text" && n.text.trim() === "") || isAnnotation(n))
+      ) {
+        const example = [...syntax.directives].find(([, defs]) =>
+          defs.some((d) => d.definition.kind === "section" && overlapsRoles(d.definition.roles)),
+        );
+        error(
+          `This passage is made of blocks${example ? `, such as \`${example[1][0]?.definition.example ?? `{${example[0]}}`}\`` : ""}, so everything goes in one. Start a block before this.`,
+          n.span.start,
+          n.span.end,
+        );
+        strayReported = true;
+      }
+    }
+    for (const [i, block] of blocks.entries()) {
+      const b = bind(block.d);
+      if (!b?.ok || b.definition.kind !== "section") continue;
+      usedIn(argumentCode(block.d));
+      const id = `${p.name.name}#${lineIds?.lineAt(block.d.span.start) ?? String(i + 1)}`;
+      inSection = block.d.name;
+      const generated = capture(() => {
+        write("{\n");
+        write(`    id: ${str(id)},\n`);
+        write(`    tags: ${tagList(p)},\n`);
+        passageParts(block.content, [], block.d.span.end, block.d.name);
+        write("  }");
+      });
+      inSection = undefined;
+      const roleLocals = roleValues
+        .filter((r) => r.passage === p)
+        .map((r) => `${JSON.stringify(r.name)}: ${r.local}`);
+      sections.push({
+        at: block.d.span.start,
+        runtime: b.definition.runtime,
+        args: b.args,
+        block: generated,
+        info: `{ id: ${str(p.name.name)}, directive: ${str(block.d.name)}, roles: { ${roleLocals.join(", ")} } }`,
+      });
+    }
+  }
+
+  /** The section definition a top-level node starts, if it's a section directive. */
+  function sectionOf(n: ContentSyntax): DirectiveDefinition | undefined {
+    if (n.type !== "directive" || n.code !== undefined) return undefined;
+    const found = syntax.directive(n.name, roles);
+    return "definition" in found && found.definition.kind === "section"
+      ? found.definition
+      : undefined;
+  }
+  const isAnnotation = (n: ContentSyntax): boolean => {
+    if (n.type !== "directive" || n.code !== undefined) return false;
+    const found = syntax.directive(n.name, roles);
+    return "definition" in found && found.definition.kind === "annotation";
+  };
+  const overlapsRoles = (limited: readonly string[] | undefined): boolean =>
+    limited === undefined || limited.some((r) => roles.has(r));
+  const tagList = (p: PassageSyntax): string =>
+    `[${p.tags.map((t) => str(t.value === undefined ? t.name : `${t.name}: ${t.value}`)).join(", ")}]`;
+
+  /** Section blocks, written once the module's tag role values are. */
+  const sections: {
+    readonly at: number;
+    readonly runtime: RuntimeExport;
+    readonly args: readonly BoundArgument[];
+    readonly block: Captured;
+    readonly info: string;
+  }[] = [];
+
+  /** Generates into a buffer of its own, with its mappings, to write later. */
+  type Captured = { readonly text: string; readonly maps: readonly Mapping[] };
+  function capture(generate: () => void): Captured {
+    const saved = out;
+    const from = mappings.length;
+    out = "";
+    generate();
+    const text = out;
+    const maps = mappings.splice(from);
+    out = saved;
+    return { text, maps };
+  }
+  function writeCaptured(c: Captured): void {
+    for (const m of c.maps) mappings.push({ ...m, generated: m.generated + out.length });
+    out += c.text;
+  }
+
+  /**
+   * Writes a passage's effect phases, beats, and body as an object's
+   * properties: an ordinary passage's, or, with `section`, a section block's.
+   */
+  /**
+   * Writes one part's effect phases as an object's properties, at `at`
+   * indentation. A role's arrival code runs first on entering the passage.
+   */
+  const phases = (
+    effects: Map<string, DirectiveSyntax[]>,
+    at: string,
+    roleArrivals: readonly { runtime: RuntimeExport; local: string }[] = [],
+  ): void => {
+    for (const phase of ["firstVisit", "enter", "leave"]) {
+      const fromRoles = phase === "enter" ? roleArrivals : [];
+      const list = effects.get(phase) ?? [];
+      if (list.length === 0 && fromRoles.length === 0) continue;
+      const names = usedIn(list.flatMap((d) => (d.code ? [d.code] : argumentCode(d))));
+      const arrives = fromRoles.length > 0 || list.some((d) => d.code === undefined);
+      write(`${at}${phase}: (${contextParam(names, "$EffectContext", arrives)}): void => {\n`);
+      indent = `${at}  `;
+      contextLocals(names, "$context");
+      for (const r of fromRoles) {
+        write(`${indent}${runtimeName(r.runtime)}(${r.local}, $context);\n`);
+      }
+      for (const d of list) {
+        mark(d.span.start);
+        if (d.code) {
+          write(`${indent}{\n${indent}  `);
+          copy(d.code);
+          write(`\n${indent}}\n`);
+          continue;
+        }
+        // An arrival directive, such as {emit …}: its runtime, with its arguments and the context.
+        const b = bind(d);
+        if (b?.definition.kind !== "arrival" || !b.ok) continue;
+        write(indent);
+        call(b.definition.runtime, b.args, "$context");
+        write(";\n");
+      }
+      write(`${at}},\n`);
+    }
+  };
+
+  function passageParts(
+    nodes: readonly ContentSyntax[],
+    arrivals: readonly { runtime: RuntimeExport; local: string }[],
+    startsAt: number,
+    section?: string,
+  ): void {
     // Beats divide the passage into parts; effect phases belong to the part they're written in.
     const parts: Map<string, DirectiveSyntax[]>[] = [new Map()];
     const body: ContentSyntax[] = [];
-    for (const n of p.content) {
+    for (const n of nodes) {
       const phase = n.type === "directive" ? phaseOf(n) : undefined;
       // Looked up without bind(), so problems are still reported in source order.
       const found =
@@ -630,9 +837,25 @@ export function generatePassageModule(
           ? syntax.directive(n.name, roles)
           : undefined;
       const def = found && "definition" in found ? found.definition : undefined;
-      if (def?.kind === "content" && def.beat === true) parts.push(new Map());
+      if (def?.kind === "content" && def.beat === true) {
+        if (section !== undefined) {
+          error(
+            `\`{${n.type === "directive" ? n.name : ""}}\` divides a passage into parts the player reaches in turn, so it can't go in a \`{${section}}\` block.`,
+            n.span.start,
+            n.span.end,
+          );
+          continue;
+        }
+        parts.push(new Map());
+      }
       const effects = parts.at(-1) as Map<string, DirectiveSyntax[]>;
-      if (n.type === "directive" && phase === "leave" && parts.length > 1) {
+      if (n.type === "directive" && phase === "leave" && section !== undefined) {
+        error(
+          `\`{on leave: …}\` runs when the player leaves a passage, so it can't go in a \`{${section}}\` block. Use \`{on enter: …}\`, which runs each time the block is said.`,
+          n.span.start,
+          n.span.end,
+        );
+      } else if (n.type === "directive" && phase === "leave" && parts.length > 1) {
         error(
           "`{on leave: …}` runs when the player leaves the passage, not when they reach a part of it, so it goes before the passage's first beat.",
           n.span.start,
@@ -650,51 +873,6 @@ export function generatePassageModule(
       }
     }
 
-    mark(p.header.start);
-    write("  {\n");
-    write(`    id: ${str(p.name.name)},\n`);
-    write(
-      `    tags: [${p.tags.map((t) => str(t.value === undefined ? t.name : `${t.name}: ${t.value}`)).join(", ")}],\n`,
-    );
-    /**
-     * Writes one part's effect phases as an object's properties, at `at`
-     * indentation. A role's arrival code runs first on entering the passage.
-     */
-    const phases = (
-      effects: Map<string, DirectiveSyntax[]>,
-      at: string,
-      roleArrivals: readonly { runtime: RuntimeExport; local: string }[] = [],
-    ): void => {
-      for (const phase of ["firstVisit", "enter", "leave"]) {
-        const fromRoles = phase === "enter" ? roleArrivals : [];
-        const list = effects.get(phase) ?? [];
-        if (list.length === 0 && fromRoles.length === 0) continue;
-        const names = usedIn(list.flatMap((d) => (d.code ? [d.code] : argumentCode(d))));
-        const arrives = fromRoles.length > 0 || list.some((d) => d.code === undefined);
-        write(`${at}${phase}: (${contextParam(names, "$EffectContext", arrives)}): void => {\n`);
-        indent = `${at}  `;
-        contextLocals(names, "$context");
-        for (const r of fromRoles) {
-          write(`${indent}${runtimeName(r.runtime)}(${r.local}, $context);\n`);
-        }
-        for (const d of list) {
-          mark(d.span.start);
-          if (d.code) {
-            write(`${indent}{\n${indent}  `);
-            copy(d.code);
-            write(`\n${indent}}\n`);
-            continue;
-          }
-          // An arrival directive, such as {emit …}: its runtime, with its arguments and the context.
-          const b = bind(d);
-          if (b?.definition.kind !== "arrival" || !b.ok) continue;
-          write(indent);
-          call(b.definition.runtime, b.args, "$context");
-          write(";\n");
-        }
-        write(`${at}},\n`);
-      }
-    };
     const [effects, ...later] = parts as [
       Map<string, DirectiveSyntax[]>,
       ...Map<string, DirectiveSyntax[]>[],
@@ -720,7 +898,7 @@ export function generatePassageModule(
     contextLocals(names, "$context", true);
     write(`${indent}const $nodes: $PassageNode[] = [];\n`);
     write(`${indent}const $parts: $ProsePart[] = [];\n`);
-    const first = lineIds.lineAt(p.header.end);
+    const first = lineIds?.lineAt(startsAt);
     write(
       `${indent}let $line: string | undefined = ${first === undefined ? "undefined" : str(first)};\n`,
     );
@@ -728,7 +906,6 @@ export function generatePassageModule(
     write(`${indent}$flush($nodes, $parts, $line);\n`);
     write(`${indent}return $nodes;\n`);
     write("    },\n");
-    write("  },\n");
   }
 
   // ---- Module -------------------------------------------------------------
@@ -753,6 +930,21 @@ export function generatePassageModule(
     write(
       `${runtimeName(r.register)}(${r.local}, { id: ${str(r.passage.name.name)}, tags: [${tags.join(", ")}] });\n`,
     );
+  }
+  if (sections.length > 0)
+    write("\n// Section blocks, given to their packages as the game loads.\n");
+  for (const sec of sections) {
+    mark(sec.at);
+    call(
+      sec.runtime,
+      sec.args,
+      () => {
+        writeCaptured(sec.block);
+        write(`, ${sec.info}`);
+      },
+      true,
+    );
+    write(";\n");
   }
   const passagesCode = out;
 

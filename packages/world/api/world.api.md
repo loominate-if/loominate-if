@@ -8,6 +8,7 @@ import { Action } from '@loominate-if/core';
 import { ActionCall } from '@loominate-if/core';
 import { ActionOutcome } from '@loominate-if/core';
 import { CompassData } from '@loominate-if/presentation';
+import { ConditionArgument } from '@loominate-if/core';
 import { DecideRulebook } from '@loominate-if/core';
 import { EffectContext } from '@loominate-if/core';
 import { Handle } from '@loominate-if/core';
@@ -17,6 +18,7 @@ import { MenuChoice } from '@loominate-if/presentation';
 import { ObjectDefinition } from '@loominate-if/core';
 import { ObjectRef } from '@loominate-if/core';
 import { ObjectTemplate } from '@loominate-if/core';
+import { Passage } from '@loominate-if/core';
 import { Period } from '@loominate-if/core';
 import { RuleList } from '@loominate-if/core';
 import { RuleOptions } from '@loominate-if/core';
@@ -1110,9 +1112,27 @@ export type RegionOptions = {
 export function regionsOf(t: ObjectRef): Region[];
 
 // @public
+export function registerActorPassage(actor: ObjectRef, passage: {
+    readonly id: string;
+    readonly tags: readonly string[];
+}): void;
+
+// @public
 export function registerRoom(room: Place, passage: {
     id: string;
     tags: readonly string[];
+}): void;
+
+// @public
+export function registerScenePassage(scene: Period, passage: {
+    readonly id: string;
+    readonly tags: readonly string[];
+}): void;
+
+// @public
+export function registerStatePassage(state: ActorState, passage: {
+    readonly id: string;
+    readonly tags: readonly string[];
 }): void;
 
 // @public
@@ -1469,6 +1489,29 @@ export type Topic = ObjectRef & {
 export function topic(npc: ObjectRef, entry: TopicEntry): void;
 
 // @public
+export function topicBlock(args: TopicBlockArguments, block: Passage, passage: TopicBlockPassage): void;
+
+// @public
+export type TopicBlockArguments = {
+    readonly about?: Subject;
+    readonly again?: "again";
+    readonly takes?: "takes";
+    readonly implicit?: "implicit" | "explicit";
+    readonly when?: () => ConditionArgument;
+    readonly priority?: number;
+    readonly in?: ActorState | Period;
+    readonly suggested?: boolean;
+    readonly informs?: boolean;
+};
+
+// @public
+export type TopicBlockPassage = {
+    readonly id: string;
+    readonly directive: string;
+    readonly roles: Readonly<Record<string, unknown>>;
+};
+
+// @public
 export type TopicCandidate = {
     readonly id: string;
     readonly wins: boolean;
@@ -1553,6 +1596,8 @@ export type TopicOptions = {
     readonly reveals?: Fact | readonly Fact[];
     readonly suggested?: boolean;
     readonly informs?: boolean;
+    readonly again?: boolean;
+    readonly id?: string;
 };
 
 // @public

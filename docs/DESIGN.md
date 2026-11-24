@@ -119,7 +119,7 @@ Each passage file (`.weft`) compiles to a virtual TypeScript module, the techniq
 - links to passages that don't exist, and unreachable passages
 - references to undefined objects, topics, or facts
 
-Optional packages add their syntax through compiler extensions: directives with declared arguments, limited to tag roles if they like, tag roles (which may register their passages when the game loads and run code when the player arrives, with the role's value checked as code), line forms such as `@speaker` lines, and checks over the whole game. A package's directive compiles to a call of a function the package exports, so TypeScript checks it, and core's own directives are registered the same way. Syntax from a package the game doesn't load is reported with the package to install. [ADR 0015](decisions/0015-compiler-extensions.md) defines the API.
+Optional packages add their syntax through compiler extensions: directives with declared arguments, limited to tag roles if they like, tag roles (which may register their passages when the game loads and run code when the player arrives, with the role's value checked as code), line forms such as `@speaker` lines, section directives that start blocks running to the next one (the world model's topic blocks), whose prose and effect phases compile to a passage-shaped object the package receives as the game loads, with conditions passed as functions, and checks over the whole game. A package's directive compiles to a call of a function the package exports, so TypeScript checks it, and core's own directives are registered the same way. Syntax from a package the game doesn't load is reported with the package to install. [ADR 0015](decisions/0015-compiler-extensions.md) defines the API.
 - passages tagged as rooms that no exit leads to, a warning at the room tag, from reading `connect(…)` in the game's code without running it, and only when that's certain ([ADR 0064](decisions/0064-unreachable-rooms.md))
 - type errors inside inline code
 
@@ -392,6 +392,8 @@ Before supper, it would have been."
 {show photograph}
 He studies it a moment too long. "I couldn't say, sir."
 ```
+
+An actor passage, `[actor: butler]`, is made of topic blocks: `{ask}`, `{tell}`, `{ask or tell}`, `{show}`, `{give}`, `{show or give}`, `{yes}`, `{no}`, `{hello}`, and `{bye}`, each compiling to a topic entry with the block's prose as its response, each paragraph with its line ID. `state:` or `scene:` on the passage scope its blocks, the actor and every subject are checked as code, so an undefined one is a compile error, and `{reveal}` and `{on enter: …}` in a block run each time it answers, `{on first visit: …}` the first time. `again` makes an entry apply only once the exchange has been answered, ahead of others of its priority ([ADR 0092](decisions/0092-topic-blocks.md)).
 
 ### Conversation nodes
 
