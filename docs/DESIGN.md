@@ -350,7 +350,7 @@ Each NPC chooses one of three simulation levels, so authors spend effort only on
 | Scheduled | Follows a timetable; the runtime computes where they are whenever it matters, with no step-by-step simulation | Low | Households, shopkeepers, background life |
 | Simulated | Travels room to room on daemon-driven paths and acts on the world offstage | High | Key antagonists and rivals |
 
-- **Shared rules.** NPC actions use the same action pipeline as the player's, so locks, keys, and other rules apply equally.
+- **Shared rules.** NPC actions use the same action pipeline as the player's, so locks, keys, and other rules apply equally. `actAs(npc, call)` takes an action as the NPC through core's `perform` with who acts given, so every rule applies; what onlookers see (each action's `seen`) is told to whoever can see them, in the third person, a refusal is returned rather than narrated, and NPC actions take none of the game's time. The standard `go` action moves an NPC through an exit, stopped by locked or closed doors ([ADR 0081](decisions/0081-npc-actions.md), [guide](guide/world.md#npcs-acting)).
 - **Agendas.** adv3Lite-style agenda items give NPCs goals that can interrupt their schedules ("find the player and deliver the warning").
 - **Perception.** NPC movement in view is narrated automatically via the world model's perception layer.
 - **Inspector support.** A view of where every NPC is, what they're doing and why, and a timeline of their offstage actions.

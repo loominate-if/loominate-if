@@ -1070,6 +1070,48 @@ export const cat = actor("cat", {
 });
 ```
 
+## NPCs acting
+
+An NPC takes actions through the same pipeline as the player, so locks, keys, reach, and a game's own rules apply to them equally. `actAs(npc, call)` runs every stage for them and returns whether it was done and, if not, why:
+
+<!-- example: packages/world/src/npcs.test.ts#world -->
+```ts
+export const ironKey = thing("ironKey", { name: "iron key", location: hall });
+export const cellarDoor = thing("cellarDoor", {
+  ...door,
+  ...lockable,
+  name: "cellar door",
+  key: ironKey,
+  isLocked: true,
+});
+connect(hall, { down: { to: cellar, via: cellarDoor }, east: study });
+connect(cellar, { up: { to: hall, via: cellarDoor } });
+connect(study, { west: hall });
+export const butler = actor("butler", { body: { name: "butler", location: hall } });
+```
+
+<!-- example: packages/world/src/npcs.test.ts#locked -->
+```ts
+const tried = actAs(butler, go({ way: "down" }));
+expect(tried).toEqual({ done: false, reason: "The cellar door is locked." });
+expect(placeOf(butler)?.id).toBe("hall");
+```
+
+- **Moving:** the standard `go` action takes an NPC through one of the room's exits, as `go({ way: "north" })`. A locked or closed door stops them, as it would the player. The player moves through the story's passages and exits instead, so `go` refuses the player.
+- **What the player hears:** only what they see, in the third person: "The butler unlocks the cellar door." An NPC's coming and going is narrated as any actor's is. Out of sight, nothing is narrated. A refusal is never narrated, but `actAs` returns it, for code such as an agenda to react to.
+- **Time:** an NPC's action takes none of the game's time.
+- **Giving to the player:** the player takes what they're given, unless a rule in `giving` says otherwise.
+
+<!-- example: packages/world/src/npcs.test.ts#through -->
+```ts
+actAs(butler, take({ thing: ironKey }));
+actAs(butler, unlock({ thing: cellarDoor }));
+actAs(butler, open({ thing: cellarDoor }));
+expect(actAs(butler, go({ way: "down" })).done).toBe(true);
+```
+
+Each standard action has a `seen` message for onlookers, such as `take.seen`, which a game can reword. An action of your own says what onlookers see with `seen`.
+
 ## Scenes
 
 A **scene** is a named period of the story, as Inform 7 and adv3Lite have them: a storm, a dinner party, a chase. It starts when something holds, at a time, or when your code says, and ends the same ways, and while it's happening it can add rules and actions. (It isn't a cut scene, a passage of timed beats.)

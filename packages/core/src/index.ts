@@ -203,6 +203,7 @@ export {
   type ActionContext,
   type ActionDefinition,
   type ActionOutcome,
+  type PerformOptions,
   type ActionRule,
   type Period,
   type Participant,

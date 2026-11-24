@@ -262,3 +262,4 @@ export {
   type _TreeNode,
   type _WorldTree,
 } from "./tree.js";
+export { actAs, go } from "./npcs.js";

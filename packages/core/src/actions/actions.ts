@@ -130,6 +130,12 @@ export type ActionDefinition<A> = {
    * game loads.
    */
   readonly verbs?: readonly string[];
+  /**
+   * What onlookers see when someone other than the player takes it, as
+   * "The butler takes the iron key.": text, or a function of its things and
+   * who's acting. A world model tells whoever can see them (#106).
+   */
+  readonly seen?: string | ((context: ActionContext<A>) => string);
   /** The button that takes it once its numbers are given, as "Take". Defaults to the `menu.ask.confirm` message. */
   readonly confirm?: string | ((context: ActionContext<A>) => string);
 };
@@ -412,8 +418,11 @@ export function action<A extends Readonly<Record<string, unknown>>>(
 }
 
 /** The context an action's rules see, with who's acting. */
-function contextFor<A>(call: ActionCall<A>): ActionContext<A> {
-  const who = acting?.();
+function contextFor<A>(
+  call: ActionCall<A>,
+  as?: { readonly actor?: ObjectRef; readonly body?: ObjectRef },
+): ActionContext<A> {
+  const who = as ?? acting?.();
   return Object.freeze({
     ...call.args,
     action: call.action.actionName,
@@ -621,6 +630,20 @@ export type ActionOutcome = {
   readonly done: boolean;
   /** Why not, from verify or check, if it wasn't. */
   readonly reason?: string;
+  /** For an action taken by someone other than the player, what onlookers see, if its definition says. */
+  readonly seen?: string;
+};
+
+/** Options for {@link perform}. */
+export type PerformOptions = {
+  /**
+   * Who takes it, when it isn't the player: a mind and the body it acts
+   * through, as a world model's NPCs do. Every rule applies to them as to
+   * the player. What they do isn't reported to the player, and their time
+   * isn't the game's: the outcome says what onlookers see, for a world
+   * model to tell whoever can see it.
+   */
+  readonly as?: { readonly actor?: ObjectRef; readonly body?: ObjectRef };
 };
 
 /**
@@ -634,18 +657,25 @@ export type ActionOutcome = {
  * {on enter: perform(open({ thing: cellarDoor }))}
  * ```
  */
-export function perform<A>(call: ActionCall<A>): ActionOutcome {
+export function perform<A>(call: ActionCall<A>, options: PerformOptions = {}): ActionOutcome {
   const problem = _askedProblem(call);
   if (problem !== undefined) throw new StateError(problem);
-  const c = contextFor(call) as ActionContext<Readonly<Record<string, unknown>>>;
+  const c = contextFor(call, options.as) as ActionContext<Readonly<Record<string, unknown>>>;
   const a = call.action as unknown as Action<Readonly<Record<string, unknown>>>;
   const refused =
     everyAction.verify.run(c) ?? a.verify.run(c) ?? everyAction.check.run(c) ?? a.check.run(c);
   if (refused !== undefined) {
-    emit("action-result", { text: refused });
+    // Someone else's refusal is theirs: the caller hears of it, not the player.
+    if (!options.as) emit("action-result", { text: refused });
     return { done: false, reason: refused };
   }
   a.perform.run(c);
+  if (options.as) {
+    const seen = definitions.get(a.actionName)?.seen;
+    const text =
+      seen === undefined ? undefined : typeof seen === "string" ? seen : seen(c as never);
+    return { done: true, ...(text !== undefined && text !== "" && { seen: text }) };
+  }
   const spent = a.minutes.run(0, c);
   if (spent !== 0) {
     const stopsFor = stops.get(a.actionName);

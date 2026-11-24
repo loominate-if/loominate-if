@@ -56,6 +56,7 @@ export type ActionDefinition<A> = {
         readonly [K in keyof A]?: Ask<A>;
     };
     readonly verbs?: readonly string[];
+    readonly seen?: string | ((context: ActionContext<A>) => string);
     readonly confirm?: string | ((context: ActionContext<A>) => string);
 };
 
@@ -63,6 +64,7 @@ export type ActionDefinition<A> = {
 export type ActionOutcome = {
     readonly done: boolean;
     readonly reason?: string;
+    readonly seen?: string;
 };
 
 // @public
@@ -699,7 +701,15 @@ export type PassageId = StateId;
 export type PassageNode = TextNode | LinkNode | ContinueNode | NamedEffectNode | NoticesNode | BeatNode;
 
 // @public
-export function perform<A>(call: ActionCall<A>): ActionOutcome;
+export function perform<A>(call: ActionCall<A>, options?: PerformOptions): ActionOutcome;
+
+// @public
+export type PerformOptions = {
+    readonly as?: {
+        readonly actor?: ObjectRef;
+        readonly body?: ObjectRef;
+    };
+};
 
 // @public
 export type Period = {

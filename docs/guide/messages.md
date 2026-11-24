@@ -48,6 +48,10 @@ A message's text is one of three things:
 | `give.label`, `show.label` | `thing`, `to` | "Give the coin to the toll keeper" |
 | `give.declined` | `thing`, `to` | When no rule in `giving` answers: "The toll keeper doesn't want the pebble." |
 | `show.unmoved` | `thing`, `to` | When no rule in `showing` answers: "The toll keeper glances at the pebble." |
+| `take.seen`, `drop.seen`, `open.seen`, `close.seen`, `lock.seen`, `unlock.seen` | `actor` (their body), `thing` | What onlookers see when an NPC does it: "The butler unlocks the cellar door." |
+| `give.seen`, `show.seen` | `actor`, `thing`, `to` | "The butler gives the silver tray to you." |
+| `go.noWay` | `way` | Why `go` can't be taken: "There's no way north from here." |
+| `go.player` | | Why the player doesn't take `go`: they move through the story's passages and exits |
 | `examine.nothing` | `thing` | "You see nothing special about the statue." |
 | `take.held`, `drop.notHeld`, `open.already`, `close.already`, `lock.already`, `unlock.notLocked` | `thing` | Why they aren't offered |
 | `open.locked`, `lock.open` | `thing` | "The oak chest is locked.", "You'll have to close the oak chest first." |
