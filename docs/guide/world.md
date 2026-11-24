@@ -1291,6 +1291,26 @@ topic(cook, {
 
 What NPCs say is recorded as `action-result` events tagged `topic` and `speaker:` and their body's ID, so the page shows it after the move.
 
+### Showing and giving
+
+Showing and giving are the ordinary `show` and `give` actions. When the game's own `giving` and `showing` rules don't answer, the addressee's topic entries do, before the default refusal:
+
+<!-- example: packages/world/src/topic-handing.test.ts#handing -->
+```ts
+topic(butler, {
+  show: photograph,
+  says: "He studies it a moment too long. “I couldn't say, sir.”",
+});
+topic(maid, { give: locket, takes: true, says: "“Oh! My mother's!”" });
+topic(maid, { give: anything, says: "“I couldn't accept that, miss.”" });
+```
+
+- **Kinds:** `show`, `give`, and `showOrGive`, each with a thing or `anything`.
+- **Taking:** a `give` entry keeps their hands to themselves unless it says `takes: true`, so a refusal is as easy as a thank-you.
+- **When an entry answers,** the NPC joins the conversation, with any implicit hello, and it takes a minute. With no entry, the default refusal answers, and no conversation starts.
+- **Only the player:** entries answer the player's showing and giving, not NPCs handing things to each other.
+- **Suggested:** while the player's talking, `{topics}` suggests showing or giving each thing they carry that the addressee has a particular entry for: "Show the photograph", "Give the locket". Everything else stays on the things' own menus, so the whole inventory is available in a conversation.
+
 ### What the player knows
 
 Topics are suggested only when the player knows the subject, and answers can teach the player, and others, new facts:

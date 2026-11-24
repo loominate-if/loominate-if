@@ -37,7 +37,19 @@ import {
   type LeftBy,
 } from "./conversations.js";
 import { _knowable, factNamed, player, type Fact } from "./knowledge.js";
-import { placeOf, thingFor } from "./things.js";
+import { clock } from "./clock.js";
+import {
+  _givingTopics,
+  _showingTopics,
+  accept,
+  give,
+  react,
+  show,
+  type ActingOn,
+  type Offer,
+  type Reaction,
+} from "./standard.js";
+import { isWithin, placeOf, thingFor } from "./things.js";
 
 declare module "@loominate-if/core" {
   interface Messages {
@@ -69,6 +81,10 @@ declare module "@loominate-if/core" {
     "topic.suggest.tell": { readonly about: string };
     /** The goodbye link among suggested topics. */
     "topic.suggest.bye": Record<never, never>;
+    /** A suggested showing's link: "Show the photograph". */
+    "topic.suggest.show": { readonly thing: ObjectRef };
+    /** A suggested giving's link: "Give the locket". */
+    "topic.suggest.give": { readonly thing: ObjectRef };
   }
 }
 const SOURCE = "@loominate-if/world";
@@ -93,6 +109,8 @@ register("topic.unknown", () => "You don't know anything about that.");
 register("topic.suggest.ask", ({ about }) => `Ask about ${about}`);
 register("topic.suggest.tell", ({ about }) => `Tell about ${about}`);
 register("topic.suggest.bye", () => "Say goodbye");
+register("topic.suggest.show", ({ thing }) => t`Show {the thing}`({ thing }));
+register("topic.suggest.give", ({ thing }) => t`Give {the thing}`({ thing }));
 register("topic.noSubject", ({ about }) => `There's no subject called ${JSON.stringify(about)}.`);
 
 /** A named topic: something to talk about that isn't a thing or a fact, as the weather. */
@@ -269,10 +287,14 @@ export type TopicEntry = TopicOptions &
     | { readonly hello: true; readonly implicit?: boolean }
     /** `implicit: true` only when the conversation ends without goodbye; `false` only for goodbye. Both if not given. */
     | { readonly bye: true; readonly implicit?: boolean }
+    | { readonly show: ObjectRef | typeof anything }
+    /** `takes: true` and they take what they're given; otherwise they keep their hands to themselves. */
+    | { readonly give: ObjectRef | typeof anything; readonly takes?: boolean }
+    | { readonly showOrGive: ObjectRef | typeof anything; readonly takes?: boolean }
   );
 
 /** The kind of exchange the player makes. */
-export type TopicKind = "ask" | "tell" | "yes" | "no" | "hello" | "bye";
+export type TopicKind = "ask" | "tell" | "yes" | "no" | "hello" | "bye" | "show" | "give";
 
 type Entry = {
   readonly id: string;
@@ -283,6 +305,8 @@ type Entry = {
   /** What it's about, as given, to name it for the inspector. */
   readonly about?: Subject;
   readonly implicit?: boolean;
+  /** For giving: whether they take it. */
+  readonly takes?: boolean;
   readonly index: number;
 } & TopicOptions;
 
@@ -333,33 +357,40 @@ export function topic(npc: ObjectRef, entry: TopicEntry): void {
   const mind = mindFor(npc, "topic").id;
   const where = `topic for ${JSON.stringify(mind)}`;
   const e = entry as TopicOptions &
-    Partial<Record<"ask" | "tell" | "askOrTell", Subject>> & {
+    Partial<Record<"ask" | "tell" | "askOrTell" | "show" | "give" | "showOrGive", Subject>> & {
       yes?: true;
       no?: true;
       hello?: true;
       bye?: true;
       implicit?: boolean;
+      takes?: boolean;
     };
-  const subjectOf = e.ask ?? e.tell ?? e.askOrTell;
+  const subjectOf = e.ask ?? e.tell ?? e.askOrTell ?? e.show ?? e.give ?? e.showOrGive;
   const kinds: TopicKind[] =
-    e.ask !== undefined
-      ? ["ask"]
-      : e.tell !== undefined
-        ? ["tell"]
-        : e.askOrTell !== undefined
-          ? ["ask", "tell"]
-          : e.yes
-            ? ["yes"]
-            : e.no
-              ? ["no"]
-              : e.hello
-                ? ["hello"]
-                : e.bye
-                  ? ["bye"]
-                  : [];
+    e.show !== undefined
+      ? ["show"]
+      : e.give !== undefined
+        ? ["give"]
+        : e.showOrGive !== undefined
+          ? ["show", "give"]
+          : e.ask !== undefined
+            ? ["ask"]
+            : e.tell !== undefined
+              ? ["tell"]
+              : e.askOrTell !== undefined
+                ? ["ask", "tell"]
+                : e.yes
+                  ? ["yes"]
+                  : e.no
+                    ? ["no"]
+                    : e.hello
+                      ? ["hello"]
+                      : e.bye
+                        ? ["bye"]
+                        : [];
   if (kinds.length === 0) {
     throw new StateError(
-      `${where}: say what it answers: ask, tell, askOrTell, yes, no, hello, or bye.`,
+      `${where}: say what it answers: ask, tell, askOrTell, show, give, showOrGive, yes, no, hello, or bye.`,
     );
   }
   if (isList(entry.says) && entry.says.length === 0) {
@@ -375,6 +406,11 @@ export function topic(npc: ObjectRef, entry: TopicEntry): void {
       `${where}: the order is "stop", "cycle", or "shuffle", not ${JSON.stringify(entry.order)}.`,
     );
   }
+  if ((e.show ?? e.give ?? e.showOrGive) !== undefined && isFact(subjectOf)) {
+    throw new StateError(
+      `${where}: a fact can't be shown or given. Show or give a thing, or anything.`,
+    );
+  }
   if (entry.in && !isPeriod(entry.in) && entry.in.mind !== mind) {
     throw new StateError(`${where}: ${JSON.stringify(entry.in.id)} is another NPC's state.`);
   }
@@ -387,6 +423,7 @@ export function topic(npc: ObjectRef, entry: TopicEntry): void {
     kinds,
     ...(subjectOf !== undefined && { subject: subjectKey(subjectOf), about: subjectOf }),
     ...(e.implicit !== undefined && { implicit: e.implicit }),
+    ...(e.takes !== undefined && { takes: e.takes }),
     index: list.length,
   });
   entries.set(mind, list);
@@ -497,6 +534,8 @@ const VERBS: Record<TopicKind, string> = {
   no: "Say no to",
   hello: "Greet",
   bye: "Say goodbye to",
+  show: "Show",
+  give: "Give",
 };
 
 /**
@@ -528,15 +567,17 @@ export function _topicExplanations(): readonly {
           : e.about === anything
             ? SOMETHING_ELSE
             : (e.about as ObjectRef | Fact);
-      const verb = e.kinds.length > 1 ? "Ask or tell" : VERBS[kind];
-      const what =
-        e.about === undefined
-          ? ""
-          : ` about ${e.about === anything ? "anything else" : nameOf(e.about)}`;
+      const handed = kind === "show" || kind === "give";
+      const verb = e.kinds.length > 1 ? (handed ? "Show or give" : "Ask or tell") : VERBS[kind];
+      const subjectName =
+        e.about === undefined ? "" : e.about === anything ? "anything else" : nameOf(e.about);
       const when = e.implicit === true ? ", unprompted" : e.implicit === false ? ", in words" : "";
       const c = match(body, kind, about, e.implicit ?? false).candidates.find((x) => x.id === e.id);
+      const said = handed
+        ? `${verb} ${subjectName} to ${who}`
+        : `${verb} ${who}${e.about === undefined ? "" : ` about ${subjectName}`}${when}`;
       return {
-        label: `${verb} ${who}${what}${when} (${e.id})`,
+        label: `${said} (${e.id})`,
         available: c?.wins ?? false,
         ...(c?.why !== undefined && { why: c.why }),
       };
@@ -814,6 +855,28 @@ export function suggestedTopics(): readonly SuggestedTopic[] {
       });
     }
   }
+  // What the player carries that they have something particular to say about.
+  const carrier = currentPlayerBody();
+  for (const e of entries.get(mind.id) ?? []) {
+    if (e.about === undefined || e.about === anything || !carrier) continue;
+    const thing = e.about as ObjectRef;
+    if (isFact(thing) || !thingFor(thing) || !isWithin(thing, carrier)) continue;
+    for (const kind of e.kinds) {
+      if (kind !== "show" && kind !== "give") continue;
+      const key = `${kind}|${e.subject ?? ""}`;
+      if (done.has(key)) continue;
+      const { winner } = match(who, kind, thing, false);
+      if (!winner || winner.subject === "*" || winner.suggested === false) continue;
+      done.add(key);
+      out.push({
+        label: message(kind === "show" ? "topic.suggest.show" : "topic.suggest.give", { thing }),
+        call: (kind === "show" ? show : give)({
+          thing: thingFor(thing) as ActingOn,
+          to: who as ActingOn,
+        }) as unknown as SuggestedTopic["call"],
+      });
+    }
+  }
   out.push({
     label: message("topic.suggest.bye", {}),
     call: goodbye({}) as unknown as SuggestedTopic["call"],
@@ -834,3 +897,25 @@ export function topicLinks(args: Readonly<Record<string, never>> = {}): LinkNode
     guard: actLink({ call: s.call }),
   }));
 }
+
+// --- Showing and giving ---
+
+/**
+ * Answers the player showing or giving something with a topic entry, after
+ * the game's own `giving` and `showing` rules and before the default
+ * refusal. The NPC joins the conversation, and it takes the usual minute.
+ */
+function handedTo(kind: "show" | "give", offer: Offer): Reaction | undefined {
+  const player = currentPlayerBody();
+  if (!player || offer.body?.id !== player.id) return undefined;
+  if (!mindOf(offer.to)) return undefined;
+  const { winner } = match(offer.to, kind, offer.thing, false);
+  if (!winner) return undefined;
+  turnTo(offer.to);
+  respond(winner, { npc: offer.to, about: offer.thing });
+  clock.advance(EXCHANGE_MINUTES);
+  return kind === "give" && winner.takes === true ? accept("") : react("");
+}
+
+_givingTopics.rule("topic entries", (offer) => handedTo("give", offer), { source: SOURCE });
+_showingTopics.rule("topic entries", (offer) => handedTo("show", offer), { source: SOURCE });
