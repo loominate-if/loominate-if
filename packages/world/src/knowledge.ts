@@ -274,6 +274,7 @@ function knowledgeOf(m: ObjectRef): MindKnowledge {
         ...(options.from !== undefined && { from: options.from }),
         ...(options.passage !== undefined && { passage: options.passage }),
       };
+      for (const l of noticing) l(m, "fact", f.id);
     },
     sourceOf(f) {
       checkFact(f, "sourceOf");
@@ -292,7 +293,10 @@ function knowledgeOf(m: ObjectRef): MindKnowledge {
     },
     see(t) {
       checkThing(t, "see");
-      recall(m, "see").seen[t.id] = true;
+      const seen = recall(m, "see").seen;
+      if (Object.hasOwn(seen, t.id)) return;
+      seen[t.id] = true;
+      for (const l of noticing) l(m, "thing", t.id);
     },
     hasSeen(t) {
       checkThing(t, "hasSeen");
@@ -461,12 +465,31 @@ export function reveal(args: RevealArguments, context?: EffectContext): void {
   });
 }
 
+/** What's told when a mind learns a fact or sees a thing for the first time. */
+const noticing: ((mind: ObjectRef, kind: "fact" | "thing", id: string) => void)[] = [];
+
+/** Calls `listener` each time a mind newly learns a fact or sees a thing, as companions sharing it. @internal */
+export function _whenNoticed(
+  listener: (mind: ObjectRef, kind: "fact" | "thing", id: string) => void,
+): void {
+  noticing.push(listener);
+}
+
+/** The IDs of the things a mind has seen. @internal */
+export function _seenBy(m: ObjectRef): readonly string[] {
+  return Object.keys(recall(m, "seenBy").seen);
+}
+
 /** Marks everything `observer` can see as seen by `minds`, such as on arrival in a room. @internal */
 export function noteSights(observer: ObjectRef, minds: readonly ObjectRef[]): void {
   const seen = inScope(observer, "see");
   for (const m of minds) {
     const memories = recall(m, "seeing");
-    for (const t of seen) memories.seen[t.id] = true;
+    for (const t of seen) {
+      if (Object.hasOwn(memories.seen, t.id)) continue;
+      memories.seen[t.id] = true;
+      for (const l of noticing) l(m, "thing", t.id);
+    }
   }
 }
 

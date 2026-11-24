@@ -87,7 +87,7 @@ const state = object("world:companions", {
  */
 export function companion(
   npc: ObjectRef,
-  options: { readonly starts?: CompanionState } = {},
+  options: { readonly starts?: CompanionState; readonly shares?: SharingPolicy } = {},
 ): void {
   const mind = mindFor(npc, "companion").id;
   if (_storyRunning()) {
@@ -97,6 +97,35 @@ export function companion(
   }
   companions.set(mind, npc);
   starting.set(mind, options.starts ?? "accompanying");
+  if (options.shares !== undefined) policies.set(mind, options.shares);
+  for (const l of made) l(npc);
+}
+
+/**
+ * How what the player and a companion know is shared: `reunion`, everything,
+ * whenever they're together; `together`, what's learned while they're
+ * together; or `conversation`, only by talking.
+ */
+export type SharingPolicy = "reunion" | "together" | "conversation";
+
+/** Companions' own policies, by mind ID, where they differ from the game's. */
+const policies = new Map<string, SharingPolicy>();
+/** What's told when a companion is made, as sharing giving them a topic. */
+const made: ((npc: ObjectRef) => void)[] = [];
+
+/** Calls `listener` as each companion is made, in story.ts. @internal */
+export function _whenCompanionMade(listener: (npc: ObjectRef) => void): void {
+  made.push(listener);
+}
+
+/** A companion's own sharing policy, if it has one. @internal */
+export function _policyOf(mind: string): SharingPolicy | undefined {
+  return policies.get(mind);
+}
+
+/** Every companion, by mind ID, in the order made. @internal */
+export function _companionMinds(): readonly string[] {
+  return [...companions.keys()];
 }
 
 const checked = (where: string, npc: ObjectRef): string => {
