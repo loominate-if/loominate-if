@@ -10,6 +10,7 @@ export { choices } from "./choices.js";
 export { eventLog } from "./event-log.js";
 export {
   actionExplainer,
+  storyletExplainer,
   explainers,
   linkExplainer,
   type Explainer,

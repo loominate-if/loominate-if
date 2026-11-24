@@ -21,6 +21,7 @@ export const eventLog: InspectorPanel;
 // @public
 export interface Explainer {
     explain(context: PanelContext): readonly Explanation[];
+    readonly hideWhenEmpty?: boolean;
     readonly title: string;
 }
 
@@ -41,6 +42,7 @@ export interface Explanation {
     readonly reason?: string;
     readonly shown?: "hidden" | "disabled";
     readonly target?: string;
+    readonly why?: string;
 }
 
 // @public
@@ -95,5 +97,8 @@ export const rules: InspectorPanel;
 
 // @public
 export const stateTree: InspectorPanel;
+
+// @public
+export const storyletExplainer: Explainer;
 
 ```

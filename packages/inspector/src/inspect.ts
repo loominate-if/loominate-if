@@ -6,7 +6,7 @@
 import type { Player } from "@loominate-if/presentation";
 import { choices } from "./choices.js";
 import { eventLog } from "./event-log.js";
-import { actionExplainer, explainers, linkExplainer } from "./explainers.js";
+import { actionExplainer, explainers, linkExplainer, storyletExplainer } from "./explainers.js";
 import { history } from "./history.js";
 import { panels, type PanelView } from "./panels.js";
 import { replay } from "./replay.js";
@@ -23,6 +23,7 @@ panels.register("history", history, { source: SOURCE });
 panels.register("replay", replay, { source: SOURCE });
 explainers.register("links", linkExplainer, { source: SOURCE });
 explainers.register("actions", actionExplainer, { source: SOURCE });
+explainers.register("storylets", storyletExplainer, { source: SOURCE });
 
 /** The key that opens and closes the inspector, with Control. */
 const SHORTCUT_KEY = "`";

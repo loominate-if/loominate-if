@@ -157,6 +157,13 @@ export function continueTo(args: {
 }): ContinueNode;
 
 // @public
+export type Cooldown = number | {
+    readonly moves: number;
+} | {
+    readonly minutes: number;
+};
+
+// @public
 export function createEventRecord(store: StateStore): EventRecord;
 
 // @public
@@ -1040,6 +1047,51 @@ export type StoryAction = ({
 };
 
 // @public
+export function storylet(passage: PassageId, options?: StoryletOptions): void;
+
+// @public
+export type StoryletCondition = (() => boolean) | Readonly<Record<string, () => boolean>>;
+
+// @public
+export function storyletDraw(args: {
+    readonly deck?: readonly string[];
+}, context?: EffectContext): void;
+
+// @public
+export function storyletLinks(args?: {
+    readonly deck?: readonly string[];
+    readonly limit?: number;
+}): LinkNode[];
+
+// @public
+export type StoryletOptions = {
+    readonly when?: StoryletCondition;
+    readonly priority?: number;
+    readonly once?: boolean;
+    readonly cooldown?: Cooldown;
+    readonly deck?: string;
+    readonly label?: string | (() => string);
+};
+
+// @public
+export function storyletsIn(deck?: string): readonly PassageId[];
+
+// @public
+export type StoryletStatus = {
+    readonly passage: PassageId;
+    readonly deck?: string;
+    readonly priority: number;
+    readonly once: boolean;
+    readonly seen: number;
+    readonly rank?: number;
+    readonly reason?: string;
+    readonly failing?: readonly string[];
+};
+
+// @public
+export function storyletStatus(): readonly StoryletStatus[];
+
+// @public
 export interface StoryOptions {
     readonly guardMode?: GuardMode;
     readonly persistent?: PersistentStore;
@@ -1136,6 +1188,9 @@ export function useActor(who: (() => {
 
 // @public
 export function useCandidates(things: (() => readonly ObjectRef[]) | undefined): void;
+
+// @internal
+export function _useGameTime(minutes: () => number): void;
 
 // @public
 export function useVisitMemory(visitMemory: VisitMemory | undefined): void;

@@ -8,7 +8,7 @@
  * the time and the moves are state, so undo, saves, and replays see them;
  * nothing reads the wall clock.
  */
-import { hook, message, messages, object, StateError } from "@loominate-if/core";
+import { _useGameTime, hook, message, messages, object, StateError } from "@loominate-if/core";
 import { textWidget, widgets } from "@loominate-if/presentation";
 import type { DateSpec } from "./calendar.js";
 import { exitsOf } from "./exits.js";
@@ -447,6 +447,9 @@ hook("beatTime").rule(
   },
   { source: SOURCE },
 );
+
+// Storylets' cooldowns can count the clock's minutes (#97).
+_useGameTime(() => clock.minutes);
 
 // Every move counts, after it's made.
 hook("turnEnd").rule(

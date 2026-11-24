@@ -9,6 +9,7 @@ import {
   actionsFor,
   registry,
   statusOf,
+  storyletStatus,
   type ActionRule,
   type ConditionPart,
   type Registry,
@@ -29,6 +30,8 @@ export interface Explanation {
   readonly condition?: string;
   /** What the player is told, if anything. */
   readonly reason?: string;
+  /** Why it can't be made, in the inspector's words, when no condition or rule says: "It's once only, and it's been seen." */
+  readonly why?: string;
   /** The condition's parts and their values, to show which part doesn't hold. */
   readonly parts?: readonly ConditionPart[];
   /**
@@ -48,6 +51,8 @@ export interface Explainer {
   readonly title: string;
   /** The choices of this kind on offer now, available or not. */
   explain(context: PanelContext): readonly Explanation[];
+  /** Leave the section out, rather than say "None here.", when there's nothing to explain: for a feature a game may not use. */
+  readonly hideWhenEmpty?: boolean;
 }
 
 /** The inspector's explainers, shown in its Choices panel in registration order. */
@@ -151,5 +156,43 @@ export const actionExplainer: Explainer = {
       }
     }
     return out;
+  },
+};
+
+const ordinal = (n: number): string => {
+  const tens = n % 100;
+  const suffix = tens >= 11 && tens <= 13 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th");
+  return `${String(n)}${n % 10 > 3 ? "th" : suffix}`;
+};
+
+/**
+ * Core's storylets (#97): every one in the game, with its deck, priority,
+ * and place in the order while it's eligible, and while it isn't, why: its
+ * conditions, once only, or resting.
+ */
+export const storyletExplainer: Explainer = {
+  title: "Storylets",
+  hideWhenEmpty: true,
+  explain() {
+    return storyletStatus().map((s): Explanation => {
+      const about = [
+        s.deck === undefined ? "no deck" : `deck ${s.deck}`,
+        `priority ${String(s.priority)}`,
+        ...(s.rank === undefined ? [] : [`${ordinal(s.rank)} in order`]),
+        ...(s.seen === 0 ? [] : [`seen ${String(s.seen)}×`]),
+      ].join(", ");
+      const label = `${s.passage} (${about})`;
+      if (s.reason === undefined) return { label, available: true };
+      if (s.failing !== undefined) {
+        return {
+          label,
+          available: false,
+          shown: "hidden",
+          why: "Not while these don't hold:",
+          parts: s.failing.map((text) => ({ text, value: "false" })),
+        };
+      }
+      return { label, available: false, shown: "hidden", why: s.reason };
+    });
   },
 };

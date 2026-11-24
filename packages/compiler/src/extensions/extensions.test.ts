@@ -304,6 +304,8 @@ describe("loading extensions", () => {
       "on first visit",
       "on leave",
       "page",
+      "storylet",
+      "storylets",
       "wait",
       "when",
     ]);

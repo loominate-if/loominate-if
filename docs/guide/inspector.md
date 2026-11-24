@@ -84,6 +84,8 @@ The **Choices** tab lists every choice where the player is: the links and contin
 
 Its **Actions** section lists the actions on things' menus: those of the things with a `{menu …}` link in the passage, and, with the world model, everything else the player can reach or carries. An action with more than one thing is listed once. For each action that can't be taken, and each action link, it says whether verify hid it or check disabled it, the reason, and the rule that decided, with its rulebook and the package that added it: "Decided by the verify rule `things in reach` in `every action: verify`, from @loominate-if/world." An action's own rules are named after it, such as `open: own`, and come from the package its `source:` names, or `game`.
 
+Its **Storylets** section, in a game with storylets, lists each one with its deck, priority, and place in the order, and while one isn't eligible, why: the named tests in its `when` that don't hold, that it's once only and has been seen, or how long it has left to rest. The [storylets guide](storylets.md) has more.
+
 ## Which rules ran
 
 The **Rules** tab shows, for each turn, the rulebooks and hooks that ran and every rule in them: its name, the package that added it (`game` for your own), and what it did. A decide rule *passed* or *decided*; a fold rule *changed the value*, *left it as it was*, or *settled* it; a hook's rules *ran*. The rule that settled a result is in bold.
