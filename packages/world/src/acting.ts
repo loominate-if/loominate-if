@@ -7,12 +7,15 @@
  * isn't offered.
  */
 import {
+  _storyRunning,
   everyAction,
   message,
   messages,
+  StateError,
   t,
   useActor,
   useCandidates,
+  type Action,
   type ObjectRef,
 } from "@loominate-if/core";
 import { currentPlayerBody, currentPlayerMind } from "./actors.js";
@@ -56,11 +59,40 @@ everyAction.verify.rule(
 const unreached = new Map<string, ReadonlySet<string>>();
 
 /**
- * Says an action's things named `keys` needn't be in reach, as what the
- * player asks about. The action checks them itself. @internal
+ * Says an action's things, by name, needn't be in the actor's reach, as
+ * what the player asks someone about, which can be anywhere. Every action's
+ * things must be in reach otherwise, or it isn't offered. The action checks
+ * them itself, if it needs to. Call it in `story.ts`.
+ *
+ * @example
+ * ```ts
+ * export const thinkAbout = action<{ thing: ObjectRef }>("thinkAbout", {
+ *   verbs: ["think about {thing}"],
+ *   report: ({ thing }) => t`You think about {the thing}.`({ thing }),
+ * });
+ * reachNotNeeded(thinkAbout, "thing");
+ * ```
+ *
+ * @throws StateError during play, or if no thing is named.
  */
-export function _reachNotNeeded(action: { readonly actionName: string }, ...keys: string[]): void {
-  unreached.set(action.actionName, new Set([...(unreached.get(action.actionName) ?? []), ...keys]));
+export function reachNotNeeded<A>(
+  action: Action<A>,
+  ...things: readonly (keyof A & string)[]
+): void {
+  if (_storyRunning()) {
+    throw new StateError(
+      `reachNotNeeded ${JSON.stringify(action.actionName)}: say which things needn't be in reach in story.ts, as the game loads.`,
+    );
+  }
+  if (things.length === 0) {
+    throw new StateError(
+      `reachNotNeeded ${JSON.stringify(action.actionName)}: name the things that needn't be in reach, as reachNotNeeded(${action.actionName}, "thing").`,
+    );
+  }
+  unreached.set(
+    action.actionName,
+    new Set([...(unreached.get(action.actionName) ?? []), ...things]),
+  );
 }
 
 everyAction.verify.rule(

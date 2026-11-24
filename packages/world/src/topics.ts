@@ -29,7 +29,7 @@ import {
   type Period,
   type StateId,
 } from "@loominate-if/core";
-import { _reachNotNeeded } from "./acting.js";
+import { reachNotNeeded } from "./acting.js";
 import { allBodies, bodyOf, currentPlayerBody, isBody, mindFor, mindOf } from "./actors.js";
 import {
   _endConversation,
@@ -1157,9 +1157,9 @@ export const yes = answerWith("yes");
 export const no = answerWith("no");
 
 // Talking needs them here, not in reach, and a subject can be anywhere.
-_reachNotNeeded(ask, "who", "about");
-_reachNotNeeded(tell, "who", "about");
-_reachNotNeeded(hello, "who");
+reachNotNeeded(ask, "who", "about");
+reachNotNeeded(tell, "who", "about");
+reachNotNeeded(hello, "who");
 
 // An NPC leaving the conversation without goodbye says their implicit bye.
 _whenLeaving((mind, how) => {

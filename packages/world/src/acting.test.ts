@@ -18,6 +18,7 @@ import {
   place,
   playAs,
   possess,
+  reachNotNeeded,
   startAs,
   thing,
   type Thing,
@@ -32,6 +33,15 @@ const barrel = thing("barrel", { name: "barrel", location: cellar });
 const you = actor("you", { body: { name: "you", location: hall } });
 const ghost = mind("ghost", { name: "ghost" });
 startAs(you);
+
+// #region reach
+// Thinking about something doesn't need it in reach.
+export const thinkAbout = action<{ thing: Thing }>("thinkAbout", {
+  verbs: ["think about {thing}"],
+  report: "You think it over.",
+});
+reachNotNeeded(thinkAbout, "thing");
+// #endregion
 
 /** Who acted, as each action's rules saw it. */
 const seen: string[] = [];
@@ -72,5 +82,14 @@ describe("actions in the world", () => {
   it("aren't offered to a mind with no body", () => {
     playAs(ghost); // in no body
     expect(statusOf(kick({ thing: cellarDoor })).hidden).toBe("You have no body to act with.");
+  });
+
+  it("are offered for things out of reach that the action says needn't be (#362)", () => {
+    expect(statusOf(kick({ thing: barrel })).hidden).toBe("The barrel is out of reach.");
+    expect(statusOf(thinkAbout({ thing: barrel })).hidden).toBeUndefined();
+    perform(thinkAbout({ thing: barrel }));
+    expect(() => {
+      reachNotNeeded(kick, "thing");
+    }).toThrow("say which things needn't be in reach in story.ts");
   });
 });
