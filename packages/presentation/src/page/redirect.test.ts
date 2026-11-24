@@ -70,7 +70,9 @@ function play() {
   const errors: unknown[] = [];
   mountPage(container, { story, record }, { onError: (e) => errors.push(e) });
   const click = (label: string) => {
-    const b = [...container.querySelectorAll("button")].find((x) => x.textContent === label);
+    const b = [...container.querySelectorAll<HTMLElement>("a, button")].find(
+      (x) => x.textContent === label,
+    );
     if (!b) throw new Error(`no ${label} in ${container.textContent ?? ""}`);
     b.click();
   };

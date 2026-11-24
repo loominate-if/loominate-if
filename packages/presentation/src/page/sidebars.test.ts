@@ -125,7 +125,9 @@ describe("sidebars", () => {
     const media = screen(true);
     const { root, page, toggle, state } = play();
     toggle("inventory")?.click();
-    [...root.querySelectorAll("button")].find((b) => b.textContent === "Haggle")?.click();
+    [...root.querySelectorAll<HTMLElement>("a, button")]
+      .find((b) => b.textContent === "Haggle")
+      ?.click();
     expect(state("inventory")).toEqual({ toggle: "true", panel: "12 coins" });
     media.resize(false);
     expect(root.hasAttribute("data-narrow")).toBe(false);

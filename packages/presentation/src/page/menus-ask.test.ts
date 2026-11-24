@@ -99,10 +99,9 @@ describe("an action that asks for a number, from a menu (#335)", () => {
       document.getElementById(input?.getAttribute("aria-describedby") ?? "")?.textContent,
     ).toBe("of 40");
     expect(document.activeElement).toBe(input);
-    expect([...(form()?.querySelectorAll("button") ?? [])].map((b) => b.textContent)).toEqual([
-      "Take",
-      "Back",
-    ]);
+    expect(
+      [...(form()?.querySelectorAll<HTMLElement>("a, button") ?? [])].map((b) => b.textContent),
+    ).toEqual(["Take", "Back"]);
     const results = await axe.run(container, { rules: { region: { enabled: false } } });
     expect(results.violations.map((v) => v.id)).toEqual([]);
   });
@@ -136,7 +135,9 @@ describe("an action that asks for a number, from a menu (#335)", () => {
     expect(items().map((i) => i.textContent)).toEqual(["Take some buttons…", "Shake the jar"]);
     expect(document.activeElement).toBe(items()[0]);
     items()[0]?.click();
-    [...(form()?.querySelectorAll("button") ?? [])].find((b) => b.textContent === "Back")?.click();
+    [...(form()?.querySelectorAll<HTMLElement>("a, button") ?? [])]
+      .find((b) => b.textContent === "Back")
+      ?.click();
     expect(document.activeElement).toBe(items()[0]);
   });
 });

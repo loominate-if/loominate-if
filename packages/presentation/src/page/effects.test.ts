@@ -85,7 +85,9 @@ function play(extra: Passage[] = [], start = "Door") {
   const root = page.element;
   const passage = () => root.querySelector(".loominate-passage") as HTMLElement;
   const click = (label: string) => {
-    const b = [...root.querySelectorAll("button")].find((x) => x.textContent === label);
+    const b = [...root.querySelectorAll<HTMLElement>("a, button")].find(
+      (x) => x.textContent === label,
+    );
     if (!b) throw new Error(`no button "${label}"`);
     b.click();
   };

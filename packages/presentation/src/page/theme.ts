@@ -44,8 +44,8 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   border-radius: ${v("radius")};
 }
 .loominate-passage:focus { outline: none; }
-/* A paragraph a beat revealed takes focus, for screen readers; it isn't something to act on. */
-.loominate-passage > p[tabindex="-1"]:focus { outline: none; }
+/* Only for screen readers: the heading that takes focus before new text, and the live region. */
+.loominate-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .loominate-notice { font-style: italic; }
 .loominate-error {
   font-family: ${v("font-ui")};
@@ -294,6 +294,8 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   .loominate-choice .loominate-link, .loominate-continue, .loominate-skip, .loominate-sidebar-toggle {
     min-height: 2.75rem;
   }
+  /* A link is inline, so it needs a block to take that height. */
+  .loominate-choice a.loominate-link { display: inline-flex; align-items: center; }
   .loominate-drawer summary { padding-block: calc(${v("space")} / 2); }
 }
 }

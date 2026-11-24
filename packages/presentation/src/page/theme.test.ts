@@ -108,7 +108,7 @@ describe("a replaced widget template", () => {
     const log = () => document.querySelector(".ships-log")?.textContent;
     expect(log()).toBe("PositionDeckWatchMoves: 0");
     expect(document.querySelector(".loominate-status")).toBeNull();
-    (document.querySelector("button") as HTMLButtonElement).click();
+    (document.querySelector<HTMLElement>("a, button") as HTMLButtonElement).click();
     expect(log()).toBe("PositionHoldWatchMoves: 1");
   });
 });

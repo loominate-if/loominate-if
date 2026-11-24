@@ -250,9 +250,12 @@ const definitionKey = (d: object): number => {
  * its widgets.
  *
  * @remarks
- * The passage is a live region in the page's `<main>` landmark, so screen
- * readers announce each new passage, and it takes focus after each move, so
- * the next Tab reaches its first choice. Links that can't be followed stay
+ * The passage is in the page's `<main>` landmark. After each move and
+ * beat, and when the game loads, focus goes to a heading only screen readers
+ * see, just before the new text, so a screen reader reads on from there and
+ * the next Tab reaches the first choice. Changes the player didn't move
+ * focus for, such as a timed beat passing, are read through a hidden live
+ * region. Links to passages are links; links that can't be followed stay
  * focusable, marked `aria-disabled`, with their reasons as descriptions.
  * Every region is a landmark.
  *
@@ -275,6 +278,70 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
   let passage: HTMLElement | null = null;
   const focusPassage = (): void => {
     passage?.focus({ preventScroll: true });
+  };
+
+  /**
+   * The heading only screen readers see, before the first new paragraph,
+   * which takes focus after a move or a beat, and what it says (#352).
+   * Focus alone announces only the heading, so the new text is then read
+   * through a live region: the pattern that worked with VoiceOver.
+   */
+  let heading: { readonly key: string; readonly text: string } | undefined;
+  let headingElement: HTMLElement | null = null;
+
+  /**
+   * What a hidden live region says: the new text after a change. The
+   * passage itself isn't a live region, so text the player moves focus to
+   * isn't read twice.
+   */
+  let announcement = "";
+  let announcing: ReturnType<typeof setTimeout> | undefined;
+  /**
+   * Reads `text` through the live region: emptied now, and filled a moment
+   * later, as separate changes, so a screen reader hears the focused heading
+   * first, and the same words again if they come again.
+   */
+  const announce = (text: string): void => {
+    if (announcing !== undefined) clearTimeout(announcing);
+    announcing = undefined;
+    announcement = "";
+    renderPage();
+    if (text === "") return;
+    // Presentation timing only: the story has already moved on.
+    announcing = setTimeout(() => {
+      announcing = undefined;
+      announcement = text;
+      renderPage();
+    }, 300);
+  };
+
+  /**
+   * Moves focus to a heading before the paragraph with `key`, "Passage"
+   * after a move or "More" after a beat, and, unless `quiet`, reads the new
+   * text from there through the live region.
+   */
+  const focusHeading = (key: string | undefined, kind: "passage" | "more", quiet = false): void => {
+    if (key === undefined) {
+      focusPassage();
+      return;
+    }
+    heading = {
+      key,
+      text: message(kind === "passage" ? "page.passageHeading" : "page.moreHeading"),
+    };
+    renderPage();
+    headingElement?.focus({ preventScroll: true });
+    if (!quiet) announce(textFrom(key));
+  };
+  /** The text of the paragraphs from the one with `key` on, as a screen reader would hear it. */
+  const textFrom = (key: string | undefined): string => {
+    if (key === undefined) return "";
+    const at = items.findIndex((item) => item.key === key);
+    return items
+      .slice(Math.max(at, 0))
+      .map((item) => elements.get(item.key)?.textContent?.trim() ?? "")
+      .filter((t) => t !== "")
+      .join(" ");
   };
 
   /** An error the story's code threw, shown at the top of the passage until the next move. */
@@ -305,15 +372,13 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
   const follow = guarded((choice: Choice): void => {
     story.follow(choice);
     options.onMove?.(choice);
-    draw(true);
-    focusPassage();
+    focusHeading(draw(true), "passage");
   });
 
   const act = guarded((call: ActionCall, label: string): void => {
     story.act(call);
     options.onMove?.({ type: "action", label });
-    draw(true);
-    focusPassage();
+    focusHeading(draw(true), "passage");
   });
 
   /** Things' menus, whose actions are moves like following a link. */
@@ -357,17 +422,21 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     describedBy?: string,
     key?: string | number,
   ): ComponentChildren => {
+    // A link to a passage is a link, which screen readers read in its sentence as one (#352).
     if (node.type === "link" && !node.available) {
       return (
-        <button
+        <a
           key={key}
-          type="button"
+          href={`#${encodeURIComponent(node.target)}`}
           className={className}
           aria-disabled="true"
           {...(describedBy !== undefined && { "aria-describedby": describedBy })}
+          onClick={(event) => {
+            event.preventDefault();
+          }}
         >
           {label}
-        </button>
+        </a>
       );
     }
     // A thing's name opens its menu, instead of being followed.
@@ -378,6 +447,22 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
         </MenuName>
       );
     }
+    if (node.type === "link") {
+      return (
+        <a
+          key={key}
+          href={`#${encodeURIComponent(node.target)}`}
+          className={className}
+          onClick={(event) => {
+            event.preventDefault();
+            follow(node);
+          }}
+        >
+          {label}
+        </a>
+      );
+    }
+    // A continue point moves the story on, rather than going somewhere: a button.
     return (
       <button
         key={key}
@@ -507,24 +592,6 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
   const immediate = (): boolean => options.pacing === "immediate" || reducedMotion();
 
   /**
-   * Moves focus to the first paragraph a beat revealed, so a screen reader
-   * reads on from there: only what's new. Moving past a beat removes its
-   * controls, and a screen reader's cursor on them would otherwise fall back
-   * to the top of the window. A click doesn't always focus a button, as on
-   * macOS, so a move the player makes moves focus whether or not it was on
-   * the controls.
-   */
-  const focusNew = (key: string | undefined): void => {
-    const element = key === undefined ? undefined : elements.get(key);
-    if (!element) {
-      focusPassage();
-      return;
-    }
-    element.tabIndex = -1;
-    element.focus({ preventScroll: true });
-  };
-
-  /**
    * Moves past the pending beat, and shows the part it reveals. `byPlayer`
    * is true for the player's own move, and false for a timed beat passing.
    */
@@ -536,7 +603,11 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     options.onMove?.(beat);
     // A page break clears the screen; otherwise the new part follows what's shown.
     const first = draw(true, beat.page ? 0 : drawnCount);
-    if (focused) focusNew(first);
+    // The player's own move, or a timed beat passing while they're on its
+    // controls, which have gone: focus goes to what's new. Otherwise it's read
+    // where they are.
+    if (focused) focusHeading(first, "more");
+    else announce(textFrom(first));
   });
 
   /** Moves past every remaining beat at once, without their effects. */
@@ -547,7 +618,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
       options.onMove?.(beat);
       if (beat.page) from = 0;
     }
-    focusNew(draw(false, from));
+    focusHeading(draw(false, from), "more");
   });
 
   // A click on the page, away from its buttons, hurries a timed pause along.
@@ -818,8 +889,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     goTo: guarded((target: string, label: string): void => {
       story.goTo(target);
       options.onMove?.({ type: "link", label, target });
-      draw(true);
-      focusPassage();
+      focusHeading(draw(true), "passage");
     }),
     act,
     menu: (anchor, thing) => {
@@ -909,7 +979,6 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
                 <div
                   className="loominate-passage"
                   tabIndex={-1}
-                  aria-live="polite"
                   ref={(element) => {
                     passage = element;
                   }}
@@ -919,8 +988,33 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
                       {error}
                     </p>
                   )}
-                  {items.map(paragraph)}
+                  {
+                    // One flat list of keyed siblings, so a paragraph keeps its element
+                    // when the heading before it comes or goes.
+                    items.flatMap((item) => {
+                      const drawn = paragraph(item);
+                      const paragraphs = Array.isArray(drawn) ? drawn : [drawn];
+                      return heading?.key === item.key
+                        ? [
+                            <h2
+                              key={`heading:${item.key}`}
+                              className="loominate-sr-only loominate-passage-heading"
+                              tabIndex={-1}
+                              ref={(element) => {
+                                headingElement = element;
+                              }}
+                            >
+                              {heading.text}
+                            </h2>,
+                            ...paragraphs,
+                          ]
+                        : paragraphs;
+                    })
+                  }
                   {beatShown && beatView(beatShown)}
+                </div>
+                <div className="loominate-sr-only loominate-announce" aria-live="polite">
+                  {announcement}
                 </div>
                 {drawerView()}
               </main>,
@@ -1010,6 +1104,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
    * what came before.
    */
   const draw = (arrived = false, from = 0): string | undefined => {
+    heading = undefined;
     finishEffects();
     stopTimer();
     beatShown = undefined;
@@ -1050,15 +1145,27 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
   // Effects play for a story starting here, not for one loaded from a save.
   const fresh = story.current === undefined;
   story.begin();
-  draw(fresh);
+  // A screen reader starts at the story, not the header's controls. It reads
+  // a newly loaded page by itself, so nothing is announced as well.
+  focusHeading(draw(fresh), "passage", true);
   return {
     element: root,
     refresh: () => {
-      draw();
+      // Undo, loading a save, or travel in the inspector: the passage is read
+      // if what's on screen changed, and a redraw that changes nothing, as
+      // the shell's just after mounting, is quiet.
+      const before = textFrom(items[0]?.key);
+      const inPassage = passage?.contains(doc.activeElement) ?? false;
+      const first = draw();
+      const changed = textFrom(first) !== before;
+      // Focus stays on the heading if it was in the passage.
+      if (inPassage) focusHeading(first, "passage", !changed);
+      else if (changed) announce(textFrom(first));
     },
     destroy() {
       finishEffects();
       stopTimer();
+      if (announcing !== undefined) clearTimeout(announcing);
       narrowQuery?.removeEventListener("change", onNarrow);
       render(null, root);
       root.remove();

@@ -74,7 +74,7 @@ async function start(options: Partial<PlayOptions> = {}) {
   const button = (label: string) => {
     // The game menu's buttons first, since the save menu has its own Save and Load.
     const menu = [...container.querySelectorAll<HTMLButtonElement>(".loominate-game-menu button")];
-    const b = [...menu, ...container.querySelectorAll("button")].find(
+    const b = [...menu, ...container.querySelectorAll<HTMLElement>("a, button")].find(
       (x) => x.textContent === label || x.getAttribute("aria-label") === label,
     );
     if (!b) throw new Error(`no button "${label}"`);
@@ -101,12 +101,9 @@ describe("playing a game", () => {
     const { container, click, text } = await start({ storage });
     expect(text()).toContain("A long road.");
     const header = container.querySelector('[data-region="header"]');
-    expect([...(header?.querySelectorAll("button") ?? [])].map((b) => b.textContent)).toEqual([
-      "Undo",
-      "Save",
-      "Load",
-      "Restart",
-    ]);
+    expect(
+      [...(header?.querySelectorAll<HTMLElement>("a, button") ?? [])].map((b) => b.textContent),
+    ).toEqual(["Undo", "Save", "Load", "Restart"]);
     await vi.waitFor(async () => {
       expect(await autosaved(storage)).toBe("Road");
     });
@@ -151,12 +148,9 @@ describe("playing a game", () => {
     try {
       const { container, click, button } = await start();
       const header = container.querySelector('[data-region="header"]');
-      expect([...(header?.querySelectorAll("button") ?? [])].map((b) => b.textContent)).toEqual([
-        "Undo",
-        "Save",
-        "Load",
-        "Walk the plank",
-      ]);
+      expect(
+        [...(header?.querySelectorAll<HTMLElement>("a, button") ?? [])].map((b) => b.textContent),
+      ).toEqual(["Undo", "Save", "Load", "Walk the plank"]);
       // The tooltips still say what the reworded buttons do.
       expect(button("Walk the plank").title).toBe(
         "Start the story over from the beginning. Your saves are kept.",
@@ -295,9 +289,9 @@ describe("playing a game", () => {
       "Your game in progress can't be continued with this version of the game.",
     );
     expect(screen?.querySelector(".loominate-note")?.textContent).toMatch(/Bridge/);
-    expect([...(screen?.querySelectorAll("button") ?? [])].map((b) => b.textContent)).toEqual([
-      "New game",
-    ]);
+    expect(
+      [...(screen?.querySelectorAll<HTMLElement>("a, button") ?? [])].map((b) => b.textContent),
+    ).toEqual(["New game"]);
     expect(document.activeElement?.textContent).toBe("New game");
     expect(reloaded.container.querySelectorAll(".loominate-page")).toHaveLength(1);
     expect(errors).toHaveLength(1);
@@ -602,6 +596,8 @@ describe("the save menu", () => {
         await axe.run(document, { rules: { "color-contrast": { enabled: false } } })
       ).violations.flatMap((v) => v.nodes.map((n) => `${v.id}: ${n.html}`));
     expect(await check()).toEqual([]);
+    // Focus starts at the story (#352); from the top of the page, Tab reaches the menu first.
+    (document.activeElement as HTMLElement | null)?.blur();
     // Undo, Save, Load, then the passage's link.
     await user.tab();
     await user.tab();

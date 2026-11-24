@@ -103,6 +103,7 @@ const focused = (): string => {
   const e = document.activeElement as HTMLElement | null;
   if (!e || e === document.body) return "(nothing)";
   if (e.classList.contains("loominate-passage")) return "(passage)";
+  if (e.classList.contains("loominate-passage-heading")) return "(heading)";
   return e.textContent;
 };
 
@@ -110,9 +111,9 @@ describe("automated accessibility checks", () => {
   it("find nothing on the page as it's played", async () => {
     const { page, user } = play();
     expect(await violations()).toEqual([]);
-    await user.click(document.querySelector("button") as HTMLElement);
+    await user.click(document.querySelector<HTMLElement>("a, button") as HTMLElement);
     expect(await violations()).toEqual([]); // inline links, one disabled
-    await user.click(document.querySelector("button") as HTMLElement);
+    await user.click(document.querySelector<HTMLElement>("a, button") as HTMLElement);
     (document.querySelector("details") as HTMLDetailsElement).open = true;
     expect(await violations()).toEqual([]); // a continue point and an open drawer
     page.destroy();
@@ -149,7 +150,7 @@ describe("automated accessibility checks", () => {
 });
 
 describe("a keyboard-only walkthrough", () => {
-  it("plays the story with Tab, Enter, and Space alone", async () => {
+  it("plays the story with Tab and Enter alone, and Space for buttons", async () => {
     const { story, passage, user } = play();
 
     // A choice first: the shut door, and the trellis that's out of reach.
@@ -166,18 +167,23 @@ describe("a keyboard-only walkthrough", () => {
     await user.tab({ shift: true });
     await user.keyboard("{Enter}");
 
-    // After a move, focus is on the new passage, so the next Tab is its first choice.
+    // After a move, focus is on a heading before the new passage, only for
+    // screen readers (#352), so the next Tab is its first choice.
     expect(story.current).toBe("Hallway");
-    expect(document.activeElement).toBe(passage());
+    expect(focused()).toBe("(heading)");
+    expect(passage().contains(document.activeElement)).toBe(true);
     await user.tab();
     expect(focused()).toBe("go in");
     await user.tab();
     expect(focused()).toBe("call out");
     await user.tab({ shift: true });
+    // Links to passages are links, which Enter follows, as on any page; Space is for buttons.
     await user.keyboard(" ");
+    expect(story.current).toBe("Hallway");
+    await user.keyboard("{Enter}");
 
     expect(story.current).toBe("Study");
-    expect(document.activeElement).toBe(passage());
+    expect(focused()).toBe("(heading)");
     await user.tab();
     expect(focused()).toBe("Continue");
 
@@ -221,6 +227,8 @@ describe("a keyboard-only walkthrough", () => {
     const { story, page, user } = play();
     display.layout = "knocking";
     page.refresh();
+    // Focus starts at the story (#352); from the top of the page, Tab reaches the header first.
+    (document.activeElement as HTMLElement | null)?.blur();
     await user.tab();
     expect(focused()).toBe("Ring");
     await user.keyboard("{Enter}");

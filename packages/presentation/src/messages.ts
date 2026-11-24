@@ -18,6 +18,10 @@ declare module "@loominate-if/core" {
     "page.error": { readonly error: string };
     /** A continue point's label, when it has none. */
     "page.continue": None;
+    /** The heading only screen readers hear, before a passage's text after a move: "Passage". */
+    "page.passageHeading": None;
+    /** The heading only screen readers hear, before the text a beat revealed: "More". */
+    "page.moreHeading": None;
     /** The button that moves past every remaining beat. */
     "page.skip": None;
     /** The story-so-far drawer's label. */
@@ -119,6 +123,8 @@ const register: typeof messages.register = (key, text) => {
 
 register("page.error", ({ error }) => `Something went wrong: ${error}`);
 register("page.continue", "Continue");
+register("page.passageHeading", "Passage");
+register("page.moreHeading", "More");
 register("page.skip", "Skip");
 register("page.storySoFar", "Story so far");
 register("history.nextPage", "Next page");
