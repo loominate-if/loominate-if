@@ -397,7 +397,7 @@ An actor passage, `[actor: butler]`, is made of topic blocks: `{ask}`, `{tell}`,
 
 ### Conversation nodes
 
-Nodes handle moments that need structure, such as an NPC asking a question. A node can restrict options to its replies or add them alongside regular topics. If the player changes the subject, the NPC can press the point.
+Nodes handle moments that need structure, such as an NPC asking a question. A node can restrict options to its replies or add them alongside regular topics. If the player changes the subject, the NPC can press the point. `convNode(npc, name, { restricts, presses })` defines one; an entry's `opens` opens it after answering, entries `in` it rank above all others while it's open, and it closes when one of its replies answers (unless `stays`), on `closeNode`, or when the NPC leaves the conversation. A restrictive node answers only its replies and presses the point otherwise; a non-restrictive one answers and then presses. In passage files, `opens:` on a block and `node:` on an actor passage ([ADR 0093](decisions/0093-conversation-nodes.md)).
 
 ### Conversation mode
 

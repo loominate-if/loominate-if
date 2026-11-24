@@ -1291,6 +1291,28 @@ topic(cook, {
 
 What NPCs say is recorded as `action-result` events tagged `topic` and `speaker:` and their body's ID, so the page shows it after the move.
 
+### Conversation nodes
+
+A node is a moment in a conversation that needs structure, such as an NPC asking a question. An entry `opens` it after answering, and entries `in` it apply only while it's open, ahead of all others:
+
+<!-- example: packages/world/src/topic-nodes.test.ts#node -->
+```ts
+export const proposal = convNode(butler, "proposal", {
+  restricts: true,
+  presses: "“Well, sir? Will you take the post?”",
+});
+topic(butler, { ask: job, opens: proposal, says: "“There is a post, sir. Will you take it?”" });
+topic(butler, { yes: true, in: proposal, says: "“Splendid, sir.”" });
+topic(butler, { no: true, in: proposal, says: "“A pity, sir.”" });
+```
+
+- **`convNode(npc, name, { restricts, presses })`** defines one.
+- **Restrictive:** while it's open, only its own entries answer. Changing the subject gets the `presses` line instead, or "The butler waits for your answer.", and it stays open. `{topics}` suggests only its replies, then goodbye.
+- **Not restrictive:** other exchanges are answered as usual, and then the NPC presses the point, if it has a `presses` line.
+- **Yes and no:** an open node's `yes` and `no` entries are suggested first: "Say yes", "Say no".
+- **Closing:** it closes when one of its own entries answers, unless that entry says `stays: true`; on `closeNode(npc)`; or when the NPC leaves the conversation. Greeting and goodbye are never held up, so the player can always say goodbye. Exit control will add locks.
+- **`openNode(npc, node)`** opens one from code, as an agenda item that comes to ask something would. The NPC must be in the conversation. `openNodeOf(npc)` says which is open.
+
 ### Topics in passage files
 
 An NPC's topics can be written as blocks in an actor passage, the prose of each block its response:
@@ -1308,14 +1330,31 @@ An NPC's topics can be written as blocks in an actor passage, the prose of each 
 
 {ask weather, again}
 "As I said, sir. Grey."
+
+{ask job, opens: proposal}
+"There is a post, sir. Will you take it?"
 ```
 
-- **`[actor: butler]`** makes the passage the butler's, and it's made only of blocks; anything before the first is an error. `state: onDuty` or `scene: storm` on the passage scope every block in it.
-- **Blocks:** `{ask …}`, `{tell …}`, `{ask or tell …}`, `{show …}`, `{give …}`, and `{show or give …}` take a subject; `{yes}`, `{no}`, `{hello}`, and `{bye}` don't. After the subject, a block can say `again`, and a give `takes`; `{hello}` and `{bye}` can say `implicit` or `explicit`. Named, they take `when:`, `priority:`, `in:`, `suggested:`, and, for `{tell}`, `informs:`.
+- **`[actor: butler]`** makes the passage the butler's, and it's made only of blocks; anything before the first is an error. `state: onDuty`, `scene: storm`, or `node: proposal` on the passage scope every block in it, so a node's replies can have a passage of their own, as below.
+
+- **Blocks:** `{ask …}`, `{tell …}`, `{ask or tell …}`, `{show …}`, `{give …}`, and `{show or give …}` take a subject; `{yes}`, `{no}`, `{hello}`, and `{bye}` don't. After the subject, a block can say `again`, and a give `takes`; `{hello}` and `{bye}` can say `implicit` or `explicit`. Any block can say `stays`. Named, they take `when:`, `priority:`, `in:`, `opens:`, `suggested:`, and, for `{tell}`, `informs:`.
 - **Checked as code:** the actor, states, scenes, and subjects are TypeScript, so a misspelled one is an error at its line: "`wether` isn't defined. Did you mean `weather`?"
 - **The response** is the block's prose, `{if}` and printed values included, each paragraph said with its line ID. `{reveal …}` and `{on enter: …}` run each time the block answers, `{on first visit: …}` the first time. Links, beats, and `{on leave: …}` can't go in a block.
 - **`again`** applies only once the NPC has answered the same exchange before, by any entry, and comes first among entries of its priority: the first block answers the first time, the `again` block every time after. In TypeScript it's `again: true`.
 - Lists that cycle or shuffle are TypeScript only, for now.
+
+A node's replies in a passage of their own:
+
+<!-- example: packages/cli/src/fixtures/butler.weft#Butler proposal -->
+```
+:: Butler proposal [actor: butler, node: proposal]
+
+{yes}
+"Splendid, sir."
+
+{no}
+"A pity, sir."
+```
 
 ### Showing and giving
 

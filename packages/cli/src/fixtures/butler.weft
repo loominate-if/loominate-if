@@ -9,3 +9,14 @@
 
 {ask weather, again}
 "As I said, sir. Grey."
+
+{ask job, opens: proposal}
+"There is a post, sir. Will you take it?"
+
+:: Butler proposal [actor: butler, node: proposal]
+
+{yes}
+"Splendid, sir."
+
+{no}
+"A pity, sir."

@@ -137,9 +137,11 @@ const KNOWN_VERBS = [
 function topicDirectives() {
   const runtime = { module: WORLD, export: "topicBlock" };
   const scoping = [
+    { name: "stays", kind: "choice", choices: ["stays"] },
     { name: "when", kind: "condition", named: true },
     { name: "priority", kind: "expression", named: true },
     { name: "in", kind: "expression", named: true },
+    { name: "opens", kind: "expression", named: true },
   ] as const;
   const about = { name: "about", kind: "expression", required: true } as const;
   const again = { name: "again", kind: "choice", choices: ["again"] } as const;
@@ -194,6 +196,7 @@ const extension = {
     },
     { name: "state", register: { module: WORLD, export: "registerStatePassage" } },
     { name: "scene", register: { module: WORLD, export: "registerScenePassage" } },
+    { name: "node", register: { module: WORLD, export: "registerNodePassage" } },
   ],
   directives: [
     {
