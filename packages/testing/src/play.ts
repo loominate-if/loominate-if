@@ -27,8 +27,17 @@ import {
   type ObjectRef,
   statusOf,
   type ActionCall,
+  type Choice,
 } from "@loominate-if/core";
-import { widgets, type CompassData, type CompassWay } from "@loominate-if/presentation";
+import {
+  _actionListOf,
+  display,
+  layouts,
+  widgets,
+  type CompassData,
+  type CompassWay,
+  type WidgetHost,
+} from "@loominate-if/presentation";
 
 /** A game to play: its passages and where a new game starts. */
 export type GameDefinition = {
@@ -186,6 +195,44 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
   store.commit();
 
   const page = (): RenderedPassage => story.render();
+  /** What the page asks of a widget's host, done headlessly: moves go straight to the story. */
+  const host = {
+    story,
+    record,
+    follow: (c: Choice) => {
+      story.follow(c);
+    },
+    goTo: (passage: string) => {
+      story.goTo(passage);
+    },
+    act: (call: ActionCall) => {
+      story.act(call);
+    },
+    menu: () => undefined,
+  } as unknown as WidgetHost;
+  /** The buttons of the action lists in the layout showing now, as conversation mode's topics. */
+  const layoutButtons = (): {
+    label: string;
+    available: boolean;
+    reason?: string;
+    take: () => void;
+  }[] => {
+    const layout = layouts.get(display.layout);
+    if (!layout) return [];
+    return Object.values(layout.widgets ?? {})
+      .flat()
+      .flatMap((name) => {
+        const definition = widgets.get(name);
+        const list = definition ? _actionListOf(definition) : undefined;
+        if (!list) return [];
+        return list.items({ story, record }).map((item, i) => ({
+          ...item,
+          take: () => {
+            list.take(host, i);
+          },
+        }));
+      });
+  };
   /** The texts of the perception, action-result, and scheduled events since the move on screen began. */
   /**
    * The move's notices as the page shows them, one line per paragraph: what
@@ -283,6 +330,18 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
     choose(label) {
       const now = page();
       const choice = now.choices.find((c) => labelOf(c) === label);
+      // Buttons in the layout's action lists, such as conversation mode's topics, are choices too.
+      const listed = choice ? undefined : layoutButtons().find((b) => b.label === label);
+      if (listed) {
+        if (!listed.available) {
+          throw new Error(
+            `"${label}" can't be taken now${listed.reason === undefined ? "" : `: ${listed.reason}`}.`,
+          );
+        }
+        listed.take();
+        moved();
+        return game;
+      }
       if (!choice) {
         const where = `passage ${JSON.stringify(game.passage)}`;
         const closed = game.unavailable.find((u) => u.label === label);
@@ -294,7 +353,7 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
             ? now.beat
               ? " There are no choices yet; a beat is waiting, so advance() first."
               : " There are no choices."
-            : ` The choices are: ${now.choices.map((c) => JSON.stringify(labelOf(c))).join(", ")}.`;
+            : ` The choices are: ${[...now.choices.map((c) => labelOf(c)), ...layoutButtons().map((b) => b.label)].map((l) => JSON.stringify(l)).join(", ")}.`;
         throw new Error(`There's no choice "${label}" in ${where}.${why}${list}`);
       }
       story.follow(choice);

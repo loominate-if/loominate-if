@@ -62,6 +62,20 @@ Give your own colors as `light-dark(light, dark)` pairs to keep following the pr
 
 Keep text and its background at a contrast of at least 4.5:1. The defaults meet that in both schemes, but the tests can't check your theme's colors.
 
+## Styling a layout
+
+The page says which layout is showing as `data-layout` on `.loominate-page`, and a paragraph of notices carries the tags its events share as `data-tags`. With the world model, what NPCs say is tagged `topic`, so a theme can style conversation mode:
+
+```css
+/* The room's own prose recedes while the player is talking; what's said stands out. */
+.loominate-page[data-layout="conversation"] .loominate-passage > p:not([data-tags~="topic"]) {
+  opacity: 0.8;
+}
+.loominate-notice[data-tags~="topic"] { font-style: normal; }
+```
+
+Conversation mode's portraits are `.loominate-portrait` buttons in a `.loominate-cast` list, pressed (`aria-pressed="true"`) for the one addressed, with `.loominate-portrait-image` or `.loominate-portrait-initials` and `.loominate-portrait-name`; its topics are `.loominate-action-list-item` buttons.
+
 ## Replacing a widget's view
 
 A widget is headless: its `data` computes plain data from the game, and its `view` draws it ([ADR 0017](../decisions/0017-layouts-and-widgets.md)). To restyle a widget completely, replace it with the same data and your own view. This draws the status line as a ship's log:

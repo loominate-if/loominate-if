@@ -1347,6 +1347,44 @@ topic(widow, { ask: husband, hearMeOut: "The widow's tale", says: "“Let me tel
 - **In passage files,** a block's `-> Passage` is its `hearMeOut`, checked like a link: `{ask husband, -> The widow's tale}`.
 - `lockConversation` still locks from code, for locks no node owns.
 
+### Conversation mode
+
+While the player's talking, the page switches to the `conversation` layout, which focuses on the characters:
+
+- **`cast`:** a portrait for each character in the conversation, the one addressed marked. Choosing another addresses them.
+- **`main`:** the passage, where what's said shows. The room's own prose recedes, in the muted color.
+- **`topics`:** the suggested topics as buttons, showing and giving included. A button that can't be taken now is shown disabled, with why, as goodbye under a hard lock.
+
+The header keeps the game menu and what packages add to it. When the conversation ends, by goodbye, by walking off, or by the NPC leaving on their timetable, the page goes back to the layout before. Which layout is showing is game state, so undo, saves, and replays agree.
+
+- **`{topics}`** in a passage shows nothing while the layout lists the topics, so a room passage can keep it for games without conversation mode.
+- **Portraits:** `portrait(npc, { image, expressions })` gives an NPC an image, and one per expression. Without one, their portrait is their initials. Their expression is game state: `setExpression(npc, "stern")`, or an entry's `expression: "stern"` as it answers, `expression: "stern"` on a block too. `expressionOf(npc)` reads it.
+
+<!-- example: packages/world/src/conversation-mode.test.ts#portraits -->
+```ts
+portrait(butler, { image: "butler.png", expressions: { stern: "butler-stern.png" } });
+topic(butler, { ask: letter, expression: "stern", says: "“I couldn't say, sir.”" });
+```
+
+- **NPCs start conversations** with `approach(npc, { says, opens })` in an agenda item. With the player, it starts one, or brings them into the player's, says their line, opens a node if given, and returns true; otherwise false.
+
+<!-- example: packages/world/src/conversation-mode.test.ts#approach -->
+```ts
+const dinner = convNode(cook, "dinner", { presses: "“Well? Dinner?”" });
+topic(cook, { yes: true, in: dinner, says: "“Good. Eight sharp.”" });
+const kitchen = object("kitchen", { isReady: false });
+agenda(cook, "announce dinner", {
+  ready: () => kitchen.isReady,
+  act: ({ npc, done }) => {
+    if (approach(npc, { says: "“Will you be wanting dinner?”", opens: dinner })) done();
+  },
+});
+```
+
+- **Restyling:** the widgets are `conversation-cast` and `conversation-topics`, presentation's `castWidget` and `actionListWidget` with the world's data. Restyle them with theme CSS, replace their views, or replace the layout under the same name. `conversationMode({ layout: "my-talk" })` switches to a layout of your own, and `conversationMode(false)` turns the switching off.
+- **Time:** each exchange takes a minute of game time.
+- **Walkthroughs:** `game.choose("Ask about the letter")` takes a topic's button as it does a link.
+
 ### Topics in passage files
 
 An NPC's topics can be written as blocks in an actor passage, the prose of each block its response:

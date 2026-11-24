@@ -307,6 +307,8 @@ export type TopicOptions = {
    * returns them to where they were talking.
    */
   readonly hearMeOut?: string;
+  /** The NPC's expression after it answers, for their portrait: "stern". */
+  readonly expression?: string;
   /** A stable ID for the entry, kept across edits, for saves and the inspector. Compiled topic blocks get one from their line. */
   readonly id?: string;
 };
@@ -694,6 +696,7 @@ function nextOf(e: Entry, count: number): number {
 }
 
 function respond(e: Entry, context: TopicContext): void {
+  if (e.expression !== undefined) _setExpression(context.npc, e.expression);
   if (e.block) {
     sayBlock(e, e.block, context.npc);
     return;
@@ -1060,12 +1063,39 @@ export function suggestedTopics(): readonly SuggestedTopic[] {
   return out;
 }
 
+let linksHidden = (): boolean => false;
+/** Hides `{topics}`'s links while `hidden` says, as conversation mode does. @internal */
+export function _hideTopicLinksWhen(hidden: () => boolean): void {
+  linksHidden = hidden;
+}
+
+/** Expressions entries set, through conversation mode's portraits. */
+let _setExpression = (npc: ObjectRef, expression: string): void => {
+  void npc;
+  void expression;
+};
+/** How an entry's `expression` is set, from conversation mode. @internal */
+export function _useExpressions(set: (npc: ObjectRef, expression: string) => void): void {
+  _setExpression = set;
+}
+
+/** Turns to someone already in the conversation, as choosing their portrait does. @internal */
+export const _addressAction = action<{ who: ObjectRef }>("address", {
+  source: SOURCE,
+  verify: ({ who }) => (inConversationWith(who) ? undefined : message("topic.notTalking", {})),
+  run: ({ who }) => {
+    address(who);
+  },
+});
+
 /**
  * What `{topics}` shows: a link for each suggested topic, as
  * {@link suggestedTopics} gives them, each taking its action.
  */
 export function topicLinks(args: Readonly<Record<string, never>> = {}): LinkNode[] {
   void args; // `{topics}` takes no arguments; directives pass them as an object.
+  // While conversation mode shows the topics, the passage doesn't list them again.
+  if (linksHidden()) return [];
   return suggestedTopics().map((s): LinkNode => ({
     type: "link",
     label: s.label,
@@ -1129,6 +1159,8 @@ export type TopicBlockArguments = {
   readonly stays?: "stays";
   /** `-> Passage`: a cut scene the NPC tells after answering. */
   readonly hearMeOut?: string;
+  /** The NPC's expression after it answers. */
+  readonly expression?: string;
   readonly suggested?: boolean;
   readonly informs?: boolean;
 };
@@ -1194,6 +1226,7 @@ export function topicBlock(
     ...(args.opens && { opens: args.opens }),
     ...(args.stays && { stays: true }),
     ...(args.hearMeOut !== undefined && { hearMeOut: args.hearMeOut }),
+    ...(args.expression !== undefined && { expression: args.expression }),
     ...(args.again && { again: true }),
     ...(args.takes && { takes: true }),
     ...(args.implicit && { implicit: args.implicit === "implicit" }),

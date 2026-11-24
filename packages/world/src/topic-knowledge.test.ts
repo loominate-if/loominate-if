@@ -26,6 +26,7 @@ import {
   topic,
   topicLinks,
   topics,
+  conversationMode,
 } from "./index.js";
 
 const kitchen = place("kitchen", { name: "kitchen" });
@@ -35,6 +36,8 @@ const cook = actor("cook", { body: { name: "cook", location: kitchen } });
 const gold = thing("gold", { name: "gold", location: kitchen, isFamiliar: true });
 const ledger = thing("ledger", { name: "ledger", location: kitchen });
 startAs(you);
+// These test {topics} in the passage, which conversation mode's layout lists instead (#118).
+conversationMode(false);
 
 // #region knowledge
 const facts = defineFacts({

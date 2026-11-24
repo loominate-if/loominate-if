@@ -31,7 +31,7 @@ test("lighting the lamp", () => {
 
 ## Making moves
 
-- `game.choose("Light the lamp")` makes the choice with that label. A continue point without a label is `"Continue"`.
+- `game.choose("Light the lamp")` makes the choice with that label. A continue point without a label is `"Continue"`. It also takes a button with that label in the layout's action lists, such as conversation mode's topics.
 - `game.notices` is what the player noticed during the last move, such as "You hear a door slam from above.", one paragraph per line, as the page shows them: the atmosphere from fuses and daemons is one line. `game.text` has them where the page shows them: where the passage's `{notices}` is, or else after its text and before its choices.
 - `game.advance()` moves past the next beat (`{beat}`, `{wait}`, or `{page}`), and `game.skip()` moves past all of them.
 - `game.act("Ring the bell")` takes an action from a menu by its label: the menu of anything the player can act on, or that a link on screen opens a menu for. If it's disabled, the test fails with the reason.

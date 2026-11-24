@@ -31,6 +31,7 @@ import {
   topics,
   yes,
   type Place,
+  conversationMode,
 } from "./index.js";
 
 const parlour = place("parlour", { name: "parlour" });
@@ -46,6 +47,8 @@ const { murder, husband, will } = topics({
   will: "the will",
 });
 startAs(you);
+// These test {topics} in the passage, which conversation mode's layout lists instead (#118).
+conversationMode(false);
 
 // #region exits
 export const accusation = convNode(inspector, "accusation", {

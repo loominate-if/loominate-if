@@ -103,6 +103,29 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
 }
 /* A things widget, such as the inventory. */
 .loominate-things { font-family: ${v("font-ui")}; font-size: 0.9em; }
+/* A conversation (#118): the cast's portraits, the topics, and the room receding behind what's said. */
+.loominate-cast { display: flex; flex-wrap: wrap; gap: 0.75em; list-style: none; margin: 0; padding: 0; }
+.loominate-portrait {
+  display: flex; flex-direction: column; align-items: center; gap: 0.25em;
+  padding: 0.25em 0.5em; border: 2px solid transparent; border-radius: ${v("radius")};
+  background: none; color: inherit; font: inherit; font-family: ${v("font-ui")}; font-size: 0.85em; cursor: pointer;
+}
+.loominate-portrait[aria-pressed="true"] { border-color: ${v("color-accent")}; }
+.loominate-portrait-image, .loominate-portrait-initials { width: 4em; height: 4em; border-radius: 50%; }
+.loominate-portrait-image { object-fit: cover; }
+.loominate-portrait-initials {
+  display: flex; align-items: center; justify-content: center;
+  background: ${v("color-surface")}; border: 1px solid ${v("color-border")}; font-weight: 600;
+}
+.loominate-action-list { display: flex; flex-direction: column; align-items: flex-start; gap: 0.35em; list-style: none; margin: 0; padding: 0; }
+.loominate-action-list-item {
+  padding: 0.3em 0.75em; border: 1px solid ${v("color-border")}; border-radius: ${v("radius")};
+  background: ${v("color-surface")}; color: inherit; font: inherit; text-align: start; cursor: pointer;
+}
+.loominate-action-list-item[aria-disabled="true"] { color: ${v("color-muted")}; border-style: dashed; cursor: not-allowed; }
+.loominate-action-why { margin-inline-start: 0.5em; color: ${v("color-muted")}; font-size: 0.9em; }
+.loominate-page[data-layout="conversation"] .loominate-passage > p:not([data-tags~="topic"]) { color: ${v("color-muted")}; }
+.loominate-page[data-layout="conversation"] .loominate-notice[data-tags~="topic"] { font-style: normal; }
 /* The compass: the eight points in a grid, and the other ways beside it. */
 .loominate-compass { display: flex; gap: 0.5em; align-items: center; font-family: ${v("font-ui")}; font-size: 0.85em; }
 .loominate-compass-points { display: grid; grid-template-columns: repeat(3, 2.6em); grid-template-rows: repeat(3, 2em); gap: 0.2em; }

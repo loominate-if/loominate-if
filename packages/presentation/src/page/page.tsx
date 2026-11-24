@@ -713,6 +713,14 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     return { queue, ...(first !== undefined && { first }) };
   };
 
+  /** The tags every event in a paragraph of notices has, for themes: `topic` on what NPCs say. */
+  const tagsOf = (events: readonly Proseful[]): string[] => {
+    const [first, ...rest] = events.map(
+      (e) => (e as { readonly tags?: readonly string[] }).tags ?? [],
+    );
+    return (first ?? []).filter((t) => !t.includes(":") && rest.every((r) => r.includes(t)));
+  };
+
   /** One paragraph of the passage. */
   const paragraph = (item: Item): ComponentChildren => {
     const ref = (element: HTMLElement | null): void => {
@@ -720,7 +728,12 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     };
     if (item.kind === "notices") {
       return (
-        <p key={item.key} ref={ref} className="loominate-notice">
+        <p
+          key={item.key}
+          ref={ref}
+          className="loominate-notice"
+          {...(tagsOf(item.events).length > 0 && { "data-tags": tagsOf(item.events).join(" ") })}
+        >
           {item.events.map((notice, i) => [
             i > 0 ? " " : null,
             ...prose(notice.text, notice.styles ?? [], [], () => null),
@@ -948,8 +961,14 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     const { name, definition } = currentLayout();
     const sidebars = definition.sidebars ?? {};
     const narrow = narrowQuery?.matches ?? false;
+    const widgetsIn = (region: string): readonly string[] => [
+      ...(region === "header" && definition.standardHeader === true
+        ? (layouts.get("page")?.widgets?.["header"] ?? [])
+        : []),
+      ...(definition.widgets?.[region] ?? []),
+    ];
     const slots = (region: string): ComponentChildren =>
-      (definition.widgets?.[region] ?? []).map((w) => {
+      widgetsIn(region).map((w) => {
         const d = widgets.get(w);
         if (!d) {
           throw new Error(
@@ -967,7 +986,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
         );
       });
     const regionView = (region: string): ComponentChildren => {
-      const empty = region !== "main" && (definition.widgets?.[region] ?? []).length === 0;
+      const empty = region !== "main" && widgetsIn(region).length === 0;
       const className = `loominate-region loominate-region-${region}`;
       const side = sidebars[region];
       const expanded = !narrow || open.has(region);

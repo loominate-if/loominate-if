@@ -43,6 +43,13 @@ export type LayoutDefinition = {
    * it: start sidebars above the passage, end sidebars below it.
    */
   readonly sidebars?: Readonly<Record<string, "start" | "end">>;
+  /**
+   * True if its `header` gets what the default page's does, before its own
+   * header widgets: the game menu and the widgets packages add with
+   * `addToHeader`. A layout a package switches to, such as the world
+   * model's conversation layout, keeps the header this way.
+   */
+  readonly standardHeader?: boolean;
 };
 
 /** What a widget's view can do: read the game, and make a move as the player would. */
