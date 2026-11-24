@@ -32,12 +32,15 @@ declare module "../text/messages.js" {
   interface Messages {
     /** Why an action offered only during a period isn't, for the inspector: "Only during the storm." */
     "action.notDuring": { readonly during: string };
+    /** The button that takes an action once the numbers it asks for are given: "OK". */
+    "menu.ask.confirm": Record<never, never>;
   }
 }
 
 messages.register("action.notDuring", ({ during }) => `Only during ${during}.`, {
   source: "@loominate-if/core",
 });
+messages.register("menu.ask.confirm", "OK", { source: "@loominate-if/core" });
 
 /** What an action's rules see: its things, by name, and who's acting. */
 export type ActionContext<A> = A & {
@@ -107,6 +110,41 @@ export type ActionDefinition<A> = {
    * isn't offered.
    */
   readonly during?: Period;
+  /**
+   * The numbers it asks the player for before it's taken, by argument
+   * name, such as how many to take. A menu shows a field for each; its
+   * other rules see the number given.
+   *
+   * @example
+   * ```ts
+   * asks: { count: { label: "How many?", min: 1, max: ({ thing }) => countOf(thing) } }
+   * ```
+   */
+  readonly asks?: { readonly [K in keyof A]?: Ask<A> };
+  /** The button that takes it once its numbers are given, as "Take". Defaults to the `menu.ask.confirm` message. */
+  readonly confirm?: string | ((context: ActionContext<A>) => string);
+};
+
+/** A number an action asks for: what to call it, and its limits, as text or worked out from the action's things. */
+export type Ask<A> = {
+  /** What the field is called, as "How many?". */
+  readonly label: string | ((context: ActionContext<A>) => string);
+  /** The least it can be. Defaults to 1. */
+  readonly min?: number | ((context: ActionContext<A>) => number);
+  /** The most it can be. Defaults to no limit. */
+  readonly max?: number | ((context: ActionContext<A>) => number);
+  /** What the field starts at. Defaults to `min`. */
+  readonly start?: number | ((context: ActionContext<A>) => number);
+};
+
+/** A number an action asks for, as it stands for one call: what {@link statusOf} gives a menu. */
+export type AskedNumber = {
+  /** The argument it fills. */
+  readonly name: string;
+  readonly label: string;
+  readonly min: number;
+  readonly max?: number;
+  readonly start: number;
 };
 
 /** A period of the story, such as a world model's scene, that an action can be offered only during. */
@@ -180,6 +218,8 @@ export const everyAction: {
 
 /** Every action, by name, so a logged move can be replayed. */
 const actions = new Map<string, Action<never>>();
+/** Each action's definition, by name, for what it asks for. */
+const definitions = new Map<string, ActionDefinition<never>>();
 /** Each action's other roles, by action name, for menus to fill. */
 const roles = new Map<string, readonly (readonly [string, Participant])[]>();
 /** The things each action is `on`, by action name. */
@@ -347,6 +387,7 @@ export function action<A extends Readonly<Record<string, unknown>>>(
     },
   }) as Action<A>;
   actions.set(name, made as unknown as Action<never>);
+  definitions.set(name, d as unknown as ActionDefinition<never>);
   roles.set(name, others);
   const on = d.on;
   ons.set(name, on === undefined ? [] : Array.isArray(on) ? on : [on as ObjectRef]);
@@ -464,6 +505,10 @@ export type ActionStatus = {
   readonly disabled?: string;
   /** The rule that hid or disabled it, if one did. */
   readonly by?: ActionRule;
+  /** The numbers it asks for before it's taken, while it can be. */
+  readonly asks?: readonly AskedNumber[];
+  /** The button that takes it once they're given, when it asks for any. */
+  readonly confirm?: string;
 };
 
 type Book = DecideRulebook<ActionContext<Readonly<Record<string, unknown>>>, string | undefined>;
@@ -495,7 +540,63 @@ export function statusOf<A>(call: ActionCall<A>): ActionStatus {
   const hidden = decide("verify", [everyAction.verify, a.verify], c);
   if (hidden) return { label, hidden: hidden.reason, by: hidden.by };
   const disabled = decide("check", [everyAction.check, a.check], c);
-  return disabled ? { label, disabled: disabled.reason, by: disabled.by } : { label };
+  if (disabled) return { label, disabled: disabled.reason, by: disabled.by };
+  const asks = asked(call);
+  if (asks.length === 0) return { label };
+  const confirm = definitions.get(call.action.actionName)?.confirm;
+  return {
+    label,
+    asks,
+    confirm:
+      confirm === undefined
+        ? message("menu.ask.confirm", {})
+        : typeof confirm === "string"
+          ? confirm
+          : confirm(c as never),
+  };
+}
+
+/** The numbers a call's action asks for, worked out for its things. */
+function asked<A>(call: ActionCall<A>): readonly AskedNumber[] {
+  const asks = definitions.get(call.action.actionName)?.asks;
+  if (!asks) return [];
+  const c = contextFor(call) as never;
+  const value = (v: number | ((context: never) => number) | undefined) =>
+    typeof v === "function" ? v(c) : v;
+  return Object.entries(asks as Record<string, Ask<never> | undefined>).flatMap(([name, ask]) => {
+    if (!ask) return [];
+    const min = value(ask.min) ?? 1;
+    const max = value(ask.max);
+    return [
+      Object.freeze({
+        name,
+        label: typeof ask.label === "function" ? ask.label(c) : ask.label,
+        min,
+        ...(max !== undefined && { max }),
+        start: value(ask.start) ?? min,
+      }),
+    ];
+  });
+}
+
+/**
+ * Why a call's asked numbers aren't right, or `undefined` if they are:
+ * each must be given, a whole number, within its limits. @internal
+ */
+export function _askedProblem<A>(call: ActionCall<A>): string | undefined {
+  for (const ask of asked(call)) {
+    const given = (call.args as Readonly<Record<string, unknown>>)[ask.name];
+    const range = `from ${String(ask.min)}${ask.max === undefined ? " up" : ` to ${String(ask.max)}`}`;
+    if (
+      typeof given !== "number" ||
+      !Number.isInteger(given) ||
+      given < ask.min ||
+      (ask.max !== undefined && given > ask.max)
+    ) {
+      return `action ${JSON.stringify(call.action.actionName)}: ${ask.name} must be a whole number ${range}${given === undefined ? ", and none was given" : `, not ${JSON.stringify(given)}`}.`;
+    }
+  }
+  return undefined;
 }
 
 /** What {@link perform} did. */
@@ -518,6 +619,8 @@ export type ActionOutcome = {
  * ```
  */
 export function perform<A>(call: ActionCall<A>): ActionOutcome {
+  const problem = _askedProblem(call);
+  if (problem !== undefined) throw new StateError(problem);
   const c = contextFor(call) as ActionContext<Readonly<Record<string, unknown>>>;
   const a = call.action as unknown as Action<Readonly<Record<string, unknown>>>;
   const refused =

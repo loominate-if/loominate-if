@@ -413,6 +413,12 @@ thing: ActingOn;
 }>;
 
 // @public
+export const dropSome: Action<    {
+thing: ActingOn;
+count: number;
+}>;
+
+// @public
 export type Ended = "fired" | "cancelled" | "stopped";
 
 // @public
@@ -1084,6 +1090,12 @@ thing: ActingOn;
 // @public
 export const takeOne: Action<    {
 thing: ActingOn;
+}>;
+
+// @public
+export const takeSome: Action<    {
+thing: ActingOn;
+count: number;
 }>;
 
 // @public

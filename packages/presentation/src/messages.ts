@@ -36,6 +36,12 @@ declare module "@loominate-if/core" {
     "things.nothing": None;
     /** A thing's menu with nothing to offer. */
     "menu.nothing": None;
+    /** Going back from an action's numbers to its menu. */
+    "menu.ask.back": None;
+    /** The limit beside a number an action asks for: "of 99". */
+    "menu.ask.of": { readonly max: number };
+    /** Why a number an action asks for isn't right: "Choose a whole number from 1 to 99." */
+    "menu.ask.problem": { readonly min: number; readonly max?: number };
     /** The game menu's buttons. */
     "menu.undo": None;
     "menu.save": None;
@@ -121,6 +127,13 @@ register("history.goTo", ({ passage }) => `Go to ${passage}`);
 register("status.moves", ({ count }) => `Moves: ${String(count)}`);
 register("compass.label", "Compass");
 register("menu.nothing", "Nothing to do with it.");
+register("menu.ask.back", "Back");
+register("menu.ask.of", ({ max }) => `of ${String(max)}`);
+register("menu.ask.problem", ({ min, max }) =>
+  max === undefined
+    ? `Choose a whole number, ${String(min)} or more.`
+    : `Choose a whole number from ${String(min)} to ${String(max)}.`,
+);
 register("things.nothing", "nothing");
 register("menu.undo", "Undo");
 register("menu.save", "Save");

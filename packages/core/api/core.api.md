@@ -51,6 +51,10 @@ export type ActionDefinition<A> = {
     readonly source?: string;
     readonly stopsFor?: (by: string) => boolean;
     readonly during?: Period;
+    readonly asks?: {
+        readonly [K in keyof A]?: Ask<A>;
+    };
+    readonly confirm?: string | ((context: ActionContext<A>) => string);
 };
 
 // @public
@@ -82,12 +86,31 @@ export type ActionStatus = {
     readonly hidden?: string;
     readonly disabled?: string;
     readonly by?: ActionRule;
+    readonly asks?: readonly AskedNumber[];
+    readonly confirm?: string;
 };
 
 // @public
 export function actLink<A>(args: {
     readonly call: ActionCall<A>;
 }): LinkGuard;
+
+// @public
+export type Ask<A> = {
+    readonly label: string | ((context: ActionContext<A>) => string);
+    readonly min?: number | ((context: ActionContext<A>) => number);
+    readonly max?: number | ((context: ActionContext<A>) => number);
+    readonly start?: number | ((context: ActionContext<A>) => number);
+};
+
+// @public
+export type AskedNumber = {
+    readonly name: string;
+    readonly label: string;
+    readonly min: number;
+    readonly max?: number;
+    readonly start: number;
+};
 
 // @public
 export const AUTOSAVE_SLOT = "autosave";
