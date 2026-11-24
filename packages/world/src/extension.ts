@@ -115,6 +115,24 @@ function checkUnreachableRooms(context: Context): Problem[] {
   return problems;
 }
 
+// The message parameters grammar.ts registers, copied here because the
+// extension imports nothing; parameters.test.ts checks they match (#235).
+const pronouns = ["he", "she", "they", "it", "him", "them", "his", "their", "its"];
+const reflexives = ["himself", "herself", "themselves", "itself"];
+const PARAMETER_NAMES = [
+  "the",
+  "The",
+  "a",
+  "A",
+  "subj",
+  ...[...pronouns, ...reflexives].flatMap((w) => [w, w.charAt(0).toUpperCase() + w.slice(1)]),
+];
+/** Verbs the verb fallback knows by name, which are never taken for misspelled parameters. */
+const KNOWN_VERBS = [
+  ...["is", "are", "was", "were", "has", "have", "does", "do", "goes", "go"],
+  ...["isn't", "aren't", "wasn't", "weren't", "hasn't", "haven't", "doesn't", "don't"],
+];
+
 const extension = {
   name: WORLD,
   tagRoles: [
@@ -149,6 +167,11 @@ const extension = {
     { name: "room passages", run: checkRoomPassages },
     { name: "unreachable rooms", run: checkUnreachableRooms },
   ],
+  // What grammar.ts registers, so `t` templates' names are checked (#235).
+  messageParameters: {
+    names: PARAMETER_NAMES,
+    fallback: { reads: "a verb", words: KNOWN_VERBS },
+  },
 };
 
 export default extension;

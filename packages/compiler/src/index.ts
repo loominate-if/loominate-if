@@ -14,6 +14,7 @@ export type {
   ExtensionCheck,
   ExtensionDiagnostic,
   LineFormDefinition,
+  MessageParameterDeclaration,
   RuntimeExport,
   TagRoleDefinition,
 } from "./extensions/extension.js";

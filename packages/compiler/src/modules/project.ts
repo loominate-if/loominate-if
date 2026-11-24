@@ -3,6 +3,7 @@
  * (ADR 0005): parse each `.weft` file, generate its module, and type-check
  * everything together, mapping errors in generated code back to passage lines.
  */
+import { checkTextIn, registeredIn } from "./text-parameters.js";
 import path from "node:path";
 import ts from "typescript";
 import type { CompilerExtension } from "../extensions/extension.js";
@@ -592,6 +593,53 @@ export function createCompilerSession(options: ProjectOptions): CompilerSession 
       }
     }
     diagnostics.push(...markFollowOns(typescript));
+
+    // `t` templates' message parameters: their braces, and names a package or the game registers (#235).
+    const parameterNames = new Map(syntax.messageParameters);
+    for (const file of userFiles) {
+      const source = program.getSourceFile(file);
+      for (const name of source ? registeredIn(source) : []) {
+        if (!parameterNames.has(name)) parameterNames.set(name, display(file));
+      }
+    }
+    const known = {
+      names: parameterNames,
+      fallbacks: syntax.parameterFallbacks.map((f) => ({ from: f.from, ...f.definition })),
+    };
+    for (const file of userFiles) {
+      const source = program.getSourceFile(file);
+      if (!source || !memory.has(file)) continue;
+      for (const problem of checkTextIn(source, checker, known)) {
+        const { line, character } = source.getLineAndCharacterOfPosition(problem.start);
+        diagnostics.push({
+          severity: problem.severity,
+          source: "compiler",
+          file,
+          message: problem.message,
+          span: { start: problem.start, end: problem.end },
+          line: line + 1,
+          column: character + 1,
+        });
+      }
+    }
+    for (const generated of modules.values()) {
+      const source = program.getSourceFile(generated.path);
+      if (!source) continue;
+      const lines = locator(sources.get(generated.file) ?? "");
+      for (const problem of checkTextIn(source, checker, known)) {
+        const at = toSource(generated.mappings, problem.start);
+        if (at === undefined) continue;
+        const end = toSource(generated.mappings, problem.end) ?? at;
+        diagnostics.push({
+          severity: problem.severity,
+          source: "compiler",
+          file: generated.file,
+          message: problem.message,
+          span: { start: at, end: Math.max(end, at) },
+          ...lines.locate(at),
+        });
+      }
+    }
 
     // 4. Object IDs must be unique and not reserved.
     const sites = findObjectDefinitions(program, userFiles);

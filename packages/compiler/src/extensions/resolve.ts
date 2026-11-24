@@ -32,6 +32,13 @@ export type ResolvedSyntax = {
   readonly tagRoles: ReadonlyMap<string, From<TagRoleDefinition>>;
   /** Checks, in load order. */
   readonly checks: readonly From<ExtensionCheck>[];
+  /** The message parameter names packages register, with the package each comes from. */
+  readonly messageParameters: ReadonlyMap<string, string>;
+  /** Fallbacks that read any other name, in load order. */
+  readonly parameterFallbacks: readonly From<{
+    readonly reads: string;
+    readonly words: ReadonlySet<string>;
+  }>[];
   /** Names of `content` directives and line forms, which end a paragraph. */
   readonly paragraphEnds: ReadonlySet<string>;
   /** The packages that provide a directive, tag role, or line form this game doesn't load. */
@@ -129,6 +136,11 @@ export function resolveExtensions(extensions: readonly CompilerExtension[]): Res
   const lineForms = new Map<string, From<LineFormDefinition>>();
   const tagRoles = new Map<string, From<TagRoleDefinition>>();
   const checks: From<ExtensionCheck>[] = [];
+  const messageParameters = new Map<string, string>();
+  const parameterFallbacks: From<{
+    readonly reads: string;
+    readonly words: ReadonlySet<string>;
+  }>[] = [];
 
   for (const ext of all) {
     if (ext.name.trim() === "") fail("A compiler extension needs a `name`: its package's name.");
@@ -191,6 +203,21 @@ export function resolveExtensions(extensions: readonly CompilerExtension[]): Res
       lineForms.set(f.prefix, { definition: f, from });
     }
     for (const c of ext.checks ?? []) checks.push({ definition: c, from });
+    const params = ext.messageParameters;
+    for (const name of params?.names ?? []) {
+      if (!/^\S+$/.test(name)) fail(`${from}: message parameter "${name}" must be one word.`);
+      const other = messageParameters.get(name);
+      if (other !== undefined) {
+        fail(`${from}: the message parameter "${name}" is already registered by ${other}.`);
+      }
+      messageParameters.set(name, from);
+    }
+    if (params?.fallback) {
+      parameterFallbacks.push({
+        definition: { reads: params.fallback.reads, words: new Set(params.fallback.words ?? []) },
+        from,
+      });
+    }
   }
 
   for (const [name, defs] of directives) {
@@ -228,6 +255,8 @@ export function resolveExtensions(extensions: readonly CompilerExtension[]): Res
     lineForms,
     tagRoles,
     checks,
+    messageParameters,
+    parameterFallbacks,
     paragraphEnds,
     missing: (kind, name) => {
       const suggested = all.flatMap((e) => {
