@@ -8,6 +8,7 @@
 import {
   _storyRunning,
   action,
+  emit,
   hook,
   message,
   messages,
@@ -32,6 +33,28 @@ declare module "@loominate-if/core" {
     [name: `npc:${string}`]: NpcTurn;
     /** What an NPC did while unseen, as `catchUp:butler`: the rules {@link catchUp} adds. */
     [name: `catchUp:${string}`]: CatchUp;
+  }
+  interface EventKinds {
+    /**
+     * Something an NPC did, for the inspector's timeline; the page never
+     * shows it. `at` is the clock's minutes, and `perceived` whether the
+     * player could see or hear them.
+     */
+    npc: {
+      readonly npc: string;
+      readonly what: "action" | "moved" | "caughtUp";
+      readonly at: number;
+      readonly perceived: boolean;
+      /** For an action: its name, whether it was done, and why not. */
+      readonly action?: string;
+      readonly done?: boolean;
+      readonly reason?: string;
+      /** For a timetable move: where to. */
+      readonly to?: string;
+      /** For catching up: how long they were unseen. */
+      readonly minutes?: number;
+      readonly moves?: number;
+    };
   }
   interface Messages {
     /** Why `go` isn't taken: there's no way that way. */
@@ -76,8 +99,20 @@ export function actAs(who: ObjectRef, call: ActionCall<any>): ActionOutcome {
       `actAs: ${JSON.stringify(who.id)} is the player. The player acts through links and menus, or core's perform().`,
     );
   }
+  // Seen before or after: leaving the player's sight, or coming into it.
+  const before = playerPerceives(body);
   const outcome = perform(call, { as: { actor, body } });
+  const perceived = before || playerPerceives(body);
   if (outcome.done && outcome.seen !== undefined) happen(body, { seen: outcome.seen });
+  emit("npc", {
+    npc: actor.id,
+    what: "action",
+    at: clock.minutes,
+    perceived,
+    action: call.action.actionName,
+    done: outcome.done,
+    ...(outcome.reason !== undefined && { reason: outcome.reason }),
+  });
   return outcome;
 }
 
@@ -236,6 +271,14 @@ export function _actsUnseen(reason: (mind: Mind) => boolean): void {
   actsUnseen.push(reason);
 }
 
+/** Whether the player can see or hear `body` now. @internal */
+export function playerPerceives(body: ObjectRef): boolean {
+  const player = currentPlayerBody();
+  return (
+    player !== undefined && player.id !== body.id && (canSee(player, body) || canHear(player, body))
+  );
+}
+
 // After each of the player's moves, every NPC with a turn takes it, in ID order.
 hook("turnEnd").rule(
   "npc turns",
@@ -255,13 +298,19 @@ hook("turnEnd").rule(
       if (!body) continue;
       // Back in view after a stretch without a turn: what they did meanwhile, first.
       if (before !== undefined && !before.turned) {
-        hook(`catchUp:${id}`).run({
-          npc,
-          mind,
-          body,
-          minutes: clock.minutes - before.minutes,
-          moves: clock.moves - before.moves,
-        });
+        const minutes = clock.minutes - before.minutes;
+        const moves = clock.moves - before.moves;
+        if (hook(`catchUp:${id}`).rules().length > 0) {
+          hook(`catchUp:${id}`).run({ npc, mind, body, minutes, moves });
+          emit("npc", {
+            npc: id,
+            what: "caughtUp",
+            at: clock.minutes,
+            perceived: true,
+            minutes,
+            moves,
+          });
+        }
       }
       state.last = { ...state.last, [id]: { turned: true, ...now() } };
       hook(`npc:${id}`).run({ npc, mind, body });

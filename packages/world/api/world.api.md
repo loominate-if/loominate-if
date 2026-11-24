@@ -827,6 +827,43 @@ export function move(t: ObjectRef, to: ObjectRef | null): void;
 // @public
 export function moves(n: number): Delay;
 
+// @internal
+export type _NpcAgendaItem = {
+    readonly name: string;
+    readonly priority: number;
+    readonly active: boolean;
+    readonly ready: boolean;
+    readonly next: boolean;
+};
+
+// @internal
+export type _NpcRow = {
+    readonly mind: string;
+    readonly body: string;
+    readonly name: string;
+    readonly place?: string;
+    readonly level: "observed" | "scheduled" | "simulated";
+    readonly turn: boolean;
+    readonly why: "simulated" | "busy with an agenda item" | "seen by the player" | "heard by the player" | "out of sight";
+    readonly agenda: readonly _NpcAgendaItem[];
+    readonly timetable?: {
+        readonly now?: _NpcTimetableEntry;
+        readonly next?: _NpcTimetableEntry & {
+            readonly minutes: number;
+        };
+    };
+};
+
+// @internal
+export function _npcRows(): readonly _NpcRow[];
+
+// @internal
+export type _NpcTimetableEntry = {
+    readonly at: string;
+    readonly in: string;
+    readonly on?: string;
+};
+
 // @public
 export type NpcTurn = {
     readonly npc: ObjectRef;

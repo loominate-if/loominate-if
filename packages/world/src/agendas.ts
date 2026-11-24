@@ -159,6 +159,28 @@ export function isAgendaActive(npc: ObjectRef, name: string): boolean {
   return isActive(mind.id, item);
 }
 
+/** An NPC's agenda items, as the inspector shows them. @internal */
+export function _agendaItems(mind: ObjectRef): readonly {
+  readonly name: string;
+  readonly priority: number;
+  readonly active: boolean;
+  readonly ready: boolean;
+  readonly next: boolean;
+}[] {
+  const chosen = next(mind.id);
+  return (items.get(mind.id) ?? []).map((item) => {
+    const active = isActive(mind.id, item);
+    let ready: boolean;
+    try {
+      ready = item.ready?.() ?? true;
+    } catch {
+      // The inspector shows a `ready` that throws as not ready, rather than failing.
+      ready = false;
+    }
+    return { name: item.name, priority: item.priority ?? 0, active, ready, next: item === chosen };
+  });
+}
+
 /** Whether an NPC is busy with an agenda item: one that's active and ready. @internal */
 export function _busyWithAgenda(mind: ObjectRef): boolean {
   return next(mind.id) !== undefined;

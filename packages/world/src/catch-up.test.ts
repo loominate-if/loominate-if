@@ -84,6 +84,10 @@ describe("catching up an unseen NPC (#356)", () => {
     expect(caught).toEqual([]); // unseen: no turn, no catching up yet
     go("West", "Hall");
     expect(caught).toEqual([{ minutes: 40, moves: 3 }]);
+    // For the inspector's timeline (#108), never shown on the page.
+    expect(
+      record.events({ kinds: ["npc"] }).map((e) => [e.npc, e.what, e.minutes, e.moves]),
+    ).toEqual([["butler:mind", "caughtUp", 40, 3]]);
     expect(cake.location?.id).toBe("butler"); // moved directly, not narrated
     expect(record.events({ kinds: ["perception"] }).map((e) => e.text)).not.toContain(
       "The butler takes the cake.",

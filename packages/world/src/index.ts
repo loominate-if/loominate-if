@@ -284,3 +284,9 @@ export {
   type AgendaTurn,
 } from "./agendas.js";
 export { schedule, whereScheduled, type TimetableEntry } from "./timetables.js";
+export {
+  _npcRows,
+  type _NpcAgendaItem,
+  type _NpcRow,
+  type _NpcTimetableEntry,
+} from "./npc-view.js";

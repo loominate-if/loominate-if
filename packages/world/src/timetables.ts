@@ -5,9 +5,10 @@
  * right place after any jump in time. An agenda item they're busy with
  * holds them; afterwards they go where the timetable says by then.
  */
-import { hook, StateError, type ObjectRef } from "@loominate-if/core";
+import { emit, hook, StateError, type ObjectRef } from "@loominate-if/core";
 import { bodyOf, mindFor } from "./actors.js";
 import { _busyWithAgenda } from "./agendas.js";
+import { playerPerceives } from "./npcs.js";
 import { matchesAt, type CalendarQuery } from "./calendar.js";
 import { clock, dayOffset, minuteOfDayAt, parseTime } from "./clock.js";
 import { isPlace, move, placeOf, thingFor } from "./things.js";
@@ -93,6 +94,59 @@ export function whereScheduled(npc: ObjectRef, minutes = clock.minutes): ObjectR
   return undefined;
 }
 
+/** A timetable entry as the inspector shows it: its time, place, and days. */
+type ShownEntry = { readonly at: string; readonly in: string; readonly on?: string };
+const shown = (e: Entry): ShownEntry => ({
+  at: `${String(Math.floor(e.minuteOfDay / 60)).padStart(2, "0")}:${String(e.minuteOfDay % 60).padStart(2, "0")}`,
+  in: e.in.id,
+  ...(e.on && {
+    on: Object.entries(e.on)
+      .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`)
+      .join("; "),
+  }),
+});
+
+/**
+ * An NPC's timetable as the inspector shows it: the entry they're in now,
+ * and the next one to begin, with when, or `undefined` if they have none. @internal
+ */
+export function _timetableOf(
+  npc: ObjectRef,
+):
+  | { readonly now?: ShownEntry; readonly next?: ShownEntry & { readonly minutes: number } }
+  | undefined {
+  const table = timetables.get(mindFor(npc, "timetable").id);
+  if (!table) return undefined;
+  const minutes = clock.minutes;
+  const startOfDay = (offset: number) => offset * 24 * 60 - minuteOfDayAt(0);
+  const today = dayOffset(minutes);
+  let now: ShownEntry | undefined;
+  find: for (let d = today; d > today - LOOK_BACK; d--) {
+    for (const e of table.entries) {
+      const m = startOfDay(d) + e.minuteOfDay;
+      if (m > minutes) continue;
+      if (!e.on || matchesAt(e.on, m, "timetable")) {
+        now = shown(e);
+        break find;
+      }
+    }
+  }
+  // The next entry to begin: the earliest after now that applies on its day.
+  const ascending = [...table.entries].sort(
+    (a, b) => a.minuteOfDay - b.minuteOfDay || a.order - b.order,
+  );
+  for (let d = today; d < today + LOOK_BACK; d++) {
+    for (const e of ascending) {
+      const m = startOfDay(d) + e.minuteOfDay;
+      if (m <= minutes) continue;
+      if (!e.on || matchesAt(e.on, m, "timetable")) {
+        return { ...(now && { now }), next: { ...shown(e), minutes: m } };
+      }
+    }
+  }
+  return now ? { now } : {};
+}
+
 /** Puts each scheduled NPC where their timetable says, unless an agenda item holds them. */
 function place(narrated: boolean): void {
   for (const [, { npc }] of [...timetables].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
@@ -101,8 +155,17 @@ function place(narrated: boolean): void {
     const body = bodyOf(mind);
     const target = whereScheduled(npc);
     if (!body || !target || placeOf(body)?.id === target.id) continue;
-    if (narrated) move(body, target);
-    else {
+    if (narrated) {
+      const perceived = playerPerceives(body);
+      move(body, target);
+      emit("npc", {
+        npc: mind.id,
+        what: "moved",
+        at: clock.minutes,
+        perceived: perceived || playerPerceives(body),
+        to: target.id,
+      });
+    } else {
       // At the start, they're simply there: nobody saw them arrive.
       const thing = thingFor(body) as { location: ObjectRef | null } | undefined;
       if (thing) thing.location = target;
