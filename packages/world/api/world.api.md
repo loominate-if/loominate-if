@@ -823,6 +823,9 @@ export type ListingFields = {
 };
 
 // @public
+export type ListOrder = "stop" | "cycle" | "shuffle";
+
+// @public
 export const lock: Action<    {
 thing: ActingOn;
 }>;
@@ -1512,7 +1515,8 @@ export type TopicKind = "ask" | "tell" | "yes" | "no" | "hello" | "bye";
 
 // @public
 export type TopicOptions = {
-    readonly says: Says;
+    readonly says: Says | readonly Says[];
+    readonly order?: ListOrder;
     readonly when?: () => boolean;
     readonly in?: ActorState | Period;
     readonly priority?: number;

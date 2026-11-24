@@ -368,7 +368,7 @@ The player has one conversation at a time, held as game state: its participants 
 - Topics cover asking, telling, showing, giving, and yes/no answers, plus greetings and goodbyes (including implicit ones).
 - Topics live on the actor, the actor's current state (on duty versus off), a conversation node, or an active scene.
 - Each has conditions and a match priority; the most specific match wins.
-- Repeated topics use event lists that cycle, stop at the last response, or shuffle.
+- Repeated topics use event lists that cycle, stop at the last response, or shuffle. An entry's `says` can be a list, with `order`: `stop` (the default), `cycle`, or `shuffle`, a shuffled deck per round that never starts a round with the response just said, drawn from a random stream per entry; how far each list has got is game state ([ADR 0089](decisions/0089-topic-event-lists.md)).
 - Topics are suggested only when the player knows the subject. Responses can reveal facts to the player and inform NPCs.
 - Showing and giving are ordinary actions that route to show and give topics.
 - With the autocomplete command line, "ask butler about" offers every known topic, with sensible defaults for topics the NPC has no special response to.

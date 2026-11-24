@@ -1258,8 +1258,27 @@ topic(butler, { bye: true, implicit: true, says: "The butler bows as you go." })
 
 - **Kinds:** `ask`, `tell`, `askOrTell`, `yes`, `no`, `hello`, and `bye`. A `hello` or `bye` with `implicit: true` is said only when nothing was: talking starts with a question, or the conversation ends without goodbye. With `implicit: false`, only when it's said; with neither, both.
 - **`says`** is the text, or a function that returns it and can change state, given `{ npc, about, how }`; `how` says how a conversation ended for a `bye`: `goodbye`, `apart`, or `ended`.
+- **A list of responses,** one each time the entry answers, for a topic asked about again. `order` says how: `stop`, the default, says each in turn, then keeps saying the last; `cycle` goes back to the first; and `shuffle` says each once a round in a random order, never starting a round with the one just said. Shuffling draws from a random stream per entry, so a seed and the moves replay it.
 - **When it applies:** `when`, a condition; `in`, an actor state of theirs or a scene, so it applies only in that state or while the scene is happening; and `priority`, higher first.
 - **Which answers:** among entries that apply, the highest priority, then the most specific (a scene's, then an actor state's, then the actor's; a particular subject over `anything`), then the first defined. With none, the NPC gives a default response: "The butler has nothing to say about that." The inspector's Choices tab shows which entry answers each, and why each other doesn't.
+
+<!-- example: packages/world/src/topic-lists.test.ts#lists -->
+```ts
+topic(butler, {
+  ask: letter,
+  says: [
+    "“The letter, sir? On the desk.”",
+    "“As I said, sir. On the desk.”",
+    "He sighs. “The desk, sir.”",
+  ], // order: "stop" by default
+});
+topic(maid, { ask: weather, order: "cycle", says: ["“Cold.”", "“Colder.”"] });
+topic(cook, {
+  askOrTell: anything,
+  order: "shuffle",
+  says: ["“I couldn't say.”", "She shrugs.", "“Ask the butler.”", "“Not now, dear.”"],
+});
+```
 
 **Actor states**, as adv3Lite's, are named states an NPC is in, such as on duty and off duty. `actorStates(npc, names, { starts })` gives them, `setActorState(npc, state)` changes it (in `story.ts`, how they start), and `actorStateOf(npc)` says which is current.
 

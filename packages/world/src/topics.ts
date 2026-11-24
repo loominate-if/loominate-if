@@ -14,6 +14,7 @@ import {
   message,
   messages,
   object,
+  randomStream,
   StateError,
   t,
   type ObjectRef,
@@ -201,10 +202,21 @@ export type TopicContext = {
 /** What the NPC says: text, or a function that can change state and returns the text, if any. */
 export type Says = string | ((context: TopicContext) => string | undefined);
 
+/** The order a list of responses is said in: see {@link TopicOptions.order}. */
+export type ListOrder = "stop" | "cycle" | "shuffle";
+
+const isList = (says: Says | readonly Says[]): says is readonly Says[] => Array.isArray(says);
+
 /** When and how strongly a topic entry applies. */
 export type TopicOptions = {
-  /** What it says. */
-  readonly says: Says;
+  /** What it says, or a list of responses, one each time it answers, in {@link TopicOptions.order}. */
+  readonly says: Says | readonly Says[];
+  /**
+   * For a list: `stop`, the default, says each in turn, then the last again;
+   * `cycle` goes back to the first; `shuffle` says each once a round, in a
+   * random order, never starting a round with the one just said.
+   */
+  readonly order?: ListOrder;
   /** Only while this holds. */
   readonly when?: () => boolean;
   /** Only in this actor state of theirs, or while this scene is happening. */
@@ -239,7 +251,7 @@ type Entry = {
   /** What it's about, as given, to name it for the inspector. */
   readonly about?: Subject;
   readonly implicit?: boolean;
-  readonly order: number;
+  readonly index: number;
 } & TopicOptions;
 
 const entries = new Map<string, Entry[]>();
@@ -318,6 +330,19 @@ export function topic(npc: ObjectRef, entry: TopicEntry): void {
       `${where}: say what it answers: ask, tell, askOrTell, yes, no, hello, or bye.`,
     );
   }
+  if (isList(entry.says) && entry.says.length === 0) {
+    throw new StateError(`${where}: its list of responses is empty. Give at least one.`);
+  }
+  if (entry.order !== undefined && !isList(entry.says)) {
+    throw new StateError(
+      `${where}: \`order\` is for a list of responses, but \`says\` is one. Give \`says\` a list, or leave out \`order\`.`,
+    );
+  }
+  if (entry.order !== undefined && !["stop", "cycle", "shuffle"].includes(entry.order)) {
+    throw new StateError(
+      `${where}: the order is "stop", "cycle", or "shuffle", not ${JSON.stringify(entry.order)}.`,
+    );
+  }
   if (entry.in && !isPeriod(entry.in) && entry.in.mind !== mind) {
     throw new StateError(`${where}: ${JSON.stringify(entry.in.id)} is another NPC's state.`);
   }
@@ -330,7 +355,7 @@ export function topic(npc: ObjectRef, entry: TopicEntry): void {
     kinds,
     ...(subjectOf !== undefined && { subject: subjectKey(subjectOf), about: subjectOf }),
     ...(e.implicit !== undefined && { implicit: e.implicit }),
-    order: list.length,
+    index: list.length,
   });
   entries.set(mind, list);
 }
@@ -375,7 +400,7 @@ const rank = (a: Entry, b: Entry): number =>
   (b.priority ?? 0) - (a.priority ?? 0) ||
   contextLevel(b) - contextLevel(a) ||
   Number(b.subject !== "*") - Number(a.subject !== "*") ||
-  a.order - b.order;
+  a.index - b.index;
 
 /** Which entry answers an exchange, and how each fared. */
 function match(
@@ -488,8 +513,41 @@ export function _topicExplanations(): readonly {
 }
 
 /** Says an entry's response, as the NPC, recorded for the page. */
+/** How far each entry's list has got, by entry ID: game state. */
+const lists = object("world:topicLists", {
+  /** How many times each list has answered. */
+  said: {} as Record<string, number>,
+  /** For a shuffled list, what's left of this round, as positions in the list. */
+  deck: {} as Record<string, number[]>,
+  /** For a shuffled list, the position said last. */
+  last: {} as Record<string, number>,
+});
+const shuffling = randomStream("world:topics");
+
+/** Which response of a list answers now, moving the list on. */
+function nextOf(e: Entry, count: number): number {
+  const said = lists.said[e.id] ?? 0;
+  lists.said = { ...lists.said, [e.id]: said + 1 };
+  if (e.order === "cycle") return said % count;
+  if (e.order !== "shuffle") return Math.min(said, count - 1);
+  let deck = lists.deck[e.id] ?? [];
+  if (deck.length === 0) {
+    deck = shuffling.substream(e.id).shuffle([...Array(count).keys()]);
+    // A new round doesn't start with the one just said.
+    const last = lists.last[e.id];
+    if (count > 1 && deck[0] === last) [deck[0], deck[1]] = [deck[1] as number, deck[0] as number];
+  }
+  const [chosen = 0, ...rest] = deck;
+  lists.deck = { ...lists.deck, [e.id]: rest };
+  lists.last = { ...lists.last, [e.id]: chosen };
+  return chosen;
+}
+
 function respond(e: Entry, context: TopicContext): void {
-  const text = typeof e.says === "string" ? e.says : e.says(context);
+  const says = Array.isArray(e.says)
+    ? (e.says as readonly Says[])[nextOf(e, e.says.length)]
+    : (e.says as Says);
+  const text = says === undefined ? undefined : typeof says === "string" ? says : says(context);
   if (typeof text === "string" && text !== "") say(text, context.npc);
 }
 
