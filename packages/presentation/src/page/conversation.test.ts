@@ -2,9 +2,11 @@
 /** Conversation widgets (#118): a cast of portraits and a list of action buttons, on the page. */
 import {
   createEventRecord,
+  createHistory,
   createStore,
   createStory,
   emit,
+  object,
   type Passage,
 } from "@loominate-if/core";
 import axe from "axe-core";
@@ -150,5 +152,85 @@ describe("conversation widgets (#118)", () => {
     expect(ask?.tagName).toBe("BUTTON"); // Enter and Space take it, as any button
     const results = await axe.run(document, { rules: { "color-contrast": { enabled: false } } });
     expect(results.violations.flatMap((v) => v.nodes.map((n) => `${v.id}: ${n.html}`))).toEqual([]);
+  });
+});
+
+describe("a layout placing the passage's parts (#118)", () => {
+  const said = object("transcriptTest", { n: 0 });
+  const talk: Passage[] = [
+    {
+      id: "Talk",
+      tags: [],
+      effects: {
+        enter: () => {
+          display.layout = "placed";
+          said.n += 1;
+          emit("action-result", { text: `Line ${String(said.n)}` }, ["topic"]);
+        },
+      },
+      body: () => [
+        { type: "text", text: "A quiet study." },
+        { type: "link", label: "Again", target: "Talk" },
+      ],
+    },
+  ];
+  function playPlaced() {
+    register(layouts, "placed", {
+      regions: ["context", "main", "more"],
+      passage: {
+        prose: "context",
+        choices: "more",
+        choicesLabel: () => "In the study",
+        transcriptSince: () => 0,
+      },
+    });
+    const store = createStore();
+    const record = createEventRecord(store);
+    const story = createStory(store, record, talk, { start: "Talk" });
+    const history = createHistory(store);
+    document.body.replaceChildren();
+    const container = document.createElement("div");
+    document.body.append(container);
+    const page = mountPage(container, { story, record }, { onMove: () => history.checkpoint() });
+    history.clear();
+    store.commit();
+    const root = page.element;
+    const region = (name: string) => root.querySelector<HTMLElement>(`[data-region="${name}"]`);
+    const again = () => {
+      const link = region("more")?.querySelector<HTMLElement>("a");
+      link?.click();
+    };
+    return { root, region, again, history, page };
+  }
+
+  it("put the prose above, the links in a disclosure below, and keep a transcript in main", () => {
+    const { region, again } = playPlaced();
+    expect(region("context")?.textContent).toBe("A quiet study.");
+    const more = region("more")?.querySelector("details");
+    expect([more?.open, more?.querySelector("summary")?.textContent]).toEqual([
+      false,
+      "In the study",
+    ]);
+    again();
+    again();
+    const main = region("main");
+    expect(
+      [...(main?.querySelectorAll(".loominate-notice") ?? [])].map((p) => p.textContent),
+    ).toEqual(["Line 1", "Line 2", "Line 3"]);
+    expect(main?.querySelector(".loominate-passage")?.textContent).not.toContain("A quiet study.");
+    // Focus is on the heading just before what's new, in main.
+    expect(document.activeElement?.textContent).toBe("Passage");
+    expect(document.activeElement?.nextElementSibling?.textContent).toBe("Line 3");
+  });
+
+  it("follow undo: the transcript comes from the record", () => {
+    const { region, again, history, page } = playPlaced();
+    again();
+    again();
+    history.undo();
+    page.refresh();
+    expect(
+      [...(region("main")?.querySelectorAll(".loominate-notice") ?? [])].map((p) => p.textContent),
+    ).toEqual(["Line 1", "Line 2"]);
   });
 });

@@ -67,6 +67,10 @@ A message's text is one of three things:
 | `conversation.objects` | `who` (the lock's NPC) | What an NPC says when the player tries to leave against a soft lock with no `objects` line: "“Just a moment,” the widow says. “I haven't finished.”" |
 | `conversation.locked` | `who` | Why goodbye and exits are disabled under a hard lock with no `objects` line: "You can't leave until you answer the inspector." |
 | `conversation.cast`, `conversation.topics` | | What conversation mode's cast and topics are called, for screen readers: "In the conversation", "Topics" |
+| `conversation.room` | `room` (the player's place) | What the disclosure of the room's own links is called in conversation mode: "In the study" |
+| `topic.player.ask`, `topic.player.tell` | `who`, `about` | The player's line: "You ask the maid about the gold." |
+| `topic.player.show`, `topic.player.give` | `who`, `thing` | "You show the brooch to the maid." |
+| `topic.player.hello`, `topic.player.bye`, `topic.player.yes`, `topic.player.no` | `who` | "You greet the maid.", "You say goodbye to the maid.", "You say yes." |
 | `examine.nothing` | `thing` | "You see nothing special about the statue." |
 | `take.held`, `drop.notHeld`, `open.already`, `close.already`, `lock.already`, `unlock.notLocked` | `thing` | Why they aren't offered |
 | `open.locked`, `lock.open` | `thing` | "The oak chest is locked.", "You'll have to close the oak chest first." |

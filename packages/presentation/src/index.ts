@@ -17,6 +17,7 @@ export {
   widget,
   widgets,
   type LayoutDefinition,
+  type PassagePlacement,
   type MountedWidget,
   type StatusLineData,
   type StatusLineOptions,

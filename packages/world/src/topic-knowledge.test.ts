@@ -94,7 +94,11 @@ const links = () =>
     .render()
     .choices.filter((c) => c.label !== "Talk to the maid")
     .map((c) => c.label);
-const said = () => record.events({ kinds: ["action-result"] }).map((e) => e.text);
+const said = () =>
+  record
+    .events({ kinds: ["action-result"] })
+    .filter((e) => !e.tags.includes("player"))
+    .map((e) => e.text);
 
 describe("topic suggestions and knowledge (#113)", () => {
   it("suggest nothing until the player is talking to someone", () => {

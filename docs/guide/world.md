@@ -1351,11 +1351,13 @@ topic(widow, { ask: husband, hearMeOut: "The widow's tale", says: "“Let me tel
 
 While the player's talking, the page switches to the `conversation` layout, which focuses on the characters:
 
-- **`cast`:** a portrait for each character in the conversation, the one addressed marked. Choosing another addresses them.
-- **`main`:** the passage, where what's said shows. The room's own prose recedes, in the muted color.
+- **The header** keeps the game menu and what packages add to it.
+- **`context`:** the passage's own prose, as a strip above: where the player is, and what the passage says about the conversation.
+- **`cast` beside `main`:** a portrait for each character in the conversation, the one addressed marked, and choosing another addresses them; beside it, the conversation so far, each line as it was said, the player's own lines ("You ask the maid about the gold.") muted. New lines are read to screen readers, and focus goes to just before them.
 - **`topics`:** the suggested topics as buttons, showing and giving included. A button that can't be taken now is shown disabled, with why, as goodbye under a hard lock.
+- **`more`:** the passage's own links, such as the room's exits, in a closed disclosure named after the room, "In the study". Locks still apply to them.
 
-The header keeps the game menu and what packages add to it. When the conversation ends, by goodbye, by walking off, or by the NPC leaving on their timetable, the page goes back to the layout before. Which layout is showing is game state, so undo, saves, and replays agree.
+When the conversation ends, by goodbye, by walking off, or by the NPC leaving on their timetable, the page goes back to the layout before. Elsewhere during a conversation, as in a hear-me-out cut scene, the usual layout shows, and the conversation's comes back with the player. Which layout is showing is game state, so undo, saves, and replays agree, and the conversation so far is read from the event record, so undo takes back its lines too.
 
 - **`{topics}`** in a passage shows nothing while the layout lists the topics, so a room passage can keep it for games without conversation mode.
 - **Portraits:** `portrait(npc, { image, expressions })` gives an NPC an image, and one per expression. Without one, their portrait is their initials. Their expression is game state: `setExpression(npc, "stern")`, or an entry's `expression: "stern"` as it answers, `expression: "stern"` on a block too. `expressionOf(npc)` reads it.

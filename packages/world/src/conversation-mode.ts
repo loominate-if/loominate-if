@@ -7,13 +7,16 @@
  * `conversation-topics`, which a game can restyle or replace.
  */
 import {
+  _currentPassage,
   _storyRunning,
   emit,
+  hook,
   message,
   messages,
   object,
   StateError,
   statusOf,
+  t,
   type ObjectRef,
 } from "@loominate-if/core";
 import {
@@ -50,11 +53,18 @@ declare module "@loominate-if/core" {
     "conversation.cast": Record<never, never>;
     /** What the list of topics is called, for screen readers. */
     "conversation.topics": Record<never, never>;
+    /** What the disclosure of the room's own links is called while talking: "In the study". */
+    "conversation.room": { readonly room: ObjectRef | undefined };
   }
 }
 const SOURCE = "@loominate-if/world";
 messages.register("conversation.cast", "In the conversation", { source: SOURCE });
 messages.register("conversation.topics", "Topics", { source: SOURCE });
+messages.register(
+  "conversation.room",
+  ({ room }) => (room ? t`In {the room}`({ room }) : "Other choices"),
+  { source: SOURCE },
+);
 
 // --- Switching ---
 
@@ -63,6 +73,8 @@ let mode: { readonly layout: string } | false = { layout: "conversation" };
 const state = object("world:conversationMode", {
   /** The layout showing before the conversation, to go back to. */
   before: null as string | null,
+  /** The passage the conversation started in, where its layout shows. */
+  home: null as string | null,
 });
 
 /**
@@ -93,13 +105,25 @@ const showing = (): boolean => mode !== false && display.layout === mode.layout;
 _whenConversation("started", () => {
   if (mode === false || display.layout === mode.layout) return;
   state.before = display.layout;
+  state.home = _currentPassage() ?? null;
   display.layout = mode.layout;
 });
 _whenConversation("ended", () => {
   if (state.before === null) return;
   display.layout = state.before;
   state.before = null;
+  state.home = null;
 });
+// Elsewhere during a conversation, such as a hear-me-out cut scene, the usual
+// layout shows; back where it started, the conversation's does again.
+hook("passageEnter").rule(
+  "conversation mode follows the passage",
+  ({ passage }) => {
+    if (mode === false || state.before === null || state.home === null) return;
+    display.layout = passage === state.home ? mode.layout : state.before;
+  },
+  { source: SOURCE },
+);
 // The layout lists the topics, so the passage doesn't as well.
 _hideTopicLinksWhen(showing);
 
@@ -240,9 +264,25 @@ widgets.register(
 layouts.register(
   "conversation",
   {
-    regions: ["header", "cast", "main", "topics", "footer"],
+    // The room's prose above, as context; the cast beside what's said; the topics;
+    // and the room's own links below, in a disclosure.
+    regions: ["header", "context", "cast", "main", "topics", "more"],
+    sidebars: { cast: "start" },
     widgets: { cast: ["conversation-cast"], topics: ["conversation-topics"] },
     standardHeader: true,
+    passage: {
+      prose: "context",
+      choices: "more",
+      choicesLabel: () => {
+        const player = currentPlayerBody();
+        return message("conversation.room", { room: player ? placeOf(player) : undefined });
+      },
+      // What's been said since the conversation started, as a transcript.
+      transcriptSince: ({ record }) =>
+        conversation.active
+          ? record.events({ kinds: ["conversation"] }).findLast((e) => e.event === "started")?.seq
+          : undefined,
+    },
   },
   { source: SOURCE },
 );

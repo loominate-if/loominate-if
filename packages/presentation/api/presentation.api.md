@@ -147,6 +147,7 @@ export type LayoutDefinition = {
     readonly widgets?: Readonly<Record<string, readonly string[]>>;
     readonly sidebars?: Readonly<Record<string, "start" | "end">>;
     readonly standardHeader?: boolean;
+    readonly passage?: PassagePlacement;
 };
 
 // @public
@@ -211,6 +212,14 @@ export type PageOptions = {
     readonly reasons?: "tooltip" | "inline";
     readonly styles?: boolean;
     readonly narrow?: string;
+};
+
+// @public
+export type PassagePlacement = {
+    readonly prose?: string;
+    readonly choices?: string;
+    readonly choicesLabel?: (game: PageGame) => string;
+    readonly transcriptSince?: (game: PageGame) => number | undefined;
 };
 
 // @public

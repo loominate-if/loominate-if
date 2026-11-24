@@ -1,4 +1,5 @@
 import {
+  continueTo,
   createEventRecord,
   createStore,
   createStory,
@@ -77,8 +78,14 @@ agenda(cook, "announce dinner", {
 });
 // #endregion
 
+topic(cook, { ask: letter, hearMeOut: "Cook's tale", says: "“Let me tell you.”" });
 const passages: Passage[] = [
   { id: "Study", tags: [], body: () => [{ type: "link", label: "Wait", target: "Study" }] },
+  {
+    id: "Cook's tale",
+    tags: ["cutscene"],
+    body: () => [{ type: "text", text: "Years ago…" }, continueTo({ back: "back" })],
+  },
 ];
 let store: StateStore;
 let record: EventRecord;
@@ -92,7 +99,11 @@ beforeEach(() => {
 const act = <A>(call: ActionCall<A>) => {
   story.act(call as unknown as ActionCall);
 };
-const said = () => record.events({ kinds: ["action-result"] }).map((e) => e.text);
+const said = () =>
+  record
+    .events({ kinds: ["action-result"] })
+    .filter((e) => !e.tags.includes("player"))
+    .map((e) => e.text);
 const data = <D>(name: string): D => widgets.get(name)?.data({ story, record }) as D;
 /** A page, as the widgets see it, making their moves. */
 const host = {
@@ -138,10 +149,11 @@ describe("conversation mode (#118)", () => {
     const take = _actionListOf(widgets.get("conversation-topics") as never)?.take;
     take?.(host, 0);
     expect(said().at(-1)).toBe("“I couldn't say, sir.”");
-    // Choosing the cook's portrait turns to her, and the topics are hers.
+    // Choosing the cook's portrait turns to her, and the topics are hers: her letter tells a tale.
     act(_addressAction({ who: cook })); // what choosing her portrait takes
     expect(conversation.addressee?.id).toBe("cook");
     expect(data<ActionListData>("conversation-topics").items.map((i) => i.label)).toEqual([
+      "Ask about the letter",
       "Say goodbye",
     ]);
   });
@@ -163,6 +175,38 @@ describe("conversation mode (#118)", () => {
     expect(said().at(-1)).toBe("“Will you be wanting dinner?”");
     act(yes({}));
     expect(said().at(-1)).toBe("“Good. Eight sharp.”");
+  });
+
+  it("record the player's lines, and where each conversation starts and ends, for the transcript", () => {
+    act(hello({ who: butler }));
+    act(ask({ who: butler, about: letter }));
+    act(goodbye({}));
+    expect(
+      record
+        .events({ kinds: ["action-result"] })
+        .filter((e) => e.tags.includes("player"))
+        .map((e) => e.text),
+    ).toEqual([
+      "You greet the butler.",
+      "You ask the butler about the letter.",
+      "You say goodbye to the butler.",
+    ]);
+    expect(record.events({ kinds: ["conversation"] }).map((e) => [e.event, e.with])).toEqual([
+      ["started", ["butler:mind"]],
+      ["ended", ["butler:mind"]],
+    ]);
+  });
+
+  it("shows a hear-me-out cut scene in the usual layout, and the conversation's again after", () => {
+    act(hello({ who: cook }));
+    act(ask({ who: cook, about: letter }));
+    expect([story.current, display.layout]).toEqual(["Cook's tale", "page"]);
+    story.follow({ type: "continue", target: "Study" });
+    expect([story.current, display.layout, conversation.addressee?.id]).toEqual([
+      "Study",
+      "conversation",
+      "cook",
+    ]);
   });
 
   it("give the same state for the same moves (determinism)", () => {

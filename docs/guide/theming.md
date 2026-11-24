@@ -67,12 +67,12 @@ Keep text and its background at a contrast of at least 4.5:1. The defaults meet 
 The page says which layout is showing as `data-layout` on `.loominate-page`, and a paragraph of notices carries the tags its events share as `data-tags`. With the world model, what NPCs say is tagged `topic`, so a theme can style conversation mode:
 
 ```css
-/* The room's own prose recedes while the player is talking; what's said stands out. */
-.loominate-page[data-layout="conversation"] .loominate-passage > p:not([data-tags~="topic"]) {
-  opacity: 0.8;
-}
+/* What NPCs say stands out; the player's own lines, tagged `player` too, recede. */
 .loominate-notice[data-tags~="topic"] { font-style: normal; }
+.loominate-notice[data-tags~="player"] { opacity: 0.8; }
 ```
+
+A layout can also place the passage's parts, with `passage`: its prose in one region, `prose: "context"`; its links in another, in a `.loominate-placed-choices` disclosure, `choices: "more"`, named by `choicesLabel`; and, with `transcriptSince`, keep what's noticed in `main` across moves, from an event on, as a transcript. Conversation mode uses all three.
 
 Conversation mode's portraits are `.loominate-portrait` buttons in a `.loominate-cast` list, pressed (`aria-pressed="true"`) for the one addressed, with `.loominate-portrait-image` or `.loominate-portrait-initials` and `.loominate-portrait-name`; its topics are `.loominate-action-list-item` buttons.
 

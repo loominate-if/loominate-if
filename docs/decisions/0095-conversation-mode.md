@@ -15,11 +15,13 @@ Conversations should switch to a layout that focuses on the characters (portrait
   - `actionListWidget`: a list of buttons that take actions, disabled ones shown with why.
 - **Layouts can say `standardHeader: true`**, so their header shows the page layout's header widgets (the game menu and what packages add) before their own.
 - **Themes get hooks:** notices carry the tags their events share as `data-tags`, alongside the page's existing `data-layout`.
+- **Layouts can place the passage's parts** with `passage`: its prose in another region, its links in another, in a disclosure named by `choicesLabel`, and, with `transcriptSince`, what's noticed kept in `main` across moves from a given event, read from the record so undo agrees. Focus goes to the first new paragraph in `main`.
 - **The world model registers the `conversation` layout:**
-  - regions `header`, `cast`, `main` and `topics`;
+  - regions `header`, `context` (the passage's prose), `cast` (a start sidebar), `main` (the conversation so far, from the conversation's `started` event), `topics`, and `more` (the room's links, in a disclosure named after the room);
   - the widgets `conversation-cast` and `conversation-topics`, from the conversation's participants, portraits, and suggested topics;
   - a standard header.
-- **Switching:** starting a conversation switches `display.layout` to it, remembering the layout before. Ending one, however it ends, switches back. Both are game state.
+- **Switching:** starting a conversation switches `display.layout` to it, remembering the layout before and the passage it started in. Ending one, however it ends, switches back. In any other passage meanwhile, as a hear-me-out cut scene, the usual layout shows. All of it is game state. Core gains an internal `_currentPassage()` for this.
+- **The transcript:** a `conversation` event, hidden from the page, marks each conversation's start and end. The player's own lines are recorded as `action-result` events tagged `topic` and `player`, such as "You ask the maid about the gold.", so the conversation reads both ways.
   - `conversationMode({ layout })` picks a game's own layout, and `conversationMode(false)` turns switching off.
   - While the layout shows, `{topics}` in a passage shows nothing, so topics aren't listed twice.
 - **Portraits:** `portrait(npc, { image, expressions })`, and `setExpression`/`expressionOf`, game state per mind. An entry's `expression` (or a block's) sets it as the entry answers. A portrait with no image shows initials.
@@ -30,6 +32,7 @@ Conversations should switch to a layout that focuses on the characters (portrait
 
 ## Consequences
 
-- The story-so-far drawer sits between the passage and the topics, as it's part of `main`.
+- The story-so-far drawer sits below the transcript, as it's part of `main`.
+- On narrow screens, the cast is a sidebar, so it folds into a button above the transcript.
 - Group conversations (Phase 4) will reuse the cast, with more than one portrait already supported.
 - Inventory stays where the game puts it, as in the header; the topics include showing and giving what the addressee has entries for.

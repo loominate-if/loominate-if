@@ -64,7 +64,10 @@ const askTimes = (who: ObjectRef, about: ObjectRef, times: number): string[] => 
   for (let i = 0; i < times; i++) {
     story.act(ask({ who, about }) as unknown as ActionCall);
   }
-  return record.events({ kinds: ["action-result"], since: before }).map((e) => e.text);
+  return record
+    .events({ kinds: ["action-result"], since: before })
+    .filter((e) => !e.tags.includes("player"))
+    .map((e) => e.text);
 };
 
 describe("topic event lists (#112)", () => {

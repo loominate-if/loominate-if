@@ -124,8 +124,13 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
 }
 .loominate-action-list-item[aria-disabled="true"] { color: ${v("color-muted")}; border-style: dashed; cursor: not-allowed; }
 .loominate-action-why { margin-inline-start: 0.5em; color: ${v("color-muted")}; font-size: 0.9em; }
-.loominate-page[data-layout="conversation"] .loominate-passage > p:not([data-tags~="topic"]) { color: ${v("color-muted")}; }
 .loominate-page[data-layout="conversation"] .loominate-notice[data-tags~="topic"] { font-style: normal; }
+.loominate-notice[data-tags~="player"] { color: ${v("color-muted")}; font-style: italic; }
+/* A layout's placed passage parts: prose as a strip of context, links in a disclosure. */
+.loominate-region[data-region="context"] { font-family: ${v("font-body")}; font-size: 0.95em; color: ${v("color-muted")}; background: none; border: none; padding: 0; }
+.loominate-region[data-region="context"] p { margin-block: 0.25em; }
+.loominate-placed-choices > summary { cursor: pointer; color: ${v("color-muted")}; }
+.loominate-placed-choices[open] > summary { margin-block-end: 0.5em; }
 /* The compass: the eight points in a grid, and the other ways beside it. */
 .loominate-compass { display: flex; gap: 0.5em; align-items: center; font-family: ${v("font-ui")}; font-size: 0.85em; }
 .loominate-compass-points { display: grid; grid-template-columns: repeat(3, 2.6em); grid-template-rows: repeat(3, 2em); gap: 0.2em; }

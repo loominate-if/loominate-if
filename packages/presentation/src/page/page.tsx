@@ -651,6 +651,38 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     return out;
   };
 
+  /** The layout showing, if it's registered; `currentLayout` reports one that isn't. */
+  const layoutNow = (): LayoutDefinition | undefined => layouts.get(display.layout);
+
+  /** Whether a paragraph is drawn in main, or where the layout places the passage's prose or links. */
+  const inMain = (item: Item): boolean => {
+    const placed = layoutNow()?.passage;
+    if (item.kind === "text") return placed?.prose === undefined;
+    if (item.kind === "choice") return placed?.choices === undefined;
+    return true;
+  };
+
+  /** What was noticed from event `since` up to the move on screen, for a transcript layout. */
+  const transcript = (since: number): Proseful[] => {
+    const events = record.events({
+      kinds: [...NOTICE_KINDS, "navigation", "action", "beat"],
+      since,
+    });
+    const kept: Proseful[] = [];
+    let move: Proseful[] = [];
+    for (const e of events) {
+      const starts =
+        (e.kind === "navigation" && e.redirected !== true) ||
+        e.kind === "action" ||
+        e.kind === "beat";
+      if (starts) {
+        kept.push(...move);
+        move = [];
+      } else if (NOTICE_KINDS.includes(e.kind)) move.push(e as Proseful);
+    }
+    return kept;
+  };
+
   /**
    * Works out the passage's paragraphs, keeping the first `from` nodes'
    * paragraphs on screen and adding the rest, and the effects to play on them.
@@ -662,6 +694,14 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
       generation++;
       items = [];
       error = undefined;
+      // A transcript layout keeps what was noticed in earlier moves, from the record, so undo agrees.
+      const since = layoutNow()?.passage?.transcriptSince?.(game);
+      if (since !== undefined) {
+        for (const paragraph of _noticeParagraphs(transcript(since))) {
+          const events = paragraph as Proseful[];
+          items.push({ kind: "notices", key: `t:${String(events[0]?.seq ?? 0)}`, events });
+        }
+      }
     }
     const part = `${String(generation)}:${String(from)}`;
     const rendered = story.render();
@@ -709,7 +749,9 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     }
     addNotices(noticesLeft);
     drawnCount = rendered.nodes.length;
-    const first = items.find((item) => item.key.startsWith(`${part}:`))?.key;
+    // Focus goes to the first new paragraph in main, where a layout that places parts elsewhere keeps what's new.
+    const fresh = items.filter((item) => item.key.startsWith(`${part}:`));
+    const first = (fresh.find((item) => inMain(item)) ?? fresh[0])?.key;
     return { queue, ...(first !== undefined && { first }) };
   };
 
@@ -939,6 +981,16 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
         );
       }
     }
+    for (const [part, region] of [
+      ["prose", definition.passage?.prose],
+      ["choices", definition.passage?.choices],
+    ] as const) {
+      if (region !== undefined && (!definition.regions.includes(region) || region === "main")) {
+        throw new Error(
+          `The layout "${name}" puts the passage's ${part} in "${region}", which ${region === "main" ? "is where they go anyway; leave it out" : "isn't one of its regions"}.`,
+        );
+      }
+    }
     for (const [region, side] of Object.entries(definition.sidebars ?? {})) {
       if (!definition.regions.includes(region) || region === "main") {
         throw new Error(
@@ -985,8 +1037,29 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
           />
         );
       });
+    const placed = definition.passage;
+    /** The passage's parts a layout places in `region`, other than main. */
+    const passageParts = (region: string): ComponentChildren[] => {
+      const out: ComponentChildren[] = [];
+      if (placed?.prose === region) {
+        out.push(...items.filter((item) => item.kind === "text").map((item) => paragraph(item)));
+      }
+      if (placed?.choices === region) {
+        const choices = items.filter((item) => item.kind === "choice");
+        if (choices.length > 0) {
+          out.push(
+            <details key="choices" className="loominate-placed-choices">
+              <summary>{placed.choicesLabel?.(game) ?? regionLabel(region)}</summary>
+              {choices.map((item) => paragraph(item))}
+            </details>,
+          );
+        }
+      }
+      return out;
+    };
     const regionView = (region: string): ComponentChildren => {
-      const empty = region !== "main" && widgetsIn(region).length === 0;
+      const empty =
+        region !== "main" && widgetsIn(region).length === 0 && passageParts(region).length === 0;
       const className = `loominate-region loominate-region-${region}`;
       const side = sidebars[region];
       const expanded = !narrow || open.has(region);
@@ -1008,9 +1081,25 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
                     </p>
                   )}
                   {
+                    // A heading for new text that went to another region goes first in main.
+                    heading !== undefined &&
+                      !items.some((item) => item.key === heading?.key && inMain(item)) && (
+                        <h2
+                          key={`heading:${heading.key}`}
+                          className="loominate-sr-only loominate-passage-heading"
+                          tabIndex={-1}
+                          ref={(element) => {
+                            headingElement = element;
+                          }}
+                        >
+                          {heading.text}
+                        </h2>
+                      )
+                  }
+                  {
                     // One flat list of keyed siblings, so a paragraph keeps its element
                     // when the heading before it comes or goes.
-                    items.flatMap((item) => {
+                    items.filter(inMain).flatMap((item) => {
                       const drawn = paragraph(item);
                       const paragraphs = Array.isArray(drawn) ? drawn : [drawn];
                       return heading?.key === item.key
@@ -1066,7 +1155,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
                   {slots(region)}
                 </div>,
               ]
-            : slots(region);
+            : [...passageParts(region), slots(region)];
       const props = {
         key: `${name}:${region}`,
         className,

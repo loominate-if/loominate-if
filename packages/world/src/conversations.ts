@@ -130,6 +130,7 @@ export function startConversation(withWhom: ObjectRef | readonly ObjectRef[]): v
   state.addressee = unique[0] ?? null;
   state.locks = [];
   state.insisted = false;
+  emit("conversation", { event: "started", with: [...unique] });
   for (const l of changes.started) l();
 }
 
@@ -162,13 +163,16 @@ export function endConversation(): void {
 
 /** Ends the conversation, telling how. @internal */
 export function _endConversation(how: LeftBy): void {
-  const was = state.participants.length > 0;
+  const was = [...state.participants];
   for (const mind of [...state.participants]) for (const l of leaving) l(mind, how);
   state.participants = [];
   state.addressee = null;
   state.locks = [];
   state.insisted = false;
-  if (was) for (const l of changes.ended) l();
+  if (was.length > 0) {
+    emit("conversation", { event: "ended", with: was });
+    for (const l of changes.ended) l();
+  }
 }
 
 /**
@@ -297,6 +301,13 @@ hook("turnEnd").rule(
 // --- Exit control (#117) ---
 
 declare module "@loominate-if/core" {
+  interface EventKinds {
+    /**
+     * A conversation starting or ending, with who's in it, by mind ID. The page
+     * never shows it; conversation mode's transcript starts at it.
+     */
+    conversation: { readonly event: "started" | "ended"; readonly with: readonly string[] };
+  }
   interface Messages {
     /** What an NPC says when the player tries to leave against a soft lock with no reason of its own. */
     "conversation.objects": { readonly who: ObjectRef };

@@ -82,6 +82,22 @@ declare module "@loominate-if/core" {
     "topic.notTalking": Record<never, never>;
     /** Why the player can't ask about something: there's no such subject. */
     "topic.noSubject": { readonly about: string };
+    /** The player's line when they ask: "You ask the maid about the gold." */
+    "topic.player.ask": { readonly who: ObjectRef; readonly about: string };
+    /** The player's line when they tell: "You tell the maid about the war." */
+    "topic.player.tell": { readonly who: ObjectRef; readonly about: string };
+    /** The player's line when they greet someone. */
+    "topic.player.hello": { readonly who: ObjectRef };
+    /** The player's line when they say goodbye. */
+    "topic.player.bye": { readonly who: ObjectRef };
+    /** The player's line when they say yes. */
+    "topic.player.yes": { readonly who: ObjectRef };
+    /** The player's line when they say no. */
+    "topic.player.no": { readonly who: ObjectRef };
+    /** The player's line when they show something: "You show the brooch to the maid." */
+    "topic.player.show": { readonly who: ObjectRef; readonly thing: ObjectRef };
+    /** The player's line when they give something: "You give the brooch to the maid." */
+    "topic.player.give": { readonly who: ObjectRef; readonly thing: ObjectRef };
     /** Why the player can't ask or tell about a fact: they don't know it. */
     "topic.unknown": Record<never, never>;
     /** A suggested topic's link: "Ask about the gold". `about` is how the player refers to it. */
@@ -120,6 +136,18 @@ register("topic.notHere", ({ who }) => t`{The subj who} {isn't} here.`({ who }))
 register("topic.self", () => "Talking to yourself won't help.");
 register("topic.alreadyTalking", ({ who }) => t`You're already talking to {the who}.`({ who }));
 register("topic.notTalking", () => "You aren't talking to anyone.");
+register("topic.player.ask", ({ who, about }) => t`You ask {the who} about ${about}.`({ who }));
+register("topic.player.tell", ({ who, about }) => t`You tell {the who} about ${about}.`({ who }));
+register("topic.player.hello", ({ who }) => t`You greet {the who}.`({ who }));
+register("topic.player.bye", ({ who }) => t`You say goodbye to {the who}.`({ who }));
+register("topic.player.yes", () => "You say yes.");
+register("topic.player.no", () => "You say no.");
+register("topic.player.show", ({ who, thing }) =>
+  t`You show {the thing} to {the who}.`({ who, thing }),
+);
+register("topic.player.give", ({ who, thing }) =>
+  t`You give {the thing} to {the who}.`({ who, thing }),
+);
 register("topic.unknown", () => "You don't know anything about that.");
 register("topic.suggest.ask", ({ about }) => `Ask about ${about}`);
 register("topic.suggest.tell", ({ about }) => `Tell about ${about}`);
@@ -749,6 +777,12 @@ const say = (text: string, npc: ObjectRef): void => {
   emit("action-result", { text }, ["topic", `speaker:${npc.id}`]);
 };
 
+/** The player's side of an exchange, recorded as their line, tagged `player`, for the transcript. */
+const playerSays = (text: string): void => {
+  const me = currentPlayerBody();
+  emit("action-result", { text }, ["topic", "player", ...(me ? [`speaker:${me.id}`] : [])]);
+};
+
 /** Runs the winning entry, or says `fallback` if none matches. */
 function answer(
   who: ObjectRef,
@@ -862,8 +896,16 @@ const talk = (kind: "ask" | "tell") =>
       return cantTalkTo(who);
     },
     run: ({ who, about }) => {
-      turnTo(who);
       const subject = subjectFrom(about);
+      if (subject !== undefined) {
+        playerSays(
+          message(kind === "ask" ? "topic.player.ask" : "topic.player.tell", {
+            who,
+            about: playerName(subject),
+          }),
+        );
+      }
+      turnTo(who);
       const winner = answer(
         who,
         kind,
@@ -904,6 +946,7 @@ export const hello = action<{ who: ObjectRef }>("hello", {
   check: ({ who }) =>
     inConversationWith(who) ? message("topic.alreadyTalking", { who }) : undefined,
   run: ({ who }) => {
+    playerSays(message("topic.player.hello", { who }));
     if (!conversation.active) startConversation(who);
     else {
       joinConversation(who);
@@ -928,6 +971,7 @@ export const goodbye = action<Record<never, never>>("goodbye", {
       return;
     }
     const who = conversation.addressee;
+    if (who) playerSays(message("topic.player.bye", { who }));
     if (who) answer(who, "bye", { implicit: false, how: "goodbye" }, message("topic.bye", { who }));
     _endConversation("goodbye");
   },
@@ -941,7 +985,9 @@ const answerWith = (kind: "yes" | "no") =>
     verify: () => (conversation.active ? undefined : message("topic.notTalking", {})),
     run: () => {
       const who = conversation.addressee;
-      if (who) answer(who, kind, {}, message("topic.noAnswer", { who }));
+      if (!who) return;
+      playerSays(message(kind === "yes" ? "topic.player.yes" : "topic.player.no", { who }));
+      answer(who, kind, {}, message("topic.noAnswer", { who }));
     },
   });
 
@@ -1117,6 +1163,14 @@ function handedTo(kind: "show" | "give", offer: Offer): Reaction | undefined {
   if (!mindOf(offer.to)) return undefined;
   const { winner } = match(offer.to, kind, offer.thing, false);
   const node = openNodeOf(offer.to);
+  if (winner || node?.restricts) {
+    playerSays(
+      message(kind === "show" ? "topic.player.show" : "topic.player.give", {
+        who: offer.to,
+        thing: offer.thing,
+      }),
+    );
+  }
   if (pressed(offer.to, kind, node, winner)) {
     clock.advance(EXCHANGE_MINUTES);
     return react("");
