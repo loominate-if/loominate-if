@@ -17,6 +17,9 @@ import {
   randomStream,
   StateError,
   t,
+  actLink,
+  type ActionCall,
+  type LinkNode,
   type ObjectRef,
   type Period,
   type StateId,
@@ -33,7 +36,7 @@ import {
   startConversation,
   type LeftBy,
 } from "./conversations.js";
-import { factNamed, type Fact } from "./knowledge.js";
+import { _knowable, factNamed, player, type Fact } from "./knowledge.js";
 import { placeOf, thingFor } from "./things.js";
 
 declare module "@loominate-if/core" {
@@ -58,6 +61,14 @@ declare module "@loominate-if/core" {
     "topic.notTalking": Record<never, never>;
     /** Why the player can't ask about something: there's no such subject. */
     "topic.noSubject": { readonly about: string };
+    /** Why the player can't ask or tell about a fact: they don't know it. */
+    "topic.unknown": Record<never, never>;
+    /** A suggested topic's link: "Ask about the gold". `about` is how the player refers to it. */
+    "topic.suggest.ask": { readonly about: string };
+    /** A suggested topic's link: "Tell about the war". */
+    "topic.suggest.tell": { readonly about: string };
+    /** The goodbye link among suggested topics. */
+    "topic.suggest.bye": Record<never, never>;
   }
 }
 const SOURCE = "@loominate-if/world";
@@ -78,26 +89,41 @@ register("topic.notHere", ({ who }) => t`{The subj who} {isn't} here.`({ who }))
 register("topic.self", () => "Talking to yourself won't help.");
 register("topic.alreadyTalking", ({ who }) => t`You're already talking to {the who}.`({ who }));
 register("topic.notTalking", () => "You aren't talking to anyone.");
+register("topic.unknown", () => "You don't know anything about that.");
+register("topic.suggest.ask", ({ about }) => `Ask about ${about}`);
+register("topic.suggest.tell", ({ about }) => `Tell about ${about}`);
+register("topic.suggest.bye", () => "Say goodbye");
 register("topic.noSubject", ({ about }) => `There's no subject called ${JSON.stringify(about)}.`);
 
 /** A named topic: something to talk about that isn't a thing or a fact, as the weather. */
 export type Topic = ObjectRef & { readonly name: string };
 
+/** A named topic's definition: its name, or its name and whether the player knows of it from the start. */
+export type TopicDefinition = string | { readonly name: string; readonly known?: boolean };
+
 /**
  * Defines named topics, things to talk about that aren't things in the world
- * or facts, in `story.ts`. Each is an object, `topic:` and its key.
+ * or facts, in `story.ts`. Each is an object, `topic:` and its key. The
+ * player knows of each from the start, so it's suggested, unless it says
+ * `known: false`; then `player.learnAbout(topic)` teaches it.
  *
  * @example
  * ```ts
- * export const { weather, war } = topics({ weather: "the weather", war: "the war" });
+ * export const { weather, affair } = topics({
+ *   weather: "the weather",
+ *   affair: { name: "the affair", known: false },
+ * });
  * ```
  */
-export function topics<D extends Readonly<Record<string, string>>>(
+export function topics<D extends Readonly<Record<string, TopicDefinition>>>(
   definitions: D,
 ): { readonly [K in keyof D]: Topic } {
   const made: Record<string, Topic> = {};
-  for (const [key, name] of Object.entries(definitions)) {
-    made[key] = object(`topic:${key}` as StateId, { name }) as Topic;
+  for (const [key, d] of Object.entries(definitions)) {
+    const { name, known = true } = typeof d === "string" ? { name: d } : d;
+    const topic = object(`topic:${key}` as StateId, { name, isFamiliar: known }) as Topic;
+    _knowable(topic);
+    made[key] = topic;
   }
   return made as { readonly [K in keyof D]: Topic };
 }
@@ -223,6 +249,12 @@ export type TopicOptions = {
   readonly in?: ActorState | Period;
   /** Higher wins among entries that match. Defaults to 0. */
   readonly priority?: number;
+  /** Facts the player learns when it answers, from the NPC, as does everyone else in the conversation. */
+  readonly reveals?: Fact | readonly Fact[];
+  /** Whether it's suggested to the player, when they know its subject. Defaults to true. */
+  readonly suggested?: boolean;
+  /** For a `tell` about a fact: whether the NPC learns it, from the player. Defaults to true. */
+  readonly informs?: boolean;
 };
 
 /** A topic entry: what kind of exchange it answers, and its options. */
@@ -549,7 +581,20 @@ function respond(e: Entry, context: TopicContext): void {
     : (e.says as Says);
   const text = says === undefined ? undefined : typeof says === "string" ? says : says(context);
   if (typeof text === "string" && text !== "") say(text, context.npc);
+  const revealed = e.reveals === undefined ? [] : isFactList(e.reveals) ? e.reveals : [e.reveals];
+  if (revealed.length === 0) return;
+  // Everyone in the conversation hears it: the player, and the others in it.
+  const hearers = [
+    player,
+    ...conversation.participants.flatMap((b) => {
+      const m = mindOf(b);
+      return m && m.id !== e.mind ? [m] : [];
+    }),
+  ];
+  for (const f of revealed) for (const h of hearers) h.learn(f, { from: context.npc });
 }
+
+const isFactList = (x: Fact | readonly Fact[]): x is readonly Fact[] => Array.isArray(x);
 
 const say = (text: string, npc: ObjectRef): void => {
   emit("action-result", { text }, ["topic", `speaker:${npc.id}`]);
@@ -561,7 +606,7 @@ function answer(
   kind: TopicKind,
   options: { about?: ObjectRef | Fact; implicit?: boolean; how?: LeftBy },
   fallback: string | undefined,
-): void {
+): Entry | undefined {
   const { winner } = match(who, kind, options.about, options.implicit ?? false);
   if (winner) {
     respond(winner, {
@@ -570,6 +615,7 @@ function answer(
       ...(options.how !== undefined && { how: options.how }),
     });
   } else if (fallback !== undefined) say(fallback, who);
+  return winner;
 }
 
 // --- The player's side ---
@@ -612,20 +658,27 @@ const talk = (kind: "ask" | "tell") =>
         ? ["ask {who} about {about}", "ask {who} {about}", "question {who} about {about}"]
         : ["tell {who} about {about}", "inform {who} about {about}"],
     minutes: EXCHANGE_MINUTES,
-    verify: ({ who, about }) =>
-      cantTalkTo(who) ??
-      (subjectFrom(about) === undefined
-        ? message("topic.noSubject", { about: String(about) })
-        : undefined),
+    verify: ({ who, about }) => {
+      const subject = subjectFrom(about);
+      if (subject === undefined) return message("topic.noSubject", { about: String(about) });
+      if (isFact(subject) && !player.knows(subject)) return message("topic.unknown", {});
+      return cantTalkTo(who);
+    },
     run: ({ who, about }) => {
       turnTo(who);
       const subject = subjectFrom(about);
-      answer(
+      const winner = answer(
         who,
         kind,
         subject === undefined ? {} : { about: subject },
         message("topic.noResponse", { who }),
       );
+      // Telling someone a fact teaches it to them, unless the entry says otherwise.
+      const mind = mindOf(who);
+      if (kind === "tell" && isFact(subject) && mind && winner?.informs !== false) {
+        const from = currentPlayerBody();
+        mind.learn(subject, from ? { from } : {});
+      }
     },
   });
 
@@ -705,3 +758,79 @@ _whenLeaving((mind, how) => {
   const body = bodyOf({ id: mind });
   if (body) answer(body, "bye", { implicit: true, how }, undefined);
 });
+
+// --- Suggestions ---
+
+/** A subject as the player refers to it: "the gold", "the weather", "the missing letter". */
+function playerName(s: ObjectRef | Fact): string {
+  if (isFact(s)) return s.name ?? `“${s.text}”`;
+  return nameOf(s);
+}
+
+/** Whether the player knows a subject: a fact they know, or a thing or topic they know of. */
+const knownToPlayer = (s: ObjectRef | Fact): boolean =>
+  isFact(s) ? player.knows(s) : player.knowsAbout(s);
+
+/** A suggested topic: its label, and the action that takes it. */
+export type SuggestedTopic = {
+  /** The link's label, as "Ask about the gold". */
+  readonly label: string;
+  /** The action: `ask`, `tell`, or `goodbye`. */
+  readonly call: ActionCall<Readonly<Record<string, unknown>>>;
+};
+
+/**
+ * The topics to suggest to the player now, for the person they're talking
+ * to: each subject they have an entry for that would answer, which the
+ * player knows, in the order the entries were defined, then goodbye. A
+ * catch-all isn't suggested, nor an entry with `suggested: false`. Empty
+ * when the player isn't talking to anyone.
+ */
+export function suggestedTopics(): readonly SuggestedTopic[] {
+  const who = conversation.addressee;
+  const mind = who && mindOf(who);
+  if (!who || !mind) return [];
+  const out: SuggestedTopic[] = [];
+  const done = new Set<string>();
+  for (const e of entries.get(mind.id) ?? []) {
+    if (e.about === undefined || e.about === anything) continue;
+    const about = e.about as ObjectRef | Fact;
+    for (const kind of e.kinds) {
+      if (kind !== "ask" && kind !== "tell") continue;
+      const key = `${kind}|${e.subject ?? ""}`;
+      if (done.has(key) || !knownToPlayer(about)) continue;
+      const { winner } = match(who, kind, about, false);
+      if (!winner || winner.subject === "*" || winner.suggested === false) continue;
+      done.add(key);
+      const arg = isFact(about) ? about.id : about;
+      out.push({
+        label: message(kind === "ask" ? "topic.suggest.ask" : "topic.suggest.tell", {
+          about: playerName(about),
+        }),
+        call: (kind === "ask" ? ask : tell)({
+          who,
+          about: arg,
+        }) as unknown as SuggestedTopic["call"],
+      });
+    }
+  }
+  out.push({
+    label: message("topic.suggest.bye", {}),
+    call: goodbye({}) as unknown as SuggestedTopic["call"],
+  });
+  return out;
+}
+
+/**
+ * What `{topics}` shows: a link for each suggested topic, as
+ * {@link suggestedTopics} gives them, each taking its action.
+ */
+export function topicLinks(args: Readonly<Record<string, never>> = {}): LinkNode[] {
+  void args; // `{topics}` takes no arguments; directives pass them as an object.
+  return suggestedTopics().map((s): LinkNode => ({
+    type: "link",
+    label: s.label,
+    target: s.label,
+    guard: actLink({ call: s.call }),
+  }));
+}

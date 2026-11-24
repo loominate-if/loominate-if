@@ -153,6 +153,13 @@ const extension = {
       runtime: { module: WORLD, export: "exitLinks" },
     },
     {
+      name: "topics",
+      kind: "content",
+      example: "{topics}",
+      args: [],
+      runtime: { module: WORLD, export: "topicLinks" },
+    },
+    {
       name: "reveal",
       kind: "arrival",
       example: "{reveal facts.butlerTookLetter, from: maid}",
