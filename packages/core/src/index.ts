@@ -140,6 +140,7 @@ export {
   type ReplayCheck,
   type StoryAction,
 } from "./replay/replay.js";
+export { migrate, type MigratingSave } from "./save/migrations.js";
 export {
   AUTOSAVE_SLOT,
   createMemoryStorage,
