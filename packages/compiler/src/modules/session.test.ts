@@ -26,7 +26,8 @@ const at = (file: string) => path.join(root, file);
 const messages = (s: ReturnType<typeof start>) =>
   s.diagnostics().map((d) => `${path.relative(root, d.file)}:${String(d.line)} ${d.message}`);
 
-describe("a compiler session", () => {
+// These build real TypeScript programs, which takes seconds under load, as in project.test.ts (#314, #339).
+describe("a compiler session", { timeout: 30_000 }, () => {
   it("regenerates only the passage file that changed", () => {
     const session = start();
     const before = session.module("cellar.weft");
