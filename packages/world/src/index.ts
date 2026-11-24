@@ -283,3 +283,4 @@ export {
   type AgendaItem,
   type AgendaTurn,
 } from "./agendas.js";
+export { schedule, whereScheduled, type TimetableEntry } from "./timetables.js";

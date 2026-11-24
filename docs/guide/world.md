@@ -1156,6 +1156,25 @@ Which to use for what happens offstage:
 
 `catchUp` fires when the NPC is seen again, not when a room they changed is. For that, use a fuse or daemon, or `simulate`. In the inspector, each NPC's catching up is the hook `catchUp:` and their ID.
 
+### Schedules
+
+A scheduled NPC follows a timetable: from a time of day, they're in a place, on the days the calendar says. Where they are is worked out from the clock whenever it matters, with no step-by-step simulation, so they're in the right place after any jump in time:
+
+<!-- example: packages/world/src/timetables.test.ts#timetable -->
+```ts
+schedule(baker, [
+  { at: "05:30", in: bakery },
+  { at: "13:00", in: market, on: { weekday: ["tuesday", "thursday"] } },
+  { at: "13:00", in: bakery }, // the other days
+  { at: "20:00", in: home },
+]);
+```
+
+- **Which entry:** the latest one that's begun, on a day its `on` matches, working back across days. Among entries at the same time, the first listed that applies wins, so a general entry can follow particular ones, as the bakery after the market above. `on` is the calendar's query: weekdays, months, seasons, holidays, parts of the day.
+- **Moving:** when the timetable puts them somewhere else, they're placed there at once, after the next move or jump in time. Seen leaving or arriving, it's narrated as any actor's coming and going is. At the start of the game, they're simply where it says.
+- **Agendas come first:** while they have an active, ready agenda item, the timetable doesn't move them. Afterwards they go where it says by then, so an entry they missed is skipped. Anything that depends on them being somewhere, such as a stall opening, should check where they are, `placeOf(baker)`, not the time.
+- **`whereScheduled(npc, minutes?)`** says where the timetable puts them, now or at any time.
+
 ### Agendas
 
 An agenda item is a goal an NPC pursues across turns, as adv3Lite's are. In the NPC's turn, the highest-priority item that's active and ready takes one step, until it calls `done()`:

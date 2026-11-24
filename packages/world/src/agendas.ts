@@ -159,8 +159,13 @@ export function isAgendaActive(npc: ObjectRef, name: string): boolean {
   return isActive(mind.id, item);
 }
 
+/** Whether an NPC is busy with an agenda item: one that's active and ready. @internal */
+export function _busyWithAgenda(mind: ObjectRef): boolean {
+  return next(mind.id) !== undefined;
+}
+
 // An NPC pursuing a goal acts even while unseen.
-_actsUnseen((mind) => next(mind.id) !== undefined);
+_actsUnseen((mind) => _busyWithAgenda(mind));
 
 /**
  * Takes one step along the shortest way from where an NPC is to `target`, a
