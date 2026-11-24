@@ -90,6 +90,6 @@ const shipsLog: WidgetView<StatusLineData> = {
 widgets.replace("status-line", { ...statusLine(), view: shipsLog });
 ```
 
-The page notices the replaced widget on its next draw and mounts the new view in the same place. A view can use any UI framework, as long as it meets the `mount`/`update`/`unmount` contract. Keep it keyboard-operable: if it can make moves, use buttons.
+The page notices the replaced widget on its next draw and mounts the new view in the same place. A view can use any UI framework, as long as it meets the `mount`/`update`/`unmount` contract. Presentation's own views are Preact components ([ADR 0079](../decisions/0079-preact-for-presentation.md)), so a view written in Preact adds nothing to the game's size. Keep it keyboard-operable: if it can make moves, use buttons.
 
 A new widget of your own is registered the same way. Wrap it in `widget(…)` so its view sees the data typed: `widgets.register("notes", widget({ data: …, view: … }))`.

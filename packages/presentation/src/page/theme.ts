@@ -44,6 +44,8 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   border-radius: ${v("radius")};
 }
 .loominate-passage:focus { outline: none; }
+/* A paragraph a beat revealed takes focus, for screen readers; it isn't something to act on. */
+.loominate-passage > p[tabindex="-1"]:focus { outline: none; }
 .loominate-notice { font-style: italic; }
 .loominate-error {
   font-family: ${v("font-ui")};

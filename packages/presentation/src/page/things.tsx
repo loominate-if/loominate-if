@@ -5,8 +5,10 @@
  */
 import { message } from "@loominate-if/core";
 import "../messages.js";
+import { Fragment } from "preact";
 import { widget, type WidgetDefinition } from "./layout.js";
 import type { MenuChoice } from "./menus.js";
+import { componentView, MenuButton, type ViewProps } from "./view.js";
 
 /** One thing a things widget lists: its ID, and how it's named, such as "an iron key". */
 export type ListedThing = { readonly id: string; readonly label: string };
@@ -29,45 +31,32 @@ export function thingsWidget(options: ThingsWidgetOptions): WidgetDefinition<{
 }> {
   return widget({
     data: () => ({ title: options.title(), things: options.things() }),
-    view: {
-      mount(element, data, host) {
-        const doc = element.ownerDocument;
-        const box = doc.createElement("div");
-        box.className = "loominate-things";
-        element.append(box);
-        const show = (d: { readonly title: string; readonly things: readonly ListedThing[] }) => {
-          box.replaceChildren();
-          const title = doc.createElement("span");
-          title.className = "loominate-things-title";
-          title.textContent = `${d.title}: `;
-          box.append(title);
-          if (d.things.length === 0) {
-            box.append(message("things.nothing"));
-            return;
-          }
-          for (const [i, t] of d.things.entries()) {
-            if (i > 0) box.append(", ");
-            const holder = doc.createElement("span");
-            holder.className = "loominate-has-menu";
-            const b = doc.createElement("button");
-            b.type = "button";
-            b.className = "loominate-link loominate-inline";
-            b.textContent = t.label;
-            holder.append(b);
-            host.menu(b, t.id);
-            box.append(holder);
-          }
-        };
-        show(data);
-        return {
-          update: show,
-          unmount: () => {
-            box.remove();
-          },
-        };
-      },
-    },
+    view: componentView(ThingsView),
   });
+}
+
+function ThingsView({
+  data,
+  host,
+}: ViewProps<{ readonly title: string; readonly things: readonly ListedThing[] }>) {
+  const { title, things } = data.value;
+  return (
+    <div className="loominate-things">
+      <span className="loominate-things-title">{`${title}: `}</span>
+      {things.length === 0
+        ? message("things.nothing")
+        : things.map((t, i) => (
+            <Fragment key={t.id}>
+              {i > 0 && ", "}
+              <span className="loominate-has-menu">
+                <MenuButton host={host} source={t.id} className="loominate-link loominate-inline">
+                  {t.label}
+                </MenuButton>
+              </span>
+            </Fragment>
+          ))}
+    </div>
+  );
 }
 
 /** How {@link menuWidget} shows its button and its menu. */
@@ -89,28 +78,13 @@ export function menuWidget(options: MenuWidgetOptions): WidgetDefinition<{
 }> {
   return widget({
     data: () => ({ label: options.label() }),
-    view: {
-      mount(element, data, host) {
-        const doc = element.ownerDocument;
-        const holder = doc.createElement("span");
-        holder.className = "loominate-has-menu loominate-menu-widget";
-        const b = doc.createElement("button");
-        b.type = "button";
-        b.className = "loominate-link";
-        b.textContent = data.label;
-        holder.append(b);
-        host.menu(b, options.choices);
-        element.append(holder);
-        return {
-          update: (d) => {
-            b.textContent = d.label;
-          },
-          unmount: () => {
-            holder.remove();
-          },
-        };
-      },
-    },
+    view: componentView<{ readonly label: string }>(({ data, host }) => (
+      <span className="loominate-has-menu loominate-menu-widget">
+        <MenuButton host={host} source={options.choices}>
+          {data.value.label}
+        </MenuButton>
+      </span>
+    )),
   });
 }
 

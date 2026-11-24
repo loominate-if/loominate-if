@@ -10,6 +10,7 @@
  * `view` draws it through a small mount/update/unmount contract that any UI
  * framework can meet (ADR 0003).
  */
+import { componentView } from "./view.js";
 import {
   message,
   object,
@@ -151,30 +152,14 @@ export type StatusLineOptions = {
 };
 
 /** The status line's view: two spans in a bar. */
-export const statusLineView: WidgetView<StatusLineData> = {
-  mount(element, data) {
-    const doc = element.ownerDocument;
-    const bar = doc.createElement("div");
-    bar.className = "loominate-status";
-    const left = doc.createElement("span");
-    left.className = "loominate-status-left";
-    const right = doc.createElement("span");
-    right.className = "loominate-status-right";
-    bar.append(left, right);
-    element.append(bar);
-    const show = (d: StatusLineData): void => {
-      left.textContent = d.left;
-      right.textContent = d.right;
-    };
-    show(data);
-    return {
-      update: show,
-      unmount() {
-        bar.remove();
-      },
-    };
-  },
-};
+export const statusLineView: WidgetView<StatusLineData> = componentView<StatusLineData>(
+  ({ data }) => (
+    <div className="loominate-status">
+      <span className="loominate-status-left">{data.value.left}</span>
+      <span className="loominate-status-right">{data.value.right}</span>
+    </div>
+  ),
+);
 
 /**
  * A status line: a bar with text at each end, such as the location and the

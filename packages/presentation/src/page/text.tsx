@@ -4,6 +4,7 @@
  * supplies it, and needs no DOM itself.
  */
 import { widget, type WidgetDefinition } from "./layout.js";
+import { componentView } from "./view.js";
 
 /** How {@link textWidget} shows its text. */
 export type TextWidgetOptions = {
@@ -32,25 +33,14 @@ export function textWidget(options: TextWidgetOptions): WidgetDefinition<{
 }> {
   return widget({
     data: () => ({ text: options.text(), label: options.label() }),
-    view: {
-      mount(element, data) {
-        const doc = element.ownerDocument;
-        const box = doc.createElement("div");
-        box.className = ["loominate-text-widget", options.className].filter(Boolean).join(" ");
-        box.setAttribute("role", "group");
-        element.append(box);
-        const show = (d: { readonly text: string; readonly label: string }) => {
-          box.setAttribute("aria-label", d.label);
-          box.textContent = d.text;
-        };
-        show(data);
-        return {
-          update: show,
-          unmount: () => {
-            box.remove();
-          },
-        };
-      },
-    },
+    view: componentView<{ readonly text: string; readonly label: string }>(({ data }) => (
+      <div
+        className={["loominate-text-widget", options.className].filter(Boolean).join(" ")}
+        role="group"
+        aria-label={data.value.label}
+      >
+        {data.value.text}
+      </div>
+    )),
   });
 }
