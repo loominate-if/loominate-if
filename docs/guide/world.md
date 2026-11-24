@@ -1569,6 +1569,25 @@ The player can follow an NPC they saw leave, the way they went:
 - **Following** says "You follow the butler west." before the new room, and goes through the exit as its link would: accompanying companions come along, and a door locked behind them disables it, with why ("The cellar door is locked.").
 - Otherwise it isn't offered: "You don't know where the butler went.", or "The butler is right here."
 
+### Switching characters
+
+The player can control another character during play. Narration follows whoever they control: they're "you", and the one they left is spoken of by name, as any NPC.
+
+<!-- example: packages/world/src/switching.test.ts#switching -->
+```ts
+// A body the player may leave needs a real name: it's "you" only while played.
+const alex = actor("alex", { body: { name: "Alex", location: hall } });
+const mira = actor("mira", { body: { name: "Mira", location: cellar } });
+startAs(alex);
+playable(alex);
+playable(mira);
+```
+
+- **`switchTo(mira)`,** during a move, as in a passage effect or an action, switches to Mira: "You are Mira now.", then the passage of the room she's in, as she sees it. A conversation the player was in ends.
+- **`takeControl({ thing: mira })`** does it as a move, for games that let the player switch freely. It's on a playable character's menu, "Play as Mira", while they're here, and a link can offer it anywhere. Only characters named with `playable` are offered.
+- **The one left behind** is an ordinary NPC again, acting as one: a companion if they're one, with their timetable or agenda. So a body the player might leave needs a real name, not "you": switching away from one named "you" is an error that says so. While a body is played, the grammar still calls it "you".
+- `playAs(mind)` switches without moving the story, for a game that handles the rest itself.
+
 ## Scenes
 
 A **scene** is a named period of the story, as Inform 7 and adv3Lite have them: a storm, a dinner party, a chase. It starts when something holds, at a time, or when your code says, and ends the same ways, and while it's happening it can add rules and actions. (It isn't a cut scene, a passage of timed beats.)
