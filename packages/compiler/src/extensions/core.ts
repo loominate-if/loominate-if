@@ -7,7 +7,7 @@ import type { CompilerExtension, RuntimeExport } from "./extension.js";
 
 const core = (name: string): RuntimeExport => ({ module: "@loominate-if/core", export: name });
 
-/** Core's directives: effect phases, continue points, named effects, link guards, line pins, beats, waits, page breaks, and recorded events. */
+/** Core's directives: effect phases, continue points, named effects, link guards, line pins, beats, waits, page breaks, storylets, and recorded events. */
 export const coreExtension: CompilerExtension = {
   name: "@loominate-if/core",
   directives: [
@@ -100,6 +100,23 @@ export const coreExtension: CompilerExtension = {
       kind: "content",
       example: "{notices}",
       runtime: core("notices"),
+    },
+    {
+      name: "storylets",
+      kind: "content",
+      example: "{storylets evenings, limit: 3}",
+      args: [
+        { name: "deck", kind: "words" },
+        { name: "limit", kind: "expression", named: true },
+      ],
+      runtime: core("storyletLinks"),
+    },
+    {
+      name: "storylet",
+      kind: "arrival",
+      example: "{storylet evenings}",
+      args: [{ name: "deck", kind: "words" }],
+      runtime: core("storyletDraw"),
     },
     {
       name: "emit",

@@ -93,6 +93,18 @@ export {
 } from "./passages/story.js";
 export { useVisitMemory, type VisitMemory } from "./passages/memory.js";
 export {
+  _useGameTime,
+  storylet,
+  storyletDraw,
+  storyletLinks,
+  storyletsIn,
+  storyletStatus,
+  type Cooldown,
+  type StoryletCondition,
+  type StoryletOptions,
+  type StoryletStatus,
+} from "./passages/storylets.js";
+export {
   beat,
   continueTo,
   emitEvent,

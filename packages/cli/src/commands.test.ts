@@ -434,6 +434,52 @@ describe("loominate dev", () => {
     }
   }, 60_000);
 
+  it("offers a hand of storylets and draws one, from their directives (#97)", async () => {
+    const root = game({
+      "story.ts": `import { storylet } from "@loominate-if/core";
+export const weather = { raining: false };
+storylet("Rainy visit", { when: { "it's raining": () => weather.raining }, priority: 2, deck: "evenings" });
+storylet("Card game", { deck: "evenings", cooldown: 2 });
+storylet("Long walk", { deck: "evenings", label: "Go for a long walk", once: true });
+storylet("Letter", { deck: "mornings", once: true });
+`,
+      "start.weft": readFileSync(path.join(here, "fixtures/storylets.weft"), "utf8"),
+    });
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const server = await dev({
+      ...options(root),
+      vite: { ...options(root).vite, server: { middlewareMode: true } },
+    });
+    const text = () => page().querySelector(".loominate-passage")?.textContent ?? "";
+    const labels = () =>
+      [...page().querySelectorAll(".loominate-passage button")].map((b) => b.textContent ?? "");
+    const follow = (label: string) => {
+      const link = [...page().querySelectorAll(".loominate-passage button")].find(
+        (b) => b.textContent === label,
+      );
+      if (!link) throw new Error(`no link ${label} in: ${labels().join(", ")}`);
+      link.click();
+    };
+    try {
+      page().body.innerHTML = '<div id="app"></div>';
+      await server.ssrLoadModule("/@loominate/main");
+      expect(labels().slice(0, 2).sort()).toEqual(["Card game", "Go for a long walk"]);
+      follow("Go for a long walk");
+      expect(text()).toContain("You walk to the mill and back.");
+      follow("Home");
+      expect(labels()).toEqual(["Card game", "Sleep until morning"]); // the walk was once only
+      // {storylet mornings} draws the letter as the player arrives; once read, there's none to draw.
+      follow("Sleep until morning");
+      expect(text()).toContain("A letter has come in the night.");
+      follow("Back to the evening");
+      follow("Sleep until morning");
+      expect(text()).toContain("Nothing comes with the morning.");
+    } finally {
+      await server.close();
+      errors.mockRestore();
+    }
+  }, 60_000);
+
   it("plays every passage file through the generated entry point", async () => {
     const root = game({ "start.weft": START, "scenes/lit.weft": "" });
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);

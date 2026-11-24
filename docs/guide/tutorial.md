@@ -310,5 +310,6 @@ The first writes a static site to `dist/`, for any web host. The second writes `
 
 - [Playing](playing.md): saves, autosave, the start screen, and the game menu.
 - [Beats](beats.md) and [effects](effects.md): pacing and motion.
+- [Storylets](storylets.md): passages offered or drawn as their conditions are met.
 - [Theming](theming.md): colours, fonts, and layout.
 - [Walkthroughs](walkthroughs.md): everything a test can check.

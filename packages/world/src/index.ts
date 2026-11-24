@@ -142,6 +142,7 @@ export {
 export {
   _scheduled,
   daemon,
+  days,
   fuse,
   minutes,
   moves,

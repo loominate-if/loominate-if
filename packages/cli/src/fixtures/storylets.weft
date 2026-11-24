@@ -1,0 +1,25 @@
+:: Start
+Evening falls over the village. What will you do?
+{storylets evenings, limit: 2}
+[[Sleep until morning -> Dawn]]
+
+:: Dawn
+{storylet mornings}
+Nothing comes with the morning.
+[[Back to the evening -> Start]]
+
+:: Card game
+You lose three pennies at cards.
+[[Home -> Start]]
+
+:: Long walk
+You walk to the mill and back.
+[[Home -> Start]]
+
+:: Rainy visit
+Mira shakes out her umbrella at your door.
+[[Home -> Start]]
+
+:: Letter
+A letter has come in the night.
+[[Back to the evening -> Start]]

@@ -784,9 +784,12 @@ export function generatePassageModule(
     ...(has("$PassageName")
       ? [`import type { PassageName as $PassageName } from ${str(options.passageNamesSpecifier)};`]
       : []),
-    ...(scopeImports.length > 0 && options.scopeSpecifier !== undefined
-      ? [`import { ${scopeImports.join(", ")} } from ${str(options.scopeSpecifier)};`]
-      : []),
+    // Even with no names from it, the scope module runs, for what it sets up, such as storylets (#97).
+    ...(options.scopeSpecifier === undefined
+      ? []
+      : scopeImports.length > 0
+        ? [`import { ${scopeImports.join(", ")} } from ${str(options.scopeSpecifier)};`]
+        : [`import ${str(options.scopeSpecifier)};`]),
     "",
     ...(has("$print(")
       ? [

@@ -299,6 +299,9 @@ export function dayParts(starts: {
 }): void;
 
 // @public
+export function days(n: number): Delay;
+
+// @public
 export function defineCalendar(definition: CalendarDefinition): Calendar;
 
 // @public

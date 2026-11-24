@@ -7,6 +7,7 @@
  * player follows a link, which moves to the next passage and records it in the
  * event record.
  */
+import { _checkStorylets } from "./storylets.js";
 import type { EventKind, EventKinds, EventRecord, LineId, TextStyle } from "../events/record.js";
 import type { StateId, StateSnapshot, StateStore } from "../state/store.js";
 import { bindObjects, renderingObjects } from "../objects/objects.js";
@@ -848,6 +849,7 @@ export function createStory(
       transaction(() => {
         store.set(RANDOM_ID, MOVE_FIELD, move);
         if (why === "start") {
+          _checkStorylets((id) => byId.has(id));
           hook("gameStart").run(hookContext());
         }
         arrive(to, false);

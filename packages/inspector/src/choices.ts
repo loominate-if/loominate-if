@@ -63,6 +63,7 @@ export const choices: InspectorPanel = {
           li.append(rule);
         }
       }
+      if (e.why !== undefined) li.append(el("p", "why", e.why));
       if (e.condition !== undefined) {
         const why = el("p", "why");
         why.append("Because ", code(e.condition), " doesn't hold.");
@@ -118,6 +119,7 @@ export const choices: InspectorPanel = {
           element.append(section);
           continue;
         }
+        if (found.length === 0 && explainer.hideWhenEmpty === true) continue;
         if (found.length === 0) {
           section.append(el("p", "empty", "None here."));
         } else {

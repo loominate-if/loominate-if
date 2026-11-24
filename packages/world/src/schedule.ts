@@ -55,6 +55,11 @@ export function minutes(n: number): Delay {
   return { minutes: count("minutes", n) };
 }
 
+/** A delay of `n` days of game time: `n` times 24 hours. */
+export function days(n: number): Delay {
+  return { minutes: count("days", n) * 24 * 60 };
+}
+
 /** A delay of `n` of the player's moves. */
 export function moves(n: number): Delay {
   return { moves: count("moves", n) };
