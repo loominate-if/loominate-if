@@ -43,6 +43,42 @@ export type LayoutDefinition = {
    * it: start sidebars above the passage, end sidebars below it.
    */
   readonly sidebars?: Readonly<Record<string, "start" | "end">>;
+  /**
+   * True if its `header` gets what the default page's does, before its own
+   * header widgets: the game menu and the widgets packages add with
+   * `addToHeader`. A layout a package switches to, such as the world
+   * model's conversation layout, keeps the header this way.
+   */
+  readonly standardHeader?: boolean;
+  /**
+   * Where the passage's parts go, when not all in `main`: for a layout that
+   * puts something else first, such as a conversation.
+   */
+  readonly passage?: PassagePlacement;
+};
+
+/** Where a layout puts the parts of the passage, for {@link LayoutDefinition.passage}. */
+export type PassagePlacement = {
+  /** The region the passage's own prose goes in, as a strip of context above. */
+  readonly prose?: string;
+  /** The region the passage's links go in, in a disclosure the player opens. */
+  readonly choices?: string;
+  /** What the disclosure of links is called: "In the study". */
+  readonly choicesLabel?: (game: PageGame) => string;
+  /**
+   * Where `main` keeps what's noticed from, across moves, as a transcript: the
+   * `seq` of the event it starts at, such as a conversation's start, or
+   * `undefined` to keep only the latest move's, as usual.
+   */
+  readonly transcriptSince?: (game: PageGame) => number | undefined;
+  /**
+   * What a transcript is called, for screen readers: "The conversation so
+   * far". A transcript scrolls, showing the latest move's paragraphs, and
+   * takes a place in the tab order, so keyboard players can scroll back.
+   */
+  readonly transcriptLabel?: (game: PageGame) => string;
+  /** The region the story-so-far drawer goes in, as at the very bottom. */
+  readonly drawer?: string;
 };
 
 /** What a widget's view can do: read the game, and make a move as the player would. */

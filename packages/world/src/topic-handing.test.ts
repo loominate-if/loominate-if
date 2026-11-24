@@ -26,6 +26,7 @@ import {
   thing,
   topic,
   topicLinks,
+  conversationMode,
 } from "./index.js";
 
 const hall = place("hall", { name: "hall" });
@@ -39,6 +40,8 @@ const pebble = thing("pebble", { name: "pebble", location: you });
 const seal = thing("seal", { name: "seal", location: you });
 const pie = thing("pie", { name: "pie", location: cook });
 startAs(you);
+// These test {topics} in the passage, which conversation mode's layout lists instead (#118).
+conversationMode(false);
 startClock({ at: "09:00" });
 
 // #region handing
@@ -73,7 +76,7 @@ beforeEach(() => {
   seen = 0;
 });
 const said = () => {
-  const all = record.events({ kinds: ["action-result"] });
+  const all = record.events({ kinds: ["action-result"] }).filter((e) => !e.tags.includes("player"));
   const out = all.slice(seen).map((e) => e.text);
   seen = all.length;
   return out;

@@ -7,6 +7,7 @@
 import { Action } from '@loominate-if/core';
 import { ActionCall } from '@loominate-if/core';
 import { ActionOutcome } from '@loominate-if/core';
+import { CastMember } from '@loominate-if/presentation';
 import { CompassData } from '@loominate-if/presentation';
 import { ConditionArgument } from '@loominate-if/core';
 import { DecideRulebook } from '@loominate-if/core';
@@ -102,6 +103,11 @@ export function actorStates<const N extends readonly string[]>(npc: ObjectRef, n
 // @public
 export function address(npc: ObjectRef): void;
 
+// @internal
+export const _addressAction: Action<    {
+who: ObjectRef;
+}>;
+
 // @public
 export type Advanced = {
     readonly minutes: number;
@@ -136,6 +142,12 @@ export type AgendaTurn = NpcTurn & {
 export const anything: {
     readonly anything: true;
 };
+
+// @public
+export function approach(npc: ObjectRef, options?: {
+    readonly says?: string;
+    readonly opens?: ConvNode;
+}): boolean;
 
 // @public
 export const ask: Action<    {
@@ -216,6 +228,9 @@ export function canSee(observer: ObjectRef, target: ObjectRef): boolean;
 
 // @public
 export function canSpend(who: ObjectRef, name: StatName, amount: number): string | undefined;
+
+// @internal
+export function _cast(): readonly CastMember[];
 
 // @public
 export type CatchUp = NpcTurn & {
@@ -321,6 +336,11 @@ export type ConversationLock = {
     readonly level: LockLevel;
     readonly reason?: string;
 };
+
+// @public
+export function conversationMode(options?: {
+    readonly layout?: string;
+} | false): void;
 
 // @public
 export type ConversationView = {
@@ -597,6 +617,9 @@ export type ExitSpec = {
 
 // @public
 export function expose(b: ObjectRef, observer: ObjectRef): void;
+
+// @public
+export function expressionOf(npc: ObjectRef): string | undefined;
 
 // @public
 export type Fact<Id extends string = string> = {
@@ -1089,6 +1112,15 @@ export function pluralize(name: string): string;
 export function pluralOf(thing: ObjectRef): string;
 
 // @public
+export type Portrait = {
+    readonly image?: string;
+    readonly expressions?: Readonly<Record<string, string>>;
+};
+
+// @public
+export function portrait(npc: ObjectRef, options: Portrait): void;
+
+// @public
 export function possess(m: ObjectRef, b: ObjectRef, options?: PossessOptions): void;
 
 // @public
@@ -1305,6 +1337,9 @@ export function setCount(s: ObjectRef, count: number): void;
 
 // @public
 export function setExit(from: ObjectRef, name: DirectionName, exit: ObjectRef | ExitSpec | null): void;
+
+// @public
+export function setExpression(npc: ObjectRef, expression: string | undefined): void;
 
 // @public
 export function setRelationship(observer: ObjectRef, toward: ObjectRef, values: {
@@ -1543,6 +1578,7 @@ export type TopicBlockArguments = {
     readonly opens?: ConvNode;
     readonly stays?: "stays";
     readonly hearMeOut?: string;
+    readonly expression?: string;
     readonly suggested?: boolean;
     readonly informs?: boolean;
 };
@@ -1643,6 +1679,7 @@ export type TopicOptions = {
     readonly opens?: ConvNode;
     readonly stays?: boolean;
     readonly hearMeOut?: string;
+    readonly expression?: string;
     readonly id?: string;
 };
 

@@ -80,7 +80,7 @@ const act = <A>(call: ActionCall<A>) => {
 };
 let seen = 0;
 const said = () => {
-  const all = record.events({ kinds: ["action-result"] });
+  const all = record.events({ kinds: ["action-result"] }).filter((e) => !e.tags.includes("player"));
   const out = all.slice(seen).map((e) => e.text);
   seen = all.length;
   return out;

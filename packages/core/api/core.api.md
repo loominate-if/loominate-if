@@ -222,6 +222,9 @@ export function createStore(snapshot?: StateSnapshot): StateStore;
 // @public
 export function createStory(store: StateStore, record: EventRecord, passages: readonly Passage[], options: StoryOptions): Story;
 
+// @internal
+export function _currentPassage(): PassageId | undefined;
+
 // @public
 export interface DecideRulebook<In, Out> extends RuleList<(input: In) => Out | undefined> {
     explain(input: In): Explanation<Out>;

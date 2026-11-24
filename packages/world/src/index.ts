@@ -326,6 +326,7 @@ export {
   topicLinks,
   topics,
   yes,
+  _addressAction,
   _matchTopic,
   _topicEntries,
   _topicExplanations,
@@ -345,3 +346,12 @@ export {
   type TopicOptions,
 } from "./topics.js";
 export { closeNode, convNode, openNode, openNodeOf, type ConvNode, type Presses } from "./nodes.js";
+export {
+  approach,
+  conversationMode,
+  expressionOf,
+  portrait,
+  setExpression,
+  _cast,
+  type Portrait,
+} from "./conversation-mode.js";

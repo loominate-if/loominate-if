@@ -23,6 +23,32 @@ import { StoryAction } from '@loominate-if/core';
 import { StoryOptions } from '@loominate-if/core';
 
 // @public
+export type ActionListData = {
+    readonly label: string;
+    readonly items: readonly ActionListItem[];
+};
+
+// @public
+export type ActionListItem = {
+    readonly label: string;
+    readonly available: boolean;
+    readonly reason?: string;
+};
+
+// @internal
+export function _actionListOf(definition: WidgetDefinition<unknown>): ActionListOptions | undefined;
+
+// @public
+export type ActionListOptions = {
+    readonly label: (game: PageGame) => string;
+    readonly items: (game: PageGame) => readonly ActionListItem[];
+    readonly take: (host: WidgetHost, index: number) => void;
+};
+
+// @public
+export function actionListWidget(options: ActionListOptions): WidgetDefinition<ActionListData>;
+
+// @public
 export type ActionMove = {
     readonly type: "action";
     readonly label: string;
@@ -35,6 +61,32 @@ export function addToHeader(name: string): void;
 export type BrowserStorageOptions = {
     readonly indexedDB?: IDBFactory;
 };
+
+// @public
+export type CastData = {
+    readonly label: string;
+    readonly members: readonly CastMember[];
+};
+
+// @public
+export type CastMember = {
+    readonly id: string;
+    readonly name: string;
+    readonly image?: string;
+    readonly expression?: string;
+    readonly initials: string;
+    readonly addressed: boolean;
+};
+
+// @public
+export type CastOptions = {
+    readonly label: (game: PageGame) => string;
+    readonly members: (game: PageGame) => readonly CastMember[];
+    readonly address: (host: WidgetHost, id: string) => void;
+};
+
+// @public
+export function castWidget(options: CastOptions): WidgetDefinition<CastData>;
 
 // @public
 export type CompassData = {
@@ -94,6 +146,8 @@ export type LayoutDefinition = {
     readonly regions: readonly string[];
     readonly widgets?: Readonly<Record<string, readonly string[]>>;
     readonly sidebars?: Readonly<Record<string, "start" | "end">>;
+    readonly standardHeader?: boolean;
+    readonly passage?: PassagePlacement;
 };
 
 // @public
@@ -158,6 +212,16 @@ export type PageOptions = {
     readonly reasons?: "tooltip" | "inline";
     readonly styles?: boolean;
     readonly narrow?: string;
+};
+
+// @public
+export type PassagePlacement = {
+    readonly prose?: string;
+    readonly choices?: string;
+    readonly choicesLabel?: (game: PageGame) => string;
+    readonly transcriptSince?: (game: PageGame) => number | undefined;
+    readonly transcriptLabel?: (game: PageGame) => string;
+    readonly drawer?: string;
 };
 
 // @public

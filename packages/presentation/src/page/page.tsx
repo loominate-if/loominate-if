@@ -651,6 +651,43 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     return out;
   };
 
+  /** The layout showing, if it's registered; `currentLayout` reports one that isn't. */
+  const layoutNow = (): LayoutDefinition | undefined => layouts.get(display.layout);
+
+  /** Whether a paragraph is drawn in main, or where the layout places the passage's prose or links. */
+  const inMain = (item: Item): boolean => {
+    const placed = layoutNow()?.passage;
+    if (item.kind === "text") return placed?.prose === undefined;
+    if (item.kind === "choice") return placed?.choices === undefined;
+    return true;
+  };
+
+  /** What was noticed from event `since` up to the move on screen, for a transcript layout. */
+  const transcript = (since: number): { earlier: Proseful[]; last: Proseful[] } => {
+    const events = record.events({
+      kinds: [...NOTICE_KINDS, "navigation", "action", "beat"],
+      since,
+    });
+    const earlier: Proseful[] = [];
+    let last: Proseful[] = [];
+    let move: Proseful[] = [];
+    for (const e of events) {
+      const starts =
+        (e.kind === "navigation" && e.redirected !== true) ||
+        e.kind === "action" ||
+        e.kind === "beat";
+      if (starts) {
+        // The last earlier move that said anything, shown when this one says nothing.
+        if (move.length > 0) {
+          earlier.push(...last);
+          last = move;
+        }
+        move = [];
+      } else if (NOTICE_KINDS.includes(e.kind)) move.push(e as Proseful);
+    }
+    return { earlier, last };
+  };
+
   /**
    * Works out the passage's paragraphs, keeping the first `from` nodes'
    * paragraphs on screen and adding the rest, and the effects to play on them.
@@ -662,6 +699,24 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
       generation++;
       items = [];
       error = undefined;
+      // A transcript layout keeps what was noticed in earlier moves, from the record, so undo agrees.
+      const since = layoutNow()?.passage?.transcriptSince?.(game);
+      if (since !== undefined) {
+        const { earlier, last } = transcript(since);
+        for (const [events, prefix] of [
+          [earlier, "t"],
+          [last, "tl"],
+        ] as const) {
+          for (const paragraph of _noticeParagraphs(events)) {
+            const para = paragraph as Proseful[];
+            items.push({
+              kind: "notices",
+              key: `${prefix}:${String(para[0]?.seq ?? 0)}`,
+              events: para,
+            });
+          }
+        }
+      }
     }
     const part = `${String(generation)}:${String(from)}`;
     const rendered = story.render();
@@ -709,8 +764,18 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     }
     addNotices(noticesLeft);
     drawnCount = rendered.nodes.length;
-    const first = items.find((item) => item.key.startsWith(`${part}:`))?.key;
+    // Focus goes to the first new paragraph in main, where a layout that places parts elsewhere keeps what's new.
+    const fresh = items.filter((item) => item.key.startsWith(`${part}:`));
+    const first = (fresh.find((item) => inMain(item)) ?? fresh[0])?.key;
     return { queue, ...(first !== undefined && { first }) };
+  };
+
+  /** The tags every event in a paragraph of notices has, for themes: `topic` on what NPCs say. */
+  const tagsOf = (events: readonly Proseful[]): string[] => {
+    const [first, ...rest] = events.map(
+      (e) => (e as { readonly tags?: readonly string[] }).tags ?? [],
+    );
+    return (first ?? []).filter((t) => !t.includes(":") && rest.every((r) => r.includes(t)));
   };
 
   /** One paragraph of the passage. */
@@ -720,7 +785,12 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     };
     if (item.kind === "notices") {
       return (
-        <p key={item.key} ref={ref} className="loominate-notice">
+        <p
+          key={item.key}
+          ref={ref}
+          className="loominate-notice"
+          {...(tagsOf(item.events).length > 0 && { "data-tags": tagsOf(item.events).join(" ") })}
+        >
           {item.events.map((notice, i) => [
             i > 0 ? " " : null,
             ...prose(notice.text, notice.styles ?? [], [], () => null),
@@ -926,6 +996,17 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
         );
       }
     }
+    for (const [part, region] of [
+      ["prose", definition.passage?.prose],
+      ["choices", definition.passage?.choices],
+      ["drawer", definition.passage?.drawer],
+    ] as const) {
+      if (region !== undefined && (!definition.regions.includes(region) || region === "main")) {
+        throw new Error(
+          `The layout "${name}" puts the passage's ${part} in "${region}", which ${region === "main" ? "is where they go anyway; leave it out" : "isn't one of its regions"}.`,
+        );
+      }
+    }
     for (const [region, side] of Object.entries(definition.sidebars ?? {})) {
       if (!definition.regions.includes(region) || region === "main") {
         throw new Error(
@@ -948,8 +1029,14 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     const { name, definition } = currentLayout();
     const sidebars = definition.sidebars ?? {};
     const narrow = narrowQuery?.matches ?? false;
+    const widgetsIn = (region: string): readonly string[] => [
+      ...(region === "header" && definition.standardHeader === true
+        ? (layouts.get("page")?.widgets?.["header"] ?? [])
+        : []),
+      ...(definition.widgets?.[region] ?? []),
+    ];
     const slots = (region: string): ComponentChildren =>
-      (definition.widgets?.[region] ?? []).map((w) => {
+      widgetsIn(region).map((w) => {
         const d = widgets.get(w);
         if (!d) {
           throw new Error(
@@ -966,9 +1053,37 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
           />
         );
       });
+    const placed = definition.passage;
+    /** The passage's parts a layout places in `region`, other than main. */
+    const passageParts = (region: string): ComponentChildren[] => {
+      const out: ComponentChildren[] = [];
+      if (placed?.prose === region) {
+        out.push(...items.filter((item) => item.kind === "text").map((item) => paragraph(item)));
+      }
+      if (placed?.choices === region) {
+        const choices = items.filter((item) => item.kind === "choice");
+        if (choices.length > 0) {
+          out.push(
+            <details key="choices" className="loominate-placed-choices">
+              <summary>{placed.choicesLabel?.(game) ?? regionLabel(region)}</summary>
+              {choices.map((item) => paragraph(item))}
+            </details>,
+          );
+        }
+      }
+      if (placed?.drawer === region) out.push(drawerView());
+      return out;
+    };
     const regionView = (region: string): ComponentChildren => {
-      const empty = region !== "main" && (definition.widgets?.[region] ?? []).length === 0;
+      const empty =
+        region !== "main" && widgetsIn(region).length === 0 && passageParts(region).length === 0;
       const className = `loominate-region loominate-region-${region}`;
+      const headingAt =
+        heading === undefined
+          ? undefined
+          : items.some((item) => item.key === heading?.key && inMain(item))
+            ? heading.key
+            : items.find((item) => item.key.startsWith("tl:"))?.key;
       const side = sidebars[region];
       const expanded = !narrow || open.has(region);
       const panelId = `loominate-sidebar-${name}-${region}`;
@@ -978,7 +1093,11 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
               <main key="main" className="loominate-main">
                 <div
                   className="loominate-passage"
-                  tabIndex={-1}
+                  // A transcript scrolls, so keyboard players can reach it to scroll back.
+                  tabIndex={placed?.transcriptSince === undefined ? -1 : 0}
+                  {...(placed?.transcriptLabel !== undefined && {
+                    "aria-label": placed.transcriptLabel(game),
+                  })}
                   ref={(element) => {
                     passage = element;
                   }}
@@ -989,12 +1108,28 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
                     </p>
                   )}
                   {
+                    // A heading for new text that went to another region goes before the
+                    // transcript's last exchange, or else first in main.
+                    heading !== undefined && headingAt === undefined && (
+                      <h2
+                        key={`heading:${heading.key}`}
+                        className="loominate-sr-only loominate-passage-heading"
+                        tabIndex={-1}
+                        ref={(element) => {
+                          headingElement = element;
+                        }}
+                      >
+                        {heading.text}
+                      </h2>
+                    )
+                  }
+                  {
                     // One flat list of keyed siblings, so a paragraph keeps its element
                     // when the heading before it comes or goes.
-                    items.flatMap((item) => {
+                    items.filter(inMain).flatMap((item) => {
                       const drawn = paragraph(item);
                       const paragraphs = Array.isArray(drawn) ? drawn : [drawn];
-                      return heading?.key === item.key
+                      return headingAt === item.key
                         ? [
                             <h2
                               key={`heading:${item.key}`}
@@ -1004,7 +1139,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
                                 headingElement = element;
                               }}
                             >
-                              {heading.text}
+                              {heading?.text}
                             </h2>,
                             ...paragraphs,
                           ]
@@ -1016,7 +1151,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
                 <div className="loominate-sr-only loominate-announce" aria-live="polite">
                   {announcement}
                 </div>
-                {drawerView()}
+                {placed?.drawer === undefined && drawerView()}
               </main>,
               slots(region),
             ]
@@ -1047,7 +1182,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
                   {slots(region)}
                 </div>,
               ]
-            : slots(region);
+            : [...passageParts(region), slots(region)];
       const props = {
         key: `${name}:${region}`,
         className,
@@ -1095,6 +1230,44 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
   /** Draws the page as it stands, at once. */
   const renderPage = (): void => {
     render(view(), root);
+    fitTranscript();
+  };
+
+  /** The latest part a transcript was fitted to, so it's fitted once per part. */
+  let fitted: string | undefined;
+  /**
+   * In a transcript layout, the passage scrolls: it's as tall as the latest
+   * move's paragraphs, the player's line and the reply, which are scrolled
+   * into view, and earlier lines are a scroll up. Fitted once per move, so a
+   * player scrolling back isn't snapped down by a later redraw.
+   */
+  const fitTranscript = (): void => {
+    if (!passage) return;
+    const scrolls = layoutNow()?.passage?.transcriptSince !== undefined;
+    passage.classList.toggle("loominate-transcript", scrolls);
+    if (!scrolls) {
+      passage.style.removeProperty("height");
+      fitted = undefined;
+      return;
+    }
+    const kept = (item: Item): boolean => item.key.startsWith("t:") || item.key.startsWith("tl:");
+    const now = items.filter((item) => inMain(item) && !kept(item));
+    // A move that said nothing, as coming back from a cut scene, shows the last exchange that did.
+    const latest = now.length > 0 ? now : items.filter((item) => item.key.startsWith("tl:"));
+    const key = latest.map((item) => item.key).join(" ");
+    if (key === fitted) return;
+    fitted = key;
+    const first = latest[0] && elements.get(latest[0].key);
+    const last = latest.at(-1) && elements.get((latest.at(-1) as Item).key);
+    if (!first || !last) {
+      passage.style.removeProperty("height");
+      return;
+    }
+    const top = first.getBoundingClientRect().top;
+    const height = last.getBoundingClientRect().bottom - top;
+    // Room for the paragraphs' margins; CSS caps it, so a long reply scrolls too.
+    if (height > 0) passage.style.height = `calc(${String(Math.ceil(height))}px + 2em)`;
+    passage.scrollTop += top - passage.getBoundingClientRect().top - 8;
   };
 
   /**

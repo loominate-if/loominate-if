@@ -548,6 +548,14 @@ function moveKind(action: StoryAction): MoveKind | undefined {
   return action.type;
 }
 
+/** The passage the running story's player is at. */
+let runningCurrent: (() => PassageId | undefined) | undefined;
+
+/** The passage the player is at in the running story, if any. @internal */
+export function _currentPassage(): PassageId | undefined {
+  return runningCurrent?.();
+}
+
 /** The passage the running story's player was at before the current one. */
 let runningPrevious: (() => PassageId | undefined) | undefined;
 
@@ -757,6 +765,7 @@ export function createStory(
   // Packages that run authored effects outside passages, such as the world
   // model's topic blocks, get this story's context (#115).
   runningContext = contextFor;
+  runningCurrent = current;
   runningPrevious = () => {
     const id = store.get(STORY_ID, PREVIOUS_FIELD);
     return typeof id === "string" ? id : undefined;

@@ -406,6 +406,7 @@ Nodes handle moments that need structure, such as an NPC asking a question. A no
 - Conversations end by goodbye, or by world events: the NPC leaves on schedule, a fuse fires, a scene takes over.
 - Inventory stays available for showing and giving.
 - Each exchange costs game time, one minute by default.
+- The world model registers the `conversation` layout, regions `header` (the page's, through `standardHeader`), `context` (the passage's prose), `cast` (a sidebar beside `main`, the conversation so far as a transcript), `topics`, and `more` (the passage's links, in a disclosure), through layouts' generic `passage` placement, with the widgets `conversation-cast` and `conversation-topics`, built on presentation's generic `castWidget` and `actionListWidget`. Starting a conversation switches to it, and ending one switches back, as game state; `conversationMode` picks another layout or none. Portraits and expressions come from `portrait`, `setExpression`, and entries' `expression`. `approach` starts a conversation from an agenda item. Notices carry their events' tags as `data-tags`, so themes tell what's said from the room's prose ([ADR 0095](decisions/0095-conversation-mode.md)).
 
 ### Exit control
 

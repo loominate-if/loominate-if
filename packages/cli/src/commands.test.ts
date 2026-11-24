@@ -55,7 +55,9 @@ export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, title
 /** jsdom's document, typed narrowly, since this package is compiled without DOM types. */
 type Page = {
   body: { innerHTML: string };
-  querySelector(selector: string): { textContent: string | null } | null;
+  querySelector(
+    selector: string,
+  ): { textContent: string | null; getAttribute(name: string): string | null } | null;
   querySelectorAll(selector: string): Iterable<{
     textContent: string | null;
     click(): void;
@@ -394,8 +396,10 @@ describe("loominate dev", () => {
       vite: { ...options(root).vite, server: { middlewareMode: true } },
     });
     const text = () => page().querySelector(".loominate-passage")?.textContent ?? "";
+    const everything = () => page().querySelector(".loominate-page")?.textContent ?? "";
     const follow = (label: string) => {
-      const link = [...page().querySelectorAll(".loominate-passage :is(a, button)")].find((b) =>
+      // In conversation mode, the topics are buttons in the layout's own region (#118).
+      const link = [...page().querySelectorAll(".loominate-page :is(a, button)")].find((b) =>
         b.textContent?.startsWith(label),
       );
       if (!link) throw new Error(`no link ${label} in: ${text()}`);
@@ -406,6 +410,18 @@ describe("loominate dev", () => {
       await server.ssrLoadModule("/@loominate/main");
       follow("Talk to the butler");
       expect(text()).toContain('"Sir?"');
+      // Conversation mode: the cast, with the butler addressed, and the topics below.
+      const root = () => page().querySelector(".loominate-page");
+      expect(root()?.getAttribute("data-layout")).toBe("conversation");
+      const portrait = page().querySelector('[data-region="cast"] .loominate-portrait');
+      const name = page().querySelector('[data-region="cast"] .loominate-portrait-name');
+      expect([name?.textContent, portrait?.getAttribute("aria-pressed")]).toEqual([
+        "butler",
+        "true",
+      ]);
+      expect(
+        page().querySelector('[data-region="topics"] .loominate-action-list')?.textContent,
+      ).toContain("Ask about the weather");
       follow("Ask about the weather");
       expect(text()).toContain('"Grey, sir. And it was the butler, if you take my meaning."');
       follow("Ask about the weather");
@@ -414,15 +430,16 @@ describe("loominate dev", () => {
       follow("Ask about his past");
       expect(text()).toContain('"I was a sailor once, sir, before all this."');
       follow("Continue");
-      expect(text()).toContain("Ask about the job");
+      expect(everything()).toContain("Ask about the job");
       // A block that opens a node: only its replies are offered, and changing the subject presses.
       follow("Ask about the job");
       expect(text()).toContain('"There is a post, sir. Will you take it?"');
-      expect(text()).not.toContain("Ask about the weather");
+      expect(everything()).not.toContain("Ask about the weather");
       follow("Say yes");
       expect(text()).toContain('"Splendid, sir."');
-      expect(text()).toContain("Ask about the weather");
+      expect(everything()).toContain("Ask about the weather");
       follow("Say goodbye");
+      expect(root()?.getAttribute("data-layout")).toBe("page");
       follow("Unlock the cellar door");
       follow("Continue");
       follow("Down");
