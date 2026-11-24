@@ -7,6 +7,8 @@
  */
 import { message } from "@loominate-if/core";
 import "../messages.js";
+import { useLayoutEffect, useRef } from "preact/hooks";
+import { componentView } from "./view.js";
 import { widget, type WidgetDefinition, type WidgetHost } from "./layout.js";
 import type { PageGame } from "./page.js";
 
@@ -102,76 +104,20 @@ export function compassWidget(options: CompassOptions): WidgetDefinition<Compass
   const keys = options.keys ?? "numpad";
   return widget({
     data: (game) => ({ label: message("compass.label"), ways: options.ways(game) }),
-    view: {
-      mount(element, data, host) {
-        const doc = element.ownerDocument;
-        const box = doc.createElement("nav");
-        box.className = "loominate-compass";
-        element.append(box);
-        let current = data;
-        const take = (way: CompassWay | undefined): boolean => {
-          if (!way?.available) return false;
-          options.take(host, way.direction);
-          return true;
-        };
-        const show = (d: CompassData): void => {
-          current = d;
-          box.setAttribute("aria-label", d.label);
-          box.replaceChildren();
-          const grid = doc.createElement("div");
-          grid.className = "loominate-compass-points";
-          const rest = doc.createElement("div");
-          rest.className = "loominate-compass-others";
-          for (const [i, way] of d.ways.entries()) {
-            const b = doc.createElement("button");
-            b.type = "button";
-            b.className = "loominate-compass-way";
-            b.dataset.direction = way.direction;
-            b.textContent = way.label;
-            b.setAttribute("aria-label", way.title);
-            if (way.available) {
-              b.title = way.title;
-              b.addEventListener("click", () => take(way));
-            } else {
-              b.setAttribute("aria-disabled", "true");
-              b.title = way.reason ?? way.title;
-              if (way.reason !== undefined) {
-                const why = doc.createElement("span");
-                why.className = "loominate-compass-reason";
-                why.id = `loominate-compass-why-${String(i)}`;
-                why.textContent = way.reason;
-                b.setAttribute("aria-describedby", why.id);
-                box.append(why);
-              }
-            }
-            const at = GRID[way.direction];
-            if (at) {
-              b.style.gridColumn = String(at[0]);
-              b.style.gridRow = String(at[1]);
-              grid.append(b);
-            } else rest.append(b);
-          }
-          // Every point has its cell: one with no way out is a faint mark, not a button,
-          // so it reads differently from a way that's there but blocked.
-          const there = new Set(d.ways.map((w) => w.direction));
-          for (const [direction, [col, row]] of Object.entries(GRID)) {
-            if (there.has(direction)) continue;
-            const none = doc.createElement("span");
-            none.className = "loominate-compass-none";
-            none.setAttribute("aria-hidden", "true");
-            none.dataset.direction = direction;
-            none.style.gridColumn = String(col);
-            none.style.gridRow = String(row);
-            grid.append(none);
-          }
-          const centre = doc.createElement("span");
-          centre.className = "loominate-compass-centre";
-          centre.setAttribute("aria-hidden", "true");
-          centre.style.gridColumn = "2";
-          centre.style.gridRow = "2";
-          grid.append(centre);
-          box.prepend(grid, ...(rest.childElementCount > 0 ? [rest] : []));
-        };
+    view: componentView<CompassData>(({ data, host }) => {
+      const d = data.value;
+      const take = (way: CompassWay | undefined): boolean => {
+        if (!way?.available) return false;
+        options.take(host, way.direction);
+        return true;
+      };
+      // The key handler reads the ways on show now, not those when it was added.
+      const latest = useRef(d);
+      latest.current = d;
+      const nav = useRef<HTMLElement>(null);
+      useLayoutEffect(() => {
+        if (keys === "none") return undefined;
+        const doc = nav.current?.ownerDocument;
         const onKey = (event: KeyboardEvent): void => {
           if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
           if (typing(event.target)) return;
@@ -179,18 +125,87 @@ export function compassWidget(options: CompassOptions): WidgetDefinition<Compass
             (keys === "numpad" || keys === "both" ? NUMPAD[event.code] : undefined) ??
             (keys === "vi" || keys === "both" ? VI[event.key] : undefined);
           if (direction === undefined) return;
-          if (take(current.ways.find((w) => w.direction === direction))) event.preventDefault();
+          if (take(latest.current.ways.find((w) => w.direction === direction)))
+            event.preventDefault();
         };
-        if (keys !== "none") doc.addEventListener("keydown", onKey);
-        show(data);
-        return {
-          update: show,
-          unmount: () => {
-            doc.removeEventListener("keydown", onKey);
-            box.remove();
-          },
-        };
-      },
-    },
+        doc?.addEventListener("keydown", onKey);
+        return () => doc?.removeEventListener("keydown", onKey);
+      }, []);
+      const button = (way: CompassWay, i: number) => {
+        const at = GRID[way.direction];
+        const style = at ? { gridColumn: String(at[0]), gridRow: String(at[1]) } : undefined;
+        return way.available ? (
+          <button
+            key={way.direction}
+            type="button"
+            className="loominate-compass-way"
+            data-direction={way.direction}
+            aria-label={way.title}
+            title={way.title}
+            style={style}
+            onClick={() => take(way)}
+          >
+            {way.label}
+          </button>
+        ) : (
+          <button
+            key={way.direction}
+            type="button"
+            className="loominate-compass-way"
+            data-direction={way.direction}
+            aria-label={way.title}
+            aria-disabled="true"
+            title={way.reason ?? way.title}
+            {...(way.reason !== undefined && {
+              "aria-describedby": `loominate-compass-why-${String(i)}`,
+            })}
+            style={style}
+          >
+            {way.label}
+          </button>
+        );
+      };
+      const points = d.ways.flatMap((w, i) => (GRID[w.direction] ? [button(w, i)] : []));
+      const others = d.ways.flatMap((w, i) => (GRID[w.direction] ? [] : [button(w, i)]));
+      // Every point has its cell: one with no way out is a faint mark, not a button,
+      // so it reads differently from a way that's there but blocked.
+      const there = new Set(d.ways.map((w) => w.direction));
+      const none = Object.entries(GRID)
+        .filter(([direction]) => !there.has(direction))
+        .map(([direction, [col, row]]) => (
+          <span
+            key={`none-${direction}`}
+            className="loominate-compass-none"
+            aria-hidden="true"
+            data-direction={direction}
+            style={{ gridColumn: String(col), gridRow: String(row) }}
+          />
+        ));
+      return (
+        <nav ref={nav} className="loominate-compass" aria-label={d.label}>
+          <div className="loominate-compass-points">
+            {points}
+            {none}
+            <span
+              className="loominate-compass-centre"
+              aria-hidden="true"
+              style={{ gridColumn: "2", gridRow: "2" }}
+            />
+          </div>
+          {others.length > 0 && <div className="loominate-compass-others">{others}</div>}
+          {d.ways.map((way, i) =>
+            !way.available && way.reason !== undefined ? (
+              <span
+                key={`why-${way.direction}`}
+                className="loominate-compass-reason"
+                id={`loominate-compass-why-${String(i)}`}
+              >
+                {way.reason}
+              </span>
+            ) : null,
+          )}
+        </nav>
+      );
+    }),
   });
 }

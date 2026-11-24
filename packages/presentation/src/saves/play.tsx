@@ -4,6 +4,9 @@
  * browser; autosaves after each move; offers Continue when the player comes
  * back; and puts Undo, Save, Load, and Restart in a `game-menu` widget.
  */
+import { render } from "preact";
+import { useState } from "preact/hooks";
+import { componentView, now } from "../page/view.js";
 import {
   AUTOSAVE_SLOT,
   createEventRecord,
@@ -176,67 +179,75 @@ type MenuActions = {
 function gameMenu(actions: MenuActions): WidgetDefinition<MenuData> {
   return widget({
     data: () => ({ canUndo: actions.canUndo() }),
-    view: {
-      mount(element, data) {
-        const doc = element.ownerDocument;
-        const bar = doc.createElement("div");
-        bar.className = "loominate-game-menu";
-        // Each button's tooltip says what it does, since a game may reword its label.
-        const make = (text: string, tip: string, onClick: () => void) => {
-          const b = doc.createElement("button");
-          b.type = "button";
-          b.textContent = text;
-          b.title = tip;
-          b.addEventListener("click", onClick);
-          bar.append(b);
-          return b;
-        };
-        let canUndo = data.canUndo;
-        const undo = make(message("menu.undo"), message("menu.undoTip"), () => {
-          if (canUndo) actions.undo();
-        });
-        make(message("menu.save"), message("menu.saveTip"), () => {
-          actions.open("save");
-        });
-        make(message("menu.load"), message("menu.loadTip"), () => {
-          actions.open("load");
-        });
-        // Restart abandons the game in play, so it asks once more on the same
-        // button, as the save menu's Delete does; leaving the button cancels.
-        let confirming = false;
-        const restart = make(message("menu.restart"), message("menu.restartTip"), () => {
-          if (!confirming) {
-            confirming = true;
-            restart.textContent = message("menu.confirmRestart");
-            restart.title = message("menu.confirmRestartTip");
-            restart.setAttribute("aria-label", message("menu.confirmRestartLabel"));
-            return;
-          }
-          actions.restart();
-        });
-        restart.addEventListener("blur", () => {
-          confirming = false;
-          restart.textContent = message("menu.restart");
-          restart.title = message("menu.restartTip");
-          restart.removeAttribute("aria-label");
-        });
-        element.append(bar);
-        const show = (d: MenuData) => {
-          canUndo = d.canUndo;
-          // Still focusable when there's nothing to undo, so it's found and explained.
-          undo.setAttribute("aria-disabled", String(!d.canUndo));
-          undo.title = message(d.canUndo ? "menu.undoTip" : "menu.cannotUndoTip");
-        };
-        show(data);
-        return {
-          update: show,
-          unmount: () => {
-            bar.remove();
-          },
-        };
-      },
-    },
+    view: componentView<MenuData>(({ data }) => (
+      <GameMenu canUndo={data.value.canUndo} actions={actions} />
+    )),
   });
+}
+
+function GameMenu({
+  canUndo,
+  actions,
+}: {
+  readonly canUndo: boolean;
+  readonly actions: MenuActions;
+}) {
+  // Restart abandons the game in play, so it asks once more on the same
+  // button, as the save menu's Delete does; leaving the button cancels.
+  const [confirming, setConfirming] = useState(false);
+  const confirm = (value: boolean): void => {
+    now(() => {
+      setConfirming(value);
+    });
+  };
+  // Each button's tooltip says what it does, since a game may reword its label.
+  return (
+    <div className="loominate-game-menu">
+      <button
+        type="button"
+        title={message(canUndo ? "menu.undoTip" : "menu.cannotUndoTip")}
+        // Still focusable when there's nothing to undo, so it's found and explained.
+        aria-disabled={canUndo ? "false" : "true"}
+        onClick={() => {
+          if (canUndo) actions.undo();
+        }}
+      >
+        {message("menu.undo")}
+      </button>
+      <button
+        type="button"
+        title={message("menu.saveTip")}
+        onClick={() => {
+          actions.open("save");
+        }}
+      >
+        {message("menu.save")}
+      </button>
+      <button
+        type="button"
+        title={message("menu.loadTip")}
+        onClick={() => {
+          actions.open("load");
+        }}
+      >
+        {message("menu.load")}
+      </button>
+      <button
+        type="button"
+        title={message(confirming ? "menu.confirmRestartTip" : "menu.restartTip")}
+        {...(confirming && { "aria-label": message("menu.confirmRestartLabel") })}
+        onClick={() => {
+          if (confirming) actions.restart();
+          else confirm(true);
+        }}
+        onBlur={() => {
+          confirm(false);
+        }}
+      >
+        {message(confirming ? "menu.confirmRestart" : "menu.restart")}
+      </button>
+    </div>
+  );
 }
 
 /** A fresh master seed for a new game (ADR 0008: whatever starts a game supplies one). */
@@ -386,7 +397,11 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
   const start = (snapshot?: StateSnapshot, replay?: Replay): PlayedReplay | undefined => {
     markPlaying();
     page?.destroy();
-    host.querySelector(".loominate-start")?.remove();
+    const shown = host.querySelector<HTMLElement>(".loominate-start");
+    if (shown) {
+      render(null, shown);
+      shown.remove();
+    }
     store = createStore(snapshot);
     const record = createEventRecord(store);
     story = createStory(store, record, options.passages, {
@@ -472,69 +487,49 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
    * looks like the game: the title as a heading, then choices like a passage's.
    */
   const offer = (autosaved: LoadedSave, problem?: string): void => {
-    const el = <K extends keyof HTMLElementTagNameMap>(
-      tag: K,
-      className?: string,
-      text?: string,
-    ): HTMLElementTagNameMap[K] => {
-      const node = doc.createElement(tag);
-      if (className !== undefined) node.className = className;
-      if (text !== undefined) node.textContent = text;
-      return node;
-    };
-    const screen = el("div", "loominate-page loominate-start");
+    const screen = doc.createElement("div");
+    screen.className = "loominate-page loominate-start";
     screen.dataset.screen = "start";
-    const main = el("main", "loominate-main");
-    const passage = el("div", "loominate-passage");
-    const heading = el("h1", undefined, options.title ?? options.game.id);
-    heading.id = "loominate-start-title";
-    main.setAttribute("aria-labelledby", heading.id);
-    const where = autosaved.summary.passage;
-    passage.append(
-      heading,
-      el(
-        "p",
-        undefined,
-        problem !== undefined
-          ? message("start.cannotContinue")
-          : where === undefined
-            ? message("start.inProgress")
-            : message("start.inProgressAt", { where }),
-      ),
-    );
-    if (problem !== undefined) passage.append(el("p", "loominate-note", problem));
-    if (!autosaved.summary.sameGameVersion) {
-      passage.append(
-        el(
-          "p",
-          "loominate-note",
-          message("start.savedByVersion", { version: autosaved.summary.game.version }),
-        ),
-      );
-    }
-    const choice = (text: string, className: string, onClick: () => void) => {
-      const b = el("button", className, text);
-      b.type = "button";
-      b.addEventListener("click", onClick);
-      const p = el("p", "loominate-choice");
-      p.append(b);
-      passage.append(p);
-      return b;
-    };
-    const first =
-      problem === undefined
-        ? choice(message("start.continue"), "loominate-continue", () => {
-            host.querySelector(".loominate-start")?.remove();
-            resume(autosaved);
-          })
-        : undefined;
-    const fresh = choice(message("start.newGame"), "loominate-link", () => {
-      start();
-    });
-    main.append(passage);
-    screen.append(main);
     host.prepend(screen);
-    (first ?? fresh).focus();
+    const where = autosaved.summary.passage;
+    const choice = (text: string, className: string, onClick: () => void) => (
+      <p className="loominate-choice">
+        <button type="button" className={className} onClick={onClick}>
+          {text}
+        </button>
+      </p>
+    );
+    render(
+      <main className="loominate-main" aria-labelledby="loominate-start-title">
+        <div className="loominate-passage">
+          <h1 id="loominate-start-title">{options.title ?? options.game.id}</h1>
+          <p>
+            {problem !== undefined
+              ? message("start.cannotContinue")
+              : where === undefined
+                ? message("start.inProgress")
+                : message("start.inProgressAt", { where })}
+          </p>
+          {problem !== undefined && <p className="loominate-note">{problem}</p>}
+          {!autosaved.summary.sameGameVersion && (
+            <p className="loominate-note">
+              {message("start.savedByVersion", { version: autosaved.summary.game.version })}
+            </p>
+          )}
+          {problem === undefined &&
+            choice(message("start.continue"), "loominate-continue", () => {
+              render(null, screen);
+              screen.remove();
+              resume(autosaved);
+            })}
+          {choice(message("start.newGame"), "loominate-link", () => {
+            start();
+          })}
+        </div>
+      </main>,
+      screen,
+    );
+    screen.querySelector<HTMLButtonElement>(".loominate-choice button")?.focus();
   };
 
   let autosaved: LoadedSave | undefined;
