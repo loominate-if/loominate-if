@@ -180,11 +180,20 @@ describe("the log dialog (#127)", () => {
     return dialog.element;
   }
 
-  it("shows the story log, with a filter for dialogue only, focused when it opens", () => {
+  it("shows the story log, its newest entry focused, with a filter for dialogue only", () => {
     nameSpeakers((id) => ({ maid: "Maid" })[id]);
     const element = open("log");
     expect(element.querySelector("h2")?.textContent).toBe("Story log");
-    expect(document.activeElement?.tagName).toBe("SELECT");
+    // The newest entry has focus, so a screen reader reads it; the arrows read the rest.
+    expect(document.activeElement?.textContent).toBe("Maid: “Yes, miss?”");
+    document.activeElement?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }),
+    );
+    expect(document.activeElement?.textContent).toBe("A long hall.");
+    document.activeElement?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "End", bubbles: true }),
+    );
+    expect(document.activeElement?.textContent).toBe("Maid: “Yes, miss?”");
     const entries = () =>
       [...element.querySelectorAll(".loominate-log-entry")].map((p) => p.textContent);
     expect(entries()).toEqual(["A long hall.", "Maid: “Yes, miss?”"]);

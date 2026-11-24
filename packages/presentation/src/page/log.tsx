@@ -212,6 +212,29 @@ export function createLogDialog(
     { passive: false },
   );
 
+  /** The entries, each focusable, so a screen reader reads the one with focus. */
+  const entries = (): HTMLElement[] => [
+    ...dialog.querySelectorAll<HTMLElement>(".loominate-log-entry, .loominate-log-line"),
+  ];
+  /** Up and Down move between entries, Home and End to the first and last. */
+  const stepThrough = (event: KeyboardEvent): void => {
+    const all = entries();
+    const at = all.indexOf(doc.activeElement as HTMLElement);
+    const to =
+      event.key === "ArrowUp"
+        ? at - 1
+        : event.key === "ArrowDown"
+          ? at + 1
+          : event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? all.length - 1
+              : undefined;
+    if (to === undefined || at < 0) return;
+    event.preventDefault();
+    all[Math.max(0, Math.min(all.length - 1, to))]?.focus();
+  };
+
   const draw = (): void => {
     const all = events();
     const title = message(view === "log" ? "log.title" : "log.transcriptTitle");
@@ -222,6 +245,7 @@ export function createLogDialog(
             .map((e, i, list) => (
               <p
                 key={i}
+                tabIndex={-1}
                 className={`loominate-log-entry${e.player === true ? " loominate-log-player" : ""}${
                   i > 0 && list[i - 1]?.move !== e.move ? " loominate-log-turn" : ""
                 }`}
@@ -236,7 +260,7 @@ export function createLogDialog(
             .filter((l) => filter === "all" || l.kind === filter)
             .map((l) => (
               // Event kinds and fields are data, not prose: not to be translated.
-              <p key={l.seq} className="loominate-log-line" translate={false}>
+              <p key={l.seq} className="loominate-log-line" tabIndex={-1} translate={false}>
                 <span className="loominate-log-seq">{String(l.seq)}</span>{" "}
                 <span className="loominate-log-kind">{`[${l.kind}]`}</span> {l.text}
               </p>
@@ -295,7 +319,14 @@ export function createLogDialog(
         <p className="loominate-log-status" role="status">
           {status}
         </p>
-        <div className="loominate-log-body">
+        <div
+          className="loominate-log-body"
+          role="group"
+          aria-label={`${title}: ${message("log.keys")}`}
+          onKeyDown={(event) => {
+            stepThrough(event);
+          }}
+        >
           {body.length > 0 ? body : <p className="loominate-log-empty">{message("log.empty")}</p>}
         </div>
         <button type="button" onClick={close}>
@@ -317,7 +348,10 @@ export function createLogDialog(
       else dialog.open = true;
       // While it's open, the page behind doesn't scroll.
       doc.documentElement.classList.add("loominate-modal-open");
-      dialog.querySelector<HTMLSelectElement>(`#${id}-filter`)?.focus();
+      // The newest entry takes focus, so a screen reader reads it; arrows read the rest.
+      const newest = entries().at(-1);
+      if (newest) newest.focus();
+      else dialog.querySelector<HTMLSelectElement>(`#${id}-filter`)?.focus();
       // The newest at the bottom, in view.
       const scroller = dialog.querySelector<HTMLElement>(".loominate-log-body");
       if (scroller) scroller.scrollTop = scroller.scrollHeight;

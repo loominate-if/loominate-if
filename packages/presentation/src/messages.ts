@@ -83,6 +83,8 @@ declare module "@loominate-if/core" {
     "log.empty": None;
     /** Closing the log. */
     "log.close": None;
+    /** How to move through the log's entries, for screen readers. */
+    "log.keys": None;
     /** Restart's tooltip while it asks once more. */
     "menu.confirmRestartTip": None;
     /** Restart, asking once more. */
@@ -191,6 +193,7 @@ register("log.copied", "Copied.");
 register("log.copyFailed", "Couldn't copy: select the text and copy it instead.");
 register("log.empty", "Nothing yet.");
 register("log.close", "Close");
+register("log.keys", "use the up and down arrow keys to read each entry");
 register("menu.confirmRestartTip", "Click again to start over. Moving away cancels.");
 register("menu.confirmRestartLabel", "Confirm restart: start the story over. Saves are kept.");
 register("start.continue", "Continue");
