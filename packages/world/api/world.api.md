@@ -329,6 +329,7 @@ export const comeAlong: Action<Record<never, never>>;
 // @public
 export function companion(npc: ObjectRef, options?: {
     readonly starts?: CompanionState;
+    readonly shares?: SharingPolicy;
 }): void;
 
 // @public
@@ -712,6 +713,9 @@ who: ObjectRef;
 }>;
 
 // @public
+export const found: Topic;
+
+// @public
 export type FullVocabulary = {
     readonly nouns: readonly string[];
     readonly adjectives: readonly string[];
@@ -902,6 +906,9 @@ export type _Knowledge = {
     readonly seen: readonly string[];
     readonly knownOf: readonly string[];
 };
+
+// @public
+export function knowledgeSharing(to: SharingPolicy): void;
 
 // @public
 export type LearnOptions = FactSource;
@@ -1432,6 +1439,9 @@ export function setRelationship(observer: ObjectRef, toward: ObjectRef, values: 
 
 // @public
 export function setStat(who: ObjectRef, name: StatName, value: number): number;
+
+// @public
+export type SharingPolicy = "reunion" | "together" | "conversation";
 
 // @public
 export const show: Action<    {

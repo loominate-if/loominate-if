@@ -1505,6 +1505,25 @@ companion(tom, { starts: "waiting" });
 - **Timetables** don't move a companion while they're accompanying the player.
 - [Orders](#orders) the player gives, such as "Ask Mira to wait here", call these.
 
+### Sharing what they know
+
+Each mind knows its own facts and has seen its own things. A policy says how the player and a companion share them:
+
+<!-- example: packages/world/src/sharing.test.ts#sharing -->
+```ts
+knowledgeSharing("reunion"); // the default
+companion(mira); // shares as the game does: on reunion
+companion(tom, { shares: "together" });
+companion(ann, { shares: "conversation" });
+```
+
+- **`reunion`** (the default): whenever they're in the same place, after a move, each learns what the other knows, catching up on whatever they learned apart.
+- **`together`:** what either learns while they're together is shared, after the move; what they learned apart stays theirs.
+- **`conversation`:** nothing is shared by itself.
+- **What's shared:** facts, sourced to whoever knew them ("from Mira"), and things the other has seen, which become known of, not seen.
+- **Asking what they found:** a companion who knows facts the player doesn't has a topic, "what they found", suggested while talking to them. Asking tells each, one line from its text ("“The diary was in the bureau.”"), and the player learns it from them; with nothing new, "“Nothing you don't know,” Ann says." Give a companion an entry of your own for `found` to say it your way.
+- `knowledgeSharing(policy)` sets the game's policy in `story.ts`; `companion(npc, { shares })` sets one companion's.
+
 ### Orders
 
 The player can ask an NPC to do something. An order is an action the player takes; the NPC then does the action as themselves, with their own body, skills, and inventory:

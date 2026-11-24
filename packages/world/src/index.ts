@@ -366,7 +366,9 @@ export {
   companionState,
   waitHere,
   type CompanionState,
+  type SharingPolicy,
 } from "./companions.js";
+export { found, knowledgeSharing } from "./sharing.js";
 export { follow } from "./following.js";
 export {
   askFor,
