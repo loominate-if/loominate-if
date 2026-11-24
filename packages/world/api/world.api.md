@@ -688,6 +688,11 @@ export type FactSource = {
 export type Firing = () => string | Text | undefined;
 
 // @public
+export const follow: Action<    {
+who: ObjectRef;
+}>;
+
+// @public
 export type FullVocabulary = {
     readonly nouns: readonly string[];
     readonly adjectives: readonly string[];
