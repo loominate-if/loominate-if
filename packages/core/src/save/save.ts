@@ -9,6 +9,7 @@
  * Core touches no browser storage. Slots live in a {@link SaveStorage} the host
  * provides; {@link createMemoryStorage} is the in-memory one.
  */
+import { _migrateSave } from "./migrations.js";
 import type { PassageId } from "../passages/story.js";
 import { createStore, type StateSnapshot, type StateStore } from "../state/store.js";
 import { StateError } from "../state/value.js";
@@ -57,6 +58,8 @@ export type SaveSummary = Omit<SaveFile, "state"> & {
   readonly passage?: PassageId;
   /** Whether it was made by the same version of the game as the one running. */
   readonly sameGameVersion: boolean;
+  /** When the game's migrations brought it up to this version, the versions it went through, from its own. */
+  readonly migratedThrough?: readonly string[];
 };
 
 /** A slot whose contents can't be loaded, with the reason. */
@@ -330,7 +333,15 @@ function loadable(slot: string, text: string, game: GameInfo): LoadedSave {
       `save: this save is from the game ${JSON.stringify(file.game.id)}, not ${JSON.stringify(game.id)}.`,
     );
   }
-  return { summary: summarize(slot, file, game), state: file.state };
+  // A save from another version is brought up to this one by the game's migrations, if it has any.
+  const migrated = _migrateSave(file.state, file.game.version, game.version);
+  return {
+    summary: {
+      ...summarize(slot, file, game),
+      ...(migrated.through.length > 0 && { migratedThrough: migrated.through }),
+    },
+    state: migrated.state,
+  };
 }
 
 function summarize(slot: string, file: SaveFile, game: GameInfo): SaveSummary {

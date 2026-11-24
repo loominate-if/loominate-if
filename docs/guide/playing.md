@@ -28,6 +28,28 @@ await playGame(document.querySelector("#app")!, {
 - A note when a save was made by another version of the game.
 - **Errors shown, not swallowed.** If the story's code throws during a move, the page shows "Something went wrong: …" at the top of the passage, and the game stays where it was, as a failed move is rolled back. The next move clears it. `mountPage`'s `onError` option gets the error too. The words are the `page.error` message ([Rewording the library](messages.md)).
 
+## Saves from older versions
+
+A save records the game's version. When a player loads one made by another version, it loads as it is: stable IDs mean most changes to a game need nothing, and a property a new version adds needs nothing either, since a save keeps only values that differ from their defaults.
+
+When a change does need saves brought forward, such as an object's ID changing, declare migration steps in `story.ts`. Each step brings a save from one version to the next, changing the saved state as data:
+
+<!-- example: packages/core/src/save/migrations.test.ts#migrate -->
+```ts
+migrate({ from: "1.0.0", to: "1.1.0" }, (save) => {
+  save.rename("oldLamp", "lamp");
+  save.renameField("door", "shut", "isOpen", (shut) => !shut);
+});
+migrate({ from: "1.1.0", to: "1.2.0" }, (save) => {
+  save.remove("shed");
+});
+```
+
+- **Running the steps:** a save from 1.0.0, loaded by 1.2.0, runs the step from 1.0.0, then the step from 1.1.0. Versions are matched exactly.
+- **What a step can do:** `rename` an object, which moves every reference to it too; `renameField`, converting its value if you like; `remove` an object, setting references to it to `null`; and `get`, `set`, and `unset` a field.
+- **When no step leads from a save's version:** once a game declares any steps, a save they can't bring forward is refused, with the versions in the reason: "this save is from version 0.9.0 of the game, and no migration leads from it to 1.2.0". The save menu lists it as one that can't be loaded.
+- **A step that throws** stops the load, naming the step.
+
 ## Styling the start screen
 
 The start screen is drawn as a page, so your theme and page styles apply to it as they do in play: Continue looks like a continue point and New game like a choice. To style it alone, use `.loominate-page[data-screen="start"]`.

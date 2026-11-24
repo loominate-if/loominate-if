@@ -573,6 +573,25 @@ export interface MessageTable {
 export type MessageText<C> = string | ((context: C) => string);
 
 // @public
+export function migrate(versions: {
+    readonly from: string;
+    readonly to: string;
+}, step: (save: MigratingSave) => void): void;
+
+// @public
+export interface MigratingSave {
+    get(id: string, field: string): StateValue | undefined;
+    has(id: string): boolean;
+    ids(): readonly string[];
+    remove(id: string): void;
+    rename(from: string, to: string): void;
+    renameField(id: string, from: string, to: string, convert?: (value: StateValue) => StateValue): void;
+    set(id: string, field: string, value: StateValue): void;
+    unset(id: string, field: string): void;
+    readonly version: string;
+}
+
+// @public
 export function mixin<M extends ObjectDefinition<M>>(definition: M & ThisType<Handle<M>>): M;
 
 // @public
@@ -969,6 +988,7 @@ export type SaveSummary = Omit<SaveFile, "state"> & {
     readonly slot: string;
     readonly passage?: PassageId;
     readonly sameGameVersion: boolean;
+    readonly migratedThrough?: readonly string[];
 };
 
 // @public
