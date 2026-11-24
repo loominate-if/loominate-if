@@ -37,7 +37,7 @@ import {
   joinConversation,
   startConversation,
 } from "./conversations.js";
-import { openNode, type ConvNode } from "./nodes.js";
+import { _nodeById, openNode, openNodeOf, type ConvNode } from "./nodes.js";
 import { placeOf } from "./things.js";
 import {
   _addressAction,
@@ -328,4 +328,68 @@ export function approach(
   }
   if (options.opens) openNode(npc, options.opens);
   return true;
+}
+
+// --- The inspector's view (#119) ---
+
+/** The conversation now, as the inspector's Conversation tab shows it. @internal */
+export type _ConversationNow = {
+  readonly active: boolean;
+  /** Whether the player may leave: free, soft, or hard. */
+  readonly exit: string;
+  readonly participants: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly addressed: boolean;
+    /** Their open node, if any. */
+    readonly node?: { readonly name: string; readonly restricts: boolean; readonly exit?: string };
+  }[];
+  /** Each lock, with who or what holds it, by name. */
+  readonly locks: readonly {
+    readonly level: string;
+    readonly owner: string;
+    readonly reason?: string;
+  }[];
+};
+
+/** The conversation now, for the inspector. @internal */
+export function _conversationNow(): _ConversationNow {
+  const nameOf = (body: ObjectRef | undefined): string =>
+    body ? t`{the x}`({ x: body }) : "someone";
+  return {
+    active: conversation.active,
+    exit: conversation.exit,
+    participants: conversation.participants.map((body) => {
+      const node = openNodeOf(body);
+      return {
+        id: body.id,
+        name: nameOf(body),
+        addressed: body.id === conversation.addressee?.id,
+        ...(node && {
+          node: {
+            name: node.name,
+            restricts: node.restricts,
+            ...(node.exit !== undefined && { exit: node.exit }),
+          },
+        }),
+      };
+    }),
+    locks: conversation.locks.map((lock) => {
+      const node = _nodeById(lock.by);
+      const owner = node
+        ? `${nameOf(bodyOf({ id: node.mind }))}'s node ${node.name}`
+        : (() => {
+            try {
+              return nameOf(bodyOf({ id: lock.by }));
+            } catch {
+              return lock.by;
+            }
+          })();
+      return {
+        level: lock.level,
+        owner,
+        ...(lock.reason !== undefined && { reason: lock.reason }),
+      };
+    }),
+  };
 }

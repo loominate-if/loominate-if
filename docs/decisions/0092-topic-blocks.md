@@ -14,7 +14,7 @@ Dialogue should live in passage files, one block per topic entry, as `:: Butler 
   - A section directive, usually limited to tag roles, starts a block at the top level of a passage. The block runs to the next section or to the passage's end.
   - The block's prose and effect phases compile to a passage-shaped object (`id`, `tags`, `effects`, `body`), so rendering, line IDs and effect phases are shared with passages.
   - As the game loads, the package's runtime is called once per block as `runtime(args, block, { id, directive, roles })`. The arguments are type-checked as usual. A `condition` argument is passed as a function, since nothing can be evaluated before play. `roles` holds the passage's tag role values.
-  - A block's ID is its passage's name and the line ID of its directive, so it's stable across edits.
+  - A block's ID is the line ID of its first paragraph, as `Maid:3f2a9c`, so it's stable across edits around it. (As first merged, the lookup found no line at the directive and fell back to the block's position; #119 fixed that.)
   - Blocks can't hold links, beats, or `{on leave: …}`. Tag roles can say `sections: true`, making anything before the first section an error.
 - **Optional words:** an optional `choice` argument can be left out. A word a later optional choice takes skips ahead to it, so `{give locket, takes}` works without `again`.
 - **The world model registers:**

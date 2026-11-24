@@ -375,6 +375,8 @@ type Entry = {
   readonly takes?: boolean;
   /** A compiled topic block, which says its prose and runs its effects. */
   readonly block?: Passage;
+  /** A compiled block's condition as written, with its parts, for the inspector. */
+  readonly condition?: () => ConditionArgument;
   readonly index: number;
 } & TopicOptions;
 
@@ -393,7 +395,7 @@ function subjectKey(s: Subject): string {
 /** A subject as the inspector names it: "the letter", "the war", the fact “The letter is missing.” */
 const nameOf = (s: Subject): string => {
   if (s === anything) return "anything";
-  if (isFact(s)) return `the fact “${s.text}”`;
+  if (isFact(s)) return s.name ?? `the fact “${s.text}”`;
   const ref = s as ObjectRef;
   if (thingFor(ref)) return t`{the x}`({ x: ref });
   const name = (s as { readonly name?: unknown }).name;
@@ -426,7 +428,12 @@ export function topic(npc: ObjectRef, entry: TopicEntry): void {
   addEntry(npc, entry);
 }
 
-function addEntry(npc: ObjectRef, entry: TopicEntry, block?: Passage): void {
+function addEntry(
+  npc: ObjectRef,
+  entry: TopicEntry,
+  block?: Passage,
+  condition?: () => ConditionArgument,
+): void {
   const mind = mindFor(npc, "topic").id;
   const where = `topic for ${JSON.stringify(mind)}`;
   const e = entry as TopicOptions &
@@ -502,6 +509,7 @@ function addEntry(npc: ObjectRef, entry: TopicEntry, block?: Passage): void {
   list.push({
     ...entry,
     ...(block && { block }),
+    ...(condition && { condition }),
     id,
     mind,
     kinds,
@@ -658,41 +666,192 @@ export function _topicExplanations(): readonly {
   return people.flatMap((body) => {
     const mind = mindOf(body);
     if (!mind) return [];
-    const who = t`{the x}`({ x: body });
     return (entries.get(mind.id) ?? []).map((e) => {
-      const kind = e.kinds[0] ?? "ask";
-      const about =
-        e.about === undefined
-          ? undefined
-          : e.about === anything
-            ? SOMETHING_ELSE
-            : (e.about as ObjectRef | Fact);
-      const handed = kind === "show" || kind === "give";
-      const verb = e.kinds.length > 1 ? (handed ? "Show or give" : "Ask or tell") : VERBS[kind];
-      const subjectName =
-        e.about === undefined ? "" : e.about === anything ? "anything else" : nameOf(e.about);
-      const when = e.implicit === true ? ", unprompted" : e.implicit === false ? ", in words" : "";
-      const c = match(body, kind, about, e.implicit ?? false).candidates.find((x) => x.id === e.id);
-      // A restrictive node holds up everything but its own replies.
-      const node = openNodeOf(body);
-      const held = c?.wins === true && node?.restricts === true && !unheld(kind) && e.in !== node;
-      const said = handed
-        ? `${verb} ${subjectName} to ${who}`
-        : `${verb} ${who}${e.about === undefined ? "" : ` about ${subjectName}`}${when}`;
+      const { label, answers } = inspectEntry(body, e);
       return {
-        label: `${said} (${e.id})`,
-        available: (c?.wins ?? false) && !held,
-        ...(held
-          ? {
-              why: `Its node, ${node.name}, is open and restrictive, so the NPC presses the point instead.`,
-            }
-          : c?.why !== undefined && { why: c.why }),
+        label: `${label} (${e.id})`,
+        available: answers.now,
+        ...(answers.why !== undefined && { why: answers.why }),
       };
     });
   });
 }
 
-/** Says an entry's response, as the NPC, recorded for the page. */
+/** An entry as the inspector names it, and whether it would answer now, and why not. */
+function inspectEntry(
+  body: ObjectRef,
+  e: Entry,
+): { readonly label: string; readonly answers: { readonly now: boolean; readonly why?: string } } {
+  const who = t`{the x}`({ x: body });
+  const kind = e.kinds[0] ?? "ask";
+  const about =
+    e.about === undefined
+      ? undefined
+      : e.about === anything
+        ? SOMETHING_ELSE
+        : (e.about as ObjectRef | Fact);
+  const handed = kind === "show" || kind === "give";
+  const verb = e.kinds.length > 1 ? (handed ? "Show or give" : "Ask or tell") : VERBS[kind];
+  const subjectName =
+    e.about === undefined ? "" : e.about === anything ? "anything else" : nameOf(e.about);
+  const when = e.implicit === true ? ", unprompted" : e.implicit === false ? ", in words" : "";
+  const c = match(body, kind, about, e.implicit ?? false).candidates.find((x) => x.id === e.id);
+  // A restrictive node holds up everything but its own replies.
+  const node = openNodeOf(body);
+  const held = c?.wins === true && node?.restricts === true && !unheld(kind) && e.in !== node;
+  const label = handed
+    ? `${verb} ${subjectName} to ${who}`
+    : `${verb} ${who}${e.about === undefined ? "" : ` about ${subjectName}`}${when}`;
+  const why = held
+    ? `Its node, ${node.name}, is open and restrictive, so the NPC presses the point instead.`
+    : c?.why;
+  return {
+    label,
+    answers: { now: (c?.wins ?? false) && !held, ...(why !== undefined && { why }) },
+  };
+}
+
+/** A topic entry as the inspector's Conversation tab shows it. @internal */
+export type _TopicRow = {
+  readonly id: string;
+  /** What it answers, as "Ask the maid about the gold". */
+  readonly label: string;
+  /** Where it applies: an actor state, a scene, or a node. */
+  readonly scope?: string;
+  readonly priority: number;
+  /** Its other options, as written: `again`, `stays`, `opens: tea`, `reveals: …`. */
+  readonly flags: readonly string[];
+  /** Its condition as written, its value now (or what it threw), and its parts' values. */
+  readonly condition?: {
+    readonly text: string;
+    readonly value: boolean | string;
+    readonly parts?: readonly {
+      readonly text: string;
+      readonly value?: unknown;
+      readonly error?: string;
+    }[];
+  };
+  /** Whether it would answer now, and why not. */
+  readonly answers: { readonly now: boolean; readonly why?: string };
+  /** Whether it's suggested to the player now, and why not. */
+  readonly suggested: { readonly now: boolean; readonly why?: string };
+};
+
+/** An entry's condition, for the inspector: a block's as written, or a function's source. */
+function conditionOf(e: Entry): _TopicRow["condition"] {
+  if (e.condition) {
+    try {
+      const c = e.condition();
+      return { text: c.text, value: c.value, ...(c.parts && { parts: c.parts() }) };
+    } catch (error) {
+      return { text: "(when)", value: error instanceof Error ? error.message : String(error) };
+    }
+  }
+  if (!e.when) return undefined;
+  const text = e.when.toString().replace(/^\(\)\s*=>\s*/, "");
+  try {
+    return { text, value: e.when() };
+  } catch (error) {
+    return { text, value: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/** Why an entry isn't suggested now, or `undefined` if it is. */
+function whyNotSuggested(body: ObjectRef, e: Entry): string | undefined {
+  const kind = e.kinds[0] ?? "ask";
+  if (kind === "hello" || kind === "bye") {
+    return "Greetings and goodbyes aren't suggested as topics; Say goodbye always is.";
+  }
+  if (conversation.addressee?.id !== body.id) {
+    return conversation.active && inConversationWith(body)
+      ? "Topics are suggested for the one the player is addressing, and that's someone else."
+      : "The player isn't talking to them.";
+  }
+  const node = openNodeOf(body);
+  if (kind === "yes" || kind === "no") {
+    if (!node || e.in !== node) return "Yes and no are suggested only as replies in an open node.";
+    const { winner } = match(body, kind, undefined, false);
+    if (winner !== e) return `Another entry answers it: ${winner?.id ?? "none"}.`;
+    return e.suggested === false ? "It says suggested: false." : undefined;
+  }
+  if (e.about === anything) {
+    return "Catch-alls aren't suggested; they answer whatever has no entry of its own.";
+  }
+  if (e.suggested === false) return "It says suggested: false.";
+  const about = e.about as ObjectRef | Fact;
+  if ((kind === "ask" || kind === "tell") && !knownToPlayer(about)) {
+    return `The player doesn't know of ${isFact(about) ? (about.name ?? `the fact “${about.text}”`) : nameOf(about)}.`;
+  }
+  if (kind === "show" || kind === "give") {
+    const carrier = currentPlayerBody();
+    const thing = about as ObjectRef;
+    if (!carrier || !thingFor(thing) || !isWithin(thing, carrier)) {
+      return `The player isn't carrying ${nameOf(thing)}.`;
+    }
+  }
+  const { winner, candidates } = match(body, kind, about, false);
+  if (winner !== e) {
+    // When only a catch-all would answer, what matters is why this entry doesn't.
+    return winner && winner.subject !== "*"
+      ? `Another entry answers it: ${winner.id}.`
+      : `It wouldn't answer now: ${candidates.find((c) => c.id === e.id)?.why ?? "it doesn't match"}`;
+  }
+  if (node?.restricts === true && e.in !== node) {
+    return `The node ${node.name} is open and restrictive, so only its replies are suggested.`;
+  }
+  return undefined;
+}
+
+/** A scope as the inspector says it. */
+function scopeOf(e: Entry): string | undefined {
+  if (!e.in) return undefined;
+  if (_isNode(e.in)) return `in the node ${e.in.name}`;
+  if (isPeriod(e.in)) return `while ${e.in.name ?? e.in.id} is happening`;
+  return `in the actor state ${e.in.name}`;
+}
+
+/** Every entry an NPC has, for the inspector's Conversation tab. @internal */
+export function _topicRows(npc: ObjectRef): readonly _TopicRow[] {
+  const body = bodyOf(mindFor(npc, "topicRows"));
+  if (!body) return [];
+  return (entries.get(mindFor(npc, "topicRows").id) ?? []).map((e): _TopicRow => {
+    const { label, answers } = inspectEntry(body, e);
+    const reveals = e.reveals === undefined ? [] : isFactList(e.reveals) ? e.reveals : [e.reveals];
+    const flags = [
+      ...(e.again === true ? ["again"] : []),
+      ...(e.stays === true ? ["stays"] : []),
+      ...(e.takes === true ? ["takes"] : []),
+      ...(e.opens ? [`opens: ${e.opens.name}`] : []),
+      ...(e.hearMeOut !== undefined ? [`hear me out: ${e.hearMeOut}`] : []),
+      ...(e.expression !== undefined ? [`expression: ${e.expression}`] : []),
+      ...reveals.map((f) => `reveals: ${f.id}`),
+      ...(e.informs === false ? ["informs: false"] : []),
+      ...(e.suggested === false ? ["suggested: false"] : []),
+    ];
+    const condition = conditionOf(e);
+    const why = whyNotSuggested(body, e);
+    const scope = scopeOf(e);
+    return {
+      id: e.id,
+      label,
+      ...(scope !== undefined && { scope }),
+      priority: e.priority ?? 0,
+      flags,
+      ...(condition !== undefined && { condition }),
+      answers,
+      suggested: { now: why === undefined, ...(why !== undefined && { why }) },
+    };
+  });
+}
+
+/** The NPCs with topic entries, by body, for the inspector's character picker. @internal */
+export function _topicCharacters(): readonly ObjectRef[] {
+  return [...entries.keys()].flatMap((mind) => {
+    const body = bodyOf({ id: mind });
+    return body ? [body] : [];
+  });
+}
+
 /** How far each entry's list has got, by entry ID: game state. */
 const lists = object("world:topicLists", {
   /** How many times each list has answered. */
@@ -1287,7 +1446,7 @@ export function topicBlock(
     ...(args.suggested !== undefined && { suggested: args.suggested }),
     ...(args.informs !== undefined && { informs: args.informs }),
   } as unknown as TopicEntry;
-  addEntry(npc, entry, block);
+  addEntry(npc, entry, block, when);
 }
 
 /** What `[actor: butler]` calls as the game loads: checks it's someone with a mind. */

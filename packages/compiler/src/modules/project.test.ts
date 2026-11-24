@@ -1015,7 +1015,8 @@ describe("section directives (#115)", { timeout: 30_000 }, () => {
     ]);
     const [first, second] = blocks;
     if (!first || !second) throw new Error("no blocks");
-    expect(first.block.id).toMatch(/^Bob#/);
+    // A block's ID is its first paragraph's line ID, stable across edits around it.
+    expect(first.block.id).toMatch(/^Bob:/);
     expect(first.block.id).not.toBe(second.block.id);
     const store = createStore();
     createStory(store, createEventRecord(store), passages, { start: "Bob" }).begin();
@@ -1037,6 +1038,7 @@ describe("section directives (#115)", { timeout: 30_000 }, () => {
       ["It's cold.", "emphasis", "string"],
       ["Very cold.", undefined, "string"],
     ]);
+    expect(nodes[0]?.type === "text" ? nodes[0].line : undefined).toBe(first.block.id);
     first.block.effects?.enter?.({ ...context, emit: () => undefined } as never);
     expect(store.entity("sectionLog")).toEqual({ said: ["weather"] });
   });

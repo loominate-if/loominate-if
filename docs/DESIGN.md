@@ -440,7 +440,7 @@ She glances at the butler. "I wouldn't know, miss."
 - Participants can join or leave mid-conversation, with arrivals and departures narrated and the menu updating.
 - Locks have an owner (the character or node demanding an answer), and the story log attributes speakers.
 
-A coverage report flags unreachable topics and facts no one can be asked about, and a per-character view lists every topic with its conditions.
+A coverage report flags unreachable topics and facts no one can be asked about, and a per-character view lists every topic with its conditions. The inspector's Conversation tab shows the conversation now (participants, open nodes, the exit, and each lock with its owner and reason) and, for a chosen character, every topic entry with its conditions as written, whether it would answer now, and whether it's suggested now, each with why not ([ADR 0096](decisions/0096-conversation-inspector.md)).
 
 ## Stats, traits, and relationships
 

@@ -124,6 +124,17 @@ With the world model, an **NPCs** tab has a row for each NPC, the player aside:
 
 Below it, a **Timeline** lists what NPCs did, newest first: each action, done or refused and why, each move their timetable made, and each time they caught up. It shows what happened offstage; **Include what the player saw** adds the rest. These are `npc` events in the event record, which the page never shows, so the Events tab lists them too, and undo, saves, and replays keep them.
 
+## Conversation
+
+With the world model, a **Conversation** tab shows the conversation and the topics behind it.
+
+- **Now:** who the player is talking to, which of them is addressed, each one's open node and whether it's restrictive, the exit (free, soft, or hard), and each lock, with its level, what holds it (an NPC, or an NPC's node, as "the maid's node tea"), and its reason. With no conversation, it says so.
+- **Topics:** every topic entry of the character chosen in **Topics of**, the person addressed at first, or anyone with entries. For each:
+  - **What it answers,** as "Ask the maid about the gold", its ID (a block's is its first paragraph's line ID, as `Maid:3f2a9c`), and its scope, priority, and options, such as `again`, `opens: tea`, or `reveals: butlerSawThief`.
+  - **When:** its condition as written, a block's `when:` with each part's value, or a TypeScript entry's function, with its value now.
+  - **Answers now:** whether it would answer now, and if not, why: its condition, its state or scene or node, another entry outranking it, or a restrictive node holding it up.
+  - **Suggested now:** whether `{topics}` and conversation mode offer it now, and if not, why: the player isn't talking to them, or they aren't the one addressed; it's a greeting, goodbye, or catch-all; it says `suggested: false`; the player doesn't know of the subject, or isn't carrying the thing; another entry answers it; or a restrictive node is open.
+
 ## The world
 
 With the world model, a **World** tab shows the world as a tree: each place, with what's in it nested under it, then what's out of the world, and minds with no body. A body shows the mind in it now, and a stack its count. The tree starts open on the place the player is in, and keeps what you've opened as the game moves. **Show the player** opens the way to them again.
