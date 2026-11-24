@@ -71,6 +71,12 @@ export type PassagePlacement = {
    * `undefined` to keep only the latest move's, as usual.
    */
   readonly transcriptSince?: (game: PageGame) => number | undefined;
+  /**
+   * What a transcript is called, for screen readers: "The conversation so
+   * far". A transcript scrolls, showing the latest move's paragraphs, and
+   * takes a place in the tab order, so keyboard players can scroll back.
+   */
+  readonly transcriptLabel?: (game: PageGame) => string;
   /** The region the story-so-far drawer goes in, as at the very bottom. */
   readonly drawer?: string;
 };

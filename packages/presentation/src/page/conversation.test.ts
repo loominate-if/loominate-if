@@ -183,6 +183,7 @@ describe("a layout placing the passage's parts (#118)", () => {
         choicesLabel: () => "In the study",
         transcriptSince: () => 0,
         drawer: "history",
+        transcriptLabel: () => "The conversation so far",
       },
     });
     const store = createStore();
@@ -219,6 +220,13 @@ describe("a layout placing the passage's parts (#118)", () => {
       [...(main?.querySelectorAll(".loominate-notice") ?? [])].map((p) => p.textContent),
     ).toEqual(["Line 1", "Line 2", "Line 3"]);
     expect(main?.querySelector(".loominate-passage")?.textContent).not.toContain("A quiet study.");
+    // The transcript scrolls, so keyboard players can reach it, by its name.
+    const passage = main?.querySelector<HTMLElement>(".loominate-passage");
+    expect([
+      passage?.classList.contains("loominate-transcript"),
+      passage?.tabIndex,
+      passage?.getAttribute("aria-label"),
+    ]).toEqual([true, 0, "The conversation so far"]);
     // The story so far is in its own region, last.
     expect(main?.querySelector(".loominate-drawer")).toBeNull();
     expect(region("history")?.querySelector("details.loominate-drawer")).not.toBeNull();

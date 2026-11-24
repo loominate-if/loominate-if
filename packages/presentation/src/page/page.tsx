@@ -1072,7 +1072,11 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
               <main key="main" className="loominate-main">
                 <div
                   className="loominate-passage"
-                  tabIndex={-1}
+                  // A transcript scrolls, so keyboard players can reach it to scroll back.
+                  tabIndex={placed?.transcriptSince === undefined ? -1 : 0}
+                  {...(placed?.transcriptLabel !== undefined && {
+                    "aria-label": placed.transcriptLabel(game),
+                  })}
                   ref={(element) => {
                     passage = element;
                   }}
@@ -1205,6 +1209,41 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
   /** Draws the page as it stands, at once. */
   const renderPage = (): void => {
     render(view(), root);
+    fitTranscript();
+  };
+
+  /** The latest part a transcript was fitted to, so it's fitted once per part. */
+  let fitted: string | undefined;
+  /**
+   * In a transcript layout, the passage scrolls: it's as tall as the latest
+   * move's paragraphs, the player's line and the reply, which are scrolled
+   * into view, and earlier lines are a scroll up. Fitted once per move, so a
+   * player scrolling back isn't snapped down by a later redraw.
+   */
+  const fitTranscript = (): void => {
+    if (!passage) return;
+    const scrolls = layoutNow()?.passage?.transcriptSince !== undefined;
+    passage.classList.toggle("loominate-transcript", scrolls);
+    if (!scrolls) {
+      passage.style.removeProperty("height");
+      fitted = undefined;
+      return;
+    }
+    const latest = items.filter((item) => inMain(item) && !item.key.startsWith("t:"));
+    const key = latest.map((item) => item.key).join(" ");
+    if (key === fitted) return;
+    fitted = key;
+    const first = latest[0] && elements.get(latest[0].key);
+    const last = latest.at(-1) && elements.get((latest.at(-1) as Item).key);
+    if (!first || !last) {
+      passage.style.removeProperty("height");
+      return;
+    }
+    const top = first.getBoundingClientRect().top;
+    const height = last.getBoundingClientRect().bottom - top;
+    // Room for the paragraphs' margins; CSS caps it, so a long reply scrolls too.
+    if (height > 0) passage.style.height = `calc(${String(Math.ceil(height))}px + 2em)`;
+    passage.scrollTop += top - passage.getBoundingClientRect().top - 8;
   };
 
   /**

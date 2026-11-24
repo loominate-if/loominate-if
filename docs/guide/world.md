@@ -1353,7 +1353,7 @@ While the player's talking, the page switches to the `conversation` layout, whic
 
 - **The header** keeps the game menu and what packages add to it.
 - **`context`:** the passage's own prose, as a strip above: where the player is, and what the passage says about the conversation.
-- **`cast` beside `main`:** a portrait for each character in the conversation, the one addressed marked, and choosing another addresses them; beside it, the conversation so far, each line as it was said, the player's own lines ("You ask the maid about the gold.") muted. New lines are read to screen readers, and focus goes to just before them.
+- **`cast` beside `main`:** a portrait for each character in the conversation, the one addressed marked, and choosing another addresses them; beside it, the conversation so far, each line as it was said, the player's own lines ("You ask the maid about the gold.") muted. It's as tall as the latest exchange, so the topics stay in the same place; earlier lines are a scroll up, and keyboard players can Tab to it to scroll. New lines are read to screen readers, and focus goes to just before them.
 - **`topics`:** the suggested topics as buttons, showing and giving included. A button that can't be taken now is shown disabled, with why, as goodbye under a hard lock.
 - **`more`:** the passage's own links, such as the room's exits, in a closed disclosure named after the room, "In the study". Locks still apply to them.
 - **`history`:** the story so far, at the very bottom.

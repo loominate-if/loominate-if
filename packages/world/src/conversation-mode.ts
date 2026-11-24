@@ -53,6 +53,8 @@ declare module "@loominate-if/core" {
     "conversation.cast": Record<never, never>;
     /** What the list of topics is called, for screen readers. */
     "conversation.topics": Record<never, never>;
+    /** What the conversation so far is called, for screen readers. */
+    "conversation.transcript": Record<never, never>;
     /** What the disclosure of the room's own links is called while talking: "In the study". */
     "conversation.room": { readonly room: ObjectRef | undefined };
   }
@@ -60,6 +62,7 @@ declare module "@loominate-if/core" {
 const SOURCE = "@loominate-if/world";
 messages.register("conversation.cast", "In the conversation", { source: SOURCE });
 messages.register("conversation.topics", "Topics", { source: SOURCE });
+messages.register("conversation.transcript", "The conversation so far", { source: SOURCE });
 messages.register(
   "conversation.room",
   ({ room }) => (room ? t`In {the room}`({ room }) : "Other choices"),
@@ -273,6 +276,7 @@ layouts.register(
     passage: {
       prose: "context",
       choices: "more",
+      transcriptLabel: () => message("conversation.transcript", {}),
       // The story so far, at the very bottom.
       drawer: "history",
       choicesLabel: () => {

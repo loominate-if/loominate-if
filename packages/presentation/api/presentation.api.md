@@ -220,6 +220,7 @@ export type PassagePlacement = {
     readonly choices?: string;
     readonly choicesLabel?: (game: PageGame) => string;
     readonly transcriptSince?: (game: PageGame) => number | undefined;
+    readonly transcriptLabel?: (game: PageGame) => string;
     readonly drawer?: string;
 };
 

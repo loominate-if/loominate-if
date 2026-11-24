@@ -129,6 +129,10 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
 /* A layout's placed passage parts: prose as a strip of context, links in a disclosure. */
 .loominate-region[data-region="context"] { font-family: ${v("font-body")}; font-size: 0.95em; color: ${v("color-muted")}; background: none; border: none; padding: 0; }
 .loominate-region[data-region="context"] p { margin-block: 0.25em; }
+/* A transcript scrolls: the latest exchange shows, and earlier lines are a scroll up. */
+.loominate-passage.loominate-transcript { overflow-y: auto; max-height: 60vh; min-height: 6em; overscroll-behavior: contain; scroll-behavior: auto; }
+.loominate-passage.loominate-transcript > p:first-of-type { margin-block-start: 0; }
+.loominate-passage.loominate-transcript:focus-visible { outline: 2px solid ${v("color-focus")}; outline-offset: 2px; }
 .loominate-region[data-region="history"] { background: none; border: none; padding: 0; font-family: inherit; font-size: inherit; }
 .loominate-placed-choices > summary { cursor: pointer; color: ${v("color-muted")}; }
 .loominate-placed-choices[open] > summary { margin-block-end: 0.5em; }
