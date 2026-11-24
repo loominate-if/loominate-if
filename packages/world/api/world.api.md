@@ -159,6 +159,22 @@ about: ObjectRef | string;
 }>;
 
 // @public
+export const askFor: Action<{
+    thing: ActingOn;
+    from: ActingOn;
+}>;
+
+// @public
+export const askToCome: Action<{
+    thing: ActingOn;
+}>;
+
+// @public
+export const askToWait: Action<{
+    thing: ActingOn;
+}>;
+
+// @public
 export function baseStat(who: ObjectRef, name: StatName): number;
 
 // @public
@@ -306,6 +322,9 @@ export type ClosingStep = {
 
 // @public
 export function closingTime(door: ObjectRef, steps: readonly ClosingStep[]): void;
+
+// @public
+export const comeAlong: Action<Record<never, never>>;
 
 // @public
 export function companion(npc: ObjectRef, options?: {
@@ -1065,6 +1084,9 @@ export type NpcTurn = {
 };
 
 // @public
+export const obeying: DecideRulebook<Ordered, string | undefined>;
+
+// @public
 export const obstacle: {
     blocks(traveler: ObjectRef): string | undefined;
 };
@@ -1099,6 +1121,22 @@ export function openNode(npc: ObjectRef, node: ConvNode): void;
 
 // @public
 export function openNodeOf(npc: ObjectRef): ConvNode | undefined;
+
+// @public
+export function order<A extends Readonly<Record<string, unknown>>>(target: Action<A>, options?: {
+    readonly label?: (args: A & {
+        readonly who: ObjectRef;
+    }) => string;
+}): Action<A & {
+    readonly who: ObjectRef;
+}>;
+
+// @public
+export type Ordered = {
+    readonly who: ObjectRef;
+    readonly mind: Mind;
+    readonly call: ActionCall<Readonly<Record<string, unknown>>>;
+};
 
 // @public
 export function parentOf(t: ObjectRef): Thing | undefined;
@@ -1484,6 +1522,9 @@ export type StatSpec = KeptStat | DerivedStat;
 
 // @internal
 export function _statsTable(): readonly _StatRow[];
+
+// @public
+export const stay: Action<Record<never, never>>;
 
 // @public
 export function stepToward(npc: ObjectRef, target: ObjectRef): boolean;

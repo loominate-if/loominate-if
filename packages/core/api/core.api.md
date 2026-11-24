@@ -1065,6 +1065,9 @@ export type StateValue = null | boolean | number | string | readonly StateValue[
 // @public
 export type StateWriter = StateReader & Pick<StateStore, "set" | "delete">;
 
+// @internal
+export function _statusAs<A>(call: ActionCall<A>, as?: PerformOptions["as"]): ActionStatus;
+
 // @public
 export function statusOf<A>(call: ActionCall<A>): ActionStatus;
 
