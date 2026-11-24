@@ -115,7 +115,7 @@ describe("beats on the page", () => {
     expect(marked).toEqual(["Brakes scream."]);
   });
 
-  it("wait for the player at {wait}, and move focus to the passage after", () => {
+  it("wait for the player at {wait}, and move focus to what it revealed, so only that is read", () => {
     const { passage, shown, click } = play();
     vi.advanceTimersByTime(1500);
     vi.advanceTimersByTime(60_000);
@@ -126,7 +126,24 @@ describe("beats on the page", () => {
     next?.focus();
     click("Continue");
     expect(shown()).toEqual(["The train slows.", "Brakes scream.", "Silence.", "Get off"]);
-    expect(document.activeElement).toBe(passage());
+    // The first new paragraph, not the whole passage: a screen reader reads on from there.
+    expect(document.activeElement?.textContent).toBe("Silence.");
+  });
+
+  it("move focus to what's revealed when the player skips, even if the click didn't focus Skip", () => {
+    const { passage, click } = play();
+    // As on macOS, where clicking a button doesn't focus it.
+    (document.activeElement as HTMLElement | null)?.blur();
+    click("Skip");
+    expect(document.activeElement?.textContent).toBe("Brakes scream.");
+    expect(passage().contains(document.activeElement)).toBe(true);
+  });
+
+  it("leave focus alone when a timed pause passes while the player is elsewhere", () => {
+    const { passage } = play();
+    (document.activeElement as HTMLElement | null)?.blur();
+    vi.advanceTimersByTime(1500);
+    expect(passage().contains(document.activeElement)).toBe(false);
   });
 
   it("hurry a timed pause when the player clicks the page", () => {

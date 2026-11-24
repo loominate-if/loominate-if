@@ -503,29 +503,48 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
   };
   const immediate = (): boolean => options.pacing === "immediate" || reducedMotion();
 
-  /** Moves past the pending beat, and shows the part it reveals. */
-  const advance = guarded((): void => {
+  /**
+   * Moves focus to the first paragraph a beat revealed, so a screen reader
+   * reads on from there: only what's new. Moving past a beat removes its
+   * controls, and a screen reader's cursor on them would otherwise fall back
+   * to the top of the window. A click doesn't always focus a button, as on
+   * macOS, so a move the player makes moves focus whether or not it was on
+   * the controls.
+   */
+  const focusNew = (key: string | undefined): void => {
+    const element = key === undefined ? undefined : elements.get(key);
+    if (!element) {
+      focusPassage();
+      return;
+    }
+    element.tabIndex = -1;
+    element.focus({ preventScroll: true });
+  };
+
+  /**
+   * Moves past the pending beat, and shows the part it reveals. `byPlayer`
+   * is true for the player's own move, and false for a timed beat passing.
+   */
+  const advance = guarded((byPlayer: boolean): void => {
     const beat = story.render().beat;
     if (!beat) return;
-    const focused = beatControls?.contains(doc.activeElement) ?? false;
+    const focused = byPlayer || (beatControls?.contains(doc.activeElement) ?? false);
     story.advance();
     options.onMove?.(beat);
     // A page break clears the screen; otherwise the new part follows what's shown.
-    draw(true, beat.page ? 0 : drawnCount);
-    if (focused) focusPassage();
+    const first = draw(true, beat.page ? 0 : drawnCount);
+    if (focused) focusNew(first);
   });
 
   /** Moves past every remaining beat at once, without their effects. */
   const skip = guarded((): void => {
-    const focused = beatControls?.contains(doc.activeElement) ?? false;
     let from = drawnCount;
     for (let beat = story.render().beat; beat; beat = story.render().beat) {
       story.advance();
       options.onMove?.(beat);
       if (beat.page) from = 0;
     }
-    draw(false, from);
-    if (focused) focusPassage();
+    focusNew(draw(false, from));
   });
 
   // A click on the page, away from its buttons, hurries a timed pause along.
@@ -534,7 +553,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     if ((event.target as Element | null)?.closest("button, a, summary, input, select, textarea"))
       return;
     stopTimer();
-    advance();
+    advance(true);
   });
 
   /**
@@ -562,7 +581,9 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
    * Works out the passage's paragraphs, keeping the first `from` nodes'
    * paragraphs on screen and adding the rest, and the effects to play on them.
    */
-  const buildPassage = (from: number): [EffectDefinition, NamedEffectNode, string][] => {
+  const buildPassage = (
+    from: number,
+  ): { readonly queue: [EffectDefinition, NamedEffectNode, string][]; readonly first?: string } => {
     if (from === 0) {
       generation++;
       items = [];
@@ -614,7 +635,8 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     }
     addNotices(noticesLeft);
     drawnCount = rendered.nodes.length;
-    return queue;
+    const first = items.find((item) => item.key.startsWith(`${part}:`))?.key;
+    return { queue, ...(first !== undefined && { first }) };
   };
 
   /** One paragraph of the passage. */
@@ -697,7 +719,13 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
       }}
     >
       {shown.continues && (
-        <button type="button" className="loominate-continue" onClick={advance}>
+        <button
+          type="button"
+          className="loominate-continue"
+          onClick={() => {
+            advance(true);
+          }}
+        >
           {options.continueLabel ?? message("page.continue")}
         </button>
       )}{" "}
@@ -970,25 +998,30 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
    * and adds the rest, so a beat's new part is announced without repeating
    * what came before.
    */
-  const draw = (arrived = false, from = 0): void => {
+  const draw = (arrived = false, from = 0): string | undefined => {
     finishEffects();
     stopTimer();
     beatShown = undefined;
-    const queue = buildPassage(from);
+    const { queue, first } = buildPassage(from);
     const beat = story.render().beat;
     const timed = beat?.duration !== undefined;
     // A timed beat the player just reached passes at once when pacing is immediate.
     if (beat && timed && arrived && immediate()) {
       renderPage();
-      if (arrived) play(queue);
-      advance();
-      return;
+      play(queue);
+      advance(false);
+      return first;
     }
     if (beat) beatShown = { continues: !timed || immediate() };
     renderPage();
     if (arrived) play(queue);
     // Wall-clock time paces the presentation only; the story moves on through advance().
-    if (beat && timed && !immediate()) timer = setTimeout(advance, beat.duration);
+    if (beat && timed && !immediate()) {
+      timer = setTimeout(() => {
+        advance(false);
+      }, beat.duration);
+    }
+    return first;
   };
 
   /** Plays the queued effects on the paragraphs they were written before, or on the page. */
