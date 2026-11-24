@@ -95,6 +95,22 @@ export type AdvanceOptions = {
 };
 
 // @public
+export function agenda(npc: ObjectRef, name: string, item: AgendaItem): void;
+
+// @public
+export type AgendaItem = {
+    readonly priority?: number;
+    readonly ready?: () => boolean;
+    readonly act: (turn: AgendaTurn) => void;
+    readonly starts?: boolean;
+};
+
+// @public
+export type AgendaTurn = NpcTurn & {
+    done(): void;
+};
+
+// @public
 export function baseStat(who: ObjectRef, name: StatName): number;
 
 // @public
@@ -637,6 +653,9 @@ readonly things: readonly ListedThing[];
 }>;
 
 // @public
+export function isAgendaActive(npc: ObjectRef, name: string): boolean;
+
+// @public
 export function isBody(ref: ObjectRef): boolean;
 
 // @public
@@ -996,6 +1015,9 @@ export type RevealArguments = {
 };
 
 // @public
+export function say(npc: ObjectRef, text: string): void;
+
+// @public
 export type Scene = Period & {
     readonly name: string;
     readonly hasHappened: boolean;
@@ -1134,6 +1156,9 @@ export type StackKind<D = object> = {
 };
 
 // @public
+export function startAgenda(npc: ObjectRef, name: string): void;
+
+// @public
 export function startAs(m: ObjectRef): void;
 
 // @public
@@ -1169,6 +1194,12 @@ export type StatSpec = KeptStat | DerivedStat;
 
 // @internal
 export function _statsTable(): readonly _StatRow[];
+
+// @public
+export function stepToward(npc: ObjectRef, target: ObjectRef): boolean;
+
+// @public
+export function stopAgenda(npc: ObjectRef, name: string): void;
 
 // @public
 export type StoredHours = {

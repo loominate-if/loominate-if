@@ -52,6 +52,7 @@ A message's text is one of three things:
 | `give.seen`, `show.seen` | `actor`, `thing`, `to` | "The butler gives the silver tray to you." |
 | `go.noWay` | `way` | Why `go` can't be taken: "There's no way north from here." |
 | `go.player` | | Why the player doesn't take `go`: they move through the story's passages and exits |
+| `say.seen`, `say.heard` | `actor` (their body), `text` | An NPC's line, with `say`: "The butler says, “Fire!”", "Someone says, “Fire!”" |
 | `examine.nothing` | `thing` | "You see nothing special about the statue." |
 | `take.held`, `drop.notHeld`, `open.already`, `close.already`, `lock.already`, `unlock.notLocked` | `thing` | Why they aren't offered |
 | `open.locked`, `lock.open` | `thing` | "The oak chest is locked.", "You'll have to close the oak chest first." |
