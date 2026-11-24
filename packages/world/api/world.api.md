@@ -575,6 +575,7 @@ export function expose(b: ObjectRef, observer: ObjectRef): void;
 export type Fact<Id extends string = string> = {
     readonly id: Id;
     readonly text: string;
+    readonly name?: string;
 };
 
 // @public
@@ -586,6 +587,7 @@ export function factNamed(id: string): Fact | undefined;
 // @public
 export type FactOptions = {
     readonly text: string;
+    readonly name?: string;
 };
 
 // @public
@@ -1360,6 +1362,15 @@ export type StoredHours = {
 export type Subject = ObjectRef | Fact | typeof anything;
 
 // @public
+export type SuggestedTopic = {
+    readonly label: string;
+    readonly call: ActionCall<Readonly<Record<string, unknown>>>;
+};
+
+// @public
+export function suggestedTopics(): readonly SuggestedTopic[];
+
+// @public
 export type Summary = (repeated: Repeated) => string | Text | undefined;
 
 // @public
@@ -1472,6 +1483,12 @@ export type TopicContext = {
     readonly how?: LeftBy;
 };
 
+// @public
+export type TopicDefinition = string | {
+    readonly name: string;
+    readonly known?: boolean;
+};
+
 // @internal
 export function _topicEntries(npc: ObjectRef): readonly {
     readonly id: string;
@@ -1514,16 +1531,22 @@ export function _topicExplanations(): readonly {
 export type TopicKind = "ask" | "tell" | "yes" | "no" | "hello" | "bye";
 
 // @public
+export function topicLinks(args?: Readonly<Record<string, never>>): LinkNode[];
+
+// @public
 export type TopicOptions = {
     readonly says: Says | readonly Says[];
     readonly order?: ListOrder;
     readonly when?: () => boolean;
     readonly in?: ActorState | Period;
     readonly priority?: number;
+    readonly reveals?: Fact | readonly Fact[];
+    readonly suggested?: boolean;
+    readonly informs?: boolean;
 };
 
 // @public
-export function topics<D extends Readonly<Record<string, string>>>(definitions: D): {
+export function topics<D extends Readonly<Record<string, TopicDefinition>>>(definitions: D): {
     readonly [K in keyof D]: Topic;
 };
 

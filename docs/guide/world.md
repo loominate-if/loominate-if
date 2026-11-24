@@ -1291,6 +1291,42 @@ topic(cook, {
 
 What NPCs say is recorded as `action-result` events tagged `topic` and `speaker:` and their body's ID, so the page shows it after the move.
 
+### What the player knows
+
+Topics are suggested only when the player knows the subject, and answers can teach the player, and others, new facts:
+
+<!-- example: packages/world/src/topic-knowledge.test.ts#knowledge -->
+```ts
+const facts = defineFacts({
+  butlerTookLetter: { text: "The butler took the letter.", name: "the butler and the letter" },
+  goldMissing: { text: "The gold is missing.", name: "the missing gold" },
+});
+const { weather, affair } = topics({
+  weather: "the weather",
+  affair: { name: "the affair", known: false },
+});
+
+topic(maid, { ask: gold, says: "“In the vault, miss.”" });
+topic(maid, {
+  ask: weather,
+  says: "“Cold, miss. And I saw the butler with a letter.”",
+  reveals: facts.butlerTookLetter,
+});
+topic(maid, { ask: affair, says: "“Hush, miss!”" });
+topic(maid, { ask: facts.butlerTookLetter, says: "“I'll say no more, miss.”" });
+topic(maid, { tell: facts.goldMissing, says: "“Missing? Oh, miss!”" });
+topic(maid, { ask: ledger, suggested: false, says: "“The ledger? Cook keeps it.”" });
+topic(maid, { askOrTell: anything, says: "“I wouldn't know, miss.”" });
+```
+
+- **`{topics}`** in a passage lists, while the player's talking to someone, a link for each subject the addressee has an entry for that would answer now, and the player knows, then "Say goodbye". `suggestedTopics()` gives the same, as labels and actions, for a game's own interface.
+  - The player knows a fact once they've learned it; a thing once they've seen it, learned about it, or it's `isFamiliar`; and a named topic from the start, unless it's defined with `known: false`, until `player.learnAbout(topic)`.
+  - A fact's `name` is how the player refers to it in a suggestion, "the missing gold"; without one, its text is quoted.
+  - Catch-alls aren't suggested, nor entries with `suggested: false`, which still answer when asked.
+- **`reveals`** on an entry: when it answers, the player learns the facts from the NPC, and so does everyone else in the conversation.
+- **Telling an NPC a fact** teaches it to them, from the player, whatever they reply, unless the entry says `informs: false`.
+- The player can't ask or tell about a fact they don't know: "You don't know anything about that."
+
 ## Scenes
 
 A **scene** is a named period of the story, as Inform 7 and adv3Lite have them: a storm, a dinner party, a chase. It starts when something holds, at a time, or when your code says, and ends the same ways, and while it's happening it can add rules and actions. (It isn't a cut scene, a passage of timed beats.)

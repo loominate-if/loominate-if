@@ -28,12 +28,16 @@ export type Fact<Id extends string = string> = {
   readonly id: Id;
   /** What it says, for the inspector and for a game's notes. */
   readonly text: string;
+  /** How the player refers to it, as "the missing letter", when topics are suggested. */
+  readonly name?: string;
 };
 
 /** How {@link fact} defines a fact. */
 export type FactOptions = {
   /** What it says. */
   readonly text: string;
+  /** How the player refers to it, as "the missing letter", when topics are suggested. */
+  readonly name?: string;
 };
 
 /** Where a mind learned a fact. */
@@ -147,7 +151,11 @@ export function fact<Id extends string>(id: Id, options: FactOptions): Fact<Id> 
   if (allFacts.has(id)) {
     throw new NameTaken(`${where}: another fact has this ID. Give each fact its own.`);
   }
-  const defined: Fact<Id> = Object.freeze({ id, text: options.text });
+  const defined: Fact<Id> = Object.freeze({
+    id,
+    text: options.text,
+    ...(options.name !== undefined && { name: options.name }),
+  });
   allFacts.set(id, defined);
   return defined;
 }
@@ -229,7 +237,17 @@ function checkFact(f: Fact, where: string): void {
 }
 
 /** Checks that `t` is a thing or place. */
+/** Objects other than things a mind can know of, as named topics, by ID. */
+const knowables = new Map<string, ObjectRef>();
+
+/** Lets minds see, learn about, and know of `ref`, as a thing, though it isn't one. @internal */
+export function _knowable(ref: ObjectRef): void {
+  knowables.set(ref.id, ref);
+}
+
 function checkThing(t: ObjectRef, where: string): Thing {
+  const other = knowables.get(t.id);
+  if (other) return other as Thing;
   const found = thingFor(t);
   if (!found) {
     throw new StateError(

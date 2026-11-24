@@ -27,6 +27,7 @@ import {
   move,
   no,
   place,
+  player,
   setActorState,
   startAs,
   startClock,
@@ -116,6 +117,7 @@ describe("topic entries (#111)", () => {
     act(ask({ who: butler, about: letter }));
     expect(said()).toEqual(["“Sir?”", "“I placed it on the desk myself, sir.”"]);
     act(ask({ who: butler, about: war }));
+    player.learn(facts.missingLetter); // asking about a fact needs knowing it (#113)
     act(ask({ who: butler, about: facts.missingLetter.id }));
     act(tell({ who: butler, about: you }));
     expect(said()).toEqual([
