@@ -245,3 +245,12 @@ export {
   type StackFields,
   type StackKind,
 } from "./stacks.js";
+export {
+  _playerPath,
+  _worldDetails,
+  _worldTree,
+  type _Details,
+  type _Knowledge,
+  type _TreeNode,
+  type _WorldTree,
+} from "./tree.js";

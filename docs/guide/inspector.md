@@ -111,6 +111,19 @@ It's the world model's own inspector module, so games that don't use the world m
 
 With the world model, a **Stats** tab lists every body's stats: base, and now with modifiers applied, and each modifier's source and when it wears off. A mental stat names the mind it comes from, the one in the body now.
 
+## The world
+
+With the world model, a **World** tab shows the world as a tree: each place, with what's in it nested under it, then what's out of the world, and minds with no body. A body shows the mind in it now, and a stack its count. The tree starts open on the place the player is in, and keeps what you've opened as the game moves. **Show the player** opens the way to them again.
+
+- **Moving through it:** the up and down arrow keys move. Right opens a node, or moves into it, and Left closes it, or moves to what holds it. Home and End go to the first and last node.
+- **Details:** Enter, Space, or a click chooses a node, and its details show beside the tree:
+  - what it's in, out to its place;
+  - for a body, the mind in it, and for a mind, its body;
+  - its properties.
+- **What a mind knows:** for a mind, or a body with a mind in it, the facts it knows, with where it learned each, the things it has seen, and the things it knows of without having seen them.
+- **Who knows of a thing:** for a thing, which minds have seen it and which know of it.
+- **Jumping:** a name in the details is a button that goes to that node in the tree.
+
 ## Going back in time
 
 The **History** tab lists every move in the game, from **Start**, with the passage each one reached. Select a move to jump to just after it; select a later one to jump forward again. Jumping uses the game's undo history, so the game comes back exactly as it was.

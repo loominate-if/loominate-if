@@ -312,6 +312,15 @@ export function mindsIn(b: ObjectRef): Mind[] {
   return [...(controller ? [controller] : []), ...passengersOf(b)];
 }
 
+/** Every mind, actors' included, sorted by ID. @internal */
+export function _allMinds(): Mind[] {
+  const all = new Map<StateId, Mind>([
+    ...minds,
+    ...[...actorMinds.values()].map((m) => [m.id, m] as const),
+  ]);
+  return [...all.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
 /** Whether `ref` is a mind, or an actor. */
 export function isMind(ref: ObjectRef): boolean {
   return minds.has(ref.id) || actorMinds.has(ref.id);
