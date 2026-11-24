@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
@@ -114,6 +114,23 @@ describe("loominate.config.ts", () => {
       path.join(root, "node_modules/panels-only/inspector.js"),
       path.join(root, "node_modules/both/dist/inspector.js"),
       path.join(root, "tools/inspector.ts"),
+    ]);
+  });
+
+  it("finds a linked package's inspector module at its real path, so the browser doesn't cache it for good (#332)", async () => {
+    const root = game({
+      ...config('{ game: { id: "g", version: "1" }, start: "S", extensions: ["linked"] }'),
+      "packages/linked/package.json": JSON.stringify({
+        name: "linked",
+        loominate: { inspector: "./dist/inspector.js" },
+      }),
+      "packages/linked/dist/inspector.js": "export {};\n",
+    });
+    mkdirSync(path.join(root, "node_modules"), { recursive: true });
+    symlinkSync(path.join(root, "packages/linked"), path.join(root, "node_modules/linked"), "dir");
+    const loaded = await loadConfig(root, options);
+    expect(loaded.inspectorModules).toEqual([
+      realpathSync(path.join(root, "packages/linked/dist/inspector.js")),
     ]);
   });
 
