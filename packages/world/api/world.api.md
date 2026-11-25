@@ -12,6 +12,7 @@ import { CompassData } from '@loominate-if/presentation';
 import { ConditionArgument } from '@loominate-if/core';
 import { DecideRulebook } from '@loominate-if/core';
 import { EffectContext } from '@loominate-if/core';
+import { EventRecord } from '@loominate-if/core';
 import { Handle } from '@loominate-if/core';
 import { LinkNode } from '@loominate-if/core';
 import { ListedThing } from '@loominate-if/presentation';
@@ -255,7 +256,7 @@ export function canSee(observer: ObjectRef, target: ObjectRef): boolean;
 export function canSpend(who: ObjectRef, name: StatName, amount: number): string | undefined;
 
 // @internal
-export function _cast(): readonly CastMember[];
+export function _cast(record?: EventRecord): readonly CastMember[];
 
 // @public
 export type CatchUp = NpcTurn & {
@@ -363,6 +364,9 @@ export const container: {
 
 // @public
 export function contents(parent: ObjectRef): Thing[];
+
+// @public
+export const continueExchange: Action<Record<never, never>>;
 
 // @public
 export const conversation: ConversationView;
@@ -661,6 +665,15 @@ export function everyTurn(npc: ObjectRef, name: string, rule: (turn: NpcTurn) =>
 export const examine: Action<    {
 thing: ActingOn;
 }>;
+
+// @public
+export function exchange(name: string, lines: readonly ExchangeLine[]): void;
+
+// @public
+export type ExchangeLine = readonly [speaker: ObjectRef, text: string];
+
+// @public
+export function exchangePlaying(): string | undefined;
 
 // @public
 export type Exit = {
@@ -1254,6 +1267,9 @@ export function playerMind(): Mind;
 export function _playerPath(): readonly string[];
 
 // @public
+export function playExchange(name: string): void;
+
+// @public
 export function pluralize(name: string): string;
 
 // @public
@@ -1295,6 +1311,9 @@ export type Reaction = {
     readonly text: string | Text;
     readonly then?: () => void;
 };
+
+// @public
+export function reactionsPerExchange(n: number): void;
 
 // @public
 export type Region = Handle<RegionFields>;
@@ -1773,6 +1792,8 @@ export type TopicBlockArguments = {
     readonly expression?: string;
     readonly suggested?: boolean;
     readonly informs?: boolean;
+    readonly reactions?: number;
+    readonly then?: string;
 };
 
 // @public
@@ -1815,7 +1836,15 @@ export function _topicEntries(npc: ObjectRef): readonly {
 }[];
 
 // @public
-export type TopicEntry = TopicOptions & ({
+export type TopicEntry = TopicOptions &
+/**
+* A reaction (#142): said by this NPC after someone else in the
+* conversation answers the exchange, as "The maid goes pale.", within
+* the exchange's cap on reactions.
+*/
+({
+    readonly reacts: TopicTrigger;
+} | {
     readonly ask: Subject;
 } | {
     readonly tell: Subject;
@@ -1876,6 +1905,8 @@ export type TopicOptions = {
     readonly hearMeOut?: string;
     readonly expression?: string;
     readonly id?: string;
+    readonly reactions?: number;
+    readonly then?: string;
 };
 
 // @internal
@@ -1910,6 +1941,29 @@ export function _topicRows(npc: ObjectRef): readonly _TopicRow[];
 // @public
 export function topics<D extends Readonly<Record<string, TopicDefinition>>>(definitions: D): {
     readonly [K in keyof D]: Topic;
+};
+
+// @public
+export type TopicTrigger = {
+    readonly ask: Subject;
+} | {
+    readonly tell: Subject;
+} | {
+    readonly askOrTell: Subject;
+} | {
+    readonly yes: true;
+} | {
+    readonly no: true;
+} | {
+    readonly hello: true;
+} | {
+    readonly bye: true;
+} | {
+    readonly show: ObjectRef | typeof anything;
+} | {
+    readonly give: ObjectRef | typeof anything;
+} | {
+    readonly showOrGive: ObjectRef | typeof anything;
 };
 
 // @public

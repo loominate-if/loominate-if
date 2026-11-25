@@ -78,6 +78,7 @@ export type CastMember = {
     readonly expression?: string;
     readonly initials: string;
     readonly addressed: boolean;
+    readonly speaking?: boolean;
 };
 
 // @public

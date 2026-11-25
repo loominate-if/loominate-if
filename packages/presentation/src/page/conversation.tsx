@@ -23,6 +23,8 @@ export type CastMember = {
   readonly initials: string;
   /** Whether the player is talking to them. */
   readonly addressed: boolean;
+  /** Whether they said the last thing said, this move, so the cast shows who's talking (#142). */
+  readonly speaking?: boolean;
 };
 
 /** The data a cast shows. */
@@ -97,6 +99,7 @@ export function castWidget(options: CastOptions): WidgetDefinition<CastData> {
                   className="loominate-portrait"
                   tabIndex={i === stop ? 0 : -1}
                   aria-pressed={m.addressed ? "true" : "false"}
+                  {...(m.speaking === true && { "data-speaking": "true" })}
                   {...(m.expression !== undefined && { "data-expression": m.expression })}
                   onClick={() => {
                     if (!m.addressed) options.address(host, m.id);

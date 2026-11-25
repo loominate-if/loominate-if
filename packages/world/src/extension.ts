@@ -151,6 +151,8 @@ function topicDirectives() {
     { name: "opens", kind: "expression", named: true },
     { name: "hearMeOut", kind: "passage" },
     { name: "expression", kind: "expression", named: true },
+    { name: "reactions", kind: "expression", named: true },
+    { name: "then", kind: "expression", named: true },
   ] as const;
   const about = { name: "about", kind: "expression", required: true } as const;
   const again = { name: "again", kind: "choice", choices: ["again"] } as const;
@@ -184,6 +186,14 @@ function topicDirectives() {
     block("bye", "{bye implicit}", [
       { name: "implicit", kind: "choice", choices: ["implicit", "explicit"] },
     ]),
+    // Reactions (#142): said after someone else in the conversation answers.
+    block("reacts ask", "{reacts ask letter}", [about]),
+    block("reacts tell", "{reacts tell war}", [about]),
+    block("reacts ask or tell", "{reacts ask or tell letter}", [about]),
+    block("reacts show", "{reacts show photograph}", [about]),
+    block("reacts give", "{reacts give locket}", [about]),
+    block("reacts yes", "{reacts yes}", []),
+    block("reacts no", "{reacts no}", []),
   ];
 }
 

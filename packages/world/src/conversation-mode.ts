@@ -7,6 +7,7 @@
  * `conversation-topics`, which a game can restyle or replace.
  */
 import {
+  type EventRecord,
   _currentPassage,
   _storyRunning,
   emit,
@@ -205,9 +206,23 @@ function initials(name: string): string {
     .join("");
 }
 
-/** The cast as conversation mode shows it. @internal */
-export function _cast(): readonly CastMember[] {
+/** Who said the last thing said this move, by body ID: an NPC's line, not the player's. */
+function lastSpeaker(record: EventRecord | undefined): string | undefined {
+  if (!record) return undefined;
+  const since = record.events({ kinds: ["action", "navigation"] }).at(-1)?.seq ?? -1;
+  const line = record
+    .events({ kinds: ["action-result"] })
+    .findLast(
+      (e) =>
+        e.seq > since && !e.tags.includes("player") && e.tags.some((t) => t.startsWith("speaker:")),
+    );
+  return line?.tags.find((t) => t.startsWith("speaker:"))?.slice("speaker:".length);
+}
+
+/** The cast as conversation mode shows it, with who spoke last this move, from `record`. @internal */
+export function _cast(record?: EventRecord): readonly CastMember[] {
   const addressed = conversation.addressee?.id;
+  const speaking = lastSpeaker(record);
   return conversation.participants.map((body): CastMember => {
     const mind = mindOf(body);
     const name = typeof body.name === "string" ? body.name : body.id;
@@ -219,6 +234,7 @@ export function _cast(): readonly CastMember[] {
       name,
       initials: initials(name),
       addressed: body.id === addressed,
+      ...(body.id === speaking && { speaking: true }),
       ...(image !== undefined && { image }),
       ...(expression !== undefined && { expression }),
     };
@@ -246,7 +262,7 @@ widgets.register(
   "conversation-cast",
   castWidget({
     label: () => message("conversation.cast", {}),
-    members: () => _cast(),
+    members: ({ record }) => _cast(record),
     address: (host, id) => {
       const who = conversation.participants.find((p) => p.id === id);
       if (who) host.act(_addressAction({ who }), who.name);

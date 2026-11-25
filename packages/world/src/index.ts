@@ -326,6 +326,8 @@ export {
   registerStatePassage,
   suggestedTopics,
   groupTopic,
+  reactionsPerExchange,
+  type TopicTrigger,
   askEveryone,
   tellEveryone,
   type GroupTopicEntry,
@@ -380,6 +382,13 @@ export {
 } from "./companions.js";
 export { found, knowledgeSharing } from "./sharing.js";
 export { errandOf, search, sendOff, type ErrandEnd } from "./errands.js";
+export {
+  continueExchange,
+  exchange,
+  exchangePlaying,
+  playExchange,
+  type ExchangeLine,
+} from "./exchanges.js";
 export { follow } from "./following.js";
 export {
   askFor,

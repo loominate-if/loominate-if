@@ -1336,7 +1336,7 @@ topic(cook, {
 - Each exchange takes a minute of game time.
 - When a conversation ends without goodbye, as when the player walks off, each participant says their implicit goodbye.
 
-What NPCs say is recorded as `action-result` events tagged `topic` and `speaker:` and their body's ID, so the page shows it after the move.
+What NPCs say is recorded as `action-result` events tagged `topic` and `speaker:` and their body's ID, so the page shows it after the move, with the speaker's name before speech, a line that opens with a quotation mark, as the story log does: "**Maid:** “Gone, miss.”". Narration, as "The maid goes pale.", already says who, and the player's own lines aren't named.
 
 ### Group topics
 
@@ -1359,6 +1359,40 @@ groupTopic({
 - **`when`** and **`priority`** choose among group entries as for a character's; `suggested: false` keeps one off the list.
 - **While a restrictive node is open,** group topics aren't suggested: it's waiting for an answer.
 - `askEveryone({ about })` and `tellEveryone({ about })` are the actions, for links of your own.
+
+### Reactions
+
+Others in the conversation can react to what's said. A reaction is an entry of the reacting character's, for the exchange it reacts to:
+
+<!-- example: packages/world/src/reactions.test.ts#reactions -->
+```ts
+topic(butler, { ask: letter, says: "“I couldn't say, sir.”" });
+topic(maid, { reacts: { ask: letter }, says: "The maid goes pale." });
+topic(cook, { reacts: { ask: letter }, priority: 5, says: "The cook snorts." });
+```
+
+- **`reacts: { ask: letter }`** takes what an entry answers: `ask`, `tell`, `askOrTell`, `show`, `give`, `showOrGive`, `yes`, `no`, `hello`, or `bye`, with its subject. After whoever's addressed answers it, others in the conversation who have a reaction to it react, by `says`, as their own words.
+- **How many:** one an exchange by default, the highest priority first, then by the order they're in the conversation. `reactionsPerExchange(2)`, in `story.ts`, changes the game's cap, and an answering entry's `reactions: 2`, or `reactions: 0` for none, its own.
+- **When they apply:** `when`, `in`, and `priority` work as for any entry. Only those in the conversation react, and never to their own answer.
+- **In passage files:** `{reacts ask letter}`, `{reacts tell war}`, `{reacts yes}`, and the rest, in the reacting character's actor passage, each block's prose its reaction.
+
+### Scripted exchanges
+
+NPCs can trade lines in a conversation, one at a time:
+
+<!-- example: packages/world/src/reactions.test.ts#exchange -->
+```ts
+exchange("argument", [
+  [butler, "“You took it. I saw you.”"],
+  [maid, "“I never! Ask Cook.”"],
+  [cook, "“Don't drag me into this.”"],
+]);
+topic(butler, { ask: theft, then: "argument", says: "“Ask her yourself, sir.”" });
+```
+
+- **`exchange(name, lines)`**, in `story.ts`, defines one: each line its speaker and what they say, with the quotation marks.
+- **Playing:** an entry's `then: "argument"` plays it after answering, `{ask theft, then: "argument"}` in a passage file, or `playExchange("argument")` from code, in a conversation. The first line comes at once; then, while it plays, the only topic is **Continue**, which says the next. Each line is its speaker's own words, so the story log reads "Maid: “I never! Ask Cook.”".
+- `exchangePlaying()` says which is playing. Each Continue is a move, so undo takes back a line at a time.
 
 ### Conversation nodes
 
@@ -1422,7 +1456,7 @@ While the player's talking, the page switches to the `conversation` layout, whic
 
 - **The header** keeps the game menu and what packages add to it.
 - **`context`:** the passage's own prose, as a strip above: where the player is, and what the passage says about the conversation.
-- **`cast` beside `main`:** a portrait for each character in the conversation, the one addressed marked, and choosing another addresses them. It's a toolbar, one Tab stop: the arrow keys, Home, and End move between portraits, and Enter or Space addresses one; beside it, the conversation so far, each line as it was said, the player's own lines ("You ask the maid about the gold.") muted. It's as tall as the latest exchange, so the topics stay in the same place; earlier lines are a scroll up, and keyboard players can Tab to it to scroll. New lines are read to screen readers, and focus goes to just before them.
+- **`cast` beside `main`:** a portrait for each character in the conversation, the one addressed marked, and choosing another addresses them. It's a toolbar, one Tab stop: the arrow keys, Home, and End move between portraits, and Enter or Space addresses one. Whoever spoke last in the move has their portrait ringed; beside it, the conversation so far, each line as it was said, the player's own lines ("You ask the maid about the gold.") muted. It's as tall as the latest exchange, so the topics stay in the same place; earlier lines are a scroll up, and keyboard players can Tab to it to scroll. New lines are read to screen readers, and focus goes to just before them.
 - **`topics`:** the suggested topics as buttons, showing and giving included. A button that can't be taken now is shown disabled, with why, as goodbye under a hard lock.
 - **`more`:** the passage's own links, such as the room's exits, in a closed disclosure named after the room, "In the study". Locks still apply to them.
 - **`history`:** the story so far, at the very bottom.
@@ -1493,7 +1527,7 @@ An NPC's topics can be written as blocks in an actor passage, the prose of each 
 
 - **`[actor: butler]`** makes the passage the butler's, and it's made only of blocks; anything before the first is an error. `state: onDuty`, `scene: storm`, or `node: proposal` on the passage scope every block in it, so a node's replies can have a passage of their own, as below.
 
-- **Blocks:** `{ask …}`, `{tell …}`, `{ask or tell …}`, `{show …}`, `{give …}`, and `{show or give …}` take a subject; `{yes}`, `{no}`, `{hello}`, and `{bye}` don't. After the subject, a block can say `again`, and a give `takes`; `{hello}` and `{bye}` can say `implicit` or `explicit`. Any block can say `stays`. Named, they take `when:`, `priority:`, `in:`, `opens:`, `suggested:`, and, for `{tell}`, `informs:`.
+- **Blocks:** `{ask …}`, `{tell …}`, `{ask or tell …}`, `{show …}`, `{give …}`, and `{show or give …}` take a subject; `{yes}`, `{no}`, `{hello}`, and `{bye}` don't. `{reacts ask …}` and the other `{reacts …}` blocks are [reactions](#reactions). After the subject, a block can say `again`, and a give `takes`; `{hello}` and `{bye}` can say `implicit` or `explicit`. Any block can say `stays`. Named, they take `when:`, `priority:`, `in:`, `opens:`, `suggested:`, `reactions:`, `then:`, and, for `{tell}`, `informs:`.
 - **Checked as code:** the actor, states, scenes, and subjects are TypeScript, so a misspelled one is an error at its line: "`wether` isn't defined. Did you mean `weather`?"
 - **The response** is the block's prose, `{if}` and printed values included, each paragraph said with its line ID. `{reveal …}` and `{on enter: …}` run each time the block answers, `{on first visit: …}` the first time. Links, beats, and `{on leave: …}` can't go in a block.
 - **`again`** applies only once the NPC has answered the same exchange before, by any entry, and comes first among entries of its priority: the first block answers the first time, the `again` block every time after. In TypeScript it's `again: true`.

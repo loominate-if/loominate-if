@@ -13,6 +13,7 @@ import axe from "axe-core";
 import { afterEach, describe, expect, it } from "vitest";
 import { actionListWidget, castWidget, type CastMember } from "./conversation.js";
 import { display, layouts, widgets } from "./layout.js";
+import { nameSpeakers } from "./log.js";
 import { mountPage } from "./page.js";
 
 const cleanup: (() => void)[] = [];
@@ -298,5 +299,64 @@ describe("a layout placing the passage's parts (#118)", () => {
     expect(
       [...(region("main")?.querySelectorAll(".loominate-notice") ?? [])].map((p) => p.textContent),
     ).toEqual(["Line 1", "Line 2"]);
+  });
+});
+
+describe("who's talking, on the page (#142)", () => {
+  const lines: Passage[] = [
+    {
+      id: "Kitchen",
+      tags: [],
+      effects: {
+        enter: () => {
+          emit("action-result", { text: "You ask about the letter." }, [
+            "topic",
+            "player",
+            "speaker:you",
+          ]);
+          emit("action-result", { text: "“I never!”" }, ["topic", "speaker:maid"]);
+          emit("action-result", { text: "“Don't ask me.”" }, ["topic", "speaker:stranger"]);
+          emit("action-result", { text: "The maid goes pale." }, ["topic", "speaker:maid"]);
+        },
+      },
+      body: () => [{ type: "notices" }],
+    },
+  ];
+  const show = () => {
+    const store = createStore();
+    const record = createEventRecord(store);
+    const story = createStory(store, record, lines, { start: "Kitchen" });
+    document.body.replaceChildren();
+    const container = document.createElement("div");
+    document.body.append(container);
+    return mountPage(container, { story, record }).element;
+  };
+
+  it("names the speaker before each line, as the story log does, but not the player's own", () => {
+    nameSpeakers((id) => ({ maid: "Maid" })[id]);
+    cleanup.push(() => {
+      nameSpeakers(() => undefined);
+    });
+    const root = show();
+    const texts = [...root.querySelectorAll(".loominate-notice")].map((p) => p.textContent);
+    expect(texts.join(" ")).toContain("Maid: “I never!”");
+    expect(texts.join(" ")).not.toContain("you: ");
+    // A speaker the game doesn't name gets no name, rather than their ID.
+    expect(texts.join(" ")).not.toContain("stranger:");
+    expect(root.querySelector(".loominate-speaker")?.textContent).toBe("Maid: ");
+    // Narration already says who: only speech is named.
+    expect(texts.join(" ")).not.toContain("Maid: The maid goes pale.");
+  });
+
+  it("marks who spoke last in the cast", () => {
+    members = [
+      { id: "butler", name: "butler", initials: "B", addressed: true },
+      { id: "maid", name: "maid", initials: "M", addressed: false, speaking: true },
+    ];
+    const root = play();
+    const speaking = [...root.querySelectorAll(".loominate-portrait")].map((b) =>
+      b.getAttribute("data-speaking"),
+    );
+    expect(speaking).toEqual([null, "true"]);
   });
 });
