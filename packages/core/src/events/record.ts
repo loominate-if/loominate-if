@@ -75,6 +75,11 @@ export interface EventKinds {
   };
   /** What happened as the result of an action. */
   "action-result": ProseFields;
+  /** The start of a chapter, from `{chapter "…"}`: the story log shows it as a heading, and exports divide there. */
+  chapter: {
+    /** The chapter's title. */
+    readonly title: string;
+  };
   /**
    * Something the player noticed by sight or sound, such as "You hear a door
    * slam upstairs." The page shows a move's perception events above the

@@ -79,6 +79,10 @@ declare module "@loominate-if/core" {
     "log.copy": None;
     "log.copied": None;
     "log.copyFailed": None;
+    /** Exporting the story log: the format's label, the button, and what was saved. */
+    "log.exportAs": None;
+    "log.export": None;
+    "log.exported": { readonly name: string };
     /** An empty log. */
     "log.empty": None;
     /** Closing the log. */
@@ -193,6 +197,9 @@ register("log.copied", "Copied.");
 register("log.copyFailed", "Couldn't copy: select the text and copy it instead.");
 register("log.empty", "Nothing yet.");
 register("log.close", "Close");
+register("log.exportAs", "Export as");
+register("log.export", "Export");
+register("log.exported", ({ name }) => `Saved ${name}.`);
 register("log.keys", "use the up and down arrow keys to read each entry");
 register("menu.confirmRestartTip", "Click again to start over. Moving away cancels.");
 register("menu.confirmRestartLabel", "Confirm restart: start the story over. Saves are kept.");

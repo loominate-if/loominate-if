@@ -142,6 +142,13 @@ export const coreExtension: CompilerExtension = {
       runtime: core("storyletDraw"),
     },
     {
+      name: "chapter",
+      kind: "arrival",
+      example: '{chapter "The House on the Hill"}',
+      args: [{ name: "title", kind: "expression", required: true }],
+      runtime: core("markChapter"),
+    },
+    {
       name: "emit",
       kind: "arrival",
       example: '{emit "The lamp is lit.", tags: lamp}',

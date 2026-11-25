@@ -139,6 +139,9 @@ export type BeatNode = {
 };
 
 // @public
+export function chapter(title: string): void;
+
+// @public
 export type Choice = LinkNode | ContinueNode;
 
 // @public
@@ -281,6 +284,9 @@ export interface EventKinds {
         readonly passage: StateId;
         readonly step: number;
         readonly page?: boolean;
+    };
+    chapter: {
+        readonly title: string;
     };
     dialogue: ProseFields & {
         readonly speaker?: StateId;
@@ -532,6 +538,11 @@ export type LogNode = {
 
 // @public
 export function logOnly(args?: Readonly<Record<string, never>>): LogNode;
+
+// @public
+export function markChapter(args: {
+    readonly title: string;
+}, context: EffectContext): void;
 
 // @public
 export function menuLink(args: {

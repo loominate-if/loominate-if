@@ -310,6 +310,7 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
 html.loominate-modal-open { overflow: hidden; }
 .loominate-log-entry { margin-block: 0.4em; }
 .loominate-log-turn { margin-block-start: 1em; }
+.loominate-log-chapter { font-size: 1.15em; margin-block: 1.5em 0.5em; }
 .loominate-log-speaker { font-weight: 600; }
 .loominate-log-player { color: ${v("color-muted")}; font-style: italic; }
 .loominate-log-line { margin-block: 0.15em; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.85em; }

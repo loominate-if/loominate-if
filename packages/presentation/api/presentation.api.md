@@ -144,6 +144,28 @@ export type EffectPlayContext = {
 export const effects: Registry<EffectDefinition>;
 
 // @public
+export type ExportedFile = {
+    readonly name: string;
+    readonly type: string;
+    readonly data: string | Uint8Array;
+};
+
+// @public
+export type ExportFormat = "markdown" | "html" | "epub";
+
+// @public
+export type ExportOptions = {
+    readonly title: string;
+    readonly author?: string;
+    readonly language?: string;
+    readonly identifier?: string;
+    readonly modified?: Date;
+};
+
+// @public
+export function exportStoryLog(events: readonly RecordedEvent[], format: ExportFormat, options: ExportOptions): ExportedFile;
+
+// @public
 export type LayoutDefinition = {
     readonly regions: readonly string[];
     readonly widgets?: Readonly<Record<string, readonly string[]>>;
@@ -168,6 +190,7 @@ export type LogEntry = {
     readonly speaker?: string;
     readonly player?: boolean;
     readonly move: number;
+    readonly chapter?: boolean;
 };
 
 // @public

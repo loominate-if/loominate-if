@@ -8,6 +8,7 @@
 import { message, type RecordedEvent, type TextStyle } from "@loominate-if/core";
 import { render } from "preact";
 import "../messages.js";
+import { exportStoryLog, type ExportedFile, type ExportFormat } from "./export.js";
 import { prose } from "./prose.js";
 
 /** One entry of the story log. */
@@ -22,6 +23,8 @@ export type LogEntry = {
   readonly player?: boolean;
   /** The move it came in, from 0, so the log can be read in turns. */
   readonly move: number;
+  /** Whether it's a chapter's title, from `{chapter "…"}`, where exports divide. */
+  readonly chapter?: boolean;
 };
 
 /** Names speakers by their IDs, for the story log. The world model gives names. */
@@ -69,6 +72,7 @@ export function storyLog(events: readonly RecordedEvent[]): LogEntry[] {
   const visits = new Map<string, number>();
   let here: string | undefined;
   let move = 0;
+  let chapterNow: string | undefined;
   for (const e of events) {
     const tags = e.tags;
     if (e.kind === "navigation") {
@@ -90,6 +94,12 @@ export function storyLog(events: readonly RecordedEvent[]): LogEntry[] {
       continue;
     }
     if (tags.includes("no-log")) continue;
+    // A chapter heading: a revisited marker with the current chapter's title doesn't start another.
+    if (e.kind === "chapter") {
+      if (e.title !== chapterNow) leads.push({ text: e.title, chapter: true, move });
+      chapterNow = e.title;
+      continue;
+    }
     const text = (e as { readonly text?: unknown }).text;
     if (typeof text !== "string" || text === "") continue;
     const forced = tags.includes("log");
@@ -178,6 +188,12 @@ let dialogs = 0;
 export function createLogDialog(
   parent: HTMLElement,
   events: () => readonly RecordedEvent[],
+  options: {
+    /** The game's title, for exports. */
+    readonly title?: string;
+    /** Saves an exported file; defaults to downloading it. */
+    readonly save?: (file: ExportedFile) => void;
+  } = {},
 ): LogDialog {
   const doc = parent.ownerDocument;
   const id = `loominate-log-${String(++dialogs)}`;
@@ -189,6 +205,19 @@ export function createLogDialog(
   /** The story log's filter, or the transcript's kind. */
   let filter = "all";
   let status = "";
+  let format: ExportFormat = "epub";
+  const save =
+    options.save ??
+    ((file: ExportedFile): void => {
+      const url = doc.defaultView?.URL;
+      if (url === undefined || typeof url.createObjectURL !== "function") return;
+      const href = url.createObjectURL(new Blob([file.data as BlobPart], { type: file.type }));
+      const a = doc.createElement("a");
+      a.href = href;
+      a.download = file.name;
+      a.click();
+      url.revokeObjectURL(href);
+    });
 
   const close = (): void => {
     if (typeof dialog.close === "function") dialog.close();
@@ -241,21 +270,33 @@ export function createLogDialog(
     const body =
       view === "log"
         ? storyLog(all)
-            .filter((e) => filter === "all" || e.speaker !== undefined || e.player === true)
-            .map((e, i, list) => (
-              <p
-                key={i}
-                tabIndex={-1}
-                className={`loominate-log-entry${e.player === true ? " loominate-log-player" : ""}${
-                  i > 0 && list[i - 1]?.move !== e.move ? " loominate-log-turn" : ""
-                }`}
-              >
-                {e.speaker !== undefined && (
-                  <span className="loominate-log-speaker">{`${e.speaker}: `}</span>
-                )}
-                {prose(e.text, e.styles ?? [], [], () => null)}
-              </p>
-            ))
+            .filter(
+              (e) =>
+                filter === "all" ||
+                e.speaker !== undefined ||
+                e.player === true ||
+                e.chapter === true,
+            )
+            .map((e, i, list) =>
+              e.chapter === true ? (
+                <h3 key={i} tabIndex={-1} className="loominate-log-entry loominate-log-chapter">
+                  {e.text}
+                </h3>
+              ) : (
+                <p
+                  key={i}
+                  tabIndex={-1}
+                  className={`loominate-log-entry${e.player === true ? " loominate-log-player" : ""}${
+                    i > 0 && list[i - 1]?.move !== e.move ? " loominate-log-turn" : ""
+                  }`}
+                >
+                  {e.speaker !== undefined && (
+                    <span className="loominate-log-speaker">{`${e.speaker}: `}</span>
+                  )}
+                  {prose(e.text, e.styles ?? [], [], () => null)}
+                </p>
+              ),
+            )
         : transcript(all)
             .filter((l) => filter === "all" || l.kind === filter)
             .map((l) => (
@@ -295,6 +336,44 @@ export function createLogDialog(
               </>
             )}
           </select>
+          {view === "log" && (
+            <>
+              {" "}
+              <label htmlFor={`${id}-format`}>{`${message("log.exportAs")} `}</label>
+              <select
+                id={`${id}-format`}
+                value={format}
+                onChange={(event) => {
+                  format = (event.currentTarget as HTMLSelectElement).value as ExportFormat;
+                }}
+              >
+                {/* Format names are names, not to be translated. */}
+                <option value="epub" translate={false}>
+                  EPUB
+                </option>
+                <option value="html" translate={false}>
+                  HTML
+                </option>
+                <option value="markdown" translate={false}>
+                  Markdown
+                </option>
+              </select>{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  const file = exportStoryLog(events(), format, {
+                    title: options.title ?? doc.title,
+                    language: doc.documentElement.lang || "en",
+                  });
+                  save(file);
+                  status = message("log.exported", { name: file.name });
+                  draw();
+                }}
+              >
+                {message("log.export")}
+              </button>
+            </>
+          )}
           {view === "transcript" && (
             <button
               type="button"
