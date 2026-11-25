@@ -1270,6 +1270,9 @@ leaveConversation(maid);
 - **`startConversation(npc)`** or **`startConversation([npc, …])`** starts one; the first is addressed. **`address`** changes who the player is talking to, **`joinConversation`** and **`leaveConversation`** change who's in it, and **`endConversation`** ends it. They change game state, so do them during play: in a passage's effect, an action, or an NPC's turn, as an agenda item that comes to talk.
 - **`conversation`** says how it is now: `active`, `participants` and `addressee` (their bodies), `locks`, and `exit`. **`inConversationWith(npc)`** says whether someone's in it.
 - **Someone no longer with the player leaves it,** after each move: they walked off on their timetable, or the player left. With no one left, it ends.
+- **Joining and leaving are told** (#144): `joinConversation` says "The cook joins the conversation.", and `leaveConversation`, for someone still in the room, "The maid steps away from the conversation." The player greeting someone brings them in without it, since "You greet the cook." says so, and walking off is told as any departure is. The `conversation.joins` and `conversation.leaves` messages word them.
+- **Arriving isn't joining:** someone who comes into the room during a conversation hears it, but isn't in it until the player greets them, the game calls `joinConversation`, or their agenda's `approach` brings them in.
+- **What leaves with them:** whoever leaves takes the locks they hold, and their open node closes, so the player can go if nothing else holds them. The cast and the topics follow whoever's in the conversation, and if the one addressed leaves, the player addresses whoever joined first of those left. Each join and leave is a `conversation` event, `joined` or `left`, for the transcript.
 
 ### Locks
 
