@@ -330,10 +330,14 @@ export type PlayOptions = {
     readonly author?: string;
     readonly storage?: SaveStorage;
     readonly seed?: () => string;
+    readonly seeds?: SeedSetting;
     readonly story?: Omit<StoryOptions, "start" | "seed">;
     readonly page?: PageOptions;
     readonly onError?: (error: unknown) => void;
 };
+
+// @public
+export type SeedSetting = boolean | "daily" | (string & {});
 
 // @public
 export function statusLine(options?: StatusLineOptions): WidgetDefinition<StatusLineData>;

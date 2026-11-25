@@ -66,6 +66,15 @@ describe("the generated entry point", () => {
     expect(main).toContain('"author":"A. Writer"');
   });
 
+  it("passes the game's seeds setting to the player, when the config has one (#132)", async () => {
+    expect(await code(MAIN)).not.toContain('"seeds"');
+    const plugin = loominateApp({ ...config, seeds: "daily" } as ResolvedConfig);
+    const resolveId = plugin.resolveId as (s: string, i?: string) => Promise<string | undefined>;
+    const load = plugin.load as (id: string) => string | undefined;
+    const main = load.call({}, (await resolveId.call({}, MAIN)) ?? "") ?? "";
+    expect(main).toContain('"seeds":"daily"');
+  });
+
   it("shows an error that stops the game, instead of a blank page, and tells the dev server", async () => {
     const errors = await code("/@loominate/errors");
     const hot = { send: vi.fn() };

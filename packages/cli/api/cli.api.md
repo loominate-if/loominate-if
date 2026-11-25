@@ -74,6 +74,7 @@ export type LoominateConfig = {
     };
     readonly title?: string;
     readonly author?: string;
+    readonly seeds?: boolean | "daily" | (string & {});
     readonly start: string;
     readonly extensions?: readonly string[];
     readonly inspector?: string;

@@ -89,6 +89,11 @@ describe("loominate.config.ts", () => {
     expect(
       await problem('{ game: { id: "g", version: "1" }, start: "S", author: 3 } as never'),
     ).toBe('loominate.config.ts: `author` must be a string, like `author: "A. Writer"`.');
+    expect(
+      await problem('{ game: { id: "g", version: "1" }, start: "S", seeds: 3 } as never'),
+    ).toBe(
+      'loominate.config.ts: `seeds` must be `true`, `false`, `"daily"`, or the seed every game starts from, like `seeds: true`.',
+    );
     const noDefault = game({ "loominate.config.ts": "export const config = {};\n" });
     await expect(loadConfig(noDefault, options)).rejects.toThrow(
       "loominate.config.ts: export the game's configuration as the default: `export default defineConfig({ … })`.",

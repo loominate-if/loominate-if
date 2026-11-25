@@ -67,7 +67,8 @@ async function start(options: Partial<PlayOptions> = {}) {
     start: "Road",
     game,
     title: "Lantern Road",
-    seed: () => "fixed",
+    // A fixed seed, unless the test is about seeds.
+    ...(!("seeds" in options) && { seed: () => "fixed" }),
     ...options,
   });
   players.push(player);
@@ -375,6 +376,135 @@ describe("playing a game", () => {
     expect(container.querySelector(".loominate-start")?.textContent).toContain(
       "It was saved by version 0.9.0 of the game.",
     );
+  });
+});
+
+describe("shareable seeds (#132)", () => {
+  const seedDialog = (container: HTMLElement) =>
+    container.querySelector<HTMLDialogElement>("dialog.loominate-seed");
+  const enter = async (container: HTMLElement, text: string) => {
+    const field = seedDialog(container)?.querySelector<HTMLInputElement>("input");
+    if (!field) throw new Error("no seed field");
+    await userEvent.type(field, text);
+  };
+  afterEach(() => {
+    history.replaceState(null, "", "/");
+  });
+
+  it("are off unless the game turns them on", async () => {
+    const { container, player } = await start({ seeds: false, storage: createMemoryStorage() });
+    expect(container.querySelector("dialog.loominate-seed")).toBeNull();
+    expect(player.toReplay()?.seed).not.toMatch(/^[a-z]+-[a-z]+-[a-z]+$/);
+  });
+
+  it("make a new game's seed memorable words, shown with the version, to copy or share", async () => {
+    const copied: string[] = [];
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: (text: string) => (copied.push(text), Promise.resolve()) },
+    });
+    const { container, player, click } = await start({
+      seeds: true,
+      storage: createMemoryStorage(),
+    });
+    const seed = player.toReplay()?.seed ?? "";
+    expect(seed).toMatch(/^[a-z]+-[a-z]+-[a-z]+$/);
+    click("Seed");
+    const dialog = seedDialog(container);
+    expect(dialog?.querySelector(".loominate-seed-words")?.textContent).toBe(`${seed}@1.0.0`);
+    expect(document.activeElement?.textContent).toBe("Copy");
+    click("Copy");
+    click("Copy link");
+    await vi.waitFor(() => {
+      expect(dialog?.querySelector("[role=status]")?.textContent).toBe("Link copied.");
+    });
+    expect(copied[0]).toBe(`${seed}@1.0.0`);
+    expect(new URL(copied[1] ?? "").searchParams.get("seed")).toBe(`${seed}@1.0.0`);
+    expect((await axe.run(dialog ?? document)).violations).toEqual([]);
+    Reflect.deleteProperty(navigator, "clipboard");
+  });
+
+  it("play a seed the player enters, noting one from another version", async () => {
+    const { container, player, click } = await start({
+      seeds: true,
+      storage: createMemoryStorage(),
+    });
+    click("Walk on");
+    click("Seed");
+    await enter(container, "Amber Lantern Fog@0.9.0");
+    expect(seedDialog(container)?.textContent).toContain(
+      "This seed is from version 0.9.0 of the game. In version 1.0.0, its world may differ.",
+    );
+    click("Play it");
+    await vi.waitFor(() => {
+      expect(player.toReplay()?.seed).toBe("amber-lantern-fog");
+    });
+    expect(player.story?.current).toBe("Road");
+  });
+
+  it("offer a seed from a link beside Continue, never replacing the game in play unasked", async () => {
+    const storage = createMemoryStorage();
+    const first = await start({ seeds: true, storage });
+    first.click("Walk on");
+    await vi.waitFor(async () => {
+      expect(await autosaved(storage)).toBe("Bridge");
+    });
+    first.player.destroy();
+    history.replaceState(null, "", "/?seed=amber-lantern-fog%400.9.0");
+    const back = await start({ seeds: true, storage });
+    const screen = back.container.querySelector(".loominate-start");
+    expect(screen?.textContent).toContain("A seed shared with you: amber-lantern-fog@0.9.0.");
+    expect(screen?.textContent).toContain("This seed is from version 0.9.0");
+    expect(document.activeElement).toBe(back.button("Play this seed"));
+    // Taken from the address, so a reload carries on rather than offering it again.
+    expect(location.search).toBe("");
+    back.button("Continue");
+    back.click("Play this seed");
+    expect(back.player.toReplay()?.seed).toBe("amber-lantern-fog");
+    expect(back.text()).toContain("A long road.");
+  });
+
+  it("offer a new game with a seed on the start screen", async () => {
+    const storage = createMemoryStorage();
+    const first = await start({ seeds: true, storage });
+    first.click("Walk on");
+    await vi.waitFor(async () => {
+      expect(await autosaved(storage)).toBe("Bridge");
+    });
+    first.player.destroy();
+    closeTab();
+    const back = await start({ seeds: true, storage });
+    back.click("New game with a seed…");
+    expect(document.activeElement?.classList.contains("loominate-seed-input")).toBe(true);
+    await enter(back.container, "moss-reed-owl");
+    back.click("Play it");
+    await vi.waitFor(() => {
+      expect(back.player.toReplay()?.seed).toBe("moss-reed-owl");
+    });
+  });
+
+  it("give everyone today's seed, without one to enter, when daily", async () => {
+    const { container, player, click } = await start({
+      seeds: "daily",
+      storage: createMemoryStorage(),
+    });
+    const { _dailySeed } = await import("./seed.js");
+    const { _SEED_WORDS } = await import("./seed-words.js");
+    expect(player.toReplay()?.seed).toBe(
+      _dailySeed(_SEED_WORDS, new Date().toISOString().slice(0, 10)),
+    );
+    click("Seed");
+    expect(seedDialog(container)?.textContent).toContain("Today's seed, the same for everyone:");
+    expect(seedDialog(container)?.querySelector("input")).toBeNull();
+  });
+
+  it("start every game from the author's seed, showing none, when fixed", async () => {
+    const { container, player } = await start({
+      seeds: "amber-lantern-fog",
+      storage: createMemoryStorage(),
+    });
+    expect(player.toReplay()?.seed).toBe("amber-lantern-fog");
+    expect(container.querySelector("dialog.loominate-seed")).toBeNull();
   });
 });
 

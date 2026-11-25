@@ -285,7 +285,7 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   flex-wrap: wrap;
   gap: calc(${v("space")} / 2);
 }
-.loominate-game-menu button, .loominate-saves button, .loominate-log button {
+.loominate-game-menu button, .loominate-saves button, .loominate-log button, .loominate-seed button {
   padding: calc(${v("space")} / 4) calc(${v("space")} / 1.5);
   border: 1px solid ${v("color-border")};
   border-radius: ${v("radius")};
@@ -299,7 +299,7 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   color: ${v("color-muted")};
   cursor: not-allowed;
 }
-.loominate-saves, .loominate-log {
+.loominate-saves, .loominate-log, .loominate-seed {
   color: ${v("color-text")};
   background: ${v("color-background")};
   line-height: ${v("line-height")};
@@ -309,8 +309,8 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   border-radius: ${v("radius")};
   font-family: ${v("font-ui")};
 }
-.loominate-saves::backdrop, .loominate-log::backdrop { background: rgb(0 0 0 / 0.4); }
-.loominate-saves :focus-visible, .loominate-log :focus-visible {
+.loominate-saves::backdrop, .loominate-log::backdrop, .loominate-seed::backdrop { background: rgb(0 0 0 / 0.4); }
+.loominate-saves :focus-visible, .loominate-log :focus-visible, .loominate-seed :focus-visible {
   outline: 2px solid ${v("color-focus")};
   outline-offset: 2px;
 }
@@ -318,6 +318,9 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
 .loominate-log { width: min(44rem, 100% - 2 * ${v("space")}); max-height: calc(100vh - 2 * ${v("space")}); }
 .loominate-log-body { max-height: 60vh; overflow-y: auto; overscroll-behavior: contain; font-family: ${v("font-body")}; }
 html.loominate-modal-open { overflow: hidden; }
+/* The Seed dialog (#132): the seed in the story's type, easy to read aloud. */
+.loominate-seed-words { font-family: ${v("font-body")}; font-size: 1.15em; }
+.loominate-seed-input { font: inherit; padding: calc(${v("space")} / 4); }
 .loominate-log-entry { margin-block: 0.4em; }
 .loominate-log-turn { margin-block-start: 1em; }
 .loominate-log-chapter { font-size: 1.15em; margin-block: 1.5em 0.5em; }
