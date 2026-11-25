@@ -1,0 +1,59 @@
+{
+  "com.barebones.DocumentType": "DeclarativeLanguageModule",
+  "BBLMLanguageDescriptionVersion": 1,
+  "BBLMLanguageDisplayName": "Loominate IF",
+  "BBLMLanguageCode": "Weft",
+  "BBLMVersionString": "0.1.0",
+  "BBLMBuildNumber": 1,
+  "BBLMFilenameExtensions": [
+    "weft"
+  ],
+  "BBLMCommentLineDefault": "//",
+  "BBLMSyntaxRules": {
+    "IdentifierAndKeywordCharacterClass": "[:alnum:]_",
+    "DelimitedRuns": [
+      {
+        "RunKind": "com.barebones.bblm.block-comment",
+        "StartDelimiter": "/*",
+        "EndDelimiter": "*/"
+      }
+    ],
+    "PatternRuns": [
+      {
+        "RunKind": "com.barebones.bblm.line-comment",
+        "RunPattern": "(?m)^[ \\t]*//.*$"
+      },
+      {
+        "RunKind": "com.barebones.bblm.preprocessor",
+        "RunPattern": "(?m)^::.*$"
+      },
+      {
+        "RunKind": "com.barebones.bblm.keyword",
+        "RunPattern": "(?<!\\\\)\\{(?:/if|(?:reacts ask or tell|on first visit|ambience stop|show or give|ask or tell|reacts tell|reacts show|reacts give|music stop|reacts ask|reacts yes|page only|storylets|reacts no|on enter|on leave|log only|continue|storylet|ambience|else if|notices|chapter|effect|topics|reveal|music|sound|exits|hello|else|when|line|beat|wait|page|menu|emit|tell|show|give|act|ask|yes|bye|if|in|no)(?=[ ,:}]))"
+      },
+      {
+        "RunKind": "com.barebones.bblm.html.anchor",
+        "RunPattern": "\\[\\[[^\\]\\r\\n]*\\]\\]"
+      },
+      {
+        "RunKind": "com.barebones.bblm.predefined-symbol",
+        "RunPattern": "\\\\[!-/:-@\\[-`{-~]"
+      }
+    ]
+  },
+  "BBLMSymbolRules": {
+    "FunctionPatterns": [
+      {
+        "FunctionPattern": "(?m)^::[ \\t]*(?<function_name>[^\\[\\]{}\\\\\\r\\n]*[^\\[\\]{}\\\\\\s])",
+        "FunctionKind": "function"
+      }
+    ]
+  },
+  "BBLMLanguageServerInfo": {
+    "ServerCommand": "loominate-language-server",
+    "ServerArguments": [
+      "--stdio"
+    ],
+    "ServerLanguageID": "weft"
+  }
+}
