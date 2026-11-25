@@ -1067,6 +1067,7 @@ export type _NpcRow = {
     readonly name: string;
     readonly place?: string;
     readonly level: "observed" | "scheduled" | "simulated";
+    readonly pace?: string;
     readonly turn: boolean;
     readonly why: "simulated" | "busy with an agenda item" | "seen by the player" | "heard by the player" | "out of sight";
     readonly agenda: readonly _NpcAgendaItem[];
@@ -1149,6 +1150,15 @@ export type Ordered = {
     readonly mind: Mind;
     readonly call: ActionCall<Readonly<Record<string, unknown>>>;
 };
+
+// @public
+export type Pacing = {
+    readonly every: Delay;
+    readonly summary?: Summary;
+};
+
+// @public
+export function pacingOf(npc: ObjectRef): Pacing | undefined;
 
 // @public
 export function parentOf(t: ObjectRef): Thing | undefined;
@@ -1343,6 +1353,14 @@ export type RevealArguments = {
 };
 
 // @public
+export function route(npc: ObjectRef, places: readonly ObjectRef[], options: RouteOptions): void;
+
+// @public
+export type RouteOptions = Pacing & {
+    readonly loop?: boolean;
+};
+
+// @public
 export function say(npc: ObjectRef, text: string): void;
 
 // @public
@@ -1461,7 +1479,7 @@ to: ActingOn;
 export const showing: DecideRulebook<Offer, Reaction | undefined>;
 
 // @public
-export function simulate(npc: ObjectRef, on?: boolean): void;
+export function simulate(npc: ObjectRef, on?: boolean | Pacing): void;
 
 // @public
 export function spend(who: ObjectRef, name: StatName, amount: number): number;

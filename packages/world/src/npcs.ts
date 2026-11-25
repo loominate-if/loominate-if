@@ -24,7 +24,8 @@ import { bodyOf, currentPlayerBody, isBody, mindFor, type Mind } from "./actors.
 import { clock } from "./clock.js";
 import { canHear, canSee } from "./scope.js";
 import { blockedReason, exitsOf, type Exit } from "./exits.js";
-import { happen } from "./perception.js";
+import { _catchPerceived, happen } from "./perception.js";
+import { daemon, type Delay, type Repeated, type Summary } from "./schedule.js";
 import { move, placeOf } from "./things.js";
 
 declare module "@loominate-if/core" {
@@ -57,6 +58,8 @@ declare module "@loominate-if/core" {
     };
   }
   interface Messages {
+    /** A line a paced NPC's turns said more than once in one jump of the clock: "The guard paces past, 6 times." */
+    "npc.repeats": { readonly line: string; readonly count: number };
     /** Why `go` isn't taken: there's no way that way. */
     "go.noWay": { readonly way: string };
     /** Why `go` isn't taken by the player, who moves through the story's passages. */
@@ -64,6 +67,11 @@ declare module "@loominate-if/core" {
   }
 }
 const SOURCE = "@loominate-if/world";
+messages.register(
+  "npc.repeats",
+  ({ line, count }) => `${line.replace(/[.!]$/, "")}, ${String(count)} times.`,
+  { source: SOURCE },
+);
 messages.register("go.noWay", ({ way }) => `There's no way ${way} from here.`, { source: SOURCE });
 messages.register(
   "go.player",
@@ -223,19 +231,109 @@ export function everyTurn(npc: ObjectRef, name: string, rule: (turn: NpcTurn) =>
   hook(`npc:${mind.id}`).rule(name, rule);
 }
 
+/** How a simulated NPC's turns are paced on the game clock (#137). */
+export type Pacing = {
+  /** How often they take a turn: `minutes(5)`, or `moves(2)`. */
+  readonly every: Delay;
+  /**
+   * What to say instead of what their turns said, when they take more
+   * than one turn the player sees in one jump of the clock. By default,
+   * each different line is said once, with how many times it happened.
+   */
+  readonly summary?: Summary;
+};
+
+/** Paced NPCs, by mind ID, set as the game loads. */
+const paced = new Map<string, Pacing>();
+
 /**
  * Makes an NPC simulated: they take a turn after every move, wherever they
  * are, acting offstage too. `simulate(npc, false)` makes them observed only
  * again. In `story.ts`, as the game loads, it's how they start.
+ *
+ * With a {@link Pacing}, as `simulate(guard, { every: minutes(5) })`, they
+ * take a turn every so often on the game clock instead, so a long wait
+ * gives them a turn at each time in it, as a daemon fires. Coming into the
+ * player's view on a turn stops a jump of the clock there; what the player
+ * sees of their turns in one jump is summed up. Pacing is set in
+ * `story.ts`; in play, `simulate(npc, false)` and `simulate(npc)` switch
+ * them off and on again, still paced.
+ *
+ * @example
+ * ```ts
+ * simulate(villain);
+ * simulate(guard, { every: minutes(5) });
+ * ```
+ *
+ * @throws StateError if pacing is given during play, or isn't a valid delay.
  */
-export function simulate(npc: ObjectRef, on = true): void {
+export function simulate(npc: ObjectRef, on: boolean | Pacing = true): void {
   const mind = mindFor(npc, "simulate");
+  if (typeof on === "object") {
+    if (_storyRunning()) {
+      throw new StateError(
+        `simulate: ${JSON.stringify(mind.id)}'s turns are paced in story.ts, as the game loads, since each pace is a timer of its own. In play, simulate(npc) and simulate(npc, false) switch them on and off.`,
+      );
+    }
+    if (paced.has(mind.id)) {
+      throw new StateError(`simulate: ${JSON.stringify(mind.id)} is already paced.`);
+    }
+    if (!npcs.has(mind.id)) npcs.set(mind.id, npc);
+    paced.set(mind.id, on);
+    startingSimulated.add(mind.id);
+    pace(mind.id, npc, on);
+    return;
+  }
   if (!_storyRunning()) {
     if (on) startingSimulated.add(mind.id);
     else startingSimulated.delete(mind.id);
     return;
   }
   state.simulated = { ...state.simulated, [mind.id]: on };
+}
+
+/** How an NPC's turns are paced, if they are. */
+export function pacingOf(npc: ObjectRef): Pacing | undefined {
+  return paced.get(mindFor(npc, "pacingOf").id);
+}
+
+/** Each line said once, in order, with how many times it was said, if more than once. */
+const repeats: Summary = ({ lines }: Repeated) => {
+  const counts = new Map<string, number>();
+  for (const line of lines) counts.set(line, (counts.get(line) ?? 0) + 1);
+  return [...counts]
+    .map(([line, count]) => (count === 1 ? line : message("npc.repeats", { line, count })))
+    .join(" ");
+};
+
+/**
+ * The daemon that gives a paced NPC their turns: each time it fires, they
+ * take one, if they're still simulated, and what the player sees of it is
+ * its line, so a long jump sums it up.
+ */
+function pace(id: string, npc: ObjectRef, pacing: Pacing): void {
+  daemon(
+    `world:pace:${id}`,
+    {
+      every: pacing.every,
+      running: true,
+      standsOut: true,
+      summary: pacing.summary ?? repeats,
+      source: SOURCE,
+    },
+    () => {
+      if (!isSimulated(npc)) return undefined;
+      const body = bodyOf(mindFor(npc, "paced turn"));
+      if (!body || body.id === currentPlayerBody()?.id) return undefined;
+      const seen = playerPerceives(body);
+      const lines = _catchPerceived(() => {
+        takeTurn(id, npc);
+      });
+      // Coming into view stops a wait there, as an interrupting fuse does.
+      if (!seen && playerPerceives(body)) clock.interrupt();
+      return lines.length === 0 ? undefined : lines.join(" ");
+    },
+  );
 }
 
 /** Whether an NPC is simulated, acting wherever they are, rather than observed only. */
@@ -293,31 +391,39 @@ hook("turnEnd").rule(
         }
         continue;
       }
-      const mind = mindFor(npc, "npc turns");
-      const body = bodyOf(mind);
-      if (!body) continue;
-      // Back in view after a stretch without a turn: what they did meanwhile, first.
-      if (before !== undefined && !before.turned) {
-        const minutes = clock.minutes - before.minutes;
-        const moves = clock.moves - before.moves;
-        if (hook(`catchUp:${id}`).rules().length > 0) {
-          hook(`catchUp:${id}`).run({ npc, mind, body, minutes, moves });
-          emit("npc", {
-            npc: id,
-            what: "caughtUp",
-            at: clock.minutes,
-            perceived: true,
-            minutes,
-            moves,
-          });
-        }
-      }
-      state.last = { ...state.last, [id]: { turned: true, ...now() } };
-      hook(`npc:${id}`).run({ npc, mind, body });
+      // A paced NPC's turns come on the clock, not after each move.
+      if (paced.has(id) && isSimulated(npc)) continue;
+      takeTurn(id, npc);
     }
   },
   { source: SOURCE, after: "move counter" },
 );
+
+/** An NPC's turn: what they did meanwhile, if they've had none for a while, then their rules. */
+function takeTurn(id: string, npc: ObjectRef): void {
+  const before = state.last[id];
+  const mind = mindFor(npc, "npc turns");
+  const body = bodyOf(mind);
+  if (!body) return;
+  // Back in view after a stretch without a turn: what they did meanwhile, first.
+  if (before !== undefined && !before.turned) {
+    const minutes = clock.minutes - before.minutes;
+    const moves = clock.moves - before.moves;
+    if (hook(`catchUp:${id}`).rules().length > 0) {
+      hook(`catchUp:${id}`).run({ npc, mind, body, minutes, moves });
+      emit("npc", {
+        npc: id,
+        what: "caughtUp",
+        at: clock.minutes,
+        perceived: true,
+        minutes,
+        moves,
+      });
+    }
+  }
+  state.last = { ...state.last, [id]: { turned: true, ...now() } };
+  hook(`npc:${id}`).run({ npc, mind, body });
+}
 
 /** The clock's minutes and move count now. */
 const now = (): { minutes: number; moves: number } => ({

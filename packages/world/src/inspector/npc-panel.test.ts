@@ -17,6 +17,7 @@ import {
   connect,
   everyTurn,
   go,
+  minutes,
   place,
   schedule,
   simulate,
@@ -41,6 +42,9 @@ const you = actor("you", { body: { name: "you", location: study } });
 const butler = actor("butler", { body: { name: "butler", location: kitchen } });
 const thief = actor("thief", { body: { name: "thief", location: vault } });
 const baker = actor("baker", { body: { name: "baker", location: home } });
+// Paced: a turn every five minutes on the clock (#137).
+const watchman = actor("watchman", { body: { name: "watchman", location: vault } });
+simulate(watchman, { every: minutes(5) });
 startAs(you);
 agenda(butler, "warn the player", {
   priority: 10,
@@ -104,6 +108,7 @@ describe("the NPCs panel (#108)", () => {
       "baker:mind | market | scheduled | no, out of sight | — | 06:00 market (weekday: tuesday) → next 20:00 home, 8:00 pm",
       'butler:mind | kitchen | observed | yes, busy with an agenda item | "warn the player" (priority 10, inactive, ready)"polish the silver" (priority 0, active, ready, acts next) | —',
       "thief:mind | vault | simulated | yes, simulated | — | —",
+      "watchman:mind | vault | simulated, every 5 minutes | yes, simulated | — | —",
     ]);
   });
 
