@@ -65,6 +65,14 @@ type Page = {
   }>;
 };
 const page = (): Page => (globalThis as unknown as { document: Page }).document;
+/** Chooses New game on the start screen every game opens on (#407). */
+const newGame = (): void => {
+  const button = [...page().querySelectorAll(".loominate-start button")].find(
+    (b) => b.textContent === "New game",
+  );
+  if (!button) throw new Error("no start screen with New game");
+  button.click();
+};
 
 const options = (root: string) => ({
   root,
@@ -408,6 +416,7 @@ describe("loominate dev", () => {
     try {
       page().body.innerHTML = '<div id="app"></div>';
       await server.ssrLoadModule("/@loominate/main");
+      newGame();
       follow("Talk to the butler");
       expect(text()).toContain('"Sir?"');
       // Conversation mode: the cast, with the butler addressed, and the topics below.
@@ -472,6 +481,7 @@ describe("loominate dev", () => {
     try {
       page().body.innerHTML = '<div id="app"></div>';
       await server.ssrLoadModule("/@loominate/main");
+      newGame();
       expect(text()).toContain("A draughty hall. You're in hall.");
       // An action link stays on the passage, and its report shows as a notice.
       follow("Knock on the door");
@@ -572,6 +582,7 @@ storylet("Letter", { deck: "mornings", once: true });
     try {
       page().body.innerHTML = '<div id="app"></div>';
       await server.ssrLoadModule("/@loominate/main");
+      newGame();
       expect(labels().slice(0, 2).sort()).toEqual(["Card game", "Go for a long walk"]);
       follow("Go for a long walk");
       expect(text()).toContain("You walk to the mill and back.");
@@ -599,6 +610,7 @@ storylet("Letter", { deck: "mornings", once: true });
     try {
       page().body.innerHTML = '<div id="app"></div>';
       await server.ssrLoadModule("/@loominate/main");
+      newGame();
       expect(page().querySelector(".loominate-passage")?.textContent).toContain(
         "You wake in the dark.",
       );

@@ -129,6 +129,7 @@ export function loominateApp(config: ResolvedConfig, options: AppOptions = {}): 
           title: config.title ?? config.game.id,
           ...(config.author !== undefined && { author: config.author }),
           ...(config.seeds !== undefined && { seeds: config.seeds }),
+          ...(config.cover !== undefined && { cover: config.cover }),
         }).replace(/^\{/, "{ passages, page: { onError: report }, ")});`,
         "markStarted();",
         ...(inspector ? ["inspect(player);"] : []),

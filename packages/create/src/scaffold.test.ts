@@ -25,7 +25,7 @@ function install(root: string): void {
 /** jsdom's document, typed narrowly, since this package is compiled without DOM types. */
 type Page = {
   body: { innerHTML: string };
-  querySelector(selector: string): { textContent: string | null } | null;
+  querySelector(selector: string): { textContent: string | null; click(): void } | null;
 };
 const page = (): Page => (globalThis as unknown as { document: Page }).document;
 
@@ -105,6 +105,9 @@ describe("scaffolding a game", () => {
     try {
       page().body.innerHTML = '<div id="app"></div>';
       await server.ssrLoadModule("/@loominate/main");
+      // It opens on its start screen, with its title, then New game (#407).
+      expect(page().querySelector(".loominate-start h1")?.textContent).toBe("First Game");
+      page().querySelector(".loominate-start button")?.click();
       expect(page().querySelector(".loominate-passage")?.textContent).toContain(
         "You wake in a small, quiet room.",
       );

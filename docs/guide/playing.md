@@ -17,6 +17,8 @@ await playGame(document.querySelector("#app")!, {
 - `game` is the game's stable ID, which keeps its saves apart from other games', and its version, which saves record so the player can be told when a save is from another version.
 - `title` is shown on the start screen, and names story log exports.
 - `author`, if given, is shown under the title on the start screen, "by Your Name", and recorded in story log exports.
+- `cover`, if given, is the game's cover art on the start screen: `cover: { image: "cover.jpg", alt: "A lantern on a long road" }`, an image in the game's `public/` folder, with what it shows for those who can't see it. It goes in `loominate.config.ts` too.
+- `startScreen: false` goes straight into a new game instead of opening on the start screen, offering Continue only to a returning player, as for a game embedded in another page.
 - `page` passes options to the page, such as `pacing` or `continueLabel`.
 - `seeds` lets players see and share seeds; see [Shareable seeds](#shareable-seeds).
 - `seed` makes the master seed for a new game. Each new game gets a fresh random one by default.
@@ -24,7 +26,8 @@ await playGame(document.querySelector("#app")!, {
 
 ## What players get
 
-- **Autosave** after every move. Reloading the page carries straight on. When they come back after closing the tab, a start screen offers **Continue** or **New game**.
+- **A start screen,** the first thing every game shows: the title, the byline, and the cover if there is one, then **Continue** if there's a game in progress, **Load a saved game** if there are saves, and **New game**. Nothing begins until the player chooses.
+- **Autosave** after every move. Reloading the page in the same tab carries straight on, past the start screen; coming back after closing the tab opens on it again.
 - **Undo**, **Save**, **Load**, **Restart**, **Story log**, and **Transcript** in the game menu, in the page's header. Restart asks once more on the same button, "Confirm restart", and moving away cancels it. It starts the story over with a fresh seed, replacing the autosave. Each button has a tooltip saying what it does, which stays clear when a game rewords the buttons ([Rewording the library](messages.md)). Saved slots are kept, but the game left behind isn't saved: save first to keep it.
 - **The save menu**, which saves under a name, loads, saves over a slot, exports a save as a file, imports one, and deletes, asking first. It's a dialog that works from the keyboard and with screen readers.
 - A note when a save was made by another version of the game.

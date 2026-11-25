@@ -120,6 +120,8 @@ declare module "@loominate-if/core" {
     /** The start screen's choices. */
     "start.continue": None;
     "start.newGame": None;
+    /** The start screen's choice to load a saved game, when there are saves (#407). */
+    "start.load": None;
     /** A game in progress, on the start screen. */
     /** The start screen's byline: "by A. Writer". */
     "start.byline": { readonly author: string };
@@ -289,6 +291,7 @@ register("menu.confirmRestartTip", "Click again to start over. Moving away cance
 register("menu.confirmRestartLabel", "Confirm restart: start the story over. Saves are kept.");
 register("start.continue", "Continue");
 register("start.newGame", "New game");
+register("start.load", "Load a saved game");
 register("start.byline", ({ author }) => `by ${author}`);
 register("start.inProgress", "You have a game in progress.");
 register("start.inProgressAt", ({ where }) => `You have a game in progress, at ${where}.`);

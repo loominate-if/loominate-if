@@ -28,6 +28,12 @@ export type LoominateConfig = {
   /** Who wrote it: on its start screen and in story log exports. */
   readonly author?: string;
   /**
+   * The game's cover art, on its start screen: an image in the game's
+   * `public/` folder, by its path there, and what it shows, for those who
+   * can't see it.
+   */
+  readonly cover?: { readonly image: string; readonly alt: string };
+  /**
    * Shareable seeds: `true` makes each new game's seed memorable words, shown
    * in the game menu to share, and takes one to play; `"daily"` gives
    * everyone today's; any other text is the seed every game starts from.
@@ -173,7 +179,7 @@ function check(value: unknown): LoominateConfig {
       "export the game's configuration as the default: `export default defineConfig({ … })`.",
     );
   }
-  const { game, title, author, seeds, start, extensions, scope, inspector } = value;
+  const { game, title, author, cover, seeds, start, extensions, scope, inspector } = value;
   if (!isRecord(game) || !text(game.id) || !text(game.version)) {
     fail(
       '`game` needs an `id` and a `version`, like `game: { id: "lantern-road", version: "1.0.0" }`.',
@@ -183,6 +189,14 @@ function check(value: unknown): LoominateConfig {
   if (title !== undefined && typeof title !== "string") fail("`title` must be a string.");
   if (author !== undefined && typeof author !== "string") {
     fail('`author` must be a string, like `author: "A. Writer"`.');
+  }
+  if (
+    cover !== undefined &&
+    !(isRecord(cover) && text(cover.image) && typeof cover.alt === "string")
+  ) {
+    fail(
+      '`cover` needs an `image` and its `alt` text, like `cover: { image: "cover.jpg", alt: "A lighthouse in a storm" }`.',
+    );
   }
   if (seeds !== undefined && typeof seeds !== "boolean" && !text(seeds)) {
     fail(

@@ -95,6 +95,10 @@ export type LoominateConfig = {
     };
     readonly title?: string;
     readonly author?: string;
+    readonly cover?: {
+        readonly image: string;
+        readonly alt: string;
+    };
     readonly seeds?: boolean | "daily" | (string & {});
     readonly start: string;
     readonly extensions?: readonly string[];

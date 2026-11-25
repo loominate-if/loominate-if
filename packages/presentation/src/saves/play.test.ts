@@ -69,6 +69,8 @@ async function start(options: Partial<PlayOptions> = {}) {
     title: "Lantern Road",
     // A fixed seed, unless the test is about seeds.
     ...(!("seeds" in options) && { seed: () => "fixed" }),
+    // Straight into the game, unless the test is about the start screen (#407).
+    startScreen: false,
     ...options,
   });
   players.push(player);
@@ -376,6 +378,74 @@ describe("playing a game", () => {
     expect(container.querySelector(".loominate-start")?.textContent).toContain(
       "It was saved by version 0.9.0 of the game.",
     );
+  });
+});
+
+describe("the start screen every game opens on (#407)", () => {
+  it("shows a first-time player the title, the cover, and New game, which starts the story", async () => {
+    const game = await start({
+      startScreen: true,
+      author: "A. Writer",
+      cover: { image: "cover.jpg", alt: "A lantern on a long road" },
+      storage: createMemoryStorage(),
+    });
+    const screen = game.container.querySelector(".loominate-start");
+    expect(screen?.querySelector("h1")?.textContent).toBe("Lantern Road");
+    const cover = screen?.querySelector("img.loominate-cover");
+    expect([cover?.getAttribute("src"), cover?.getAttribute("alt")]).toEqual([
+      "cover.jpg",
+      "A lantern on a long road",
+    ]);
+    const buttons = [...(screen?.querySelectorAll("button") ?? [])].map((b) => b.textContent);
+    expect(buttons).toEqual(["New game"]);
+    // Nothing has begun until the player chooses.
+    expect(game.player.story).toBeUndefined();
+    expect(document.activeElement?.textContent).toBe("New game");
+    const violations = (
+      await axe.run(document, { rules: { "color-contrast": { enabled: false } } })
+    ).violations.flatMap((v) => v.nodes.map((n) => `${v.id}: ${n.html}`));
+    expect(violations).toEqual([]);
+    game.click("New game");
+    expect(game.text()).toContain("A long road.");
+    expect(game.container.querySelector(".loominate-start")).toBeNull();
+  });
+
+  it("offers Continue to a returning player, and Load when there are saves", async () => {
+    const storage = createMemoryStorage();
+    const first = await start({ startScreen: true, storage });
+    first.click("New game");
+    first.click("Walk on");
+    await createSaves({ storage, game }).save("slot-1", first.player.store ?? createStore(), {
+      label: "On the bridge",
+    });
+    await vi.waitFor(async () => {
+      expect(await autosaved(storage)).toBe("Bridge");
+    });
+    first.player.destroy();
+    closeTab();
+    const back = await start({ startScreen: true, storage });
+    const buttons = () =>
+      [...back.container.querySelectorAll(".loominate-start button")].map((b) => b.textContent);
+    expect(buttons()).toEqual(["Continue", "Load a saved game", "New game"]);
+    back.click("Load a saved game");
+    await vi.waitFor(() => {
+      expect(back.dialog().open).toBe(true);
+    });
+    expect(back.rows()).toContain("On the bridge");
+  });
+
+  it("carries straight on after a reload in the same tab, which isn't a return", async () => {
+    const storage = createMemoryStorage();
+    const first = await start({ startScreen: true, storage });
+    first.click("New game");
+    first.click("Walk on");
+    await vi.waitFor(async () => {
+      expect(await autosaved(storage)).toBe("Bridge");
+    });
+    first.player.destroy();
+    const reloaded = await start({ startScreen: true, storage });
+    expect(reloaded.container.querySelector(".loominate-start")).toBeNull();
+    expect(reloaded.text()).toContain("A stone bridge.");
   });
 });
 

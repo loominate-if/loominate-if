@@ -191,6 +191,9 @@ describe("the pseudo-locale (#60)", () => {
       doc.body.dispatchEvent(new page.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
       doc.body.click();
     };
+    // The start screen every game opens on (#407), then into the game.
+    look();
+    press("⟦start.newGame⟧");
     look();
     // A thing's menu, and the form asking how many.
     press("Ωpurse");

@@ -94,6 +94,11 @@ describe("loominate.config.ts", () => {
     ).toBe(
       'loominate.config.ts: `seeds` must be `true`, `false`, `"daily"`, or the seed every game starts from, like `seeds: true`.',
     );
+    expect(
+      await problem('{ game: { id: "g", version: "1" }, start: "S", cover: "cover.jpg" } as never'),
+    ).toBe(
+      'loominate.config.ts: `cover` needs an `image` and its `alt` text, like `cover: { image: "cover.jpg", alt: "A lighthouse in a storm" }`.',
+    );
     const noDefault = game({ "loominate.config.ts": "export const config = {};\n" });
     await expect(loadConfig(noDefault, options)).rejects.toThrow(
       "loominate.config.ts: export the game's configuration as the default: `export default defineConfig({ … })`.",
