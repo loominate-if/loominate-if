@@ -207,6 +207,12 @@ export function stepToward(npc: ObjectRef, target: ObjectRef): boolean {
   return placeOf(body)?.id === to.id;
 }
 
+/** Whether there's a way from where `body` is to `place`, through exits, or they're there. @internal */
+export function _canReach(body: ObjectRef, place: ObjectRef): boolean {
+  const from = placeOf(body);
+  return from !== undefined && (from.id === place.id || firstStep(from, place) !== undefined);
+}
+
 /** The first direction of a shortest way from `from` to `to`, by breadth-first search. */
 function firstStep(from: ObjectRef, to: ObjectRef): string | undefined {
   const first = new Map<string, string>([[from.id, ""]]);

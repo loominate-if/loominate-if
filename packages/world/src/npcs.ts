@@ -20,7 +20,8 @@ import {
   type ActionOutcome,
   type ObjectRef,
 } from "@loominate-if/core";
-import { bodyOf, currentPlayerBody, isBody, mindFor, type Mind } from "./actors.js";
+import { bodyOf, currentPlayerBody, isBody, mindFor, mindsIn, type Mind } from "./actors.js";
+import { noteSights } from "./knowledge.js";
 import { clock } from "./clock.js";
 import { canHear, canSee } from "./scope.js";
 import { blockedReason, exitsOf, type Exit } from "./exits.js";
@@ -151,7 +152,10 @@ export const go = action<{ way: string }>("go", {
   },
   run: ({ way, body }) => {
     const exit = body ? wayFrom(body, way) : undefined;
-    if (exit && body) move(body, exit.to);
+    if (!exit || !body) return;
+    move(body, exit.to);
+    // They see where they've come to, as the player does (#139).
+    noteSights(body, mindsIn(body));
   },
 });
 

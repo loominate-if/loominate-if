@@ -63,8 +63,11 @@ messages.register(
   { source: SOURCE },
 );
 
-/** What a companion is doing: going with the player, or waiting where they are. */
-export type CompanionState = "accompanying" | "waiting";
+/**
+ * What a companion is doing: going with the player, waiting where they are,
+ * or off on an errand of their own, sent with `sendOff`.
+ */
+export type CompanionState = "accompanying" | "waiting" | "independent";
 
 /** The companions, by mind ID, as given, in the order made. */
 const companions = new Map<string, ObjectRef>();
@@ -170,6 +173,12 @@ export function accompany(npc: ObjectRef): void {
 /** Has a companion wait where they are: "Mira waits here." In story.ts, it's how they start. */
 export function waitHere(npc: ObjectRef): void {
   set("waitHere", npc, "waiting", "companions.waits");
+}
+
+/** Sets a companion's state without narrating it, as an errand does, which says its own. @internal */
+export function _setCompanionState(npc: ObjectRef, to: CompanionState): void {
+  const mind = checked("sendOff", npc);
+  state.of = { ...state.of, [mind]: to };
 }
 
 /** Whether an NPC is a companion accompanying the player, so their timetable leaves them be. @internal */
