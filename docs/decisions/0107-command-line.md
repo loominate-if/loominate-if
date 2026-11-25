@@ -38,6 +38,7 @@ The command line is a keyboard command line that accepts only currently offered 
   - Tab completes the suggestion picked, and Escape closes the list or clears the field.
   - With the list closed, Up and Down recall earlier commands.
   - What it says is in a status region.
+  - Screen readers echo the typing but not the list that appears, so half a second after typing pauses the status reads the count and the first three: "2 suggestions: Ring the bell, Ring for help." Picking or taking one before then cancels it.
 - **Focus stays in the field:** while a command runs, the page reads what's new through its live region instead of moving focus to the passage heading. A link followed by mouse or keyboard behaves as before.
 
 ## Consequences

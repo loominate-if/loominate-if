@@ -80,6 +80,8 @@ declare module "@loominate-if/core" {
     "command.which": { readonly options: readonly string[] };
     /** What's typed means nothing on offer, and what is: "That isn't something you can do here. You could …" */
     "command.none": { readonly options: readonly string[]; readonly more: boolean };
+    /** What the suggestions are, read once typing pauses: "2 suggestions: Ring the bell, Ring for help." */
+    "command.shown": { readonly count: number; readonly options: readonly string[] };
     /** The story log's title. */
     "log.title": None;
     /** The full transcript's title. */
@@ -223,6 +225,13 @@ register("command.none", ({ options, more }) =>
   options.length === 0
     ? "That isn't something you can do here, and there's nothing to choose just now."
     : `That isn't something you can do here. You could: ${options.join(", ")}${more ? ", and more" : ""}.`,
+);
+register("command.shown", ({ count, options }) =>
+  count === 0
+    ? "No suggestions."
+    : `${String(count)} ${count === 1 ? "suggestion" : "suggestions"}: ${options.join(", ")}${
+        count > options.length ? `, and ${String(count - options.length)} more` : ""
+      }.`,
 );
 register("menu.transcriptTip", "Every event of the game so far, for testing and bug reports.");
 register("log.title", "Story log");

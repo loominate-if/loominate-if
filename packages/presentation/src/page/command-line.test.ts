@@ -139,6 +139,29 @@ describe("the command line (#131)", () => {
     });
   });
 
+  it("reads the suggestions once typing pauses, since a screen reader only echoes the typing", async () => {
+    const { type, key, said } = play();
+    commandSources.register("cl-extra", () => [{ label: "Ring for help", run: () => undefined }]);
+    cleanup.push(() => {
+      commandSources.remove("cl-extra");
+    });
+    type("r");
+    type("ring");
+    expect(said()).toBe("");
+    await vi.waitFor(() => {
+      expect(said()).toBe("2 suggestions: Ring the bell, Ring for help.");
+    });
+    type("xyzzy");
+    await vi.waitFor(() => {
+      expect(said()).toBe("No suggestions.");
+    });
+    // Taken before the pause is over: what it did is read, not the suggestions.
+    type("ring bell");
+    key("Enter");
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(said()).toBe("");
+  });
+
   it("takes things' menu actions by label or verb phrase, and says why one can't be done", () => {
     const { type, key, said, story } = play();
     type("pull on bell");

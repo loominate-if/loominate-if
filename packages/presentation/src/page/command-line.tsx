@@ -7,7 +7,7 @@
  * the page's live region.
  */
 import { message } from "@loominate-if/core";
-import { useRef, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import "../messages.js";
 import { matchCommands, type Command } from "./command.js";
 import { now } from "./view.js";
@@ -16,6 +16,10 @@ import { now } from "./view.js";
 const SHOWN = 8;
 /** How many of what's possible a "You could" lists. */
 const COULD = 6;
+/** How many suggestions are read by name once typing pauses. */
+const READ = 3;
+/** How long typing pauses before the suggestions are read, in milliseconds. */
+const PAUSE = 500;
 
 let lines = 0;
 
@@ -38,6 +42,29 @@ export function CommandLine(props: {
   const matches = typed.trim() === "" ? [] : matchCommands(typed, props.commands()).matches;
   const shown = matches.slice(0, SHOWN);
   const expanded = listOpen && shown.length > 0;
+
+  // A screen reader echoes what's typed but not the list that appears below
+  // it, so once typing pauses the suggestions are read through the status.
+  const pause = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const quiet = (): void => {
+    clearTimeout(pause.current);
+  };
+  useEffect(() => quiet, []);
+  const readSoon = (value: string): void => {
+    quiet();
+    if (value.trim() === "") return;
+    pause.current = setTimeout(() => {
+      const found = matchCommands(value, props.commands()).matches;
+      now(() => {
+        setSaid(
+          message("command.shown", {
+            count: found.length,
+            options: found.slice(0, READ).map((c) => c.label),
+          }),
+        );
+      });
+    }, PAUSE);
+  };
 
   const take = (command: Command): void => {
     setListOpen(false);
@@ -79,6 +106,8 @@ export function CommandLine(props: {
   };
 
   const onKeyDown = (event: KeyboardEvent): void => {
+    // Picking, taking, or closing: the suggestions needn't be read any more.
+    if (["Enter", "Escape", "ArrowDown", "ArrowUp", "Tab"].includes(event.key)) quiet();
     if (event.key === "Enter") {
       event.preventDefault();
       submit();
@@ -157,6 +186,7 @@ export function CommandLine(props: {
             setSaid("");
           });
           back.current = -1;
+          readSoon(value);
         }}
         onKeyDown={(event) => {
           now(() => {

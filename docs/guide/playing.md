@@ -44,7 +44,7 @@ The game menu's **Command line** turns on a text field below the passage, for pl
   - several matches: "Did you mean Ask about the weather or Ask about the butler?", listed to pick;
   - none: "That isn't something you can do here. You could: …";
   - something offered but disabled: its reason, "Polish the bell: You have no cloth.".
-- **Screen readers:** focus stays in the field, and what a command does is read through the page's live region, as after any move. A link followed with the mouse or keyboard moves focus as it always does. Speech tools such as Voice Control and Voice Access type into the field like a keyboard, so no speech input of the game's own is needed. Suggestions help most with invented names that dictation gets wrong.
+- **Screen readers:** focus stays in the field. When typing pauses, the suggestions are read: "2 suggestions: Ring the bell, Ring for help." What a command does is read through the page's live region, as after any move. A link followed with the mouse or keyboard moves focus as it always does. Speech tools such as Voice Control and Voice Access type into the field like a keyboard, so no speech input of the game's own is needed. Suggestions help most with invented names that dictation gets wrong.
 - **An action that asks for a number** is taken from its menu, which asks for it, rather than typed.
 - **A game adds commands** with `commandSources.register(name, (game) => [...])`, each a `label`, optional `phrases`, an optional `disabled` reason, and `run`.
 
