@@ -170,12 +170,6 @@ export const askToCome: Action<{
 }>;
 
 // @public
-export const askToSearch: Action<{
-    thing: ActingOn;
-    place: ActingOn;
-}>;
-
-// @public
 export const askToWait: Action<{
     thing: ActingOn;
 }>;

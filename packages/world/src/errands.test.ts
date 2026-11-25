@@ -1,5 +1,7 @@
 /** Splitting up (#139): a companion sent off on an errand, what they find, and their report on reunion. */
 import {
+  actionsFor,
+  statusOf,
   createEventRecord,
   createStore,
   createStory,
@@ -13,7 +15,6 @@ import { storyLog } from "@loominate-if/presentation";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   actor,
-  askToSearch,
   companion,
   companionState,
   connect,
@@ -96,10 +97,25 @@ const told = () => {
     .map((e) => e.text);
 };
 const where = () => placeOf(mira)?.id;
+/** What someone's menu offers now, by label, as the page shows it. */
+const menu = (who: { readonly id: string }) =>
+  actionsFor(who)
+    .filter((c) => statusOf(c).hidden === undefined)
+    .map((c) => c.action.label(c.args));
+/** Takes what someone's menu offers, by its label. */
+const choose = (who: { readonly id: string }, label: string) => {
+  const call = actionsFor(who).find((c) => c.action.label(c.args) === label);
+  if (!call) throw new Error(`no "${label}" in ${JSON.stringify(menu(who))}`);
+  act(call);
+};
 
 describe("splitting up (#139)", () => {
   it("sends a companion off to search, there and back, and they tell what they found", () => {
-    act(askToSearch({ thing: mira, place: library } as never));
+    // On her menu, from the hall, for each searchable place.
+    expect(menu(mira)).toEqual(
+      expect.arrayContaining(["Ask Mira to search the library", "Ask Mira to search the cellar"]),
+    );
+    choose(mira, "Ask Mira to search the library");
     expect(told()).toEqual([
       "You ask Mira to search the library.",
       "Mira sets off for the library.",
@@ -153,12 +169,15 @@ describe("splitting up (#139)", () => {
   });
 
   it("goes through obeying, so a companion can refuse", () => {
-    act(askToSearch({ thing: tom, place: cellar } as never));
+    choose(tom, "Ask Tom to search the cellar");
     expect(told()).toContain("“Not the cellar,” says Tom.");
     expect(companionState(tom)).toBe("accompanying");
   });
 
   it("isn't offered for where they already are, nor sent to something that isn't a place", () => {
+    story.goTo("Cellar");
+    expect(menu(mira)).not.toContain("Ask Mira to search the cellar");
+    expect(menu(mira)).toContain("Ask Mira to search the library");
     expect(() => {
       sendOff(mira, { to: bureau });
     }).toThrow("isn't a place");
@@ -168,7 +187,7 @@ describe("splitting up (#139)", () => {
   });
 
   it("gives the same moves the same results (determinism)", () => {
-    act(askToSearch({ thing: mira, place: library } as never));
+    choose(mira, "Ask Mira to search the library");
     wait();
     wait();
     wait();
@@ -177,7 +196,7 @@ describe("splitting up (#139)", () => {
     record = createEventRecord(store);
     story = createStory(store, record, passages, { start: "Hall" });
     story.begin();
-    act(askToSearch({ thing: mira, place: library } as never));
+    choose(mira, "Ask Mira to search the library");
     wait();
     wait();
     wait();

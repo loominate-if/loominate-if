@@ -76,9 +76,6 @@ const errandIn = (mind: string) => {
   return e && { to: e.to, then: e.then, arrived: e.arrived, knew: [...e.knew] };
 };
 
-/** Places a companion can be asked to search, in the order marked. */
-const searchablePlaces: ObjectRef[] = [];
-
 /**
  * Sends a companion off on an errand of their own, during play: they set
  * off for `to`, a step a turn, even unseen, seeing what's there as they
@@ -130,18 +127,6 @@ export function errandOf(
 ): { readonly to: string; readonly then: ErrandEnd } | undefined {
   const e = state.of[mindFor(npc, "errandOf").id];
   return e && { to: e.to, then: e.then };
-}
-
-/**
- * Marks places a companion can be asked to search, in `story.ts`: "Ask Mira
- * to search the library" is offered on a companion's menu for each, but
- * the one they're in. Searching is an errand there and back.
- */
-export function searchable(...places: readonly ObjectRef[]): void {
-  for (const p of places) {
-    if (!isPlace(p)) throw new StateError(`searchable: ${JSON.stringify(p.id)} isn't a place.`);
-    if (!searchablePlaces.some((x) => x.id === p.id)) searchablePlaces.push(p);
-  }
 }
 
 // On an errand, they act even unseen.
@@ -206,11 +191,6 @@ export const search = action<{ place: ObjectRef }>("companion:search", {
 });
 // A place is searched by going there, not reached for from here.
 _noReachFor(search);
-
-/** The places a companion can be asked to search, in the order marked. @internal */
-export function _searchablePlaces(): readonly ObjectRef[] {
-  return searchablePlaces;
-}
 
 /** The companions on errands now, by mind ID. @internal */
 export function _onErrand(): readonly string[] {

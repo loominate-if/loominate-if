@@ -374,16 +374,16 @@ export {
   type SharingPolicy,
 } from "./companions.js";
 export { found, knowledgeSharing } from "./sharing.js";
-export { errandOf, search, searchable, sendOff, type ErrandEnd } from "./errands.js";
+export { errandOf, search, sendOff, type ErrandEnd } from "./errands.js";
 export { follow } from "./following.js";
 export {
   askFor,
   askToCome,
-  askToSearch,
   askToWait,
   comeAlong,
   obeying,
   order,
+  searchable,
   stay,
   type Ordered,
 } from "./orders.js";
