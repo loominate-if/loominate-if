@@ -125,6 +125,14 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
 .loominate-action-list-item[aria-disabled="true"] { color: ${v("color-muted")}; border-style: dashed; cursor: not-allowed; }
 .loominate-action-why { margin-inline-start: 0.5em; color: ${v("color-muted")}; font-size: 0.9em; }
 .loominate-page[data-layout="conversation"] .loominate-notice[data-tags~="topic"] { font-style: normal; }
+.loominate-command { position: relative; margin-block-start: 1.5em; }
+.loominate-command-label { display: block; color: ${v("color-muted")}; font-size: 0.9em; }
+.loominate-command-input { box-sizing: border-box; width: 100%; font: inherit; padding: 0.4em 0.6em; color: ${v("color-text")}; background: ${v("color-surface")}; border: 1px solid ${v("color-border")}; border-radius: ${v("radius")}; }
+.loominate-command-list { list-style: none; margin: 0.25em 0 0; padding: 0.25em 0; background: ${v("color-surface")}; border: 1px solid ${v("color-border")}; border-radius: ${v("radius")}; }
+.loominate-command-option { padding: 0.25em 0.6em; cursor: pointer; }
+.loominate-command-option[aria-selected="true"] { outline: 2px solid ${v("color-focus")}; outline-offset: -2px; }
+.loominate-command-option[aria-disabled="true"], .loominate-command-why { color: ${v("color-muted")}; }
+.loominate-command-said:empty { display: none; }
 .loominate-byline { color: ${v("color-muted")}; font-style: italic; }
 .loominate-system { color: ${v("color-muted")}; font-size: 0.9em; }
 .loominate-notice[data-tags~="player"] { color: ${v("color-muted")}; font-style: italic; }

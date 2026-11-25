@@ -64,6 +64,24 @@ declare module "@loominate-if/core" {
     /** The game menu's button for the full transcript, and its tooltip. */
     "menu.transcript": None;
     "menu.transcriptTip": None;
+    /** Turning the command line on and off, and its tooltip. */
+    "menu.commandLine": None;
+    "menu.commandLineTip": None;
+    /** The command line's label, and how to use it, for screen readers. */
+    "command.label": None;
+    "command.help": None;
+    /** Why something on offer can't be done, when the game doesn't say. */
+    "command.unavailable": None;
+    /** The name of its list of suggestions. */
+    "command.suggestions": None;
+    /** A command that can't be done now: "Open the door: It's locked." */
+    "command.cannot": { readonly what: string; readonly why: string };
+    /** What's typed could mean several: "Did you mean ask about the weather or ask about the butler?" */
+    "command.which": { readonly options: readonly string[] };
+    /** What's typed means nothing on offer, and what is: "That isn't something you can do here. You could …" */
+    "command.none": { readonly options: readonly string[]; readonly more: boolean };
+    /** What the suggestions are, read once typing pauses: "2 suggestions: Ring the bell, Ring for help." */
+    "command.shown": { readonly count: number; readonly options: readonly string[] };
     /** The story log's title. */
     "log.title": None;
     /** The full transcript's title. */
@@ -187,6 +205,34 @@ register("menu.restartTip", "Start the story over from the beginning. Your saves
 register("menu.storyLog", "Story log");
 register("menu.storyLogTip", "Read the story so far, as a book of your playthrough.");
 register("menu.transcript", "Transcript");
+register("menu.commandLine", "Command line");
+register("menu.commandLineTip", "Type what to do instead of choosing it.");
+register("command.label", "What next?");
+register(
+  "command.help",
+  "Type what to do. Suggestions follow; Up and Down pick one, Enter does it.",
+);
+register("command.suggestions", "Suggestions");
+register("command.unavailable", "That can't be done just now.");
+register("command.cannot", ({ what, why }) => `${what}: ${why}`);
+/** "a", "a or b", "a, b, or c". */
+const either = (items: readonly string[]): string =>
+  items.length <= 2
+    ? items.join(" or ")
+    : `${items.slice(0, -1).join(", ")}, or ${items.at(-1) ?? ""}`;
+register("command.which", ({ options }) => `Did you mean ${either(options)}?`);
+register("command.none", ({ options, more }) =>
+  options.length === 0
+    ? "That isn't something you can do here, and there's nothing to choose just now."
+    : `That isn't something you can do here. You could: ${options.join(", ")}${more ? ", and more" : ""}.`,
+);
+register("command.shown", ({ count, options }) =>
+  count === 0
+    ? "No suggestions."
+    : `${String(count)} ${count === 1 ? "suggestion" : "suggestions"}: ${options.join(", ")}${
+        count > options.length ? `, and ${String(count - options.length)} more` : ""
+      }.`,
+);
 register("menu.transcriptTip", "Every event of the game so far, for testing and bug reports.");
 register("log.title", "Story log");
 register("log.transcriptTitle", "Transcript");

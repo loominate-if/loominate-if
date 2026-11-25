@@ -168,7 +168,32 @@ function moveLabel(move: Choice | BeatNode | ActionMove): string {
 }
 
 /** The data the game menu shows. */
-type MenuData = { readonly canUndo: boolean };
+type MenuData = { readonly canUndo: boolean; readonly commandLine: boolean };
+
+/**
+ * Where the player's choice of the command line is kept: one key for every
+ * game, since it's how they like to play, not part of any game (ADR 0107).
+ */
+const COMMAND_LINE_KEY = "loominate:command-line";
+
+/** Whether the player last turned the command line on or off, if they have. */
+function storedCommandLine(doc: Document): boolean | undefined {
+  try {
+    const v = doc.defaultView?.localStorage.getItem(COMMAND_LINE_KEY);
+    return v === "on" ? true : v === "off" ? false : undefined;
+  } catch {
+    // Storage blocked, as in some private windows: the default stands.
+    return undefined;
+  }
+}
+
+function storeCommandLine(doc: Document, on: boolean): void {
+  try {
+    doc.defaultView?.localStorage.setItem(COMMAND_LINE_KEY, on ? "on" : "off");
+  } catch {
+    // Storage blocked: it lasts this visit only.
+  }
+}
 
 /** What the game menu can do, supplied by the shell. */
 type MenuActions = {
@@ -177,23 +202,31 @@ type MenuActions = {
   readonly open: (focus: "save" | "load") => void;
   readonly restart: () => void;
   readonly log: (view: "log" | "transcript") => void;
+  readonly commandLine: () => boolean;
+  readonly toggleCommandLine: () => void;
 };
 
 /** The game menu widget: Undo, Save, Load, and Restart buttons. */
 function gameMenu(actions: MenuActions): WidgetDefinition<MenuData> {
   return widget({
-    data: () => ({ canUndo: actions.canUndo() }),
+    data: () => ({ canUndo: actions.canUndo(), commandLine: actions.commandLine() }),
     view: componentView<MenuData>(({ data }) => (
-      <GameMenu canUndo={data.value.canUndo} actions={actions} />
+      <GameMenu
+        canUndo={data.value.canUndo}
+        commandLine={data.value.commandLine}
+        actions={actions}
+      />
     )),
   });
 }
 
 function GameMenu({
   canUndo,
+  commandLine,
   actions,
 }: {
   readonly canUndo: boolean;
+  readonly commandLine: boolean;
   readonly actions: MenuActions;
 }) {
   // Restart abandons the game in play, so it asks once more on the same
@@ -267,6 +300,16 @@ function GameMenu({
         }}
       >
         {message("menu.transcript")}
+      </button>
+      <button
+        type="button"
+        title={message("menu.commandLineTip")}
+        aria-pressed={commandLine ? "true" : "false"}
+        onClick={() => {
+          actions.toggleCommandLine();
+        }}
+      >
+        {message("menu.commandLine")}
       </button>
     </div>
   );
@@ -369,7 +412,16 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
     title: options.title ?? options.game.id,
     ...(options.author !== undefined && { author: options.author }),
   });
+  // The command line: as the player last chose, or as the game sets it.
+  let commandLine = storedCommandLine(host.ownerDocument) ?? options.page?.commandLine ?? false;
   const menuWidget = gameMenu({
+    commandLine: () => commandLine,
+    toggleCommandLine: () => {
+      commandLine = !commandLine;
+      storeCommandLine(host.ownerDocument, commandLine);
+      page?.showCommandLine(commandLine);
+      changed();
+    },
     log: (view) => {
       logs.open(view);
     },
@@ -449,6 +501,7 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
       { story, record },
       {
         ...options.page,
+        commandLine,
         onMove: (move) => {
           undoable.checkpoint(moveLabel(move));
           autosave();

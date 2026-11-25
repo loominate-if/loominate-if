@@ -49,6 +49,8 @@ export type Menus = {
   close(): void;
   /** Makes `anchor` a button that opens the menu for `source`. */
   trigger(anchor: HTMLElement, source: MenuSource): void;
+  /** The menus whose buttons are on the page now, in the order made: what the command line offers. @internal */
+  _onPage(): readonly MenuSource[];
 };
 
 let menus = 0;
@@ -63,8 +65,8 @@ type Props = {
   readonly close: (focusAnchor?: boolean) => void;
 };
 
-/** A choice as the menu lists it: its call, what it says, and how it stands now. */
-type Listed = {
+/** A choice as the menu lists it: its call, what it says, and how it stands now. @internal */
+export type _Listed = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly call: ActionCall<any>;
   readonly label: string;
@@ -78,7 +80,7 @@ type Listed = {
 function Menu({ id, source, anchor, host, close }: Props) {
   // What it's asking for, and which choice asked, so going back lands on it.
   const [asking, setAsking] = useState<
-    { readonly listed: Listed; readonly at: number } | undefined
+    { readonly listed: _Listed; readonly at: number } | undefined
   >(undefined);
   const holder = useRef<HTMLSpanElement>(null);
   const focusAt = useRef(0);
@@ -135,13 +137,8 @@ function List({
   host,
   close,
   ask,
-}: Props & { readonly ask: (listed: Listed, at: number) => void }) {
-  const choices: readonly MenuChoice[] =
-    typeof source === "string" ? actionsFor({ id: source }).map((call) => ({ call })) : source();
-  const listed: Listed[] = choices.flatMap(({ call, label }) => {
-    const status = statusOf(call);
-    return status.hidden === undefined ? [{ call, label: label ?? status.label, status }] : [];
-  });
+}: Props & { readonly ask: (listed: _Listed, at: number) => void }) {
+  const listed = _menuChoices(source);
   const onKeyDown = (event: KeyboardEvent): void => {
     const items = [
       ...(event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>("[role=menuitem]"),
@@ -222,7 +219,7 @@ function Ask({
   back,
 }: {
   readonly id: string;
-  readonly listed: Listed;
+  readonly listed: _Listed;
   readonly host: MenuHost;
   readonly anchor: HTMLElement;
   readonly close: () => void;
@@ -325,6 +322,16 @@ function Ask({
   );
 }
 
+/** What a menu lists: the choices it offers, apart from those verify hides. @internal */
+export function _menuChoices(source: MenuSource): _Listed[] {
+  const choices: readonly MenuChoice[] =
+    typeof source === "string" ? actionsFor({ id: source }).map((call) => ({ call })) : source();
+  return choices.flatMap(({ call, label }) => {
+    const status = statusOf(call);
+    return status.hidden === undefined ? [{ call, label: label ?? status.label, status }] : [];
+  });
+}
+
 /** Creates the menus for a page. */
 export function createMenus(host: MenuHost): Menus {
   const { doc } = host;
@@ -363,7 +370,10 @@ export function createMenus(host: MenuHost): Menus {
     close();
   });
 
+  // Each menu's button, for the command line, while it's on the page.
+  const triggers = new Map<HTMLElement, MenuSource>();
   const trigger = (anchor: HTMLElement, source: MenuSource): void => {
+    triggers.set(anchor, source);
     anchor.classList.add("loominate-menu-link");
     anchor.setAttribute("aria-haspopup", "menu");
     anchor.setAttribute("aria-expanded", "false");
@@ -379,5 +389,14 @@ export function createMenus(host: MenuHost): Menus {
     });
   };
 
-  return { open, close: () => close(), trigger };
+  const _onPage = (): MenuSource[] => {
+    const out: MenuSource[] = [];
+    for (const [anchor, source] of triggers) {
+      if (!anchor.isConnected) triggers.delete(anchor);
+      // A thing's name shown twice is one menu.
+      else if (typeof source !== "string" || !out.includes(source)) out.push(source);
+    }
+    return out;
+  };
+  return { open, close: () => close(), trigger, _onPage };
 }

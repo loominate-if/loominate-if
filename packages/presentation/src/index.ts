@@ -81,3 +81,10 @@ export {
   type ExportFormat,
   type ExportOptions,
 } from "./page/export.js";
+export {
+  commandSources,
+  matchCommands,
+  type Command,
+  type CommandMatch,
+  type CommandSource,
+} from "./page/command.js";
