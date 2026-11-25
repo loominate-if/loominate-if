@@ -125,6 +125,7 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
 .loominate-action-list-item[aria-disabled="true"] { color: ${v("color-muted")}; border-style: dashed; cursor: not-allowed; }
 .loominate-action-why { margin-inline-start: 0.5em; color: ${v("color-muted")}; font-size: 0.9em; }
 .loominate-page[data-layout="conversation"] .loominate-notice[data-tags~="topic"] { font-style: normal; }
+.loominate-system { color: ${v("color-muted")}; font-size: 0.9em; }
 .loominate-notice[data-tags~="player"] { color: ${v("color-muted")}; font-style: italic; }
 /* A layout's placed passage parts: prose as a strip of context, links in a disclosure. */
 .loominate-region[data-region="context"] { font-family: ${v("font-body")}; font-size: 0.95em; color: ${v("color-muted")}; background: none; border: none; padding: 0; }
