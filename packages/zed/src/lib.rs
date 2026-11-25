@@ -4,63 +4,57 @@
 use std::fs;
 use zed_extension_api::{self as zed, LanguageServerId, Result};
 
-/// The language server's package, and its entry, inside a `node_modules`.
+/// The language server's package, and its entry inside a `node_modules`.
 const PACKAGE: &str = "@loominate-if/language-server";
 const ENTRY: &str = "node_modules/@loominate-if/language-server/dist/bin.js";
 
-struct Loominate {
-    /// The entry of the copy this extension installed from npm, once it has.
-    installed: Option<String>,
-}
+/// The launcher that picks which server to run, in Node, which sees the real file system.
+const LAUNCHER: &str = include_str!("launcher.mjs");
+
+struct Loominate;
 
 impl Loominate {
-    /// The game's own copy, so its compiler matches the game's: `node_modules` at the root of
-    /// the opened folder.
-    fn games_own(worktree: &zed::Worktree) -> Option<String> {
-        worktree
-            .read_text_file(&format!("node_modules/{PACKAGE}/package.json"))
-            .ok()
-            .map(|_| format!("{}/{ENTRY}", worktree.root_path()))
+    /// True if the opened folder has a server of its own: the game's, or a Loominate IF
+    /// checkout's. The launcher checks again, as Zed may not show this extension ignored files.
+    fn has_own(worktree: &zed::Worktree) -> bool {
+        [
+            format!("node_modules/{PACKAGE}/package.json"),
+            "packages/language-server/package.json".to_string(),
+        ]
+        .iter()
+        .any(|path| worktree.read_text_file(path).is_ok())
     }
 
-    /// A copy installed from npm into the extension's own folder, for games that don't
-    /// depend on the server.
-    fn from_npm(&mut self, id: &LanguageServerId) -> Result<String> {
-        if let Some(entry) = &self.installed {
-            if fs::metadata(entry).is_ok() {
-                return Ok(entry.clone());
-            }
-        }
+    /// The latest release from npm, installed into the extension's own folder, if there is one.
+    fn from_npm(id: &LanguageServerId) -> Option<String> {
         zed::set_language_server_installation_status(
             id,
             &zed::LanguageServerInstallationStatus::CheckingForUpdate,
         );
-        let version = zed::npm_package_latest_version(PACKAGE).map_err(|_| {
-            format!(
-                "Loominate IF: this folder has no {PACKAGE}. Install it in your game with \
-                 `npm install --save-dev {PACKAGE}`, then open the game's folder."
-            )
-        })?;
-        if zed::npm_package_installed_version(PACKAGE)?.as_deref() != Some(version.as_str()) {
+        let version = zed::npm_package_latest_version(PACKAGE).ok()?;
+        if zed::npm_package_installed_version(PACKAGE).ok()?.as_deref() != Some(version.as_str()) {
             zed::set_language_server_installation_status(
                 id,
                 &zed::LanguageServerInstallationStatus::Downloading,
             );
-            zed::npm_install_package(PACKAGE, &version)?;
+            zed::npm_install_package(PACKAGE, &version).ok()?;
         }
-        let entry = std::env::current_dir()
+        Some(Self::here(ENTRY).ok()?)
+    }
+
+    /// A path in the extension's own folder.
+    fn here(path: &str) -> Result<String> {
+        Ok(std::env::current_dir()
             .map_err(|e| e.to_string())?
-            .join(ENTRY)
+            .join(path)
             .to_string_lossy()
-            .into_owned();
-        self.installed = Some(entry.clone());
-        Ok(entry)
+            .into_owned())
     }
 }
 
 impl zed::Extension for Loominate {
     fn new() -> Self {
-        Loominate { installed: None }
+        Loominate
     }
 
     fn language_server_command(
@@ -68,13 +62,20 @@ impl zed::Extension for Loominate {
         id: &LanguageServerId,
         worktree: &zed::Worktree,
     ) -> Result<zed::Command> {
-        let entry = match Self::games_own(worktree) {
-            Some(entry) => entry,
-            None => self.from_npm(id)?,
+        let installed = if Self::has_own(worktree) {
+            String::new()
+        } else {
+            Self::from_npm(id).unwrap_or_default()
         };
+        fs::write("launcher.mjs", LAUNCHER).map_err(|e| e.to_string())?;
         Ok(zed::Command {
             command: zed::node_binary_path()?,
-            args: vec![entry, "--stdio".into()],
+            args: vec![
+                Self::here("launcher.mjs")?,
+                worktree.root_path(),
+                installed,
+                "--stdio".into(),
+            ],
             env: Default::default(),
         })
     }

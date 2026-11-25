@@ -56,6 +56,25 @@ describe("the Tree-sitter grammar", { timeout: 120_000 }, () => {
 });
 
 describe("the Zed extension", () => {
+  it("explains what to install when the folder has no language server", () => {
+    let error: unknown;
+    try {
+      execFileSync(
+        "node",
+        [join(ZED, "src/launcher.mjs"), join(tmpdir(), "no-game"), "", "--stdio"],
+        {
+          stdio: "pipe",
+          encoding: "utf8",
+        },
+      );
+    } catch (e) {
+      error = e;
+    }
+    expect((error as { stderr?: string } | undefined)?.stderr).toContain(
+      "npm install --save-dev @loominate-if/language-server",
+    );
+  });
+
   it("highlights with the grammar's own queries", () => {
     for (const query of ["highlights.scm", "injections.scm"]) {
       expect(

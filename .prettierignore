@@ -8,3 +8,4 @@ scratch
 # Tree-sitter generates these from grammar.js (#411).
 packages/tree-sitter-weft/src
 packages/zed/target
+packages/zed/grammars

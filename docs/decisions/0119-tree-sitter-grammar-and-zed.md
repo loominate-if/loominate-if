@@ -15,7 +15,8 @@ Zed colors a language only through a Tree-sitter grammar, which it fetches from 
 - **Directives it knows by name:** `if`, `else if`, and `else`, and those core and the world model register. A test keeps the list in step with the packages. Others, from kits, read as code, which is what they'd look like without the kit.
 - **Inline code is TypeScript,** injected into `{ … }` expressions, code after `:`, and directives' arguments.
 - **The Zed extension is `packages/zed`:** the language's settings, queries (highlights and injections copied from the grammar, which a test checks), brackets, and an outline of passages. Its Rust code starts the server.
-- **The server comes from the game first.** The extension runs the game's own `node_modules/@loominate-if/language-server`, so the compiler matches the game's. If the game doesn't depend on it, the extension installs the latest release from npm into its own folder.
+- **The server comes from the game first.** The extension runs the opened folder's own `node_modules/@loominate-if/language-server`, so the compiler matches the game's. In a Loominate IF checkout, it runs the checkout's `packages/language-server`. Otherwise it installs the latest release from npm into its own folder.
+- **A Node launcher picks it.** Zed doesn't show extensions every file (ignored folders such as `node_modules` among them), so the extension starts a small script in Node that checks the real file system, in that order, and explains what to install when none is there.
 - **The grammar's commit:** `extension.toml` names the commit Zed builds the grammar from. A test checks that commit's generated parser is the current one, so a grammar change needs two commits: the change, then the `rev` pointing at it. CI fetches the full history for this.
 
 ## Consequences

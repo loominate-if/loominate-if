@@ -26,7 +26,7 @@ npx loominate-language-server --stdio
 The Zed extension in `packages/zed` colors passage files, with TypeScript coloring inside `{ … }`, and starts the language server. It lists your passages in the outline (**outline: toggle** in the command palette) and in symbol search.
 
 - **Install it** as a dev extension until it's in Zed's extension gallery: in Zed, open the command palette, run **zed: install dev extension**, and choose the `packages/zed` folder of a Loominate IF checkout. Zed builds it with Rust, which you install from [rustup.rs](https://rustup.rs) first.
-- **Open your game's folder**, the one with `loominate.config.ts` and `node_modules`. The extension starts the language server your game depends on, so its compiler matches your game's. If your game doesn't depend on `@loominate-if/language-server`, the extension installs it from npm.
+- **Open your game's folder**, the one with `loominate.config.ts` and `node_modules`. The extension starts the language server your game depends on, so its compiler matches your game's. In a Loominate IF checkout, it uses the checkout's own server, after `pnpm build`. Otherwise it installs `@loominate-if/language-server` from npm.
 
 ## Other editors
 
