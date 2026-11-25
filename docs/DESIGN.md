@@ -438,7 +438,7 @@ She glances at the butler. "I wouldn't know, miss."
 {reveal facts.butlerTookLetter}
 ```
 
-- Private asides limit who hears a line.
+- Private asides limit who hears a line. Revealed facts reach everyone who can hear the speaker, in the conversation or not; `present(x)` is whether x is where the player is and could hear them; an entry's `aside`, `{ask secret, aside}`, is said to the player alone, unreacted to, and marked on the page ([ADR 0115](decisions/0115-hearing-and-asides.md)).
 - Participants can join or leave mid-conversation, with arrivals and departures narrated and the menu updating.
 - Locks have an owner (the character or node demanding an answer), and the story log attributes speakers.
 

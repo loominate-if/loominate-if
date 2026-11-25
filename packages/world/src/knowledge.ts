@@ -473,10 +473,20 @@ export type RevealArguments = {
  * learns the fact, from `from` if it's given, in this passage.
  */
 export function reveal(args: RevealArguments, context?: EffectContext): void {
-  player.learn(args.fact, {
+  const source = {
     ...(args.from !== undefined && { from: args.from }),
     ...(context && { passage: context.passage }),
-  });
+  };
+  player.learn(args.fact, source);
+  // In an answer, everyone else who hears it learns it too (#143).
+  for (const m of alsoHearing()) m.learn(args.fact, source);
+}
+
+/** Who else hears what's revealed, while an NPC is answering: set by topics. */
+let alsoHearing = (): readonly MindKnowledge[] => [];
+/** Says who else hears a `{reveal}` in a topic block, from topics.ts. @internal */
+export function _alsoHearReveals(hearers: () => readonly MindKnowledge[]): void {
+  alsoHearing = hearers;
 }
 
 /** What's told when a mind learns a fact or sees a thing for the first time. */

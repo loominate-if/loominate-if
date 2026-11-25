@@ -45,7 +45,14 @@ import {
   type LeftBy,
 } from "./conversations.js";
 import { _allNodes, _isNode, closeNode, openNode, openNodeOf, type ConvNode } from "./nodes.js";
-import { _knowable, factNamed, player, type Fact } from "./knowledge.js";
+import {
+  _alsoHearReveals,
+  _knowable,
+  factNamed,
+  player,
+  type Fact,
+  type MindKnowledge,
+} from "./knowledge.js";
 import { clock } from "./clock.js";
 import { _npcTell, _npcTellProblem, _npcTellSeen } from "./gossip.js";
 import {
@@ -60,6 +67,7 @@ import {
   type Reaction,
 } from "./standard.js";
 import { isWithin, placeOf, thingFor } from "./things.js";
+import { canHear } from "./scope.js";
 
 declare module "@loominate-if/core" {
   interface Messages {
@@ -361,6 +369,11 @@ export type TopicOptions = {
   readonly reactions?: number;
   /** A scripted exchange it plays after answering, by name, as defined with {@link exchange}. */
   readonly then?: string;
+  /**
+   * Whether it's said to the player alone, as an aside (#143): nobody else
+   * hears it or learns what it reveals, and nobody reacts.
+   */
+  readonly aside?: boolean;
 };
 
 /** What an entry answers, or what a reaction reacts to: an exchange's kind and subject. */
@@ -991,25 +1004,65 @@ function nextOf(e: Entry, count: number): number {
 function respond(e: Entry, context: TopicContext): void {
   if (e.expression !== undefined) _setExpression(context.npc, e.expression);
   if (e.block) {
-    sayBlock(e, e.block, context.npc);
+    const outer = answering;
+    answering = { speaker: context.npc, aside: e.aside === true };
+    try {
+      sayBlock(e, e.block, context.npc);
+    } finally {
+      answering = outer;
+    }
     return;
   }
   const says = Array.isArray(e.says)
     ? (e.says as readonly Says[])[nextOf(e, e.says.length)]
     : (e.says as Says);
   const text = says === undefined ? undefined : typeof says === "string" ? says : says(context);
-  if (typeof text === "string" && text !== "") say(text, context.npc);
+  if (typeof text === "string" && text !== "") say(text, context.npc, e.aside === true);
   const revealed = e.reveals === undefined ? [] : isFactList(e.reveals) ? e.reveals : [e.reveals];
   if (revealed.length === 0) return;
-  // Everyone in the conversation hears it: the player, and the others in it.
-  const hearers = [
-    player,
-    ...conversation.participants.flatMap((b) => {
-      const m = mindOf(b);
-      return m && m.id !== e.mind ? [m] : [];
-    }),
-  ];
+  // Everyone who hears it learns it: the player, and anyone else who can hear, but for an aside.
+  const hearers = [player, ...(e.aside === true ? [] : othersHearing(context.npc))];
   for (const f of revealed) for (const h of hearers) h.learn(f, { from: context.npc });
+}
+
+/** The NPC answering now, and whether it's an aside, while a block says its prose. */
+let answering: { readonly speaker: ObjectRef; readonly aside: boolean } | undefined;
+
+/**
+ * The minds, but the player's and the speaker's, who can hear `speaker`:
+ * those in the conversation and anyone else in earshot (#143).
+ */
+function othersHearing(speaker: ObjectRef): readonly MindKnowledge[] {
+  const me = currentPlayerBody();
+  const body = bodyOf(mindFor(speaker, "hearing"));
+  if (!body) return [];
+  return allBodies().flatMap((b) => {
+    if (b.id === body.id || b.id === me?.id || !canHear(b, body)) return [];
+    const m = mindOf(b);
+    return m ? [m] : [];
+  });
+}
+
+// A block's `{reveal}` reaches everyone who hears the answer, but for an aside.
+_alsoHearReveals(() =>
+  answering === undefined || answering.aside ? [] : othersHearing(answering.speaker),
+);
+
+/**
+ * Whether `who` is present: in the place the player is, and able to hear
+ * them, in the conversation or not (#143). For a topic's `when`, as
+ * `{ask letter, when: present(butler)}`.
+ */
+export function present(who: ObjectRef): boolean {
+  const me = currentPlayerBody();
+  const body = bodyOf(mindFor(who, "present"));
+  return (
+    me !== undefined &&
+    body !== undefined &&
+    body.id !== me.id &&
+    placeOf(body)?.id === placeOf(me)?.id &&
+    canHear(body, me)
+  );
 }
 
 const isFactList = (x: Fact | readonly Fact[]): x is readonly Fact[] => Array.isArray(x);
@@ -1033,13 +1086,13 @@ function sayBlock(e: Entry, block: Passage, npc: ObjectRef): void {
         ...(node.styles !== undefined && node.styles.length > 0 && { styles: node.styles }),
         ...(node.line !== undefined && { line: node.line }),
       },
-      ["topic", `speaker:${npc.id}`],
+      ["topic", `speaker:${npc.id}`, ...(e.aside === true ? ["aside"] : [])],
     );
   }
 }
 
-const say = (text: string, npc: ObjectRef): void => {
-  emit("action-result", { text }, ["topic", `speaker:${npc.id}`]);
+const say = (text: string, npc: ObjectRef, aside = false): void => {
+  emit("action-result", { text }, ["topic", `speaker:${npc.id}`, ...(aside ? ["aside"] : [])]);
 };
 
 /** The player's side of an exchange, recorded as their line, tagged `player`, for the transcript. */
@@ -1092,7 +1145,8 @@ function reactTo(
   answered: Entry,
 ): void {
   const cap = answered.reactions ?? reactionCap;
-  if (cap === 0 || !conversation.active) return;
+  // An aside is heard by the player alone: nobody reacts.
+  if (cap === 0 || !conversation.active || answered.aside === true) return;
   const me = currentPlayerBody();
   const subject = about === undefined ? undefined : subjectKey(about);
   const offered = conversation.participants.flatMap((body, order) => {
@@ -1238,11 +1292,12 @@ const talk = (kind: "ask" | "tell") =>
         subject === undefined ? {} : { about: subject },
         message("topic.noResponse", { who }),
       );
-      // Telling someone a fact teaches it to them, unless the entry says otherwise.
+      // Telling someone a fact teaches it to them, unless the entry says otherwise, and anyone who hears.
       const mind = mindOf(who);
       if (kind === "tell" && isFact(subject) && mind && winner?.informs !== false) {
         const from = currentPlayerBody();
         mind.learn(subject, from ? { from } : {});
+        if (from) for (const m of othersHearing(from)) m.learn(subject, { from });
       }
     },
   });
@@ -1703,6 +1758,8 @@ export type TopicBlockArguments = {
   readonly reactions?: number;
   /** A scripted exchange it plays after answering, by name. */
   readonly then?: string;
+  /** `aside`: said to the player alone. */
+  readonly aside?: "aside";
 };
 
 /** Where a topic block was written: its actor passage, the block's directive, and the passage's tag role values. */
@@ -1783,6 +1840,7 @@ export function topicBlock(
     ...(args.informs !== undefined && { informs: args.informs }),
     ...(args.reactions !== undefined && { reactions: args.reactions }),
     ...(args.then !== undefined && { then: args.then }),
+    ...(args.aside && { aside: true }),
   } as unknown as TopicEntry;
   addEntry(npc, entry, block, when);
 }

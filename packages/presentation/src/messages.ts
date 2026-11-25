@@ -16,6 +16,10 @@ declare module "@loominate-if/core" {
   interface Messages {
     /** An error the story's code threw during play, shown at the top of the passage. */
     "page.error": { readonly error: string };
+    /** Before a line of speech, who said it (#142): "Maid: ". */
+    "page.speaker": { readonly name: string };
+    /** Before an aside, said to the player alone (#143): "Maid, aside: ". */
+    "page.aside": { readonly name: string };
     /** A continue point's label, when it has none. */
     "page.continue": None;
     /** The heading only screen readers hear, before a passage's text after a move: "Passage". */
@@ -203,6 +207,8 @@ const register: typeof messages.register = (key, text) => {
 };
 
 register("page.error", ({ error }) => `Something went wrong: ${error}`);
+register("page.speaker", ({ name }) => `${name}: `);
+register("page.aside", ({ name }) => `${name}, aside: `);
 register("page.continue", "Continue");
 register("page.passageHeading", "Passage");
 register("page.moreHeading", "More");

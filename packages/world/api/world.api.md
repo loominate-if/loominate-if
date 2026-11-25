@@ -1294,6 +1294,9 @@ export type PossessOptions = {
 };
 
 // @public
+export function present(who: ObjectRef): boolean;
+
+// @public
 export type Presses = string | (() => string | undefined);
 
 // @public
@@ -1794,6 +1797,7 @@ export type TopicBlockArguments = {
     readonly informs?: boolean;
     readonly reactions?: number;
     readonly then?: string;
+    readonly aside?: "aside";
 };
 
 // @public
@@ -1907,6 +1911,7 @@ export type TopicOptions = {
     readonly id?: string;
     readonly reactions?: number;
     readonly then?: string;
+    readonly aside?: boolean;
 };
 
 // @internal

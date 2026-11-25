@@ -145,6 +145,7 @@ function topicDirectives() {
   const runtime = { module: WORLD, export: "topicBlock" };
   const scoping = [
     { name: "stays", kind: "choice", choices: ["stays"] },
+    { name: "aside", kind: "choice", choices: ["aside"] },
     { name: "when", kind: "condition", named: true },
     { name: "priority", kind: "expression", named: true },
     { name: "in", kind: "expression", named: true },

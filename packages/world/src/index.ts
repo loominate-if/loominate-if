@@ -326,6 +326,7 @@ export {
   registerStatePassage,
   suggestedTopics,
   groupTopic,
+  present,
   reactionsPerExchange,
   type TopicTrigger,
   askEveryone,

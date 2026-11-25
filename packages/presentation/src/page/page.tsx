@@ -895,10 +895,17 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
    */
   const speakerOf = (notice: Proseful): ComponentChildren => {
     const tags = (notice as { readonly tags?: readonly string[] }).tags ?? [];
-    if (tags.includes("player") || !/^["“‘'«„]/.test(notice.text.trimStart())) return null;
+    const aside = tags.includes("aside");
+    // An aside always says so; otherwise only speech is named, as narration already says who.
+    if (tags.includes("player") || (!aside && !/^["“‘'«„]/.test(notice.text.trimStart()))) {
+      return null;
+    }
     const id = tags.find((t) => t.startsWith("speaker:"))?.slice("speaker:".length);
     const name = id === undefined ? undefined : _speakerName(id);
-    return name === undefined ? null : <span className="loominate-speaker">{`${name}: `}</span>;
+    if (name === undefined) return null;
+    // An aside, said to the player alone, says so (#143).
+    const label = message(aside ? "page.aside" : "page.speaker", { name });
+    return <span className="loominate-speaker">{label}</span>;
   };
 
   /** One paragraph of the passage. */

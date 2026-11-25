@@ -1360,6 +1360,37 @@ groupTopic({
 - **While a restrictive node is open,** group topics aren't suggested: it's waiting for an answer.
 - `askEveryone({ about })` and `tellEveryone({ about })` are the actions, for links of your own.
 
+### Who hears what
+
+What an NPC says is heard by everyone in earshot, in the conversation or not, by the world model's hearing, so a closed door or another room keeps it in ([ADR 0115](../decisions/0115-hearing-and-asides.md)):
+
+- **Revealed facts,** an entry's `reveals` or a block's `{reveal …}`, are learned by the player and by everyone else who can hear the speaker, sourced to them: the cook at the stove learns what the maid tells the player.
+- **A fact the player tells** an NPC is learned by everyone who can hear the player, unless the entry they answer with says `informs: false`.
+- **`present(butler)`** says whether someone is where the player is and could hear them, in the conversation or not, for a topic's `when`:
+
+```
+:: Maid [actor: maid]
+
+{ask letter, when: present(butler)}
+She glances at the butler. "I wouldn't know, miss."
+
+{ask letter, when: !present(butler)}
+"He took it, miss. I saw him put it in his coat."
+{reveal facts.butlerTookLetter}
+```
+
+- **Asides:** `aside: true`, or `{ask secret, aside}`, says the answer to the player alone. Nobody else learns what it reveals, nobody reacts, and the page marks it, "Maid, aside: …", the `page.aside` message. The line is tagged `aside`, for themes.
+
+<!-- example: packages/world/src/hearing.test.ts#aside -->
+```ts
+topic(maid, {
+  ask: secret,
+  aside: true,
+  reveals: facts.maidSawIt,
+  says: "She leans close. “I saw it, miss. Don't tell.”",
+});
+```
+
 ### Reactions
 
 Others in the conversation can react to what's said. A reaction is an entry of the reacting character's, for the exchange it reacts to:
@@ -1527,7 +1558,7 @@ An NPC's topics can be written as blocks in an actor passage, the prose of each 
 
 - **`[actor: butler]`** makes the passage the butler's, and it's made only of blocks; anything before the first is an error. `state: onDuty`, `scene: storm`, or `node: proposal` on the passage scope every block in it, so a node's replies can have a passage of their own, as below.
 
-- **Blocks:** `{ask …}`, `{tell …}`, `{ask or tell …}`, `{show …}`, `{give …}`, and `{show or give …}` take a subject; `{yes}`, `{no}`, `{hello}`, and `{bye}` don't. `{reacts ask …}` and the other `{reacts …}` blocks are [reactions](#reactions). After the subject, a block can say `again`, and a give `takes`; `{hello}` and `{bye}` can say `implicit` or `explicit`. Any block can say `stays`. Named, they take `when:`, `priority:`, `in:`, `opens:`, `suggested:`, `reactions:`, `then:`, and, for `{tell}`, `informs:`.
+- **Blocks:** `{ask …}`, `{tell …}`, `{ask or tell …}`, `{show …}`, `{give …}`, and `{show or give …}` take a subject; `{yes}`, `{no}`, `{hello}`, and `{bye}` don't. `{reacts ask …}` and the other `{reacts …}` blocks are [reactions](#reactions). After the subject, a block can say `again`, and a give `takes`; `{hello}` and `{bye}` can say `implicit` or `explicit`. Any block can say `stays`. Named, they take `when:`, `priority:`, `in:`, `opens:`, `suggested:`, `reactions:`, `then:`, and, for `{tell}`, `informs:`. Any block can say `aside`, said to the player alone.
 - **Checked as code:** the actor, states, scenes, and subjects are TypeScript, so a misspelled one is an error at its line: "`wether` isn't defined. Did you mean `weather`?"
 - **The response** is the block's prose, `{if}` and printed values included, each paragraph said with its line ID. `{reveal …}` and `{on enter: …}` run each time the block answers, `{on first visit: …}` the first time. Links, beats, and `{on leave: …}` can't go in a block.
 - **`again`** applies only once the NPC has answered the same exchange before, by any entry, and comes first among entries of its priority: the first block answers the first time, the `again` block every time after. In TypeScript it's `again: true`.
