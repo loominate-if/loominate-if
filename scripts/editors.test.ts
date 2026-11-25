@@ -202,3 +202,29 @@ describe("BBEdit's language server proxy", () => {
     }
   });
 });
+
+const SUBLIME = join(REPO, "packages/sublime");
+
+describe("the Sublime Text package", () => {
+  it("knows the grammar's directives, longest first", () => {
+    const grammar = JSON.parse(read(join(GRAMMAR, "src/grammar.json"))) as {
+      rules: { directive_name: { members: { value: string }[] } };
+    };
+    const known = grammar.rules.directive_name.members.map((m) => m.value);
+    const syntax = read(join(SUBLIME, "Loominate IF.sublime-syntax"));
+    const listed = /^ {2}directive: '\(\?:(.*)\)'$/m.exec(syntax)?.[1]?.split("|") ?? [];
+    expect(
+      [...listed].sort(),
+      "Update `directive` in packages/sublime/Loominate IF.sublime-syntax",
+    ).toEqual([...known].sort());
+    expect(listed).toEqual([...listed].sort((a, b) => b.length - a.length));
+  });
+
+  it("starts the same proxy as BBEdit", () => {
+    expect(
+      read(join(SUBLIME, "loominate-proxy.mjs")) ===
+        read(join(BBEDIT, "Language Servers/loominate-proxy.mjs")),
+      "packages/sublime/loominate-proxy.mjs must match packages/bbedit/Language Servers/loominate-proxy.mjs; copy it.",
+    ).toBe(true);
+  });
+});

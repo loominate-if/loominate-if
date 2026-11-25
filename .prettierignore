@@ -9,3 +9,5 @@ scratch
 packages/tree-sitter-weft/src
 packages/zed/target
 packages/zed/grammars
+# Its regexes depend on YAML's single quotes, which Prettier may rewrite (#413).
+*.sublime-syntax
