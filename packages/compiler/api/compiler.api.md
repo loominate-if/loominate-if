@@ -80,6 +80,8 @@ export type CompilerSession = {
         readonly path: string;
         readonly code: string;
     };
+    parsed(path: string): PassageFileSyntax | undefined;
+    syntax(): SessionSyntax;
     diagnostics(): readonly ProjectDiagnostic[];
 };
 
@@ -309,6 +311,9 @@ export type PassageSyntax = {
 };
 
 // @public
+export function passageTargets(content: readonly ContentSyntax[], stays?: ReadonlySet<string>): NameSyntax[];
+
+// @public
 export type PositionalArgument = {
     readonly type: "positional";
     readonly value: CodeSyntax;
@@ -364,6 +369,21 @@ export type RuntimeExport = {
 export type SessionChange = {
     readonly modules: readonly string[];
     readonly passageNames: boolean;
+};
+
+// @public
+export type SessionSyntax = {
+    readonly directives: readonly {
+        readonly name: string;
+        readonly kind: string;
+        readonly example?: string;
+        readonly roles?: readonly string[];
+        readonly from: string;
+    }[];
+    readonly tagRoles: readonly {
+        readonly name: string;
+        readonly from: string;
+    }[];
 };
 
 // @public

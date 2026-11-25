@@ -21,5 +21,5 @@ The design asks for a language server for passage files, built the way Svelte an
 ## Consequences
 
 - Every editor client is thin: it colors `.weft` files and starts the server.
-- Passage-aware features, such as completing passage names in links, are #410, on the same server.
+- Passage-aware features are a plugin on the same server (#410): completion of passage names, directives, and tag roles, from the compiler session's parsed files and its packages' syntax, and go-to-definition and find-references for passage names. TypeScript's completions in inline code are marked additional, so they merge with these, and leave out the generated modules' own names (`$`-prefixed helpers and `passages`).
 - An unsaved change to `story.ts` reaches passage files' diagnostics only on save.

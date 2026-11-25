@@ -170,12 +170,33 @@ export type CompilerSession = {
   modules(): ReadonlyMap<string, GeneratedModule>;
   /** The generated module listing every passage name as a type. */
   passageNames(): { readonly path: string; readonly code: string };
+  /** A passage file as last parsed, by its path, for an editor's features (#410). */
+  parsed(path: string): PassageFileSyntax | undefined;
+  /**
+   * The directives and tag roles the game's packages add, core's first, each
+   * with the package it's from, for an editor to complete (#410).
+   */
+  syntax(): SessionSyntax;
   /**
    * Every problem in the game as it stands, sorted by file and position.
    * Type-checking reuses the last check's work.
    * @throws Error if `start` names no passage.
    */
   diagnostics(): readonly ProjectDiagnostic[];
+};
+
+/** The directives and tag roles a session's packages add, as {@link CompilerSession.syntax} gives them. */
+export type SessionSyntax = {
+  /** Each directive, with how it's written, its kind, and the passage roles it's limited to, if any. */
+  readonly directives: readonly {
+    readonly name: string;
+    readonly kind: string;
+    readonly example?: string;
+    readonly roles?: readonly string[];
+    readonly from: string;
+  }[];
+  /** Each tag role, as `room` in `[room: hall]`. */
+  readonly tagRoles: readonly { readonly name: string; readonly from: string }[];
 };
 
 /** A passage file as last generated, with what it was generated from. */
@@ -711,6 +732,19 @@ export function createCompilerSession(options: ProjectOptions): CompilerSession 
         [...generated].sort(([a], [b]) => a.localeCompare(b)).map(([file, g]) => [file, g.module]),
       ),
     passageNames: () => ({ path: namesPath, code: namesCode }),
+    parsed: (p) => generated.get(resolve(p))?.parsed,
+    syntax: () => ({
+      directives: [...syntax.directives].flatMap(([name, defs]) =>
+        defs.map(({ definition: d, from }) => ({
+          name,
+          kind: d.kind,
+          ...(d.example !== undefined && { example: d.example }),
+          ...(d.roles !== undefined && { roles: d.roles }),
+          from,
+        })),
+      ),
+      tagRoles: [...syntax.tagRoles].map(([name, { from }]) => ({ name, from })),
+    }),
     diagnostics() {
       checked ??= check();
       return checked;

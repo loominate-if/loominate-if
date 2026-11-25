@@ -4,6 +4,8 @@
 
 - **The compiler's diagnostics** as you type: parse errors, unknown passages, mistakes in inline code, and packages' checks, at the lines the dev server would report them.
 - **TypeScript inside inline code:** completion, hover with types and doc comments, and go-to-definition, inside `{ … }`, from your `story.ts` and the packages you use.
+- **Passages:** completion of passage names after `[[` and `->`, from all your passage files; go-to-definition from a link to its passage's header; and find-references, listing every link to a passage.
+- **Directives and tag roles:** completion of directives right after `{`, and of tag roles such as `room:` in a passage's header, including those your packages add.
 
 [ADR 0118](../decisions/0118-language-server.md) records the decisions behind it.
 
