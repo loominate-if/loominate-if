@@ -27,6 +27,9 @@
     },
     {
       "path": "packages/create"
+    },
+    {
+      "path": "packages/language-server"
     }
   ]
 }
