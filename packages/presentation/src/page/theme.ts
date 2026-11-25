@@ -183,6 +183,8 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   border: 1px solid ${v("color-border")};
   border-radius: ${v("radius")};
 }
+/* Near the page's right edge, under its name's right edge instead, so it stays on the page (#399). */
+.loominate-menu.loominate-menu-end { left: auto; right: 0; }
 .loominate-menu-item {
   display: block;
   width: 100%;

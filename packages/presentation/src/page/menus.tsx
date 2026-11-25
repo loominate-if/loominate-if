@@ -77,6 +77,22 @@ export type _Listed = {
  * A menu of a thing's actions, or of the choices a function gives, which an
  * action that asks for numbers swaps for a form asking for them.
  */
+/**
+ * Keeps an open menu within the page (#399): one that would run past the
+ * page's right edge, or the window's, as beside a docked inspector, is
+ * aligned to its name's right edge instead.
+ */
+function keepWithinPage(root: HTMLElement, anchor: HTMLElement): void {
+  const menu = root.querySelector<HTMLElement>(".loominate-menu");
+  if (!menu) return;
+  menu.classList.remove("loominate-menu-end");
+  const doc = anchor.ownerDocument;
+  const page = anchor.closest(".loominate-page")?.getBoundingClientRect();
+  const width = doc.documentElement.clientWidth;
+  const edge = Math.min(page && page.width > 0 ? page.right : width, width || Infinity);
+  if (menu.getBoundingClientRect().right > edge) menu.classList.add("loominate-menu-end");
+}
+
 function Menu({ id, source, anchor, host, close }: Props) {
   // What it's asking for, and which choice asked, so going back lands on it.
   const [asking, setAsking] = useState<
@@ -87,6 +103,7 @@ function Menu({ id, source, anchor, host, close }: Props) {
   useLayoutEffect(() => {
     const root = holder.current;
     if (!root) return;
+    keepWithinPage(root, anchor);
     if (asking) {
       const input = root.querySelector<HTMLInputElement>("input");
       input?.select();

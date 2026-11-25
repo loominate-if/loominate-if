@@ -8,7 +8,7 @@ import {
   object,
 } from "@loominate-if/core";
 import axe from "axe-core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { layouts, widgets } from "./layout.js";
 import { mountPage, type ActionMove } from "./page.js";
 import { menuWidget } from "./things.js";
@@ -121,6 +121,33 @@ describe("a thing's menu", () => {
     expect(story.actions.map((a) => a.type)).toEqual(["act"]);
     expect(moves).toEqual([{ type: "action", label: "Ring the bell" }]);
     expect(container.querySelector(".loominate-notice")?.textContent).toBe("Ding!");
+  });
+
+  it("opens aligned to its name's right edge when it would run past the page's (#399)", () => {
+    const { name } = play();
+    const menuRight = { value: 600 };
+    // jsdom lays nothing out: a page 500px wide, and a menu ending where it's told.
+    const rect = (left: number, right: number) =>
+      ({ left, right, width: right - left, top: 0, bottom: 0, height: 0 }) as DOMRect;
+    const spy = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        if (this.classList.contains("loominate-page")) return rect(0, 500);
+        if (this.classList.contains("loominate-menu"))
+          return rect(menuRight.value - 200, menuRight.value);
+        return rect(0, 0);
+      });
+    try {
+      name()?.click();
+      const menu = () => document.querySelector(".loominate-menu");
+      expect(menu()?.classList.contains("loominate-menu-end")).toBe(true);
+      document.body.click();
+      menuRight.value = 300;
+      name()?.click();
+      expect(menu()?.classList.contains("loominate-menu-end")).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it("closes on a click elsewhere, and a disabled item does nothing", () => {
