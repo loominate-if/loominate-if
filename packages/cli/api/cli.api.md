@@ -73,6 +73,7 @@ export type LoominateConfig = {
         readonly version: string;
     };
     readonly title?: string;
+    readonly author?: string;
     readonly start: string;
     readonly extensions?: readonly string[];
     readonly inspector?: string;

@@ -15,7 +15,8 @@ await playGame(document.querySelector("#app")!, {
 ```
 
 - `game` is the game's stable ID, which keeps its saves apart from other games', and its version, which saves record so the player can be told when a save is from another version.
-- `title` is shown on the start screen.
+- `title` is shown on the start screen, and names story log exports.
+- `author`, if given, is shown under the title on the start screen, "by Your Name", and recorded in story log exports.
 - `page` passes options to the page, such as `pacing` or `continueLabel`.
 - `seed` makes the master seed for a new game. Each new game gets a fresh random one by default.
 - `storage` replaces browser storage, for example with `createMemoryStorage()` in tests.
@@ -51,7 +52,7 @@ The game menu has **Story log** and **Transcript**, each opening a dialog beside
   ```
 
   `{log only}` is connective text: in the story log, never on the page or in the story so far. `{page only}` is for the page alone, such as an instruction to the player. `{in log: "…"}`, after a paragraph, gives the log its own wording of it, while the page shows the paragraph as written. The transcript has both.
-- **Chapters and export:** `{chapter "The House on the Hill"}` in a passage, or `chapter("…")` in effect code, starts a chapter when the player reaches it. The story log shows its title as a heading; reaching the same marker again doesn't start another. The story log's **Export** saves it as EPUB, HTML, or Markdown, named after the game, divided into chapters there. What comes before the first chapter is an opening part under the game's title. A game's own button can call `exportStoryLog(events, "epub", { title, author })`.
+- **Chapters and export:** `{chapter "The House on the Hill"}` in a passage, or `chapter("…")` in effect code, starts a chapter when the player reaches it. The story log shows its title as a heading; reaching the same marker again doesn't start another. The story log's **Export** saves it as EPUB, HTML, or Markdown, named after the game, divided into chapters there. What comes before the first chapter is an opening part under the game's title. The game config's `title` and `author` are the book's. A game's own button can call `exportStoryLog(events, "epub", { title, author })`.
 - **The transcript** is every event, numbered, with its kind and its text or fields, for testers and bug reports. **Show** filters it by kind, and **Copy** copies it, one event a line.
 - **Speakers** are named by `nameSpeakers`; the world model names each by their body's name. `storyLog(events)` and `transcript(events)` give the same as data, for a game's own view.
 

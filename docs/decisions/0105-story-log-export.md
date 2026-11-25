@@ -28,4 +28,4 @@ Players can export the story log as Markdown, HTML, or EPUB, structured by autho
 - Exported EPUBs are larger than compressed ones; a story log is small text.
 - The modified date is wall-clock time, as a save's time is: metadata, not game logic.
 - Tests read the EPUB back with their own zip reader, checking each entry's CRC and that every XML file parses. EPUBCheck, the W3C's validator, needs Java, which wasn't available when this was written.
-- A game's author isn't in the game config yet, so the dialog's exports have only the title.
+- The game config's `author` (#381) is passed to `playGame`, which shows it on the start screen and gives it to the dialog's exports.

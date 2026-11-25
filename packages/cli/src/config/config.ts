@@ -25,6 +25,8 @@ export type LoominateConfig = {
   readonly game: { readonly id: string; readonly version: string };
   /** The game's name, shown on its start screen. Defaults to the game's ID. */
   readonly title?: string;
+  /** Who wrote it: on its start screen and in story log exports. */
+  readonly author?: string;
   /** The passage a new game starts in. */
   readonly start: string;
   /**
@@ -56,6 +58,7 @@ export type LoominateConfig = {
  * export default defineConfig({
  *   game: { id: "lantern-road", version: "1.0.0" },
  *   title: "Lantern Road",
+ *   author: "A. Writer",
  *   start: "Start",
  * });
  * ```
@@ -163,7 +166,7 @@ function check(value: unknown): LoominateConfig {
       "export the game's configuration as the default: `export default defineConfig({ … })`.",
     );
   }
-  const { game, title, start, extensions, scope, inspector } = value;
+  const { game, title, author, start, extensions, scope, inspector } = value;
   if (!isRecord(game) || !text(game.id) || !text(game.version)) {
     fail(
       '`game` needs an `id` and a `version`, like `game: { id: "lantern-road", version: "1.0.0" }`.',
@@ -171,6 +174,9 @@ function check(value: unknown): LoominateConfig {
   }
   if (!text(start)) fail('`start` names the passage a new game starts in, like `start: "Start"`.');
   if (title !== undefined && typeof title !== "string") fail("`title` must be a string.");
+  if (author !== undefined && typeof author !== "string") {
+    fail('`author` must be a string, like `author: "A. Writer"`.');
+  }
   if (scope !== undefined && !text(scope)) fail("`scope` must name a module, like `story.ts`.");
   if (inspector !== undefined && !text(inspector)) {
     fail("`inspector` must name a module, like `inspector.ts`.");

@@ -56,6 +56,16 @@ describe("the generated entry point", () => {
     expect(main.indexOf("markStarted();")).toBeGreaterThan(main.indexOf("await playGame"));
   });
 
+  it("passes the game's author to the player, when the config has one (#381)", async () => {
+    expect(await code(MAIN)).not.toContain('"author"');
+    const withAuthor = { ...config, author: "A. Writer" } as ResolvedConfig;
+    const plugin = loominateApp(withAuthor);
+    const resolveId = plugin.resolveId as (s: string, i?: string) => Promise<string | undefined>;
+    const load = plugin.load as (id: string) => string | undefined;
+    const main = load.call({}, (await resolveId.call({}, MAIN)) ?? "") ?? "";
+    expect(main).toContain('"author":"A. Writer"');
+  });
+
   it("shows an error that stops the game, instead of a blank page, and tells the dev server", async () => {
     const errors = await code("/@loominate/errors");
     const hot = { send: vi.fn() };
