@@ -1,0 +1,53 @@
+============================
+A labelled link with a guard
+============================
+
+[[Go down -> Cellar]]{when lantern.isLit, reason: "Too dark."}
+
+---
+
+(source_file
+  (line
+    (link
+      (link_label)
+      (passage_target))
+    (inline
+      (directive
+        (directive_name)
+        (arguments
+          (identifier)
+          (identifier)
+          (identifier))))))
+
+===========================
+A link to a passage by name
+===========================
+
+Back to the [[Hall]].
+
+---
+
+(source_file
+  (line
+    (text)
+    (link
+      (passage_target))
+    (text)))
+
+============================
+A label with a printed value
+============================
+
+[[Ask about {topic.name} -> Hall]]
+
+---
+
+(source_file
+  (line
+    (link
+      (link_label
+        (inline
+          (code
+            (identifier)
+            (identifier))))
+      (passage_target))))

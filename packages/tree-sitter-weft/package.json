@@ -1,0 +1,15 @@
+{
+  "name": "@loominate-if/tree-sitter-weft",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tree-sitter grammar for Loominate IF passage files (.weft), for editors such as Zed.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "generate": "tree-sitter generate",
+    "test": "tree-sitter test"
+  },
+  "devDependencies": {
+    "tree-sitter-cli": "0.26.13"
+  }
+}

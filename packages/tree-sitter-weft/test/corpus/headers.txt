@@ -1,0 +1,41 @@
+============================
+A header with tags and roles
+============================
+
+:: Cellar Stairs [room: stairs, scene]
+
+---
+
+(source_file
+  (header
+    (passage_name)
+    (tag_list
+      (tag
+        (tag_name)
+        (tag_value))
+      (tag
+        (tag_name)))))
+
+=====================
+A header without tags
+=====================
+
+::Hall
+
+---
+
+(source_file
+  (header
+    (passage_name)))
+
+================================
+Prose with colons isn't a header
+================================
+
+Note: a :: here.
+
+---
+
+(source_file
+  (line
+    (text)))
