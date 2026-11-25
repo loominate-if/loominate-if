@@ -105,6 +105,14 @@ declare module "@loominate-if/core" {
     "topic.suggest.ask": { readonly about: string };
     /** A suggested topic's link: "Tell about the war". */
     "topic.suggest.tell": { readonly about: string };
+    /** A group topic's link, to everyone in the conversation: "Ask everyone about the storm" (#141). */
+    "topic.suggest.askEveryone": { readonly about: string };
+    "topic.suggest.tellEveryone": { readonly about: string };
+    /** The player's line for a group topic: "You ask everyone about the storm." */
+    "topic.player.askEveryone": { readonly about: string };
+    "topic.player.tellEveryone": { readonly about: string };
+    /** Why a group topic isn't offered: there's no group to talk to. */
+    "topic.noGroup": Record<never, never>;
     /** The goodbye link among suggested topics. */
     "topic.suggest.bye": Record<never, never>;
     /** An open node's yes, among suggested topics. */
@@ -153,6 +161,11 @@ register("topic.unknown", () => "You don't know anything about that.");
 register("topic.suggest.ask", ({ about }) => `Ask about ${about}`);
 register("topic.suggest.tell", ({ about }) => `Tell about ${about}`);
 register("topic.suggest.bye", () => "Say goodbye");
+register("topic.suggest.askEveryone", ({ about }) => `Ask everyone about ${about}`);
+register("topic.suggest.tellEveryone", ({ about }) => `Tell everyone about ${about}`);
+register("topic.player.askEveryone", ({ about }) => `You ask everyone about ${about}.`);
+register("topic.player.tellEveryone", ({ about }) => `You tell everyone about ${about}.`);
+register("topic.noGroup", () => "There's no group to talk to: only one is in the conversation.");
 register("topic.suggest.yes", () => "Say yes");
 register("topic.suggest.no", () => "Say no");
 register("topic.node.waits", ({ who }) => t`{The subj who} {waits} for your answer.`({ who }));
@@ -1302,12 +1315,165 @@ export function suggestedTopics(): readonly SuggestedTopic[] {
       });
     }
   }
+  // Group topics, to everyone, while there's a group and no restrictive node holds the floor.
+  if (!node?.restricts) out.push(...groupSuggestions());
   out.push({
     label: message("topic.suggest.bye", {}),
     call: goodbye({}) as unknown as SuggestedTopic["call"],
   });
   return out;
 }
+
+// --- Group topics (#141) ---
+
+/** What a group topic's `says` is given: who's in the conversation, and what it's about. */
+export type GroupTopicContext = {
+  /** Everyone in the conversation but the player, by their bodies. */
+  readonly participants: readonly ObjectRef[];
+  /** What was asked or told about. */
+  readonly about: ObjectRef | Fact;
+};
+
+/** A group topic: what everyone in a conversation answers when the player asks or tells them all. */
+export type GroupTopicEntry = (
+  | { readonly ask: ObjectRef | Fact }
+  | { readonly tell: ObjectRef | Fact }
+  | { readonly askOrTell: ObjectRef | Fact }
+) & {
+  /** What's said in answer: text, or a function that returns it and can change state. */
+  readonly says: string | ((context: GroupTopicContext) => string | undefined);
+  /** Who it's said by, for the story log, if one person speaks for the group. */
+  readonly speaker?: ObjectRef;
+  /** Only while this holds. */
+  readonly when?: () => boolean;
+  /** Higher wins among entries that match. Defaults to 0. */
+  readonly priority?: number;
+  /** Facts the player learns, as does everyone in the conversation. */
+  readonly reveals?: Fact | readonly Fact[];
+  /** Whether it's suggested. Defaults to true. */
+  readonly suggested?: boolean;
+};
+
+type GroupEntry = GroupTopicEntry & {
+  readonly kinds: readonly ("ask" | "tell")[];
+  readonly about: ObjectRef | Fact;
+  readonly index: number;
+};
+const groupEntries: GroupEntry[] = [];
+
+/**
+ * Gives every conversation a group topic, in `story.ts`: while two or more
+ * are in it, the player can ask or tell everyone at once, whoever they're
+ * addressing, "Ask everyone about the storm", and this answers.
+ *
+ * @example
+ * ```ts
+ * groupTopic({ ask: storm, says: "They all start talking at once about the river." });
+ * ```
+ */
+export function groupTopic(entry: GroupTopicEntry): void {
+  const e = entry as GroupTopicEntry &
+    Partial<Record<"ask" | "tell" | "askOrTell", ObjectRef | Fact>>;
+  const about = e.ask ?? e.tell ?? e.askOrTell;
+  if (about === undefined)
+    throw new StateError("groupTopic: say what it's about, as { ask: storm }.");
+  const kinds: ("ask" | "tell")[] = e.askOrTell ? ["ask", "tell"] : e.ask ? ["ask"] : ["tell"];
+  groupEntries.push({ ...entry, kinds, about, index: groupEntries.length });
+}
+
+/** Everyone in the conversation but the player, if there's a group: two or more. */
+const group = (): readonly ObjectRef[] => {
+  const me = currentPlayerBody();
+  const others = conversation.participants.filter((p) => p.id !== me?.id);
+  return conversation.active && others.length >= 2 ? others : [];
+};
+
+/** The group entry that answers asking or telling everyone about `about` now, if any. */
+function groupWinner(kind: "ask" | "tell", about: ObjectRef | Fact): GroupEntry | undefined {
+  const key = subjectKey(about);
+  return groupEntries
+    .filter((e) => e.kinds.includes(kind) && subjectKey(e.about) === key && (e.when?.() ?? true))
+    .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0) || a.index - b.index)[0];
+}
+
+/** The group topics to suggest now, in the order defined. */
+function groupSuggestions(): SuggestedTopic[] {
+  if (group().length === 0) return [];
+  const out: SuggestedTopic[] = [];
+  const done = new Set<string>();
+  for (const e of groupEntries) {
+    for (const kind of e.kinds) {
+      const key = `${kind}|${subjectKey(e.about)}`;
+      if (done.has(key) || !knownToPlayer(e.about)) continue;
+      if (groupWinner(kind, e.about)?.suggested === false) continue;
+      if (groupWinner(kind, e.about) === undefined) continue;
+      done.add(key);
+      const about = isFact(e.about) ? e.about.id : e.about;
+      out.push({
+        label: message(
+          kind === "ask" ? "topic.suggest.askEveryone" : "topic.suggest.tellEveryone",
+          {
+            about: playerName(e.about),
+          },
+        ),
+        call: (kind === "ask" ? askEveryone : tellEveryone)({
+          about,
+        }) as unknown as SuggestedTopic["call"],
+      });
+    }
+  }
+  return out;
+}
+
+const talkToAll = (kind: "ask" | "tell") =>
+  action<{ about: ObjectRef | string }>(kind === "ask" ? "askEveryone" : "tellEveryone", {
+    source: SOURCE,
+    minutes: EXCHANGE_MINUTES,
+    verify: ({ about }) => {
+      if (group().length === 0) return message("topic.noGroup", {});
+      const subject = subjectFrom(about);
+      if (subject === undefined) return message("topic.noSubject", { about: String(about) });
+      if (!knownToPlayer(subject)) return message("topic.unknown", {});
+      return groupWinner(kind, subject) ? undefined : message("topic.noGroup", {});
+    },
+    run: ({ about }) => {
+      const subject = subjectFrom(about);
+      if (subject === undefined) return;
+      const everyone = group();
+      playerSays(
+        message(kind === "ask" ? "topic.player.askEveryone" : "topic.player.tellEveryone", {
+          about: playerName(subject),
+        }),
+      );
+      const e = groupWinner(kind, subject);
+      if (!e) return;
+      const text =
+        typeof e.says === "string" ? e.says : e.says({ participants: everyone, about: subject });
+      if (text !== undefined && text !== "") {
+        emit("action-result", { text }, [
+          "topic",
+          ...(e.speaker ? [`speaker:${e.speaker.id}`] : []),
+        ]);
+      }
+      const revealed =
+        e.reveals === undefined ? [] : isFactList(e.reveals) ? e.reveals : [e.reveals];
+      const from = e.speaker ?? everyone[0];
+      for (const f of revealed) {
+        player.learn(f, from ? { from } : {});
+        for (const body of everyone) mindOf(body)?.learn(f, from ? { from } : {});
+      }
+      // Telling everyone a fact teaches it to them all.
+      if (kind === "tell" && isFact(subject)) {
+        const me = currentPlayerBody();
+        for (const body of everyone) mindOf(body)?.learn(subject, me ? { from: me } : {});
+      }
+    },
+  });
+
+/** Asks everyone in the conversation about something at once: a {@link groupTopic} answers. */
+export const askEveryone = talkToAll("ask");
+/** Tells everyone in the conversation about something at once: a {@link groupTopic} answers. */
+export const tellEveryone = talkToAll("tell");
 
 let linksHidden = (): boolean => false;
 /** Hides `{topics}`'s links while `hidden` says, as conversation mode does. @internal */

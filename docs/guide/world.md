@@ -1338,6 +1338,28 @@ topic(cook, {
 
 What NPCs say is recorded as `action-result` events tagged `topic` and `speaker:` and their body's ID, so the page shows it after the move.
 
+### Group topics
+
+With two or more in the conversation, the player can ask or tell everyone at once, whoever they're addressing. A group topic belongs to the conversation, not to any one character:
+
+<!-- example: packages/world/src/group-topics.test.ts#group -->
+```ts
+groupTopic({ ask: storm, says: "They all start talking at once about the river." });
+groupTopic({
+  ask: letter,
+  speaker: maid,
+  reveals: facts.burned,
+  says: "The maid glances at the butler. “It went in the grate, sir.”",
+});
+```
+
+- **`groupTopic({ ask | tell | askOrTell, says })`**, in `story.ts`, is suggested as "Ask everyone about the storm" while two or more are in the conversation and the player knows the subject. Taking it says the player's line, "You ask everyone about the storm.", and the entry's `says`.
+- **`speaker`** says who answers for the group, so the story log attributes the line; without it, the answer is narration. `says` can be a function of `{ participants, about }`.
+- **`reveals`** teaches the player, and everyone in the conversation, sourced to the speaker. Telling everyone a fact teaches it to them all.
+- **`when`** and **`priority`** choose among group entries as for a character's; `suggested: false` keeps one off the list.
+- **While a restrictive node is open,** group topics aren't suggested: it's waiting for an answer.
+- `askEveryone({ about })` and `tellEveryone({ about })` are the actions, for links of your own.
+
 ### Conversation nodes
 
 A node is a moment in a conversation that needs structure, such as an NPC asking a question. An entry `opens` it after answering, and entries `in` it apply only while it's open, ahead of all others:
@@ -1400,7 +1422,7 @@ While the player's talking, the page switches to the `conversation` layout, whic
 
 - **The header** keeps the game menu and what packages add to it.
 - **`context`:** the passage's own prose, as a strip above: where the player is, and what the passage says about the conversation.
-- **`cast` beside `main`:** a portrait for each character in the conversation, the one addressed marked, and choosing another addresses them; beside it, the conversation so far, each line as it was said, the player's own lines ("You ask the maid about the gold.") muted. It's as tall as the latest exchange, so the topics stay in the same place; earlier lines are a scroll up, and keyboard players can Tab to it to scroll. New lines are read to screen readers, and focus goes to just before them.
+- **`cast` beside `main`:** a portrait for each character in the conversation, the one addressed marked, and choosing another addresses them. It's a toolbar, one Tab stop: the arrow keys, Home, and End move between portraits, and Enter or Space addresses one; beside it, the conversation so far, each line as it was said, the player's own lines ("You ask the maid about the gold.") muted. It's as tall as the latest exchange, so the topics stay in the same place; earlier lines are a scroll up, and keyboard players can Tab to it to scroll. New lines are read to screen readers, and focus goes to just before them.
 - **`topics`:** the suggested topics as buttons, showing and giving included. A button that can't be taken now is shown disabled, with why, as goodbye under a hard lock.
 - **`more`:** the passage's own links, such as the room's exits, in a closed disclosure named after the room, "In the study". Locks still apply to them.
 - **`history`:** the story so far, at the very bottom.

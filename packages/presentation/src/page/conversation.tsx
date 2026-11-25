@@ -46,7 +46,9 @@ export type CastOptions = {
 /**
  * A cast of portraits: a button for each character, pressed for the one
  * addressed; choosing another addresses them. A portrait is the image for
- * their expression, or their initials.
+ * their expression, or their initials. It's a toolbar (#141): one Tab stop,
+ * at the one addressed, with the arrow keys, Home, and End moving between
+ * portraits, and Enter or Space addressing one.
  */
 export function castWidget(options: CastOptions): WidgetDefinition<CastData> {
   return widget({
@@ -54,15 +56,46 @@ export function castWidget(options: CastOptions): WidgetDefinition<CastData> {
     view: componentView<CastData>(({ data, host }) => {
       const d = data.value;
       if (d.members.length === 0) return null;
+      // The one Tab reaches: the one addressed, or the first.
+      const stop = Math.max(
+        0,
+        d.members.findIndex((m) => m.addressed),
+      );
+      const move = (event: KeyboardEvent): void => {
+        const list = event.currentTarget as HTMLElement;
+        const buttons = [...list.querySelectorAll<HTMLButtonElement>(".loominate-portrait")];
+        const at = buttons.indexOf(list.ownerDocument.activeElement as HTMLButtonElement);
+        if (at < 0) return;
+        const last = buttons.length - 1;
+        const to =
+          event.key === "ArrowRight" || event.key === "ArrowDown"
+            ? at === last
+              ? 0
+              : at + 1
+            : event.key === "ArrowLeft" || event.key === "ArrowUp"
+              ? at === 0
+                ? last
+                : at - 1
+              : event.key === "Home"
+                ? 0
+                : event.key === "End"
+                  ? last
+                  : undefined;
+        if (to === undefined) return;
+        event.preventDefault();
+        for (const [i, b] of buttons.entries()) b.tabIndex = i === to ? 0 : -1;
+        buttons[to]?.focus();
+      };
       return (
-        <ul className="loominate-cast" aria-label={d.label}>
-          {d.members.map((m) => {
+        <ul className="loominate-cast" role="toolbar" aria-label={d.label} onKeyDown={move}>
+          {d.members.map((m, i) => {
             const name = m.expression === undefined ? m.name : `${m.name}, ${m.expression}`;
             return (
-              <li key={m.id} className="loominate-cast-member" data-id={m.id}>
+              <li key={m.id} className="loominate-cast-member" data-id={m.id} role="none">
                 <button
                   type="button"
                   className="loominate-portrait"
+                  tabIndex={i === stop ? 0 : -1}
                   aria-pressed={m.addressed ? "true" : "false"}
                   {...(m.expression !== undefined && { "data-expression": m.expression })}
                   onClick={() => {

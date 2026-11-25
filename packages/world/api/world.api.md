@@ -160,6 +160,11 @@ about: ObjectRef | string;
 }>;
 
 // @public
+export const askEveryone: Action<    {
+about: ObjectRef | string;
+}>;
+
+// @public
 export const askFor: Action<{
     thing: ActingOn;
     from: ActingOn;
@@ -791,6 +796,31 @@ export function gregorian(options?: GregorianOptions): Calendar;
 // @public
 export type GregorianOptions = {
     readonly seasons?: "northern" | "southern" | SeasonsByMonth;
+};
+
+// @public
+export function groupTopic(entry: GroupTopicEntry): void;
+
+// @public
+export type GroupTopicContext = {
+    readonly participants: readonly ObjectRef[];
+    readonly about: ObjectRef | Fact;
+};
+
+// @public
+export type GroupTopicEntry = ({
+    readonly ask: ObjectRef | Fact;
+} | {
+    readonly tell: ObjectRef | Fact;
+} | {
+    readonly askOrTell: ObjectRef | Fact;
+}) & {
+    readonly says: string | ((context: GroupTopicContext) => string | undefined);
+    readonly speaker?: ObjectRef;
+    readonly when?: () => boolean;
+    readonly priority?: number;
+    readonly reveals?: Fact | readonly Fact[];
+    readonly suggested?: boolean;
 };
 
 // @public
@@ -1652,6 +1682,11 @@ count: number;
 // @public
 export const tell: Action<    {
 who: ObjectRef;
+about: ObjectRef | string;
+}>;
+
+// @public
+export const tellEveryone: Action<    {
 about: ObjectRef | string;
 }>;
 
