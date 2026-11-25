@@ -8,11 +8,16 @@
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { compileProject, parsePassageFile, PASSAGE_EXTENSION } from "@loominate-if/compiler";
+import {
+  compileProject,
+  parsePassageFile,
+  PASSAGE_EXTENSION,
+  shownDiagnostics,
+} from "@loominate-if/compiler";
 import { createServer, mergeConfig, type Plugin } from "vite";
 import { loadConfig, type ResolvedConfig } from "./config/config.js";
 import { viteConfig, runWalkthroughs, type CommandOptions } from "./commands.js";
-import { gameFiles } from "./vite/plugin.js";
+import { formatDiagnostic, gameFiles } from "./vite/plugin.js";
 
 /** Options for {@link coverage}. */
 export type CoverageOptions = CommandOptions & {
@@ -98,8 +103,14 @@ export async function coverage(options: CoverageOptions = {}): Promise<CoverageR
   });
   const errors = compiled.diagnostics.filter((d) => d.severity === "error");
   if (errors.length > 0) {
+    // The errors that matter, as the dev server shows them, without those that follow from others.
+    const { shown, heldBack } = shownDiagnostics(errors, { verbose: options.verbose ?? false });
     throw new Error(
-      `The game has ${String(errors.length)} ${errors.length === 1 ? "error" : "errors"}; fix ${errors.length === 1 ? "it" : "them"} first. \`loominate dev\` or \`loominate build\` shows them.`,
+      [
+        `the game has ${String(errors.length)} ${errors.length === 1 ? "error" : "errors"}; fix ${errors.length === 1 ? "it" : "them"} first:`,
+        ...shown.map((d) => formatDiagnostic(config.root, d)),
+        ...(heldBack > 0 ? [`and ${String(heldBack)} more that likely follow from these.`] : []),
+      ].join("\n"),
     );
   }
   // The compiler's, keyed by the passage they're about, so a walkthrough that reaches one drops it.

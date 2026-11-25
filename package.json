@@ -7,7 +7,7 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "typecheck": "tsc -b && tsc -p scripts && tsc -p examples/branching-story && tsc -p examples/world-model",
+    "typecheck": "tsc -b && tsc -p scripts && tsc -p examples/branching-story && tsc -p examples/world-model && tsc -p examples/conversation-demo",
     "lint": "eslint . && prettier --check . && node scripts/check-deps.ts && node scripts/release.ts check",
     "format": "prettier --write .",
     "docs:update": "node scripts/snippets.ts --update",

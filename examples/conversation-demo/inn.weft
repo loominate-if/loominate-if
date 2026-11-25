@@ -1,0 +1,90 @@
+:: Arrival
+{chapter "Evening"}
+You shoulder the door shut on the storm. Water runs from your coat onto the flagstones of the Wayfarer's Rest, the only inn this side of the river.
+
+[[Continue -> Taproom]]
+
+:: Taproom [room: taproom]
+Rain hammers the shutters of the Wayfarer's Rest. A fire smokes in the hearth, and the taproom smells of wet wool and ale.{if isHere(marta)} [[Marta]]{menu marta} works behind the bar.{/if}{if isHere(wren)} [[Wren]]{menu wren} stands dripping by the fire.{/if}
+
+{if isHere(marta) && !talkingTo(marta)}[[Talk to Marta]]{act hello({ who: marta })}{/if}
+
+{if isHere(wren) && !talkingTo(wren)}[[Talk to Wren]]{act hello({ who: wren })}{/if}
+
+{topics}
+
+{exits}
+
+:: Kitchen [room: kitchen]
+A low kitchen, hot as an oven. A pot of stew mutters on the range.{if isHere(tobias)} [[Tobias]]{menu tobias} stirs it, frowning.{/if}{if isHere(wren)} [[Wren]]{menu wren} has followed you in.{/if}
+
+{if isHere(tobias) && !talkingTo(tobias)}[[Talk to Tobias]]{act hello({ who: tobias })}{/if}
+
+{if isHere(wren) && !talkingTo(wren)}[[Talk to Wren]]{act hello({ who: wren })}{/if}
+
+{topics}
+
+{exits}
+
+:: Cellar [room: cellar]
+Barrels, and the drip of water somewhere in the dark.{if isHere(marta)} [[Marta]]{menu marta} wrestles a fresh barrel onto its stand.{/if}{if isHere(wren)} [[Wren]]{menu wren} waits on the bottom step.{/if}
+
+{if isHere(marta) && !talkingTo(marta)}[[Talk to Marta]]{act hello({ who: marta })}{/if}
+
+{if isHere(wren) && !talkingTo(wren)}[[Talk to Wren]]{act hello({ who: wren })}{/if}
+
+{topics}
+
+{exits}
+
+:: Stable [room: stable]
+Horses shift in the straw, and the wind howls through the gaps in the boards.{if isHere(tobias)} [[Tobias]]{menu tobias} forks hay into the mangers.{/if}{if isHere(wren)} [[Wren]]{menu wren} shelters by the door.{/if}
+
+{if isHere(tobias) && !talkingTo(tobias)}[[Talk to Tobias]]{act hello({ who: tobias })}{/if}
+
+{if isHere(wren) && !talkingTo(wren)}[[Talk to Wren]]{act hello({ who: wren })}{/if}
+
+{topics}
+
+{exits}
+
+:: Landing [room: landing]
+A narrow landing under the eaves. The roof leaks into a bucket.{if isHere(wren)} [[Wren]]{menu wren} paces by the window.{/if}
+
+{if isHere(wren) && !talkingTo(wren)}[[Talk to Wren]]{act hello({ who: wren })}{/if}
+
+{topics}
+
+{exits}
+
+:: Your Room [room: yourRoom]
+A small room with a hard bed. It's {timeOfDay()}.{if isHere(wren)} [[Wren]]{menu wren} stands in the doorway.{/if}
+
+{if isHere(wren) && !talkingTo(wren)}[[Talk to Wren]]{act hello({ who: wren })}{/if}
+
+{topics}
+
+{if night.promised}[[Sleep -> The Ferry]]{else}[[Sleep -> Morning]]{/if}
+
+{exits}
+
+:: Wren's Tale [cutscene]
+{chapter "Wren's Tale"}
+“I ride for the duchess,” Wren says, low. “Her letters, to the coast. There are people who'd pay well to read this one.”
+{beat 1s}
+“If the bridge is gone, I'm stuck here. But a ferry crosses at first light.”
+{continue back}
+
+:: The Ferry
+{chapter "Morning"}
+At first light the storm has blown itself out. You find the ferryman at the river and hand him Wren's letter. He tucks it into his coat without a word, and pushes off into the grey.
+{if night.paid}Marta waves you off from the door.{else}Behind you, Marta shouts something about your bill.{/if}
+
+THE END
+
+:: Morning
+{chapter "Morning"}
+At first light the storm has blown itself out. Wren is gone, her room empty, and the ferry already halfway across the river.
+{if night.paid}Marta waves you off from the door.{else}Behind you, Marta shouts something about your bill.{/if}
+
+THE END

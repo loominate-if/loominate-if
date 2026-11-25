@@ -13,8 +13,8 @@ afterAll(() => {
 });
 
 /** A game with the world model, with something of each kind that can't be reached, and a walkthrough. */
-function game(): string {
-  const root = path.join(temp, "game");
+function game(name = "game", more: Record<string, string> = {}): string {
+  const root = path.join(temp, name);
   const files: Record<string, string> = {
     "package.json": '{"type":"module"}',
     "loominate.config.ts": `import { defineConfig } from "@loominate-if/cli";
@@ -72,7 +72,7 @@ test("into the attic, as code can take the player", () => {
 });
 `,
   };
-  for (const [name, text] of Object.entries(files)) {
+  for (const [name, text] of Object.entries({ ...files, ...more })) {
     mkdirSync(path.dirname(path.join(root, name)), { recursive: true });
     writeFileSync(path.join(root, name), text);
   }
@@ -135,4 +135,13 @@ describe("loominate coverage (#133)", () => {
     expect(text).toContain("  Passages: all 3 reached\n");
     expect(text).toContain("  Actions: 1 of 1 not reached\n    Wave the fan\n");
   }, 120_000);
+
+  it("names the game's errors, rather than reporting on a game that doesn't compile", async () => {
+    const root = game("broken", { "rooms.weft": ":: Hall\nA hall. {nope}\n" });
+    await expect(
+      coverage({ root, conditions: ["source"], vite: { configFile: false, logLevel: "silent" } }),
+    ).rejects.toThrow(
+      /the game has 1 error; fix it first:\nrooms\.weft:2:\d+ error: `nope` isn't defined/,
+    );
+  });
 });

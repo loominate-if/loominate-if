@@ -1,10 +1,11 @@
 // The acceptance games in examples/ (ADR 0027): each passes its walkthroughs,
 // builds to both targets, and, for gate 1, carries no world-model code.
-// Gate 2 is the world-model piece.
+// Gate 2 is the world-model piece; gate 3, the conversation-driven one, also
+// has nothing its coverage report says can't be reached, and nothing unreached.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { build, test } from "../packages/cli/src/index.ts";
+import { build, coverage, test } from "../packages/cli/src/index.ts";
 
 const repo = join(import.meta.dirname, "..");
 const options = (root: string) => ({
@@ -76,5 +77,36 @@ describe("gate 2: examples/world-model", () => {
     expect(existsSync(join(dist, "index.html"))).toBe(true);
     const single = readFileSync(join(dist, "the-tollhouse.html"), "utf8");
     expect(single).toContain("toll keeper");
+  }, 120_000);
+});
+
+describe("gate 3: examples/conversation-demo", () => {
+  const root = join(repo, "examples/conversation-demo");
+
+  it("passes its walkthroughs", async () => {
+    const result = await test(options(root));
+    expect(result.failed).toBe(0);
+    expect(result.passed).toBe(true);
+    expect(result.tests).toBeGreaterThanOrEqual(14);
+  }, 120_000);
+
+  it("has nothing that can't be reached, and its walkthroughs reach every topic, node, fact, and passage", async () => {
+    const report = await coverage(options(root));
+    expect(report.unreachable).toEqual([]);
+    expect(report.notReached.map((c) => [c.check, c.missed])).toEqual(
+      report.notReached.map((c) => [c.check, []]),
+    );
+    expect(report.notReached.map((c) => c.check)).toEqual(
+      expect.arrayContaining(["passages", "topics", "facts", "nodes"]),
+    );
+  }, 120_000);
+
+  it("builds to the static site and the single file, with the world model", async () => {
+    await build(options(root));
+    await build({ ...options(root), target: "single" });
+    const dist = join(root, "dist");
+    expect(existsSync(join(dist, "index.html"))).toBe(true);
+    const single = readFileSync(join(dist, "wayfarers-rest.html"), "utf8");
+    expect(single).toContain("Wayfarer's Rest");
   }, 120_000);
 });

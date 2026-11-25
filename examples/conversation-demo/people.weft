@@ -1,0 +1,101 @@
+:: Marta [actor: marta]
+
+{hello}
+“Evening. Foul night for it.”
+
+{ask storm}
+“Three days of it now. The river's never been so high.”
+
+{ask storm, again}
+“Still raining, love. Still raining.”
+
+{ask road}
+“The bridge road? Ask Tobias. He was out that way this morning.”
+
+{ask facts.bridgeOut}
+“Gone? Then nobody's leaving tomorrow but by the ferry.”
+
+{ask facts.wrenIsCourier}
+“The duchess's courier, under my roof? Well. She pays like one.”
+
+{ask wren}
+“Came in at dusk, soaked through. Keeps to herself.”
+
+{ask room, opens: settling}
+“Up the stairs, on the right. You'll settle up now, before I forget?”
+
+{bye}
+“Mind the stairs.”
+
+:: Marta settling [actor: marta, node: settling]
+
+{yes}
+{on enter: night.paid = true}
+“Bless you.” She drops your coins in the till.
+
+{no}
+“In the morning, then. I'll remember.”
+
+:: Tobias [actor: tobias]
+
+{hello}
+“Mm?”
+
+{ask road}
+“Road's fine as far as the bridge. The bridge isn't. Washed clean away this afternoon.”
+{reveal facts.bridgeOut, from: tobias}
+
+{ask facts.bridgeOut}
+“Watched it go. Took a cart with it.”
+
+{ask stew}
+“Mutton. Don't ask what else.”
+
+{ask or tell anything}
+Tobias grunts and goes on with his work.
+
+{bye implicit}
+Tobias goes back to what he was doing.
+
+{bye explicit}
+“Mm.”
+
+:: Wren [actor: wren]
+
+{hello}
+“Oh. Hello.”
+
+{ask road}
+“I came the bridge road. Before.”
+
+{ask facts.bridgeOut}
+“Then the ferry's the only way across. It goes at first light, storm or no.”
+
+{ask ferryman}
+“Old Hesk. He'll take anything across, if it's paid for.”
+
+{ask letter, -> Wren's Tale}
+“It isn't mine to tell. But you should know who you'd be helping.”
+{reveal facts.wrenIsCourier, from: wren}
+
+{ask facts.wrenIsCourier}
+“Keep that to yourself. Please.”
+
+{ask or tell anything}
+“I wouldn't know.”
+
+{bye}
+“Goodnight.”
+
+:: Wren favour [actor: wren, node: favour]
+
+{ask letter, stays}
+“It must reach the ferryman at first light. I can't be seen at the river.”
+
+{yes}
+{on enter: promise()}
+“Thank you.” She presses a sealed letter into your hand. “Hesk will know what to do.”
+
+{no}
+{on enter: night.refused = true}
+“I see.” She turns away. “Forget I asked.”
