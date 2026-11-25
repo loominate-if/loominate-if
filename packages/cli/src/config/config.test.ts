@@ -99,6 +99,11 @@ describe("loominate.config.ts", () => {
     ).toBe(
       'loominate.config.ts: `cover` needs an `image` and its `alt` text, like `cover: { image: "cover.jpg", alt: "A lighthouse in a storm" }`.',
     );
+    expect(
+      await problem('{ game: { id: "g", version: "1" }, start: "S", audio: "yes" } as never'),
+    ).toBe(
+      "loominate.config.ts: `audio` is `true` for a game with sound, or `false`, like `audio: true`.",
+    );
     const noDefault = game({ "loominate.config.ts": "export const config = {};\n" });
     await expect(loadConfig(noDefault, options)).rejects.toThrow(
       "loominate.config.ts: export the game's configuration as the default: `export default defineConfig({ … })`.",

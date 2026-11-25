@@ -34,6 +34,12 @@ export type LoominateConfig = {
    */
   readonly cover?: { readonly image: string; readonly alt: string };
   /**
+   * Whether the game has sound: it plays what it cues with `music`,
+   * `ambience`, and `sound`, files in its `public/` folder, and offers a
+   * Sound switch and settings. Off by default.
+   */
+  readonly audio?: boolean;
+  /**
    * Shareable seeds: `true` makes each new game's seed memorable words, shown
    * in the game menu to share, and takes one to play; `"daily"` gives
    * everyone today's; any other text is the seed every game starts from.
@@ -179,7 +185,7 @@ function check(value: unknown): LoominateConfig {
       "export the game's configuration as the default: `export default defineConfig({ … })`.",
     );
   }
-  const { game, title, author, cover, seeds, start, extensions, scope, inspector } = value;
+  const { game, title, author, cover, audio, seeds, start, extensions, scope, inspector } = value;
   if (!isRecord(game) || !text(game.id) || !text(game.version)) {
     fail(
       '`game` needs an `id` and a `version`, like `game: { id: "lantern-road", version: "1.0.0" }`.',
@@ -197,6 +203,9 @@ function check(value: unknown): LoominateConfig {
     fail(
       '`cover` needs an `image` and its `alt` text, like `cover: { image: "cover.jpg", alt: "A lighthouse in a storm" }`.',
     );
+  }
+  if (audio !== undefined && typeof audio !== "boolean") {
+    fail("`audio` is `true` for a game with sound, or `false`, like `audio: true`.");
   }
   if (seeds !== undefined && typeof seeds !== "boolean" && !text(seeds)) {
     fail(

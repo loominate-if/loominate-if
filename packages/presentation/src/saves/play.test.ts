@@ -8,6 +8,7 @@ import {
   ENGINE_VERSION,
   messages,
   readReplay,
+  sound,
   writeReplay,
   type Passage,
   type SaveStorage,
@@ -453,6 +454,83 @@ describe("the start screen every game opens on (#407)", () => {
     const reloaded = await start({ startScreen: true, storage });
     expect(reloaded.container.querySelector(".loominate-start")).toBeNull();
     expect(reloaded.text()).toContain("A stone bridge.");
+  });
+});
+
+describe("sound (#146)", () => {
+  const noisy: Passage[] = [
+    {
+      id: "Road",
+      tags: [],
+      body: () => [{ type: "link", label: "Walk on", target: "Bridge" }],
+    },
+    {
+      id: "Bridge",
+      tags: [],
+      effects: {
+        enter: () => {
+          sound("sounds/creak.ogg", { caption: "The planks creak." });
+        },
+      },
+      body: () => [{ type: "text", text: "A stone bridge." }, { type: "notices" }],
+    },
+  ];
+  afterEach(() => {
+    localStorage.removeItem("loominate:sound:lantern-road");
+  });
+
+  it("puts a Sound switch on the start screen, remembered as the default for the next game", async () => {
+    const first = await start({ startScreen: true, audio: true, storage: createMemoryStorage() });
+    const toggle = () => first.container.querySelector(".loominate-start .loominate-sound-toggle");
+    expect([toggle()?.textContent, toggle()?.getAttribute("aria-pressed")]).toEqual([
+      "Sound on",
+      "true",
+    ]);
+    (toggle() as HTMLButtonElement | null)?.click();
+    expect(toggle()?.getAttribute("aria-pressed")).toBe("false");
+    expect(JSON.parse(localStorage.getItem("loominate:sound:lantern-road") ?? "{}")).toMatchObject({
+      on: false,
+    });
+    first.player.destroy();
+    const again = await start({ startScreen: true, audio: true, storage: createMemoryStorage() });
+    expect(
+      again.container
+        .querySelector(".loominate-start .loominate-sound-toggle")
+        ?.getAttribute("aria-pressed"),
+    ).toBe("false");
+  });
+
+  it("has a Sound dialog in the game menu, with volumes and captions, and shows captions on the page", async () => {
+    const game = await start({ audio: true, passages: noisy, storage: createMemoryStorage() });
+    game.click("Sound");
+    const dialog = game.container.querySelector<HTMLDialogElement>("dialog.loominate-sound");
+    expect(dialog?.open).toBe(true);
+    expect([...(dialog?.querySelectorAll("label") ?? [])].map((l) => l.textContent)).toEqual([
+      "Music",
+      "Ambience",
+      "Effects",
+      "Show captions for sounds",
+    ]);
+    expect((await axe.run(dialog ?? document)).violations).toEqual([]);
+    const captions = dialog?.querySelector<HTMLInputElement>("input[type=checkbox]");
+    captions?.click();
+    game.click("Walk on");
+    expect(game.container.querySelector(".loominate-passage")?.textContent).toContain(
+      "[The planks creak.]",
+    );
+  });
+
+  it("isn't offered to a game without it, which is told if it cues sound anyway", async () => {
+    const errors: unknown[] = [];
+    const game = await start({
+      passages: noisy,
+      storage: createMemoryStorage(),
+      onError: (e) => errors.push(e),
+    });
+    expect(game.container.querySelector(".loominate-sound-toggle")).toBeNull();
+    expect(() => game.button("Sound")).toThrow();
+    game.click("Walk on");
+    expect(String(errors[0])).toContain("Add `audio: true` to loominate.config.ts.");
   });
 });
 

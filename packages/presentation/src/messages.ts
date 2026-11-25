@@ -20,6 +20,22 @@ declare module "@loominate-if/core" {
     "page.speaker": { readonly name: string };
     /** Before an aside, said to the player alone (#143): "Maid, aside: ". */
     "page.aside": { readonly name: string };
+    /** A sound's caption, with captions on (#146): "[A door slams.]". */
+    "page.caption": { readonly caption: string };
+    /** The Sound dialog (#146): its title, the on switch, each channel's volume, captions, and closing. */
+    "sound.title": None;
+    "sound.on": None;
+    /** The Sound switch's state, shown beside it: "on", "off". */
+    "sound.isOn": None;
+    "sound.isOff": None;
+    "sound.music": None;
+    "sound.ambience": None;
+    "sound.effects": None;
+    "sound.captions": None;
+    "sound.close": None;
+    /** The game menu's button for the Sound dialog, and its tooltip. */
+    "menu.sound": None;
+    "menu.soundTip": None;
     /** A continue point's label, when it has none. */
     "page.continue": None;
     /** The heading only screen readers hear, before a passage's text after a move: "Passage". */
@@ -211,6 +227,18 @@ const register: typeof messages.register = (key, text) => {
 register("page.error", ({ error }) => `Something went wrong: ${error}`);
 register("page.speaker", ({ name }) => `${name}: `);
 register("page.aside", ({ name }) => `${name}, aside: `);
+register("page.caption", ({ caption }) => `[${caption}]`);
+register("sound.title", "Sound");
+register("sound.on", "Sound");
+register("sound.isOn", "on");
+register("sound.isOff", "off");
+register("sound.music", "Music");
+register("sound.ambience", "Ambience");
+register("sound.effects", "Effects");
+register("sound.captions", "Show captions for sounds");
+register("sound.close", "Close");
+register("menu.sound", "Sound");
+register("menu.soundTip", "Turn sound on or off, set its volume, and show captions.");
 register("page.continue", "Continue");
 register("page.passageHeading", "Passage");
 register("page.moreHeading", "More");

@@ -196,6 +196,21 @@ export {
 export { hook, type Hook, type HookContext, type HookKinds } from "./rules/hooks.js";
 export { registry, type Registry, type RegistryEntry } from "./rules/registry.js";
 export {
+  _channelCue,
+  AUDIO_ID,
+  ambience,
+  cueAmbience,
+  cueMusic,
+  cueSound,
+  music,
+  sound,
+  stopAmbience,
+  stopMusic,
+  type AudioChannel,
+  type AudioChannelName,
+  type ChannelCue,
+} from "./audio/audio.js";
+export {
   coverageChecks,
   type CoverageCheck,
   type CoverageFinding,

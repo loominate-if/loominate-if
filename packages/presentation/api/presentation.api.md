@@ -275,6 +275,7 @@ export type PageOptions = {
     readonly styles?: boolean;
     readonly narrow?: string;
     readonly commandLine?: boolean;
+    readonly captions?: () => boolean;
 };
 
 // @public
@@ -334,6 +335,7 @@ export type PlayOptions = {
         readonly alt: string;
     };
     readonly startScreen?: boolean;
+    readonly audio?: boolean;
     readonly storage?: SaveStorage;
     readonly seed?: () => string;
     readonly seeds?: SeedSetting;

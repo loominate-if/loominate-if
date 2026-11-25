@@ -114,6 +114,12 @@ export type PageOptions = {
    * menu turns it on and off.
    */
   readonly commandLine?: boolean;
+  /**
+   * Whether sounds' captions show, as notices, for players who can't hear
+   * them (#146): asked as each move is shown. The player shell's Sound
+   * settings turn them on.
+   */
+  readonly captions?: () => boolean;
 };
 
 /** A story shown on a page. */
@@ -742,9 +748,16 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
    * began, or with `sinceBeat`, since the last beat moved past.
    */
   const notices = (sinceBeat: boolean): Proseful[] => {
-    const events = record.events({ kinds: [...NOTICE_KINDS, "navigation", "action", "beat"] });
+    const events = record.events({
+      kinds: [...NOTICE_KINDS, "navigation", "action", "beat", "sound"],
+    });
     const out: Proseful[] = [];
     for (const e of events) {
+      const heard = captionOf(e);
+      if (heard) {
+        out.push(heard);
+        continue;
+      }
       const starts =
         (e.kind === "navigation" && e.redirected !== true) ||
         e.kind === "action" ||
@@ -756,6 +769,14 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
       }
     }
     return out;
+  };
+
+  /** A sound's caption, as a notice, while captions are on: "[A door slams.]" (#146). */
+  const captionOf = (e: RecordedEvent): Proseful | undefined => {
+    if (e.kind !== "sound" || options.captions?.() !== true) return undefined;
+    const caption = (e as { readonly caption?: string }).caption;
+    if (caption === undefined || caption === "") return undefined;
+    return { ...e, text: message("page.caption", { caption }) } as unknown as Proseful;
   };
 
   /** The layout showing, if it's registered; `currentLayout` reports one that isn't. */
@@ -772,7 +793,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
   /** What was noticed from event `since` up to the move on screen, for a transcript layout. */
   const transcript = (since: number): { earlier: Proseful[]; last: Proseful[] } => {
     const events = record.events({
-      kinds: [...NOTICE_KINDS, "navigation", "action", "beat"],
+      kinds: [...NOTICE_KINDS, "navigation", "action", "beat", "sound"],
       since,
     });
     const earlier: Proseful[] = [];
@@ -791,6 +812,10 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
         }
         move = [];
       } else if (NOTICE_KINDS.includes(e.kind) && onPage(e)) move.push(e as Proseful);
+      else {
+        const heard = captionOf(e);
+        if (heard) move.push(heard);
+      }
     }
     return { earlier, last };
   };

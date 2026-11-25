@@ -107,6 +107,9 @@ export function actLink<A>(args: {
 }): LinkGuard;
 
 // @public
+export const ambience: AudioChannel;
+
+// @public
 export type Ask<A> = {
     readonly label: string | ((context: ActionContext<A>) => string);
     readonly min?: number | ((context: ActionContext<A>) => number);
@@ -122,6 +125,25 @@ export type AskedNumber = {
     readonly max?: number;
     readonly start: number;
 };
+
+// @public
+export const AUDIO_ID = "$audio";
+
+// @public
+export type AudioChannel = {
+    readonly name: AudioChannelName;
+    play(src: string, options?: {
+        readonly fade?: number;
+        readonly volume?: number;
+    }): void;
+    stop(options?: {
+        readonly fade?: number;
+    }): void;
+    readonly playing: string | undefined;
+};
+
+// @public
+export type AudioChannelName = "music" | "ambience";
 
 // @public
 export const AUTOSAVE_SLOT = "autosave";
@@ -144,6 +166,18 @@ export type BeatNode = {
     readonly page?: true;
     readonly minutes?: number;
 };
+
+// @public
+export type ChannelCue = {
+    readonly src: string;
+    readonly fade: number;
+    readonly volume: number;
+};
+
+// @internal
+export function _channelCue(store: {
+    get(id: string, key: string): unknown;
+}, name: AudioChannelName): ChannelCue | undefined;
 
 // @public
 export function chapter(title: string): void;
@@ -262,6 +296,27 @@ export function createStore(snapshot?: StateSnapshot): StateStore;
 // @public
 export function createStory(store: StateStore, record: EventRecord, passages: readonly Passage[], options: StoryOptions): Story;
 
+// @public
+export function cueAmbience(args: {
+    readonly src: string;
+    readonly fade?: number;
+    readonly volume?: number;
+}, context: EffectContext): void;
+
+// @public
+export function cueMusic(args: {
+    readonly src: string;
+    readonly fade?: number;
+    readonly volume?: number;
+}, context: EffectContext): void;
+
+// @public
+export function cueSound(args: {
+    readonly src: string;
+    readonly caption?: string;
+    readonly volume?: number;
+}, context: EffectContext): void;
+
 // @internal
 export function _currentPassage(): PassageId | undefined;
 
@@ -347,6 +402,11 @@ export interface EventKinds {
     scheduled: ProseFields & {
         readonly source: StateId;
         readonly standsOut?: boolean;
+    };
+    sound: {
+        readonly src: string;
+        readonly caption?: string;
+        readonly volume?: number;
     };
     system: ProseFields;
 }
@@ -668,6 +728,9 @@ export function mixin<M extends ObjectDefinition<M>>(definition: M & ThisType<Ha
 
 // @public
 export type MoveKind = "follow" | "continue" | "act" | "goTo";
+
+// @public
+export const music: AudioChannel;
 
 // @public
 export function namedEffect(args: {
@@ -1075,6 +1138,12 @@ export type SaveSummary = Omit<SaveFile, "state"> & {
 };
 
 // @public
+export function sound(src: string, options?: {
+    readonly caption?: string;
+    readonly volume?: number;
+}): void;
+
+// @public
 export function spawn<D>(template: ObjectTemplate<D>, origin: ObjectRef, key?: string): Handle<D>;
 
 // @public
@@ -1136,6 +1205,16 @@ export function _statusAs<A>(call: ActionCall<A>, as?: PerformOptions["as"]): Ac
 
 // @public
 export function statusOf<A>(call: ActionCall<A>): ActionStatus;
+
+// @public
+export function stopAmbience(args: {
+    readonly fade?: number;
+}, context: EffectContext): void;
+
+// @public
+export function stopMusic(args: {
+    readonly fade?: number;
+}, context: EffectContext): void;
 
 // @public
 export interface Stopped<V> {

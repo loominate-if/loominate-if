@@ -99,6 +99,7 @@ export type LoominateConfig = {
         readonly image: string;
         readonly alt: string;
     };
+    readonly audio?: boolean;
     readonly seeds?: boolean | "daily" | (string & {});
     readonly start: string;
     readonly extensions?: readonly string[];
