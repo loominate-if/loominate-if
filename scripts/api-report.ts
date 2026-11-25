@@ -108,6 +108,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     if (pkg.dir.startsWith("examples/")) continue;
     // A package that isn't TypeScript, as the Tree-sitter grammar (#411), has no API to report.
     if (!existsSync(join(repo, pkg.dir, "tsconfig.json"))) continue;
+    // A private package with no entry point, as the VS Code extension (#414), has no public API.
+    if (pkg.json.private === true && pkg.json.exports === undefined) continue;
     const why = checkEntryPoint(pkg.json);
     if (why) {
       console.error(`api-report: ${pkg.dir}/package.json ${why}`);

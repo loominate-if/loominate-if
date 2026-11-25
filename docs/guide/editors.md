@@ -45,10 +45,13 @@ Sublime Text 4 colors passage files through the package in `packages/sublime`, w
   - on macOS or Linux: `ln -s /path/to/loominate/packages/sublime "Loominate IF"`.
 - **Open your game's folder** (**File > Open Folder**). The server's proxy finds the language server your game depends on, or a Loominate IF checkout's own, after `pnpm build`. Node.js must be on your PATH.
 
+## VS Code
+
+The extension in `packages/vscode` colors passage files, with TypeScript colors inside `{ … }`, and starts the language server for errors, completion, hover, and go to definition.
+
+- **Build and install it** from a Loominate IF checkout until it's on the Marketplace: run `npx pnpm --filter loominate package`, then, in VS Code, **Extensions: Install from VSIX…** and choose `packages/vscode/loominate.vsix`.
+- **Open your game's folder** (**File > Open Folder**). The extension finds the language server your game depends on, or a Loominate IF checkout's own, after `pnpm build`. It runs the server with the Node.js on your PATH, or the one the `loominate.nodePath` setting names.
+
 ## Other editors
-
-Each editor needs a small client that colors `.weft` files and starts the server. They're on their way:
-
-- VS Code ([#414](https://github.com/loominate-if/loominate-if/issues/414))
 
 Any other editor that can start a language server for a file type can use it now, with the command above.

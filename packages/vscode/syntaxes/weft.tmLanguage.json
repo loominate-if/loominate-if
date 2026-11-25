@@ -1,0 +1,250 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Loominate IF",
+  "scopeName": "source.weft",
+  "comment": "Passage files (#414, ADR 0122), after ADR 0004. The directives are the Tree-sitter grammar's (ADR 0119), longest first; scripts/editors.test.ts keeps them in step.",
+  "patterns": [
+    {
+      "include": "#header"
+    },
+    {
+      "include": "#line-comment"
+    },
+    {
+      "include": "#prose"
+    }
+  ],
+  "repository": {
+    "header": {
+      "begin": "^(::)[ \\t]*([^\\[\\]{}\\\\\\n]*[^\\[\\]{}\\\\\\s])?",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.heading.weft"
+        },
+        "2": {
+          "name": "entity.name.section.weft"
+        }
+      },
+      "end": "$",
+      "name": "markup.heading.weft",
+      "patterns": [
+        {
+          "include": "#tags"
+        }
+      ]
+    },
+    "tags": {
+      "begin": "\\[",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.section.brackets.begin.weft"
+        }
+      },
+      "end": "\\]|$",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.brackets.end.weft"
+        }
+      },
+      "name": "meta.tags.weft",
+      "patterns": [
+        {
+          "match": ",",
+          "name": "punctuation.separator.sequence.weft"
+        },
+        {
+          "match": "([A-Za-z_][\\w-]*)\\s*(:)\\s*([^,\\]]*)",
+          "captures": {
+            "1": {
+              "name": "entity.other.attribute-name.weft"
+            },
+            "2": {
+              "name": "punctuation.separator.key-value.weft"
+            },
+            "3": {
+              "name": "string.unquoted.weft"
+            }
+          }
+        },
+        {
+          "match": "[A-Za-z_][\\w-]*",
+          "name": "entity.other.attribute-name.weft"
+        }
+      ]
+    },
+    "line-comment": {
+      "match": "^\\s*(//).*$",
+      "name": "comment.line.double-slash.weft",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.comment.weft"
+        }
+      }
+    },
+    "prose": {
+      "patterns": [
+        {
+          "include": "#block-comment"
+        },
+        {
+          "include": "#escape"
+        },
+        {
+          "include": "#strong"
+        },
+        {
+          "include": "#emphasis"
+        },
+        {
+          "include": "#link"
+        },
+        {
+          "include": "#inline"
+        }
+      ]
+    },
+    "block-comment": {
+      "begin": "/\\*",
+      "end": "\\*/",
+      "name": "comment.block.weft"
+    },
+    "escape": {
+      "match": "\\\\[!-/:-@\\[-`{-~]",
+      "name": "constant.character.escape.weft"
+    },
+    "strong": {
+      "match": "(\\*\\*)(\\S(?:[^*\\n]*\\S)?)(\\*\\*)",
+      "name": "markup.bold.weft"
+    },
+    "emphasis": {
+      "match": "(\\*)(\\S(?:[^*\\n]*\\S)?)(\\*)",
+      "name": "markup.italic.weft"
+    },
+    "link": {
+      "patterns": [
+        {
+          "match": "(\\[\\[)((?:[^\\]\\n{}\\\\-]|-(?!>))*)(\\]\\])",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.link.begin.weft"
+            },
+            "2": {
+              "name": "entity.name.label.passage.weft markup.underline.link.weft"
+            },
+            "3": {
+              "name": "punctuation.definition.link.end.weft"
+            }
+          }
+        },
+        {
+          "begin": "\\[\\[",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.link.begin.weft"
+            }
+          },
+          "end": "\\]\\]|$",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.link.end.weft"
+            }
+          },
+          "name": "meta.link.weft",
+          "contentName": "string.other.link.title.weft",
+          "patterns": [
+            {
+              "match": "(->)\\s*([^\\]\\n]*[^\\]\\s])",
+              "captures": {
+                "1": {
+                  "name": "keyword.operator.arrow.weft"
+                },
+                "2": {
+                  "name": "entity.name.label.passage.weft markup.underline.link.weft"
+                }
+              }
+            },
+            {
+              "include": "#escape"
+            },
+            {
+              "include": "#inline"
+            }
+          ]
+        }
+      ]
+    },
+    "inline": {
+      "patterns": [
+        {
+          "match": "(\\{)(/if)(\\})",
+          "captures": {
+            "1": {
+              "name": "punctuation.section.braces.begin.weft"
+            },
+            "2": {
+              "name": "keyword.control.directive.weft"
+            },
+            "3": {
+              "name": "punctuation.section.braces.end.weft"
+            }
+          }
+        },
+        {
+          "begin": "(\\{)(reacts ask or tell|on first visit|ambience stop|show or give|ask or tell|reacts tell|reacts show|reacts give|music stop|reacts ask|reacts yes|page only|storylets|reacts no|on enter|on leave|log only|continue|storylet|ambience|else if|notices|chapter|effect|topics|reveal|music|sound|exits|hello|else|when|line|beat|wait|page|menu|emit|tell|show|give|act|ask|yes|bye|if|in|no)(?=[ ,:}])",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.section.braces.begin.weft"
+            },
+            "2": {
+              "name": "keyword.control.directive.weft"
+            }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.braces.end.weft"
+            }
+          },
+          "name": "meta.directive.weft",
+          "contentName": "meta.embedded.weft",
+          "patterns": [
+            {
+              "match": "(->)\\s*([^,}\\n]*[^,}\\s])",
+              "captures": {
+                "1": {
+                  "name": "keyword.operator.arrow.weft"
+                },
+                "2": {
+                  "name": "entity.name.label.passage.weft"
+                }
+              }
+            },
+            {
+              "include": "source.ts"
+            }
+          ]
+        },
+        {
+          "begin": "\\{",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.section.braces.begin.weft"
+            }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.braces.end.weft"
+            }
+          },
+          "contentName": "meta.embedded.weft",
+          "patterns": [
+            {
+              "include": "source.ts"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
