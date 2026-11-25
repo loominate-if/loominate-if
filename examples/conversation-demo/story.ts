@@ -133,18 +133,16 @@ export const promise = (): void => {
 // #endregion
 
 // #region agenda
-// At ten, Wren comes down to find you, a room a turn, and asks her favour.
+// At ten, Wren comes down to find you, a room a turn, and asks her favour
+// as soon as she reaches you, in the same turn, so she speaks first.
 agenda(wren, "ask a favour", {
   ready: () => clock.minutes >= 30,
   act: ({ npc, done }) => {
-    const asked = approach(npc, {
+    if (!stepToward(npc, you)) return;
+    approach(npc, {
       says: "“There you are. I've a letter that must cross the river, and you look honest.”",
       opens: favour,
     });
-    if (!asked) {
-      stepToward(npc, you);
-      return;
-    }
     player.learnAbout(letter);
     done();
   },

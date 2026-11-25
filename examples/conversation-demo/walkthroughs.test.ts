@@ -133,14 +133,24 @@ describe("The Wayfarer's Rest: Wren (#102)", () => {
     // Ten o'clock: she's on her way down.
     expect(placeOf(wren)?.id).toBe("taproom");
     pass(game, 1);
+    // She speaks first, as she arrives, without waiting for you to do anything.
     expect(placeOf(wren)?.id).toBe("kitchen");
     expect(game.notices).toContain("Wren arrives from");
-    // Here, she speaks first.
-    pass(game, 1);
     expect(game.notices).toContain(
       "“There you are. I've a letter that must cross the river, and you look honest.”",
     );
     expect(conversation.addressee?.id).toBe("wren");
+    expect(openNodeOf(wren)).toBe(favour);
+  });
+
+  it("speaks first as she comes into the room you're in, the move she arrives", () => {
+    const game = start();
+    pass(game);
+    pass(game);
+    // Ten o'clock, and she's come down to the taproom, where you are.
+    expect(placeOf(wren)?.id).toBe("taproom");
+    expect(game.notices).toContain("Wren arrives from above.");
+    expect(game.notices).toContain("“There you are.");
     expect(openNodeOf(wren)).toBe(favour);
   });
 
