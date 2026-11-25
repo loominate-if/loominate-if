@@ -26,7 +26,7 @@ await playGame(document.querySelector("#app")!, {
 
 ## What players get
 
-- **A start screen,** the first thing every game shows: the title, the byline, and the cover if there is one, then **Continue** if there's a game in progress, **Load a saved game** if there are saves, and **New game**. Nothing begins until the player chooses.
+- **A start screen,** the first thing every game shows: the title, the byline, and the cover if there is one, then **Continue** if there's a game in progress, **Load a saved game** if there are saves, and **New game**. Nothing begins until the player chooses. Focus starts on the title, as a game's page does, so a screen reader reads it with the cover's description and the byline; the next Tab reaches the first choice.
 - **Autosave** after every move. Reloading the page in the same tab carries straight on, past the start screen; coming back after closing the tab opens on it again.
 - **Undo**, **Save**, **Load**, **Restart**, **Story log**, and **Transcript** in the game menu, in the page's header. Restart asks once more on the same button, "Confirm restart", and moving away cancels it. It starts the story over with a fresh seed, replacing the autosave. Each button has a tooltip saying what it does, which stays clear when a game rewords the buttons ([Rewording the library](messages.md)). Saved slots are kept, but the game left behind isn't saved: save first to keep it.
 - **The save menu**, which saves under a name, loads, saves over a slot, exports a save as a file, imports one, and deletes, asking first. It's a dialog that works from the keyboard and with screen readers.

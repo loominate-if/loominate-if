@@ -240,7 +240,7 @@ describe("playing a game", () => {
     ).violations.flatMap((v) => v.nodes.map((n) => `${v.id}: ${n.html}`));
     expect(violations).toEqual([]);
     expect(screen?.textContent).toContain("You have a game in progress, at Bridge.");
-    expect(document.activeElement).toBe(back.button("Continue"));
+    expect(document.activeElement?.id).toBe("loominate-start-title");
     back.click("Continue");
     expect(back.text()).toContain("A stone bridge.");
     expect(back.container.querySelector(".loominate-start")).toBeNull();
@@ -362,7 +362,7 @@ describe("playing a game", () => {
     expect(
       [...(screen?.querySelectorAll<HTMLElement>("a, button") ?? [])].map((b) => b.textContent),
     ).toEqual(["New game"]);
-    expect(document.activeElement?.textContent).toBe("New game");
+    expect(document.activeElement?.id).toBe("loominate-start-title");
     expect(reloaded.container.querySelectorAll(".loominate-page")).toHaveLength(1);
     expect(errors).toHaveLength(1);
     expect(await autosaved(storage)).toBe("Bridge");
@@ -400,7 +400,16 @@ describe("the start screen every game opens on (#407)", () => {
     expect(buttons).toEqual(["New game"]);
     // Nothing has begun until the player chooses.
     expect(game.player.story).toBeUndefined();
-    expect(document.activeElement?.textContent).toBe("New game");
+    // Focus starts at the title, which a screen reader reads with the cover's description and the byline.
+    const title = document.activeElement;
+    expect([title?.tagName, title?.textContent]).toEqual(["H1", "Lantern Road"]);
+    const described = (title?.getAttribute("aria-describedby") ?? "")
+      .split(" ")
+      .map((id) => {
+        const e = document.getElementById(id);
+        return e?.getAttribute("alt") ?? e?.textContent;
+      });
+    expect(described).toEqual(["A lantern on a long road", "by A. Writer"]);
     const violations = (
       await axe.run(document, { rules: { "color-contrast": { enabled: false } } })
     ).violations.flatMap((v) => v.nodes.map((n) => `${v.id}: ${n.html}`));
@@ -528,7 +537,7 @@ describe("shareable seeds (#132)", () => {
     const screen = back.container.querySelector(".loominate-start");
     expect(screen?.textContent).toContain("A seed shared with you: amber-lantern-fog@0.9.0.");
     expect(screen?.textContent).toContain("This seed is from version 0.9.0");
-    expect(document.activeElement).toBe(back.button("Play this seed"));
+    expect(document.activeElement?.id).toBe("loominate-start-title");
     // Taken from the address, so a reload carries on rather than offering it again.
     expect(location.search).toBe("");
     back.button("Continue");

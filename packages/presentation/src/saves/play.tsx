@@ -695,11 +695,28 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
       <main className="loominate-main" aria-labelledby="loominate-start-title">
         <div className="loominate-passage">
           {options.cover && (
-            <img className="loominate-cover" src={options.cover.image} alt={options.cover.alt} />
+            <img
+              id="loominate-start-cover"
+              className="loominate-cover"
+              src={options.cover.image}
+              alt={options.cover.alt}
+            />
           )}
-          <h1 id="loominate-start-title">{options.title ?? options.game.id}</h1>
+          {/* Focus starts here, as the page's does: the title, then the cover and byline as its description. */}
+          <h1
+            id="loominate-start-title"
+            tabIndex={-1}
+            {...((options.cover || options.author !== undefined) && {
+              "aria-describedby": [
+                ...(options.cover ? ["loominate-start-cover"] : []),
+                ...(options.author !== undefined ? ["loominate-start-byline"] : []),
+              ].join(" "),
+            })}
+          >
+            {options.title ?? options.game.id}
+          </h1>
           {options.author !== undefined && (
-            <p className="loominate-byline">
+            <p id="loominate-start-byline" className="loominate-byline">
               {message("start.byline", { author: options.author })}
             </p>
           )}
@@ -767,7 +784,8 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
       </main>,
       screen,
     );
-    screen.querySelector<HTMLButtonElement>(".loominate-choice button")?.focus();
+    // The title first, so a screen reader reads the cover and byline with it; the next Tab reaches the first choice.
+    screen.querySelector<HTMLElement>("#loominate-start-title")?.focus();
   };
 
   let autosaved: LoadedSave | undefined;
