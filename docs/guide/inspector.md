@@ -134,7 +134,7 @@ With the world model, an **NPCs** tab has a row for each NPC, the player aside:
 
 Below it, a **Timeline** lists what NPCs did, newest first: each action, done or refused and why, each move their timetable made, and each time they caught up. It shows what happened offstage; **Include what the player saw** adds the rest. These are `npc` events in the event record, which the page never shows, so the Events tab lists them too, and undo, saves, and replays keep them.
 
-Each entry starts with the move it happened in, linked to the undo history as the **History** tab is: choose the move to go back to just after it, "start" for what happened as the game began. The move the game is at is marked, not a way to go. After going back, what NPCs did in the moves ahead stays listed, in italics and marked "ahead, undone", so you can go forward to it again; a new move drops them, as it drops the moves ahead.
+Each entry starts with the move it happened in, linked to the undo history as the **History** tab is: choose the move to go back to just after it, "start" for what happened as the game began. The move the game is at says "(now)", and isn't a way to go. After going back, what NPCs did in the moves ahead stays listed, in italics and marked "ahead, undone", so you can go forward to it again; a new move drops them, as it drops the moves ahead.
 
 ## Conversation
 

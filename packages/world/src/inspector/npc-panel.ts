@@ -215,7 +215,9 @@ export const npcPanel: InspectorPanel = {
             .map(({ event: e, move, ahead }) => {
               const row = el("tr", ahead ? "ahead" : undefined);
               // The move it happened in, to go to through the history, as the History tab does.
-              const go = el("button", undefined, move === 0 ? "start" : String(move));
+              // Where the game is now says so, for everyone, not only screen readers.
+              const shown = move === 0 ? "start" : String(move);
+              const go = el("button", undefined, move === here ? `${shown} (now)` : shown);
               go.type = "button";
               const name = move === 0 ? "the start" : `move ${String(move)}`;
               go.setAttribute(
