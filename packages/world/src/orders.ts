@@ -12,6 +12,7 @@ import {
   message,
   messages,
   rulebook,
+  StateError,
   t,
   type Action,
   type ActionCall,
@@ -21,8 +22,9 @@ import { _noReachFor } from "./acting.js";
 import { allBodies, currentPlayerBody, isBody, mindOf, type Mind } from "./actors.js";
 import { accompany, companionState, waitHere } from "./companions.js";
 import { actAs } from "./npcs.js";
+import { search } from "./errands.js";
 import { give, type ActingOn } from "./standard.js";
-import { isWithin, placeOf } from "./things.js";
+import { isPlace, isWithin, placeOf } from "./things.js";
 
 declare module "@loominate-if/core" {
   interface Messages {
@@ -46,6 +48,10 @@ declare module "@loominate-if/core" {
     "order.askFor": { readonly from: ObjectRef; readonly thing: ObjectRef };
     /** The player's line when they ask for something: "You ask Mira for the key." */
     "order.askedFor": { readonly from: ObjectRef; readonly thing: ObjectRef };
+    /** The order to search a place: "Ask Mira to search the library". */
+    "order.search": { readonly who: ObjectRef; readonly place: ObjectRef };
+    /** Why a companion isn't asked to search where they are. */
+    "order.thereAlready": { readonly who: ObjectRef };
     /** Why a companion isn't asked to wait or come along: they already are. */
     "order.already": { readonly who: ObjectRef };
   }
@@ -69,6 +75,10 @@ register("order.askedFor", ({ from, thing }) =>
   t`You ask {the from} for {the thing}.`({ from, thing }),
 );
 register("order.already", ({ who }) => t`{The subj who} already {is}.`({ who }));
+register("order.thereAlready", ({ who }) => t`{The subj who} {is} already here.`({ who }));
+register("order.search", ({ who, place }) =>
+  t`Ask {the who} to search {the place}`({ who, place }),
+);
 
 /** What `obeying` rules are told: who's asked, their mind, and what they're asked to do. */
 export type Ordered = {
@@ -296,4 +306,50 @@ _noReachFor(askFor);
 /** Who here, other than the player, carries `thing`, if anyone. */
 function someoneHolding(thing: ObjectRef): ObjectRef | undefined {
   return allBodies().find((b) => someoneHere(b) && isWithin(thing, b));
+}
+
+/** Places a companion can be asked to search, in the order marked. */
+const searchablePlaces = new Set<string>();
+
+/**
+ * Marks places a companion can be asked to search, in `story.ts`: a
+ * companion's menu offers "Ask Mira to search the library" for each, but
+ * the one they're in, wherever it is (#139). They go there and back, as
+ * `sendOff` sends them, through `obeying`, so they can refuse.
+ *
+ * @example
+ * ```ts
+ * searchable(library, cellar);
+ * ```
+ *
+ * @throws StateError for something that isn't a place.
+ */
+export function searchable(...places: readonly ObjectRef[]): void {
+  for (const place of places) {
+    if (!isPlace(place)) {
+      throw new StateError(`searchable: ${JSON.stringify(place.id)} isn't a place.`);
+    }
+    if (searchablePlaces.has(place.id)) continue;
+    searchablePlaces.add(place.id);
+    // One order for each place, with the place fixed, since a menu fills
+    // roles only from what's in sight, and the place to search isn't.
+    const made = action<{ thing: ActingOn; place: ActingOn }>(`order:search:${place.id}`, {
+      source: SOURCE,
+      minutes: 1,
+      for: (t) => someoneHere(t) && companionState(t) !== undefined,
+      with: { place },
+      label: ({ thing, place: p }) => message("order.search", { who: thing, place: p }),
+      verify: ({ thing, place: p }) =>
+        cantAsk(thing) ??
+        (placeOf(thing)?.id === p.id ? message("order.thereAlready", { who: thing }) : undefined),
+      run: ({ thing, place: p }) => {
+        carryOut(
+          thing,
+          search({ place: p }) as unknown as ActionCall<Readonly<Record<string, unknown>>>,
+          `${message("order.search", { who: thing, place: p }).replace(/^Ask/, "You ask")}.`,
+        );
+      },
+    });
+    _noReachFor(made);
+  }
 }
