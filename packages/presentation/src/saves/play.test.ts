@@ -403,12 +403,10 @@ describe("the start screen every game opens on (#407)", () => {
     // Focus starts at the title, which a screen reader reads with the cover's description and the byline.
     const title = document.activeElement;
     expect([title?.tagName, title?.textContent]).toEqual(["H1", "Lantern Road"]);
-    const described = (title?.getAttribute("aria-describedby") ?? "")
-      .split(" ")
-      .map((id) => {
-        const e = document.getElementById(id);
-        return e?.getAttribute("alt") ?? e?.textContent;
-      });
+    const described = (title?.getAttribute("aria-describedby") ?? "").split(" ").map((id) => {
+      const e = document.getElementById(id);
+      return e?.getAttribute("alt") ?? e?.textContent;
+    });
     expect(described).toEqual(["A lantern on a long road", "by A. Writer"]);
     const violations = (
       await axe.run(document, { rules: { "color-contrast": { enabled: false } } })
