@@ -313,6 +313,59 @@ describe("{notices}", () => {
   });
 });
 
+describe("system events on the page (#270)", () => {
+  it("show with the move's notices, set apart, and not when only for the story log", () => {
+    const store = createStore();
+    const record = createEventRecord(store);
+    const story = createStory(
+      store,
+      record,
+      [
+        { id: "Stair", tags: [], body: () => [{ type: "link", label: "Up", target: "Lamp room" }] },
+        {
+          id: "Lamp room",
+          tags: [],
+          effects: {
+            enter: ({ emit }) => {
+              emit("system", { text: "The lamp is lit." });
+              emit("action-result", { text: "Elsie lit the lamp." }, ["log-only"]);
+              emit("system", { text: "Only for the log." }, ["log-only"]);
+            },
+          },
+          body: () => [
+            { type: "text", text: "The lamp room." },
+            { type: "link", label: "Down", target: "Stair" },
+          ],
+        },
+      ],
+      { start: "Stair" },
+    );
+    document.body.replaceChildren();
+    const container = document.createElement("div");
+    document.body.append(container);
+    mountPage(container, { story, record });
+    container.querySelector<HTMLElement>(".loominate-passage a")?.click();
+    const shown = [...(container.querySelector(".loominate-passage")?.children ?? [])].filter(
+      (c) => !c.classList.contains("loominate-sr-only"),
+    );
+    expect(shown.map((c) => [c.textContent, c.classList.contains("loominate-system")])).toEqual([
+      ["The lamp room.", false],
+      ["The lamp is lit.", true],
+      ["Down", false],
+    ]);
+    // Read with the rest of the move: focus is just before what's new, as for any notice.
+    expect(document.activeElement?.classList.contains("loominate-sr-only")).toBe(true);
+    // The story so far shows what the page did, apart from what was only for the log.
+    container.querySelector<HTMLElement>(".loominate-passage a")?.click();
+    drawerOpen(container);
+    const drawer = container.querySelector(".loominate-drawer")?.textContent ?? "";
+    expect([drawer.includes("The lamp is lit."), drawer.includes("Only for the log.")]).toEqual([
+      true,
+      false,
+    ]);
+  });
+});
+
 describe("atmosphere from fuses and daemons", () => {
   it("runs together in one paragraph, apart from what stands out, on the page and in the drawer", () => {
     const store = createStore();

@@ -41,6 +41,7 @@ const passages: Passage[] = [
         emit("action-result", { text: "“Gone, miss.”" }, ["topic", "speaker:maid"]);
         emit("action-result", { text: "A secret aside." }, ["no-log"]);
         emit("system", { text: "Chapter one ends." }, ["log"]);
+        emit("system", { text: "Elsie lit the lamp." }, ["log-only"]);
       },
     },
     body: () => [{ type: "text", text: "You wait for more." }],
@@ -81,6 +82,8 @@ describe("the story log (#127)", () => {
       ["Maid", "“Gone, miss.”"],
       // Tagged log, though a system message; the aside tagged no-log is left out.
       ["", "Chapter one ends."],
+      // Only for the log, which reads it whatever its kind (#270).
+      ["", "Elsie lit the lamp."],
     ]);
   });
 

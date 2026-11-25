@@ -44,7 +44,7 @@ The lamp room.
 Far out, lights.
 ```
 
-- `{emit "Wind howls.", tags: storm}` records a `system` event with the text and the tag `storm`. Give `kind:` to record another kind of text: `narrative`, `scene`, `dialogue`, or `action-result`. The page shows a move's `action-result` and `perception` events after the passage's text, before its choices; the others go to the story so far.
+- `{emit "Wind howls.", tags: storm}` records a `system` event with the text and the tag `storm`. Give `kind:` to record another kind of text: `narrative`, `scene`, `dialogue`, or `action-result`. The page shows a move's `system`, `action-result`, `perception`, and `scheduled` events as notices, where `{notices}` puts them or after the passage's text, before its choices; a `system` message is set apart, smaller and muted in the default theme, with the class `loominate-system`. A screen reader reads them with the rest of what's new after the player's move. Tag one `log-only` to keep it off the page, for the story log alone.
 - Written after a beat, it records when the player reaches that part, just as code there runs then. It never records when the passage is only shown.
 - `emit(kind, fields, tags)` takes any kind of event, including ones a package adds, and its fields are type-checked. Use it in `{on enter: …}` and the other effect phases; in shown text it's an error, because showing a passage can't change anything.
 - Each of these events also has the passage's tags, first: the ship turning is tagged `scene`, `ship`, and `storm`.
@@ -71,7 +71,17 @@ const lit = game.record.events({ kinds: ["system"], tags: ["lamp"] });
 expect(lit.map((e) => e.text)).toEqual(["The lamp is lit."]);
 ```
 
-Events are part of the game's state, so undo takes them back, saves keep them, and a replay records them again. They show in the log, not on the page; showing `system` messages to the player is [#270](https://github.com/loominate-if/loominate-if/issues/270).
+Events are part of the game's state, so undo takes them back, saves keep them, and a replay records them again. They all show in this event log. What shows where:
+
+| Kind | On the page | In the story so far | In the story log |
+| --- | --- | --- | --- |
+| `narrative`, `scene`, `dialogue`, `room-description` | as the passage's text | yes | yes (a room's description on the first visit) |
+| `perception`, `action-result`, `scheduled` | as notices | yes | yes |
+| `system` | as notices, set apart | yes | only when tagged `log` |
+| tagged `log-only` | no | no | yes |
+| tagged `no-log` | yes | yes | no |
+
+Tag an event `log-only` and `no-log` to keep it for this event log and the transcript alone.
 
 ## Why a choice is hidden
 

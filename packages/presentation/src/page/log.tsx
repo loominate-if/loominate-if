@@ -54,7 +54,7 @@ const NOTICED = new Set(["perception", "action-result", "scheduled"]);
  * scenes, a room's description on the first visit only, what the player
  * noticed, and what was said, each line by its speaker. Left out:
  * navigation, actions, menus, system messages, and later visits' room
- * descriptions. An event tagged `log` is put in; one tagged `no-log` is
+ * descriptions. An event tagged `log` or `log-only` is put in; one tagged `no-log` is
  * left out.
  */
 export function storyLog(events: readonly RecordedEvent[]): LogEntry[] {
@@ -102,7 +102,8 @@ export function storyLog(events: readonly RecordedEvent[]): LogEntry[] {
     }
     const text = (e as { readonly text?: unknown }).text;
     if (typeof text !== "string" || text === "") continue;
-    const forced = tags.includes("log");
+    // `log-only` is read by the story log alone, so it's in, whatever its kind.
+    const forced = tags.includes("log") || tags.includes("log-only");
     const narrative = NARRATIVE.has(e.kind);
     if (!forced && !narrative && !NOTICED.has(e.kind)) continue;
     // A room's own prose, on later visits, is left out: the log reads it once.

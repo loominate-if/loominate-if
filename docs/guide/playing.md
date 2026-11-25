@@ -33,7 +33,7 @@ await playGame(document.querySelector("#app")!, {
 The game menu has **Story log** and **Transcript**, each opening a dialog beside the page, read from the event record, so undo trims them. Focus goes to its filter; Escape or **Close** closes it, and the newest is at the bottom.
 
 - **The story log** is the narrative, for rereading: passage prose and scenes, a room's description on the first visit only, what the player noticed, and what was said, each line by its speaker ("Maid: “Gone, miss?”"), with the player's own lines in italics. Navigation, actions, menus, system messages, and later visits' room descriptions are left out. **Show** filters it to dialogue only.
-- **An event tagged `log`** is put in the story log, whatever its kind, as a chapter heading in a system message; one tagged `no-log` is left out.
+- **An event tagged `log`** is put in the story log, whatever its kind, as a chapter heading in a system message; one tagged `no-log` is left out. One tagged `log-only` is in the story log and not on the page, as `{emit "Elsie lit the lamp.", tags: log-only}`. The inspector guide's [table](inspector.md) says what shows where.
 - **Text for the story log:** prose written for single pages doesn't always read smoothly strung together. A directive on its own line marks the paragraph after it, or before it:
 
   ```

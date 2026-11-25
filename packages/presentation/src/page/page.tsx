@@ -134,9 +134,13 @@ function regionLabel(region: string): string {
 const PROSE_KINDS: readonly EventKind[] = ["narrative", "scene", "dialogue", "room-description"];
 /**
  * Events recorded during a move that the page shows after the passage's text, before its choices: what
- * the player noticed, what their actions did, and what fuses and daemons said.
+ * the player noticed, what their actions did, what fuses and daemons said, and the game's own system
+ * messages, as `{emit "…"}` records by default (#270).
  */
-const NOTICE_KINDS: readonly EventKind[] = ["perception", "action-result", "scheduled"];
+const NOTICE_KINDS: readonly EventKind[] = ["perception", "action-result", "scheduled", "system"];
+
+/** Whether the page shows a notice: not one only for the story log. */
+const onPage = (e: RecordedEvent): boolean => !e.tags.includes("log-only");
 
 /** Recorded prose, with its styles. */
 type Proseful = RecordedEvent & { readonly text: string; readonly styles?: readonly TextStyle[] };
@@ -644,7 +648,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
         (e.kind === "beat" && (sinceBeat || e.page === true));
       if (starts) out.length = 0;
       // A redirect within the move is kept, to tell what led to it from what came after.
-      else if (NOTICE_KINDS.includes(e.kind) || e.kind === "navigation") {
+      else if ((NOTICE_KINDS.includes(e.kind) && onPage(e)) || e.kind === "navigation") {
         out.push(e as Proseful);
       }
     }
@@ -683,7 +687,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
           last = move;
         }
         move = [];
-      } else if (NOTICE_KINDS.includes(e.kind)) move.push(e as Proseful);
+      } else if (NOTICE_KINDS.includes(e.kind) && onPage(e)) move.push(e as Proseful);
     }
     return { earlier, last };
   };
@@ -790,7 +794,12 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
         <p
           key={item.key}
           ref={ref}
-          className="loominate-notice"
+          className={
+            // The game's own messages, apart from the story's, for themes to set off.
+            item.events.every((e) => e.kind === "system")
+              ? "loominate-notice loominate-system"
+              : "loominate-notice"
+          }
           {...(tagsOf(item.events).length > 0 && { "data-tags": tagsOf(item.events).join(" ") })}
         >
           {item.events.map((notice, i) => [
