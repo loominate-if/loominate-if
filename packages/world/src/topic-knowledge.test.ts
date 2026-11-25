@@ -137,11 +137,13 @@ describe("topic suggestions and knowledge (#113)", () => {
 
   it("inform an NPC of a fact the player tells them, unless the entry says not", () => {
     player.learn(facts.goldMissing);
+    act(tell({ who: cook, about: facts.goldMissing.id }));
+    expect(cook.knows(facts.goldMissing)).toBe(false);
     act(tell({ who: maid, about: facts.goldMissing.id }));
     expect(maid.knows(facts.goldMissing)).toBe(true);
     expect(maid.sourceOf(facts.goldMissing)?.from?.id).toBe("you");
-    act(tell({ who: cook, about: facts.goldMissing.id }));
-    expect(cook.knows(facts.goldMissing)).toBe(false);
+    // The cook, in earshot, overhears it now (#143).
+    expect(cook.knows(facts.goldMissing)).toBe(true);
   });
 
   it("don't let the player ask or tell about a fact they don't know", () => {

@@ -317,6 +317,11 @@ describe("who's talking, on the page (#142)", () => {
           emit("action-result", { text: "“I never!”" }, ["topic", "speaker:maid"]);
           emit("action-result", { text: "“Don't ask me.”" }, ["topic", "speaker:stranger"]);
           emit("action-result", { text: "The maid goes pale." }, ["topic", "speaker:maid"]);
+          emit("action-result", { text: "She leans close. “I saw it.”" }, [
+            "topic",
+            "speaker:maid",
+            "aside",
+          ]);
         },
       },
       body: () => [{ type: "notices" }],
@@ -344,6 +349,8 @@ describe("who's talking, on the page (#142)", () => {
     // A speaker the game doesn't name gets no name, rather than their ID.
     expect(texts.join(" ")).not.toContain("stranger:");
     expect(root.querySelector(".loominate-speaker")?.textContent).toBe("Maid: ");
+    // An aside always says so, narration or speech (#143).
+    expect(texts.join(" ")).toContain("Maid, aside: She leans close.");
     // Narration already says who: only speech is named.
     expect(texts.join(" ")).not.toContain("Maid: The maid goes pale.");
   });
