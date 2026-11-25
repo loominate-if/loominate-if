@@ -56,6 +56,28 @@ export type TextNode = {
   readonly line?: LineId;
   /** Links inside the paragraph, in order, as ranges of `text`. */
   readonly links?: readonly InlineLink[];
+  /**
+   * Where it's read: `only` in the story log, never on the page, as
+   * connective text; `never` in the story log, as an instruction to the
+   * player. Both, when it isn't given.
+   */
+  readonly log?: "only" | "never";
+  /** The story log's own wording of the paragraph, in place of `text` there. */
+  readonly logText?: string;
+};
+
+/**
+ * A mark for the story log, from the directives log only, page only, and in
+ * log. Rendering folds it into the paragraph it's for, the next for `only`,
+ * the one before for `text`, and drops it.
+ */
+export type LogNode = {
+  /** Node type. */
+  readonly type: "log";
+  /** Where the next paragraph is read: only in the log, or only on the page. */
+  readonly only?: "log" | "page";
+  /** The log's own wording of the paragraph before. */
+  readonly text?: string;
 };
 
 /** A link to another passage, from `[[Label -> Target]]`. */
@@ -207,7 +229,7 @@ export type NoticesNode = {
 
 /** One piece of a rendered passage, in reading order. */
 export type PassageNode =
-  TextNode | LinkNode | ContinueNode | NamedEffectNode | NoticesNode | BeatNode;
+  TextNode | LinkNode | ContinueNode | NamedEffectNode | NoticesNode | BeatNode | LogNode;
 
 /**
  * A link inside a paragraph, from `You could [[ask about it -> Hall]] now.`
@@ -567,6 +589,32 @@ export function _previousPassage(): PassageId | undefined {
   return runningPrevious?.();
 }
 
+/**
+ * Folds story-log marks into the paragraphs they're for: `{log only}` and
+ * `{page only}` into the next paragraph, `{in log: …}` into the one before.
+ */
+function foldLogMarks(nodes: readonly PassageNode[]): PassageNode[] {
+  const out: PassageNode[] = [];
+  let pending: "log" | "page" | undefined;
+  for (const node of nodes) {
+    if (node.type === "log") {
+      if (node.only !== undefined) pending = node.only;
+      if (node.text !== undefined) {
+        const at = out.findLastIndex((n) => n.type === "text");
+        if (at >= 0) out[at] = { ...(out[at] as TextNode), logText: node.text };
+      }
+      continue;
+    }
+    if (node.type === "text" && pending !== undefined) {
+      out.push({ ...node, log: pending === "log" ? "only" : "never" });
+      pending = undefined;
+      continue;
+    }
+    out.push(node);
+  }
+  return out;
+}
+
 /** The running story's effect context, for {@link _effectContext}. */
 let runningContext: ((passage: PassageId) => EffectContext) | undefined;
 
@@ -662,18 +710,20 @@ export function createStory(
     // other way. Catch that when we can: a clean store must stay clean.
     const wasClean = !store.dirty;
     const count = visits(passage.id);
-    const nodes = Object.freeze([
-      ...renderingObjects(`passage ${JSON.stringify(passage.id)}`, () =>
-        passage.body({
-          state: reader,
-          persistent: persistentReader(),
-          passage: passage.id,
-          visits: count,
-          firstVisit: count === 1,
-          visited: (id) => visits(id) > 0,
-        }),
-      ),
-    ]);
+    const nodes = Object.freeze(
+      foldLogMarks([
+        ...renderingObjects(`passage ${JSON.stringify(passage.id)}`, () =>
+          passage.body({
+            state: reader,
+            persistent: persistentReader(),
+            passage: passage.id,
+            visits: count,
+            firstVisit: count === 1,
+            visited: (id) => visits(id) > 0,
+          }),
+        ),
+      ]),
+    );
     if (wasClean && store.dirty) {
       store.rollback();
       throw new StateError(
@@ -708,7 +758,8 @@ export function createStory(
       return { ...link, available: false, ...(reason !== undefined && { reason }) };
     };
     for (const node of nodes.slice(from, to)) {
-      if (node.type === "beat") continue;
+      // Beats divide parts; log marks were folded into their paragraphs.
+      if (node.type === "beat" || node.type === "log") continue;
       if (node.type === "text") {
         if (node.styles) checkStyles(passage.id, node);
         if (node.links) checkInlineLinks(passage.id, node);
@@ -810,11 +861,33 @@ export function createStory(
       if (node.type !== "text") continue;
       // A paragraph that's only a link, such as a name opening a menu, is a choice, not prose.
       if (node.links?.some((l) => l.start === 0 && l.end === node.text.length) === true) continue;
-      emitIn(passage)("narrative", {
-        text: node.text,
-        ...(node.styles !== undefined && node.styles.length > 0 && { styles: node.styles }),
-        ...(node.line !== undefined && { line: node.line }),
-      });
+      const line = node.line !== undefined ? { line: node.line } : {};
+      // What the page showed; the story log leaves it out if it's page-only or has its own wording.
+      if (node.log !== "only") {
+        emitIn(passage)(
+          "narrative",
+          {
+            text: node.text,
+            ...(node.styles !== undefined && node.styles.length > 0 && { styles: node.styles }),
+            ...line,
+          },
+          node.log === "never" || node.logText !== undefined ? ["no-log"] : [],
+        );
+      }
+      // What only the story log reads: connective text, or its own wording.
+      if (node.log === "only" || node.logText !== undefined) {
+        emitIn(passage)(
+          "narrative",
+          {
+            text: node.logText ?? node.text,
+            ...(node.logText === undefined &&
+              node.styles !== undefined &&
+              node.styles.length > 0 && { styles: node.styles }),
+            ...line,
+          },
+          ["log-only"],
+        );
+      }
     }
   };
 

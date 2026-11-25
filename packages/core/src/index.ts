@@ -75,6 +75,7 @@ export {
   type LinkGuard,
   type LinkNode,
   type NamedEffectNode,
+  type LogNode,
   type NoticesNode,
   type Passage,
   type PassageEffects,
@@ -109,6 +110,9 @@ export {
 export {
   beat,
   continueTo,
+  inLog,
+  logOnly,
+  pageOnly,
   emitEvent,
   linkGuard,
   namedEffect,

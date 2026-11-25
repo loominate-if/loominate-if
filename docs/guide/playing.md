@@ -34,6 +34,23 @@ The game menu has **Story log** and **Transcript**, each opening a dialog beside
 
 - **The story log** is the narrative, for rereading: passage prose and scenes, a room's description on the first visit only, what the player noticed, and what was said, each line by its speaker ("Maid: “Gone, miss?”"), with the player's own lines in italics. Navigation, actions, menus, system messages, and later visits' room descriptions are left out. **Show** filters it to dialogue only.
 - **An event tagged `log`** is put in the story log, whatever its kind, as a chapter heading in a system message; one tagged `no-log` is left out.
+- **Text for the story log:** prose written for single pages doesn't always read smoothly strung together. A directive on its own line marks the paragraph after it, or before it:
+
+  ```
+  :: Study [room: study]
+  {log only}
+  The next morning, Elsie went back to the study.
+
+  A quiet study. Somewhere far off is a vault.
+
+  {page only}
+  Choose Ring for the maid to call her.
+
+  You set the brooch on the desk.
+  {in log: "Elsie set her mother's brooch on the desk."}
+  ```
+
+  `{log only}` is connective text: in the story log, never on the page or in the story so far. `{page only}` is for the page alone, such as an instruction to the player. `{in log: "…"}`, after a paragraph, gives the log its own wording of it, while the page shows the paragraph as written. The transcript has both.
 - **The transcript** is every event, numbered, with its kind and its text or fields, for testers and bug reports. **Show** filters it by kind, and **Copy** copies it, one event a line.
 - **Speakers** are named by `nameSpeakers`; the world model names each by their body's name. `storyLog(events)` and `transcript(events)` give the same as data, for a game's own view.
 

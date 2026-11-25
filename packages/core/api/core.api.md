@@ -433,6 +433,11 @@ export type InlineLink = LinkNode & {
 };
 
 // @public
+export function inLog(args: {
+    readonly log: string;
+}): LogNode;
+
+// @public
 export function instanceId(origin: StateId, key: string): StateId;
 
 // @public
@@ -517,6 +522,16 @@ export type LoggedCall = {
         readonly $ref: string;
     }>>;
 };
+
+// @public
+export type LogNode = {
+    readonly type: "log";
+    readonly only?: "log" | "page";
+    readonly text?: string;
+};
+
+// @public
+export function logOnly(args?: Readonly<Record<string, never>>): LogNode;
 
 // @public
 export function menuLink(args: {
@@ -682,6 +697,9 @@ export function pageBreak(args?: {
 }): BeatNode;
 
 // @public
+export function pageOnly(args?: Readonly<Record<string, never>>): LogNode;
+
+// @public
 export function parseVerbPhrase(text: string, where?: string): VerbPhrase;
 
 // @public
@@ -705,7 +723,7 @@ export type PassageEffects = {
 export type PassageId = StateId;
 
 // @public
-export type PassageNode = TextNode | LinkNode | ContinueNode | NamedEffectNode | NoticesNode | BeatNode;
+export type PassageNode = TextNode | LinkNode | ContinueNode | NamedEffectNode | NoticesNode | BeatNode | LogNode;
 
 // @public
 export function perform<A>(call: ActionCall<A>, options?: PerformOptions): ActionOutcome;
@@ -1217,6 +1235,8 @@ export type TextNode = {
     readonly styles?: readonly TextStyle[];
     readonly line?: LineId;
     readonly links?: readonly InlineLink[];
+    readonly log?: "only" | "never";
+    readonly logText?: string;
 };
 
 // @public

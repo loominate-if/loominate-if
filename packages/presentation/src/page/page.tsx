@@ -759,8 +759,10 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
         const definition = effect(node);
         if (definition.target === "page") queue.push([definition, node, ""]);
         else pending.push([definition, node]);
-      } else if (node.type === "text") add({ kind: "text", key: key(), node });
-      else add({ kind: "choice", key: key(), node });
+      } else if (node.type === "text") {
+        // Text only for the story log isn't shown on the page.
+        if (node.log !== "only") add({ kind: "text", key: key(), node });
+      } else add({ kind: "choice", key: key(), node });
     }
     addNotices(noticesLeft);
     drawnCount = rendered.nodes.length;
@@ -904,6 +906,8 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
       noticed = [];
     };
     for (const e of events) {
+      // Text only the story log reads wasn't on the page, so it isn't in the story so far.
+      if (e.tags.includes("log-only")) continue;
       const starts =
         (e.kind === "navigation" && e.redirected !== true) ||
         e.kind === "action" ||
