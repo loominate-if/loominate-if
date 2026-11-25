@@ -10,3 +10,5 @@ allowBuilds:
   # dependencies, so their install scripts aren't needed (#414).
   esbuild: false
   "@vscode/vsce-sign": false
+  # vsce keeps publishing credentials with it, which packaging doesn't need (#414).
+  keytar: false
