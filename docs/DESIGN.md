@@ -423,7 +423,7 @@ The compiler or test runner verifies every locked node has a reachable way out, 
 
 ### Group conversations
 
-- The player chooses an addressee (highlighted portrait), and the menu shows that character's topics. Group-level topics address everyone.
+- The player chooses an addressee (highlighted portrait), and the menu shows that character's topics. Group-level topics address everyone. The cast is a toolbar, one Tab stop, with the arrow keys moving between portraits; `groupTopic({ ask, says, speaker, reveals })` gives the conversation entries of its own, suggested to a group of two or more as "Ask everyone about the storm" whoever is addressed ([ADR 0113](decisions/0113-group-topics.md)).
 - Topic entries can trigger reactions from other participants, limited by priority and a per-exchange cap. NPCs can exchange scripted lines as beats.
 - Everyone present hears what's said and learns revealed facts. Topics can depend on who is present:
 

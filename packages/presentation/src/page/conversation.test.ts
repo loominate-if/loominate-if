@@ -123,6 +123,46 @@ describe("conversation widgets (#118)", () => {
     expect(addressed).toEqual(["maid"]);
   });
 
+  it("make the cast one stop, a toolbar the arrow keys move through (#141)", async () => {
+    addressed.length = 0;
+    members = [
+      { id: "butler", name: "butler", initials: "B", addressed: false },
+      { id: "maid", name: "maid", initials: "M", addressed: true },
+      { id: "cook", name: "cook", initials: "C", addressed: false },
+    ];
+    const root = play();
+    const cast = root.querySelector<HTMLElement>(".loominate-cast");
+    expect(cast?.getAttribute("role")).toBe("toolbar");
+    const buttons = [...root.querySelectorAll<HTMLButtonElement>(".loominate-portrait")];
+    // Tab reaches the one addressed.
+    expect(buttons.map((b) => b.tabIndex)).toEqual([-1, 0, -1]);
+    const key = (k: string) => {
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }),
+      );
+    };
+    buttons[1]?.focus();
+    key("ArrowRight");
+    expect(document.activeElement).toBe(buttons[2]);
+    key("ArrowRight"); // round to the first
+    expect(document.activeElement).toBe(buttons[0]);
+    key("ArrowLeft");
+    expect(document.activeElement).toBe(buttons[2]);
+    key("Home");
+    expect([document.activeElement, buttons.map((b) => b.tabIndex)]).toEqual([
+      buttons[0],
+      [0, -1, -1],
+    ]);
+    key("End");
+    expect(document.activeElement).toBe(buttons[2]);
+    // Moving doesn't address; choosing does, as Enter and Space do on a button.
+    expect(addressed).toEqual([]);
+    buttons[2]?.click();
+    expect(addressed).toEqual(["cook"]);
+    const results = await axe.run(document, { rules: { "color-contrast": { enabled: false } } });
+    expect(results.violations.flatMap((v) => v.nodes.map((n) => `${v.id}: ${n.html}`))).toEqual([]);
+  });
+
   it("list actions as buttons, taking the one chosen; one that can't be taken is disabled, with why", () => {
     const root = play();
     const list = root.querySelector('[data-region="topics"] .loominate-action-list');
