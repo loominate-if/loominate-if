@@ -69,6 +69,10 @@ This writes `dist/my-game.html`, with everything inlined. Browsers differ in how
 
 Either build fails if the game has errors.
 
+## Editing
+
+`@loominate-if/language-server` gives your editor the compiler's errors and TypeScript completion inside passage files ([editing passage files](editors.md)).
+
 ## Extensions
 
 Packages that add passage syntax, such as the world model, are listed in the config, in the order they load:

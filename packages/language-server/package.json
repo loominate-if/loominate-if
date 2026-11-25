@@ -1,0 +1,49 @@
+{
+  "name": "@loominate-if/language-server",
+  "version": "0.1.0",
+  "description": "The language server for Loominate IF passage files: diagnostics, and TypeScript inside inline code, for any LSP-capable editor.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/loominate-if/loominate-if.git",
+    "directory": "packages/language-server"
+  },
+  "homepage": "https://github.com/loominate-if/loominate-if#readme",
+  "bugs": "https://github.com/loominate-if/loominate-if/issues",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ],
+  "bin": {
+    "loominate-language-server": "./dist/bin.js"
+  },
+  "dependencies": {
+    "@loominate-if/cli": "workspace:^",
+    "@loominate-if/compiler": "workspace:^",
+    "@volar/language-core": "2.4.31",
+    "@volar/language-server": "2.4.31",
+    "@volar/typescript": "2.4.31",
+    "typescript": "6.0.3",
+    "volar-service-typescript": "0.0.71",
+    "vscode-languageserver": "9.0.1",
+    "vscode-uri": "3.2.0"
+  },
+  "devDependencies": {
+    "@volar/test-utils": "2.4.31",
+    "vitest": "5.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -48,6 +48,8 @@ describe("the repository", () => {
       "@loominate-if/core",
       "@loominate-if/create",
       "@loominate-if/inspector",
+      // For editors to start, as `loominate-language-server --stdio` (#148).
+      "@loominate-if/language-server",
       "@loominate-if/presentation",
       "@loominate-if/testing",
     ]);
