@@ -150,6 +150,7 @@ export const anything: {
 export function approach(npc: ObjectRef, options?: {
     readonly says?: string;
     readonly opens?: ConvNode;
+    readonly comes?: boolean;
 }): boolean;
 
 // @public

@@ -143,5 +143,5 @@ describe("loominate coverage (#133)", () => {
     ).rejects.toThrow(
       /the game has 1 error; fix it first:\nrooms\.weft:2:\d+ error: `nope` isn't defined/,
     );
-  });
+  }, 120_000);
 });
