@@ -1,0 +1,17 @@
+#!/bin/sh
+# BBEdit starts this for passage files (#412). An app opened from the Dock
+# doesn't have the shell's PATH, so if Node isn't on it, ask the login shell,
+# which sets up version managers such as nvm, then try where installers put it.
+PATH="$PATH:/opt/homebrew/bin:/usr/local/bin"
+NODE=$(command -v node)
+if [ -z "$NODE" ] && [ -n "$SHELL" ]; then
+  NODE=$("$SHELL" -lic 'command -v node' 2>/dev/null | tail -n 1)
+fi
+if [ -z "$NODE" ] || [ ! -x "$NODE" ]; then
+  NODE=$(ls -d "$HOME"/.nvm/versions/node/*/bin/node 2>/dev/null | sort -V | tail -n 1)
+fi
+if [ -z "$NODE" ] || [ ! -x "$NODE" ]; then
+  echo "Loominate IF: BBEdit can't find Node.js. Install it from https://nodejs.org." >&2
+  exit 1
+fi
+exec "$NODE" "$(dirname "$0")/loominate-proxy.mjs" "$@"

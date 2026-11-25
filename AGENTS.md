@@ -51,6 +51,7 @@ packages/
   language-server/   editor-agnostic LSP on the compiler (Volar.js)
   tree-sitter-weft/  Tree-sitter grammar for passage files, for Zed and other Tree-sitter editors
   zed/               Zed extension (Rust): the grammar, plus starting the language server
+  bbedit/            BBEdit language module, plus the proxy that starts the language server
   vscode/            VS Code client: grammar + LSP client
   archive/           .loom format, manifest, service worker
   player/            generic sandboxed player

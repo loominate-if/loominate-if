@@ -28,11 +28,17 @@ The Zed extension in `packages/zed` colors passage files, with TypeScript colori
 - **Install it** as a dev extension until it's in Zed's extension gallery: in Zed, open the command palette, run **zed: install dev extension**, and choose the `packages/zed` folder of a Loominate IF checkout. Zed builds it with Rust, which you install from [rustup.rs](https://rustup.rs) first.
 - **Open your game's folder**, the one with `loominate.config.ts` and `node_modules`. The extension starts the language server your game depends on, so its compiler matches your game's. In a Loominate IF checkout, it uses the checkout's own server, after `pnpm build`. Otherwise it installs `@loominate-if/language-server` from npm.
 
+## BBEdit
+
+BBEdit (tested with 16.1) colors passage files through a language module in `packages/bbedit`: headers, directives, links, comments, and escapes. It lists your passages in the function menu, and starts the language server for errors, completion, hover, and go to definition.
+
+- **Install it** from a Loominate IF checkout: run `packages/bbedit/install.sh`, then quit and reopen BBEdit. It copies the language module and the server's launcher into BBEdit's Application Support folder. Run it again after updating the checkout.
+- **Open your game's folder** as a project, or any file in it. The launcher finds the language server your game depends on, in its `node_modules`, or a Loominate IF checkout's own, after `pnpm build`. It finds Node.js through your login shell, so version managers such as nvm work.
+
 ## Other editors
 
 Each editor needs a small client that colors `.weft` files and starts the server. They're on their way:
 
-- BBEdit ([#412](https://github.com/loominate-if/loominate-if/issues/412))
 - Sublime Text, with the LSP package ([#413](https://github.com/loominate-if/loominate-if/issues/413))
 - VS Code ([#414](https://github.com/loominate-if/loominate-if/issues/414))
 
