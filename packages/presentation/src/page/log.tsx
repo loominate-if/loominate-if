@@ -44,6 +44,11 @@ export function nameSpeakers(names: (id: string) => string | undefined): void {
   speakerName = names;
 }
 
+/** A speaker's name, from the ID in a `speaker:` tag, as {@link nameSpeakers} gives it, for the page too. @internal */
+export function _speakerName(id: string): string | undefined {
+  return speakerName(id);
+}
+
 /** Event kinds the story log takes: prose the player read. */
 const NARRATIVE = new Set(["narrative", "scene", "dialogue", "room-description"]);
 /** Event kinds it takes from a move: what was noticed and what came of it. */

@@ -111,6 +111,10 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   background: none; color: inherit; font: inherit; font-family: ${v("font-ui")}; font-size: 0.85em; cursor: pointer;
 }
 .loominate-portrait[aria-pressed="true"] { border-color: ${v("color-accent")}; }
+/* Whoever spoke last, this move (#142): their portrait is ringed. */
+.loominate-portrait[data-speaking] :is(.loominate-portrait-image, .loominate-portrait-initials) { box-shadow: 0 0 0 3px ${v("color-accent")}; }
+/* A line's speaker, before it, as the story log names them. */
+.loominate-speaker { font-weight: 600; }
 .loominate-portrait-image, .loominate-portrait-initials { width: 4em; height: 4em; border-radius: 50%; }
 .loominate-portrait-image { object-fit: cover; }
 .loominate-portrait-initials {

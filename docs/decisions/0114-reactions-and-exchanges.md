@@ -18,6 +18,8 @@ The design has topic entries trigger reactions from other participants, limited 
   - Each line is an `action-result` tagged with its speaker, so the page's conversation, the story log, and the transcript attribute it.
   - Lines are paced by the player's Continue, not by a passage's beats, which can't name a speaker. Each Continue is a move, so undo takes back a line at a time.
 
+- **Who's talking, on the page:** an NPC's line on the page starts with their name, as in the story log, "Maid: “I never!”", from the same `nameSpeakers`, and the cast rings the portrait of whoever spoke last in the move. With reactions and exchanges, one move can have several speakers, and the text alone didn't say whose each line was.
+
 ## Consequences
 
 - A character's reactions sit with their other entries, in their actor passage, not in the entries they react to.

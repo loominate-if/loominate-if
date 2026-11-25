@@ -1336,7 +1336,7 @@ topic(cook, {
 - Each exchange takes a minute of game time.
 - When a conversation ends without goodbye, as when the player walks off, each participant says their implicit goodbye.
 
-What NPCs say is recorded as `action-result` events tagged `topic` and `speaker:` and their body's ID, so the page shows it after the move.
+What NPCs say is recorded as `action-result` events tagged `topic` and `speaker:` and their body's ID, so the page shows it after the move, with the speaker's name before it, as the story log does: "**Maid:** “Gone, miss.”". The player's own lines aren't named.
 
 ### Group topics
 
@@ -1456,7 +1456,7 @@ While the player's talking, the page switches to the `conversation` layout, whic
 
 - **The header** keeps the game menu and what packages add to it.
 - **`context`:** the passage's own prose, as a strip above: where the player is, and what the passage says about the conversation.
-- **`cast` beside `main`:** a portrait for each character in the conversation, the one addressed marked, and choosing another addresses them. It's a toolbar, one Tab stop: the arrow keys, Home, and End move between portraits, and Enter or Space addresses one; beside it, the conversation so far, each line as it was said, the player's own lines ("You ask the maid about the gold.") muted. It's as tall as the latest exchange, so the topics stay in the same place; earlier lines are a scroll up, and keyboard players can Tab to it to scroll. New lines are read to screen readers, and focus goes to just before them.
+- **`cast` beside `main`:** a portrait for each character in the conversation, the one addressed marked, and choosing another addresses them. It's a toolbar, one Tab stop: the arrow keys, Home, and End move between portraits, and Enter or Space addresses one. Whoever spoke last in the move has their portrait ringed; beside it, the conversation so far, each line as it was said, the player's own lines ("You ask the maid about the gold.") muted. It's as tall as the latest exchange, so the topics stay in the same place; earlier lines are a scroll up, and keyboard players can Tab to it to scroll. New lines are read to screen readers, and focus goes to just before them.
 - **`topics`:** the suggested topics as buttons, showing and giving included. A button that can't be taken now is shown disabled, with why, as goodbye under a hard lock.
 - **`more`:** the passage's own links, such as the room's exits, in a closed disclosure named after the room, "In the study". Locks still apply to them.
 - **`history`:** the story so far, at the very bottom.

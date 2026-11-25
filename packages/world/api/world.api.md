@@ -12,6 +12,7 @@ import { CompassData } from '@loominate-if/presentation';
 import { ConditionArgument } from '@loominate-if/core';
 import { DecideRulebook } from '@loominate-if/core';
 import { EffectContext } from '@loominate-if/core';
+import { EventRecord } from '@loominate-if/core';
 import { Handle } from '@loominate-if/core';
 import { LinkNode } from '@loominate-if/core';
 import { ListedThing } from '@loominate-if/presentation';
@@ -255,7 +256,7 @@ export function canSee(observer: ObjectRef, target: ObjectRef): boolean;
 export function canSpend(who: ObjectRef, name: StatName, amount: number): string | undefined;
 
 // @internal
-export function _cast(): readonly CastMember[];
+export function _cast(record?: EventRecord): readonly CastMember[];
 
 // @public
 export type CatchUp = NpcTurn & {

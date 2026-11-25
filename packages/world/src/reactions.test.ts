@@ -12,6 +12,7 @@ import {
 import { storyLog } from "@loominate-if/presentation";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  _cast,
   actor,
   ask,
   continueExchange,
@@ -105,6 +106,16 @@ describe("reactions (#142)", () => {
     ]);
     act(ask({ who: butler, about: ghost }));
     expect(said()).toEqual(["“There's no such thing, sir.”"]);
+  });
+
+  it("show who spoke last in the cast", () => {
+    everyone();
+    act(ask({ who: butler, about: letter }));
+    expect(_cast(record).map((m) => [m.id, m.speaking === true])).toEqual([
+      ["butler", false],
+      ["maid", false],
+      ["cook", true],
+    ]);
   });
 
   it("come only from others in the conversation", () => {

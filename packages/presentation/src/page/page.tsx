@@ -39,6 +39,7 @@ import { render, type ComponentChildren } from "preact";
 import { useLayoutEffect, useRef } from "preact/hooks";
 import "../messages.js";
 import { prose } from "./prose.js";
+import { _speakerName } from "./log.js";
 import { createMenus, _menuChoices, type MenuSource } from "./menus.js";
 import { _phrasesOf, commandSources, type Command } from "./command.js";
 import { CommandLine } from "./command-line.js";
@@ -886,6 +887,19 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
     return (first ?? []).filter((t) => !t.includes(":") && rest.every((r) => r.includes(t)));
   };
 
+  /**
+   * Who said a line, before it, as the story log names them (#142):
+   * "Maid: ", for a line tagged with its speaker and not the player's own.
+   * Nothing, where no package names speakers.
+   */
+  const speakerOf = (notice: Proseful): ComponentChildren => {
+    const tags = (notice as { readonly tags?: readonly string[] }).tags ?? [];
+    if (tags.includes("player")) return null;
+    const id = tags.find((t) => t.startsWith("speaker:"))?.slice("speaker:".length);
+    const name = id === undefined ? undefined : _speakerName(id);
+    return name === undefined ? null : <span className="loominate-speaker">{`${name}: `}</span>;
+  };
+
   /** One paragraph of the passage. */
   const paragraph = (item: Item): ComponentChildren => {
     const ref = (element: HTMLElement | null): void => {
@@ -906,6 +920,7 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
         >
           {item.events.map((notice, i) => [
             i > 0 ? " " : null,
+            speakerOf(notice),
             ...prose(notice.text, notice.styles ?? [], [], () => null),
           ])}
         </p>
