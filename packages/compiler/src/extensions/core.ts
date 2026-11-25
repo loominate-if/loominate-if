@@ -14,6 +14,28 @@ export const coreExtension: CompilerExtension = {
     { name: "on first visit", kind: "effect", phase: "firstVisit" },
     { name: "on enter", kind: "effect", phase: "enter" },
     { name: "on leave", kind: "effect", phase: "leave" },
+    // The story log's own text (#128): connective text, page-only text, and alternate wording.
+    {
+      name: "log only",
+      kind: "content",
+      example: "{log only}",
+      args: [],
+      runtime: core("logOnly"),
+    },
+    {
+      name: "page only",
+      kind: "content",
+      example: "{page only}",
+      args: [],
+      runtime: core("pageOnly"),
+    },
+    {
+      name: "in",
+      kind: "content",
+      example: '{in log: "Elsie went back to the study."}',
+      args: [{ name: "log", kind: "expression", named: true, required: true }],
+      runtime: core("inLog"),
+    },
     {
       name: "continue",
       kind: "content",

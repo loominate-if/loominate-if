@@ -1072,3 +1072,80 @@ describe("section directives (#115)", { timeout: 30_000 }, () => {
     ]);
   });
 });
+
+describe("story log text in passage files (#128)", { timeout: 30_000 }, () => {
+  const out = mkdtempSync(path.join(here, "__run-"));
+  afterAll(() => {
+    rmSync(out, { recursive: true, force: true });
+  });
+
+  it("marks paragraphs for the log only, the page only, or with the log's own wording", async () => {
+    const dir = path.join(out, "log");
+    mkdirSync(dir);
+    const weft = [
+      ":: Study",
+      "{log only}",
+      "The next morning, Elsie went back to the study.",
+      "",
+      "A quiet study.",
+      "",
+      "{page only}",
+      "Choose Ring to call the maid.",
+      "",
+      "You set the brooch on the desk.",
+      '{in log: "Elsie set her mother\'s brooch on the desk."}',
+      "",
+    ].join("\n");
+    const result = compileProject({
+      root: dir,
+      compilerOptions,
+      files: [{ path: "study.weft", text: weft }],
+    });
+    expect(result.diagnostics.map((d) => d.message)).toEqual([]);
+    writeFileSync(result.passageNames.path, result.passageNames.code);
+    const [module] = result.modules.values();
+    if (!module) throw new Error("no module");
+    writeFileSync(module.path, module.code);
+    const { passages } = (await import(module.path)) as { passages: Passage[] };
+    const store = createStore();
+    const record = createEventRecord(store);
+    const story = createStory(store, record, passages, { start: "Study" });
+    story.begin();
+    // The page has every paragraph, each marked for the log; the page shows what isn't log-only.
+    expect(
+      story
+        .render()
+        .nodes.map((n) => (n.type === "text" ? [n.text, n.log ?? "", n.logText ?? ""] : n.type)),
+    ).toEqual([
+      ["The next morning, Elsie went back to the study.", "only", ""],
+      ["A quiet study.", "", ""],
+      ["Choose Ring to call the maid.", "never", ""],
+      ["You set the brooch on the desk.", "", "Elsie set her mother's brooch on the desk."],
+    ]);
+    // The record keeps what the page showed apart from what only the log reads.
+    expect(
+      record
+        .events({ kinds: ["narrative"] })
+        .map((e) => [e.text, e.tags.filter((t) => t.includes("log")).join(" ")]),
+    ).toEqual([
+      ["The next morning, Elsie went back to the study.", "log-only"],
+      ["A quiet study.", ""],
+      ["Choose Ring to call the maid.", "no-log"],
+      ["You set the brooch on the desk.", "no-log"],
+      ["Elsie set her mother's brooch on the desk.", "log-only"],
+    ]);
+  });
+
+  it("says when {in log} has no wording", () => {
+    const dir = path.join(out, "bad");
+    mkdirSync(dir);
+    const result = compileProject({
+      root: dir,
+      compilerOptions,
+      files: [{ path: "study.weft", text: ":: Study\nA study.\n{in}\n" }],
+    });
+    expect(result.diagnostics.map((d) => d.message)).toContainEqual(
+      expect.stringContaining("needs `log: …`"),
+    );
+  });
+});

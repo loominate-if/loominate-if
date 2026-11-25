@@ -12,6 +12,7 @@ import type {
   ContinueNode,
   EffectContext,
   LinkGuard,
+  LogNode,
   NamedEffectNode,
   NoticesNode,
   PassageId,
@@ -182,4 +183,21 @@ export function linkGuard(args: {
       ? { mode: "disabled-with-reason", reason }
       : mode !== undefined && { mode }),
   };
+}
+
+/** `{log only}`: the next paragraph is only in the story log, as connective text. */
+export function logOnly(args: Readonly<Record<string, never>> = {}): LogNode {
+  void args; // `{log only}` takes no arguments; directives pass them as an object.
+  return { type: "log", only: "log" };
+}
+
+/** `{page only}`: the next paragraph is only on the page, as an instruction to the player. */
+export function pageOnly(args: Readonly<Record<string, never>> = {}): LogNode {
+  void args; // `{page only}` takes no arguments; directives pass them as an object.
+  return { type: "log", only: "page" };
+}
+
+/** `{in log: "…"}`: the story log's own wording of the paragraph before. */
+export function inLog(args: { readonly log: string }): LogNode {
+  return { type: "log", text: args.log };
 }

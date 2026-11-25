@@ -5,12 +5,16 @@ import {
   createHistory,
   createStore,
   createStory,
+  inLog,
+  logOnly,
+  pageOnly,
   redirect,
   type Passage,
 } from "@loominate-if/core";
 import axe from "axe-core";
 import { afterEach, describe, expect, it } from "vitest";
 import { createLogDialog, nameSpeakers, storyLog, transcript, transcriptText } from "./log.js";
+import { mountPage } from "./page.js";
 
 const passages: Passage[] = [
   {
@@ -144,6 +148,56 @@ describe("the story log (#127)", () => {
       "“Hear me out, miss.”",
       "I saw him, miss.",
     ]);
+  });
+
+  it("reads the log's own text, while the page and the story so far show the page's (#128)", () => {
+    const store = createStore();
+    const record = createEventRecord(store);
+    const story = createStory(
+      store,
+      record,
+      [
+        {
+          id: "Study",
+          tags: [],
+          body: () => [
+            logOnly(),
+            { type: "text", text: "The next morning, Elsie went back." },
+            { type: "text", text: "A quiet study." },
+            pageOnly(),
+            { type: "text", text: "Choose Ring to call the maid." },
+            { type: "text", text: "You set the brooch down." },
+            inLog({ log: "Elsie set her mother's brooch down." }),
+            { type: "link", label: "Again", target: "Study" },
+          ],
+        },
+      ],
+      { start: "Study" },
+    );
+    document.body.replaceChildren();
+    const container = document.createElement("div");
+    document.body.append(container);
+    const page = mountPage(container, { story, record });
+    const shown = () =>
+      [...page.element.querySelectorAll(".loominate-passage > p:not(.loominate-sr-only)")]
+        .map((p) => p.textContent)
+        .filter((t) => t !== "Again");
+    expect(shown()).toEqual([
+      "A quiet study.",
+      "Choose Ring to call the maid.",
+      "You set the brooch down.",
+    ]);
+    expect(storyLog(record.events()).map((e) => e.text)).toEqual([
+      "The next morning, Elsie went back.",
+      "A quiet study.",
+      "Elsie set her mother's brooch down.",
+    ]);
+    (page.element.querySelector(".loominate-passage a") as HTMLElement | null)?.click();
+    const drawer = [...page.element.querySelectorAll(".loominate-turn p")].map(
+      (p) => p.textContent,
+    );
+    expect(drawer).not.toContain("The next morning, Elsie went back.");
+    expect(drawer).toContain("Choose Ring to call the maid.");
   });
 
   it("follows undo, since it's read from the record", () => {
