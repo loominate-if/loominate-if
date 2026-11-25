@@ -26,8 +26,8 @@ import {
 } from "./companions.js";
 import { type Fact } from "./knowledge.js";
 import { _noReachFor } from "./acting.js";
-import { _actsUnseen, everyTurn } from "./npcs.js";
-import { happen } from "./perception.js";
+import { _actsUnseen, everyTurn, playerPerceives } from "./npcs.js";
+import { _catchPerceived, happen } from "./perception.js";
 import { isPlace, placeOf } from "./things.js";
 
 declare module "@loominate-if/core" {
@@ -64,6 +64,8 @@ const state = object("world:errands", {
       readonly to: string;
       readonly then: ErrandEnd;
       readonly arrived: boolean;
+      /** Whether they've taken their first step, which "sets off" has already told. */
+      readonly started?: boolean;
       /** The facts they knew when they set off, so they tell only what they learned. */
       readonly knew: readonly string[];
     }
@@ -73,7 +75,15 @@ const state = object("world:errands", {
 /** An errand as plain data, copied out of state, so it can be read after state changes. */
 const errandIn = (mind: string) => {
   const e = state.of[mind];
-  return e && { to: e.to, then: e.then, arrived: e.arrived, knew: [...e.knew] };
+  return (
+    e && {
+      to: e.to,
+      then: e.then,
+      arrived: e.arrived,
+      started: e.started === true,
+      knew: [...e.knew],
+    }
+  );
 };
 
 /**
@@ -169,8 +179,18 @@ _whenCompanionMade((npc) => {
       player !== undefined && placeOf(body)?.id === placeOf(player)?.id;
     if (!errand.arrived) {
       // Not yet there: a step toward it. Met on the way doesn't end it.
-      if (!stepToward(who, { id: errand.to })) return;
-      state.of = { ...state.of, [mind]: { ...errand, arrived: true } };
+      let there = false;
+      const step = () => {
+        there = stepToward(who, { id: errand.to });
+      };
+      if (errand.started || !playerPerceives(body)) step();
+      else {
+        // Seen setting off, "Mira sets off for the library." said it: not "Mira leaves to the east." too.
+        _catchPerceived(step);
+        state.of = { ...state.of, [mind]: { ...errand, started: true } };
+      }
+      if (!there) return;
+      state.of = { ...state.of, [mind]: { ...errand, started: true, arrived: true } };
       // Arriving is this turn's step; they set back next turn. Found there by the player, they tell it now.
       if (withPlayer()) reunite(mind, body);
       return;

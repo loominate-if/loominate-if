@@ -118,8 +118,8 @@ describe("splitting up (#139)", () => {
     choose(mira, "Ask Mira to search the library");
     expect(told()).toEqual([
       "You ask Mira to search the library.",
+      // Setting off says where she's going; her first step isn't told again as leaving.
       "Mira sets off for the library.",
-      "Mira leaves to the east.",
     ]);
     expect([companionState(mira), errandOf(mira)]).toEqual([
       "independent",
