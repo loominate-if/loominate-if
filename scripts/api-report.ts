@@ -9,7 +9,7 @@
  *   node scripts/api-report.ts           fail if any report is out of date (CI)
  *   node scripts/api-report.ts --update  rewrite the reports
  */
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -106,6 +106,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   let ok = true;
   for (const pkg of listPackages(repo)) {
     if (pkg.dir.startsWith("examples/")) continue;
+    // A package that isn't TypeScript, as the Tree-sitter grammar (#411), has no API to report.
+    if (!existsSync(join(repo, pkg.dir, "tsconfig.json"))) continue;
     const why = checkEntryPoint(pkg.json);
     if (why) {
       console.error(`api-report: ${pkg.dir}/package.json ${why}`);
