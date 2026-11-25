@@ -10,7 +10,7 @@ repository = "https://github.com/loominate-if/loominate-if"
 # to a commit that has the change.
 [grammars.weft]
 repository = "https://github.com/loominate-if/loominate-if"
-rev = "GRAMMAR_REV"
+rev = "6f1ed2b0bc76eb5d80199342c2ca7d06e1fbdeba"
 path = "packages/tree-sitter-weft"
 
 [language_servers.loominate]
