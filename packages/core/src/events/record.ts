@@ -75,6 +75,18 @@ export interface EventKinds {
   };
   /** What happened as the result of an action. */
   "action-result": ProseFields;
+  /**
+   * A sound played once, from `sound()` or `{sound "…"}` (#146): presentation
+   * plays it as the move is shown, and shows its caption when captions are on.
+   */
+  sound: {
+    /** The file, by path. */
+    readonly src: string;
+    /** What it is, for players who turn captions on: "A door slams." */
+    readonly caption?: string;
+    /** How loud, 0 to 1, under the effects volume. */
+    readonly volume?: number;
+  };
   /** The start of a chapter, from `{chapter "…"}`: the story log shows it as a heading, and exports divide there. */
   chapter: {
     /** The chapter's title. */

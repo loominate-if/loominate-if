@@ -41,6 +41,7 @@ import { mountPage, type ActionMove, type Page, type PageOptions } from "../page
 import { addStyles } from "../page/theme.js";
 import { headerWidgets } from "../page/things.js";
 import { createLogDialog } from "../page/log.js";
+import type { AudioChange, SoundSettings } from "../audio/player.js";
 import { createSaveMenu } from "./menu.js";
 import { createSeedDialog } from "./seed-dialog.js";
 import { _dailySeed, _freshWordSeed, _parseSeed, _sharedSeed, type SeedSetting } from "./seed.js";
@@ -73,6 +74,13 @@ export type PlayOptions = {
    * another page, or tests.
    */
   readonly startScreen?: boolean;
+  /**
+   * Whether the game has sound (#146): it plays what the game cues with
+   * `music`, `ambience`, and `sound`, and offers a Sound switch on the start
+   * screen and a Sound dialog in the game menu. Off by default, so a game
+   * without sound carries none of it.
+   */
+  readonly audio?: boolean;
   /**
    * Where save slots are kept. Defaults to the browser's IndexedDB, or to
    * memory, for this visit only, where the browser has none.
@@ -218,6 +226,54 @@ function storeCommandLine(doc: Document, on: boolean): void {
   }
 }
 
+/** This game's sound settings as the player left them, if the browser kept them (#146). */
+function storedSound(doc: Document, key: string): Partial<SoundSettings> {
+  try {
+    const text = doc.defaultView?.localStorage.getItem(key);
+    const value: unknown = text ? JSON.parse(text) : undefined;
+    return typeof value === "object" && value !== null ? (value as Partial<SoundSettings>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Keeps this game's sound settings for next time; where storage is blocked, they last the visit. */
+function storeSound(doc: Document, key: string, settings: SoundSettings): void {
+  try {
+    doc.defaultView?.localStorage.setItem(key, JSON.stringify(settings));
+  } catch {
+    // Blocked storage: the settings still apply this visit.
+  }
+}
+
+/**
+ * The start screen's Sound switch (#146): whether sound plays, chosen
+ * before any does, and kept as the default for this game's later games.
+ */
+function SoundSwitch(props: { readonly on: boolean; readonly set: (on: boolean) => void }) {
+  const [on, setOn] = useState(props.on);
+  return (
+    <p className="loominate-start-sound">
+      <button
+        type="button"
+        className="loominate-sound-toggle"
+        aria-pressed={on ? "true" : "false"}
+        onClick={() => {
+          now(() => {
+            setOn(!on);
+          });
+          props.set(!on);
+        }}
+      >
+        {message("sound.on")}
+        <span className="loominate-switch-state" aria-hidden="true">
+          {` ${message(on ? "sound.isOn" : "sound.isOff")}`}
+        </span>
+      </button>
+    </p>
+  );
+}
+
 /** What the game menu can do, supplied by the shell. */
 type MenuActions = {
   readonly canUndo: () => boolean;
@@ -227,6 +283,8 @@ type MenuActions = {
   readonly log: (view: "log" | "transcript") => void;
   readonly commandLine: () => boolean;
   readonly toggleCommandLine: () => void;
+  /** Opens the Sound dialog, for a game with sound. */
+  readonly sound?: () => void;
   /** Opens the Seed dialog, for a game that shows its seed. */
   readonly seed?: () => void;
 };
@@ -326,6 +384,11 @@ function GameMenu({
       >
         {message("menu.transcript")}
       </button>
+      {actions.sound && (
+        <button type="button" title={message("menu.soundTip")} onClick={actions.sound}>
+          {message("menu.sound")}
+        </button>
+      )}
       {actions.seed && (
         <button type="button" title={message("menu.seedTip")} onClick={actions.seed}>
           {message("menu.seed")}
@@ -507,6 +570,77 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
         },
       })
     : undefined;
+  // Sound (#146): only a game that says it has sound loads the player.
+  const view = doc.defaultView;
+  const soundKey = `loominate:sound:${options.game.id}`;
+  const audioModule = options.audio === true ? await import("../audio/player.js") : undefined;
+  const dialogModule =
+    options.audio === true ? await import("../audio/sound-dialog.js") : undefined;
+  let soundSettings: SoundSettings | undefined = audioModule && {
+    ...audioModule.DEFAULT_SOUND,
+    ...storedSound(doc, soundKey),
+  };
+  const audio =
+    audioModule && soundSettings
+      ? audioModule.createAudioPlayer({
+          backend: (src) => {
+            const Audio = view?.Audio;
+            if (!Audio) throw new Error("This browser can't play sound.");
+            return new Audio(src);
+          },
+          settings: soundSettings,
+          reducedMotion: () =>
+            view?.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false,
+        })
+      : undefined;
+  // Browsers play sound only after the player's first click or key press.
+  const unlock = (): void => {
+    audio?.unlock();
+    doc.removeEventListener("pointerdown", unlock, true);
+    doc.removeEventListener("keydown", unlock, true);
+  };
+  if (audio) {
+    doc.addEventListener("pointerdown", unlock, true);
+    doc.addEventListener("keydown", unlock, true);
+  }
+  /** Applies and keeps new sound settings, as the default for this game's later games. */
+  const setSound = (next: SoundSettings): void => {
+    soundSettings = next;
+    storeSound(doc, soundKey, next);
+    audio?.settings(next);
+    page?.refresh();
+  };
+  const soundDialog =
+    dialogModule && soundSettings
+      ? dialogModule.createSoundDialog(host, {
+          settings: () => soundSettings ?? (audioModule?.DEFAULT_SOUND as SoundSettings),
+          change: setSound,
+        })
+      : undefined;
+  let warnedSilent = false;
+  /** Plays what the game cues now: a move's new sounds, or, after a jump, only the channels. */
+  const hear = (how: AudioChange): void => {
+    const playing = store;
+    if (!playing) return;
+    if (audio) {
+      audio.follow(playing, createEventRecord(playing), how);
+      return;
+    }
+    // A game that cues sound without saying it has sound is told how to turn it on.
+    if (warnedSilent) return;
+    const cued =
+      createEventRecord(playing).events({ kinds: ["sound"] }).length > 0 ||
+      playing.get("$audio", "music") !== undefined ||
+      playing.get("$audio", "ambience") !== undefined;
+    if (!cued) return;
+    warnedSilent = true;
+    onError(
+      new Error(
+        "This game cues sound, but sound isn't on for it, so nothing plays. Add `audio: true` to loominate.config.ts.",
+      ),
+    );
+  };
+
   // The command line: as the player last chose, or as the game sets it.
   let commandLine = storedCommandLine(host.ownerDocument) ?? options.page?.commandLine ?? false;
   const menuWidget = gameMenu({
@@ -517,9 +651,14 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
       page?.showCommandLine(commandLine);
       changed();
     },
-    log: (view) => {
-      logs.open(view);
+    log: (which) => {
+      logs.open(which);
     },
+    ...(soundDialog && {
+      sound: () => {
+        soundDialog.open();
+      },
+    }),
     ...(seedDialog && {
       seed: () => {
         seedDialog.open();
@@ -531,6 +670,7 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
       history.undo();
       page?.refresh();
       autosave();
+      hear("jump");
       changed();
     },
     open: (focus) => {
@@ -606,9 +746,11 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
       {
         ...options.page,
         commandLine,
+        ...(soundSettings && { captions: () => soundSettings?.captions === true }),
         onMove: (move) => {
           undoable.checkpoint(moveLabel(move));
           autosave();
+          hear("move");
           options.page?.onMove?.(move);
           changed();
         },
@@ -648,6 +790,8 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
     }
     page.refresh();
     autosave();
+    // A new game plays its opening's sounds; loading a save or a replay, only what its channels play.
+    hear(snapshot === undefined && !replay ? "move" : "jump");
     changed();
     return played;
   };
@@ -749,6 +893,14 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
             </p>
           )}
           {problem !== undefined && <p className="loominate-note">{problem}</p>}
+          {soundSettings && (
+            <SoundSwitch
+              on={soundSettings.on}
+              set={(on) => {
+                if (soundSettings) setSound({ ...soundSettings, on });
+              }}
+            />
+          )}
           {autosaved && !autosaved.summary.sameGameVersion && (
             <p className="loominate-note">
               {message("start.savedByVersion", { version: autosaved.summary.game.version })}
@@ -842,6 +994,7 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
         else moving.redo();
       }
       page?.refresh();
+      hear("jump");
       autosave();
       changed();
     },
@@ -872,6 +1025,7 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
       start(loaded.state);
     },
     destroy() {
+      audio?.stop();
       listeners.clear();
       page?.destroy();
       host.remove();

@@ -200,7 +200,7 @@ A passage asks for one with `{effect name}`, which core renders as a node that c
 
 ### Audio
 
-Music, ambience, and sound-effect channels with crossfades, a volume UI, and handling of browser autoplay restrictions. Beats can trigger sounds.
+Music, ambience, and sound-effect channels with crossfades, a volume UI, and handling of browser autoplay restrictions. Beats can trigger sounds. Core cues sound DOM-free: what the `music` and `ambience` channels play is game state, so undo and saves restore it, and `sound()` records an event; `{music}`, `{ambience}`, and `{sound}` cue them from passages. A game opts in with `audio: true`, and the player shell plays them after the first interaction, with a Sound switch on the start screen, a Sound dialog of volumes and captions, settings kept per game in the browser, and crossfades cut for reduced motion ([ADR 0117](decisions/0117-audio.md), [guide](guide/playing.md#sound)).
 
 ### Accessibility
 

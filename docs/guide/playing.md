@@ -33,6 +33,33 @@ await playGame(document.querySelector("#app")!, {
 - A note when a save was made by another version of the game.
 - **Errors shown, not swallowed.** If the story's code throws during a move, the page shows "Something went wrong: …" at the top of the passage, and the game stays where it was, as a failed move is rolled back. The next move clears it. `mountPage`'s `onError` option gets the error too. The words are the `page.error` message ([Rewording the library](messages.md)).
 
+## Sound
+
+A game with sound says so, with `audio: true` in `loominate.config.ts`. Then it plays what it cues, and offers the player a Sound switch on the start screen and a **Sound** dialog in the game menu. A game without it carries none of the audio code ([ADR 0117](../decisions/0117-audio.md)).
+
+```ts
+import { ambience, music, sound } from "@loominate-if/core";
+
+music.play("music/storm.ogg", { fade: 2 }); // crossfades over two seconds
+ambience.play("sounds/rain.ogg", { volume: 0.6 });
+sound("sounds/door.ogg", { caption: "A door slams." });
+music.stop({ fade: 3 });
+```
+
+- **Files** go in the game's `public/` folder and are named by their path there, `"sounds/door.ogg"`. Vite copies the folder into builds as it is; the single-file build doesn't inline sound, so its files go beside it.
+- **Music and ambience** are looping channels. What each plays is game state, so undo, saves, and replays bring it back, crossfading. `fade` is seconds, 0 by default, and `volume` is 0 to 1.
+- **`sound`** plays once, as the move is shown, and not again on undo or loading. Its `caption` says what it is, for players who can't hear it.
+- **In passages:** `{music "music/storm.ogg", fade: 2}`, `{ambience "sounds/rain.ogg"}`, `{music stop}`, `{ambience stop fade: 3}`, and `{sound "sounds/door.ogg", caption: "A door slams."}`, after a beat too, as the player reaches them.
+- **The player's settings:**
+  - Sound on or off, on the start screen before anything plays, and at any time in the **Sound** dialog.
+  - Volumes for music, ambience, and effects.
+  - **Show captions for sounds**, which shows each sound's caption as a notice, "[A door slams.]".
+
+  They're kept for this game in the browser, as the default for every later game of it.
+- **Browsers** play sound only after the player's first click or key press, so sound starts then: choosing New game is one.
+- **Reduced motion:** with the player's system set to reduce motion, crossfades cut instead.
+- **A game that cues sound** without `audio: true` gets an error through `onError`, saying how to turn it on, and plays nothing.
+
 ## The command line
 
 The game menu's **Command line** turns on a text field below the passage, for playing by typing. It's for every game, branching stories too, and is off until the player turns it on. Their choice is remembered for every game in that browser, since it's how they like to play. A game can start with it on with `page: { commandLine: true }`.

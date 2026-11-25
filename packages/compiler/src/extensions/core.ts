@@ -141,6 +141,54 @@ export const coreExtension: CompilerExtension = {
       args: [{ name: "deck", kind: "words" }],
       runtime: core("storyletDraw"),
     },
+    // Audio cues (#146): looping channels as state, one-shot sounds as events.
+    {
+      name: "music",
+      kind: "arrival",
+      example: '{music "music/storm.ogg", fade: 2}',
+      args: [
+        { name: "src", kind: "expression", required: true },
+        { name: "fade", kind: "expression", named: true },
+        { name: "volume", kind: "expression", named: true },
+      ],
+      runtime: core("cueMusic"),
+    },
+    {
+      name: "music stop",
+      kind: "arrival",
+      example: "{music stop fade: 2}",
+      args: [{ name: "fade", kind: "expression", named: true }],
+      runtime: core("stopMusic"),
+    },
+    {
+      name: "ambience",
+      kind: "arrival",
+      example: '{ambience "sounds/rain.ogg", fade: 3}',
+      args: [
+        { name: "src", kind: "expression", required: true },
+        { name: "fade", kind: "expression", named: true },
+        { name: "volume", kind: "expression", named: true },
+      ],
+      runtime: core("cueAmbience"),
+    },
+    {
+      name: "ambience stop",
+      kind: "arrival",
+      example: "{ambience stop fade: 3}",
+      args: [{ name: "fade", kind: "expression", named: true }],
+      runtime: core("stopAmbience"),
+    },
+    {
+      name: "sound",
+      kind: "arrival",
+      example: '{sound "sounds/door.ogg", caption: "A door slams."}',
+      args: [
+        { name: "src", kind: "expression", required: true },
+        { name: "caption", kind: "expression", named: true },
+        { name: "volume", kind: "expression", named: true },
+      ],
+      runtime: core("cueSound"),
+    },
     {
       name: "chapter",
       kind: "arrival",
