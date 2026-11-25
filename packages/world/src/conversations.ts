@@ -19,6 +19,7 @@ import {
   type ObjectRef,
 } from "@loominate-if/core";
 import { bodyOf, currentPlayerBody, mindFor, type Mind } from "./actors.js";
+import { happen } from "./perception.js";
 import { placeOf, type Thing } from "./things.js";
 
 /** How strictly a lock holds the player in a conversation. */
@@ -181,13 +182,25 @@ export function _endConversation(how: LeftBy): void {
  * @throws StateError if there's no conversation, or as {@link startConversation}.
  */
 export function joinConversation(npc: ObjectRef): void {
-  const mind = npcMind("joinConversation", npc).id;
+  // Narrated, since the player didn't bring them in themselves (#144).
+  join("joinConversation", npc, true);
+}
+
+/** Brings an NPC into the conversation as the player's own greeting does, which says so itself. @internal */
+export function _joinByGreeting(npc: ObjectRef): void {
+  join("hello", npc, false);
+}
+
+function join(where: string, npc: ObjectRef, narrated: boolean): void {
+  const mind = npcMind(where, npc).id;
   if (state.participants.length === 0) {
-    throw new StateError(
-      "joinConversation: there's no conversation. Start one with startConversation.",
-    );
+    throw new StateError(`${where}: there's no conversation. Start one with startConversation.`);
   }
-  if (!state.participants.includes(mind)) state.participants = [...state.participants, mind];
+  if (state.participants.includes(mind)) return;
+  state.participants = [...state.participants, mind];
+  emit("conversation", { event: "joined", with: [mind] });
+  const body = bodyOf({ id: mind });
+  if (narrated && body) happen(body, { seen: message("conversation.joins", { who: body }) });
 }
 
 /**
@@ -196,7 +209,12 @@ export function joinConversation(npc: ObjectRef): void {
  * those left; with no one left, the conversation ends.
  */
 export function leaveConversation(npc: ObjectRef): void {
-  remove(mindFor(npc, "leaveConversation").id, "ended");
+  const mind = mindFor(npc, "leaveConversation").id;
+  const body = bodyOf({ id: mind });
+  const staying = state.participants.length > 1 && state.participants.includes(mind);
+  remove(mind, "ended");
+  // Still in the room, they're seen to step away (#144); walking off is told as they go.
+  if (staying && body) happen(body, { seen: message("conversation.leaves", { who: body }) });
 }
 
 function remove(mind: string, how: LeftBy): void {
@@ -208,6 +226,7 @@ function remove(mind: string, how: LeftBy): void {
   }
   for (const l of leaving) l(mind, how);
   state.participants = left;
+  emit("conversation", { event: "left", with: [mind] });
   state.locks = state.locks.filter((l) => l.by !== mind);
   if (state.addressee === mind) state.addressee = left[0] ?? null;
 }
@@ -306,18 +325,35 @@ declare module "@loominate-if/core" {
      * A conversation starting or ending, with who's in it, by mind ID. The page
      * never shows it; conversation mode's transcript starts at it.
      */
-    conversation: { readonly event: "started" | "ended"; readonly with: readonly string[] };
+    conversation: {
+      readonly event: "started" | "ended" | "joined" | "left";
+      readonly with: readonly string[];
+    };
   }
   interface Messages {
     /** What an NPC says when the player tries to leave against a soft lock with no reason of its own. */
     "conversation.objects": { readonly who: ObjectRef };
     /** Why the player can't leave against a hard lock with no reason of its own. */
     "conversation.locked": { readonly who: ObjectRef };
+    /** Someone joining the conversation, not by the player's greeting (#144): "The cook joins the conversation." */
+    "conversation.joins": { readonly who: ObjectRef };
+    /** Someone the game takes out of the conversation, still in the room: "The maid steps away from the conversation." */
+    "conversation.leaves": { readonly who: ObjectRef };
   }
 }
 messages.register(
   "conversation.objects",
   ({ who }) => t`“Just a moment,” {the who} {says}. “I haven't finished.”`({ who }),
+  { source: SOURCE },
+);
+messages.register(
+  "conversation.joins",
+  ({ who }) => t`{The subj who} {joins} the conversation.`({ who }),
+  { source: SOURCE },
+);
+messages.register(
+  "conversation.leaves",
+  ({ who }) => t`{The subj who} {steps} away from the conversation.`({ who }),
   { source: SOURCE },
 );
 messages.register(

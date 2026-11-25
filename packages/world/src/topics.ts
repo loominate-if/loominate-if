@@ -40,7 +40,7 @@ import {
   address,
   conversation,
   inConversationWith,
-  joinConversation,
+  _joinByGreeting,
   startConversation,
   type LeftBy,
 } from "./conversations.js";
@@ -1241,7 +1241,7 @@ function turnTo(who: ObjectRef): void {
     startConversation(who);
     answer(who, "hello", { implicit: true }, undefined);
   } else if (!inConversationWith(who)) {
-    joinConversation(who);
+    _joinByGreeting(who);
     address(who);
     answer(who, "hello", { implicit: true }, undefined);
   } else address(who);
@@ -1330,7 +1330,7 @@ export const hello = action<{ who: ObjectRef }>("hello", {
     playerSays(message("topic.player.hello", { who }));
     if (!conversation.active) startConversation(who);
     else {
-      joinConversation(who);
+      _joinByGreeting(who);
       address(who);
     }
     answer(who, "hello", { implicit: false }, message("topic.hello", { who }));

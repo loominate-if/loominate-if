@@ -439,7 +439,7 @@ She glances at the butler. "I wouldn't know, miss."
 ```
 
 - Private asides limit who hears a line. Revealed facts reach everyone who can hear the speaker, in the conversation or not; `present(x)` is whether x is where the player is and could hear them; an entry's `aside`, `{ask secret, aside}`, is said to the player alone, unreacted to, and marked on the page ([ADR 0115](decisions/0115-hearing-and-asides.md)).
-- Participants can join or leave mid-conversation, with arrivals and departures narrated and the menu updating.
+- Participants can join or leave mid-conversation, with arrivals and departures narrated and the menu updating. `joinConversation` and `leaveConversation` are told ("The cook joins the conversation."); the player's own greeting needs no line of its own; arriving in the room isn't joining; whoever leaves takes their locks and their open node ([#144](https://github.com/loominate-if/loominate-if/issues/144)).
 - Locks have an owner (the character or node demanding an answer), and the story log attributes speakers.
 
 A coverage report flags unreachable topics and facts no one can be asked about, and a per-character view lists every topic with its conditions. The inspector's Conversation tab shows the conversation now (participants, open nodes, the exit, and each lock with its owner and reason) and, for a chosen character, every topic entry with its conditions as written, whether it would answer now, and whether it's suggested now, each with why not ([ADR 0096](decisions/0096-conversation-inspector.md)).
