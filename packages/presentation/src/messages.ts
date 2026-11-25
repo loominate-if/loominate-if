@@ -126,6 +126,36 @@ declare module "@loominate-if/core" {
     "start.cannotContinue": None;
     /** Which version of the game saved it. */
     "start.savedByVersion": { readonly version: string };
+    /** The start screen's choice to start a new game from a seed (#132). */
+    "start.newGameSeed": None;
+    /** A seed from a link, on the start screen: "A seed shared with you: amber-lantern-fog@1.2.0." */
+    "start.shared": { readonly seed: string };
+    /** Playing the seed from a link. */
+    "start.playShared": None;
+    /** The game menu's button for the Seed dialog, and its tooltip. */
+    "menu.seed": None;
+    "menu.seedTip": None;
+    /** The Seed dialog's heading. */
+    "seed.title": None;
+    /** Before the game's seed, or today's, which everyone shares. */
+    "seed.current": None;
+    "seed.daily": None;
+    /** When no game has begun, so there's no seed yet. */
+    "seed.none": None;
+    /** Copying the seed, or a link to play it, and how that went. */
+    "seed.copy": None;
+    "seed.copyLink": None;
+    "seed.copied": None;
+    "seed.linkCopied": None;
+    "seed.copyFailed": None;
+    /** The label of the field for a seed to play, its button, and what playing one does. */
+    "seed.enter": None;
+    "seed.play": None;
+    "seed.playNote": None;
+    /** A seed made for another version of the game. */
+    "seed.otherVersion": { readonly version: string; readonly current: string };
+    /** Closing the dialog. */
+    "seed.close": None;
     /** The save menu's heading. */
     "saves.title": None;
     /** The label of the name to save under. */
@@ -264,6 +294,29 @@ register(
   "start.savedByVersion",
   ({ version }) => `It was saved by version ${version} of the game.`,
 );
+register("start.newGameSeed", "New game with a seed…");
+register("start.shared", ({ seed }) => `A seed shared with you: ${seed}.`);
+register("start.playShared", "Play this seed");
+register("menu.seed", "Seed");
+register("menu.seedTip", "This game's seed, which makes its world: to share, or to play another.");
+register("seed.title", "Seed");
+register("seed.current", "This game's seed:");
+register("seed.daily", "Today's seed, the same for everyone:");
+register("seed.none", "There's no game in play yet.");
+register("seed.copy", "Copy");
+register("seed.copyLink", "Copy link");
+register("seed.copied", "Seed copied.");
+register("seed.linkCopied", "Link copied.");
+register("seed.copyFailed", "Couldn't copy it. Select it and copy it yourself.");
+register("seed.enter", "Play a seed");
+register("seed.play", "Play it");
+register("seed.playNote", "Starts a new game from that seed. Save first to keep the game in play.");
+register(
+  "seed.otherVersion",
+  ({ version, current }) =>
+    `This seed is from version ${version} of the game. In version ${current}, its world may differ.`,
+);
+register("seed.close", "Close");
 register("saves.title", "Saves");
 register("saves.name", "Name");
 register("saves.save", "Save");

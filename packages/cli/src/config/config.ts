@@ -27,6 +27,13 @@ export type LoominateConfig = {
   readonly title?: string;
   /** Who wrote it: on its start screen and in story log exports. */
   readonly author?: string;
+  /**
+   * Shareable seeds: `true` makes each new game's seed memorable words, shown
+   * in the game menu to share, and takes one to play; `"daily"` gives
+   * everyone today's; any other text is the seed every game starts from.
+   * Off by default, for games with nothing random to share.
+   */
+  readonly seeds?: boolean | "daily" | (string & {});
   /** The passage a new game starts in. */
   readonly start: string;
   /**
@@ -166,7 +173,7 @@ function check(value: unknown): LoominateConfig {
       "export the game's configuration as the default: `export default defineConfig({ … })`.",
     );
   }
-  const { game, title, author, start, extensions, scope, inspector } = value;
+  const { game, title, author, seeds, start, extensions, scope, inspector } = value;
   if (!isRecord(game) || !text(game.id) || !text(game.version)) {
     fail(
       '`game` needs an `id` and a `version`, like `game: { id: "lantern-road", version: "1.0.0" }`.',
@@ -176,6 +183,11 @@ function check(value: unknown): LoominateConfig {
   if (title !== undefined && typeof title !== "string") fail("`title` must be a string.");
   if (author !== undefined && typeof author !== "string") {
     fail('`author` must be a string, like `author: "A. Writer"`.');
+  }
+  if (seeds !== undefined && typeof seeds !== "boolean" && !text(seeds)) {
+    fail(
+      '`seeds` must be `true`, `false`, `"daily"`, or the seed every game starts from, like `seeds: true`.',
+    );
   }
   if (scope !== undefined && !text(scope)) fail("`scope` must name a module, like `story.ts`.");
   if (inspector !== undefined && !text(inspector)) {

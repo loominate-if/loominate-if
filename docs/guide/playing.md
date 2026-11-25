@@ -18,6 +18,7 @@ await playGame(document.querySelector("#app")!, {
 - `title` is shown on the start screen, and names story log exports.
 - `author`, if given, is shown under the title on the start screen, "by Your Name", and recorded in story log exports.
 - `page` passes options to the page, such as `pacing` or `continueLabel`.
+- `seeds` lets players see and share seeds; see [Shareable seeds](#shareable-seeds).
 - `seed` makes the master seed for a new game. Each new game gets a fresh random one by default.
 - `storage` replaces browser storage, for example with `createMemoryStorage()` in tests.
 
@@ -47,6 +48,29 @@ The game menu's **Command line** turns on a text field below the passage, for pl
 - **Screen readers:** focus stays in the field. When typing pauses, the suggestions are read: "2 suggestions: Ring the bell, Ring for help." What a command does is read through the page's live region, as after any move. A link followed with the mouse or keyboard moves focus as it always does. Speech tools such as Voice Control and Voice Access type into the field like a keyboard, so no speech input of the game's own is needed. Suggestions help most with invented names that dictation gets wrong.
 - **An action that asks for a number** is taken from its menu, which asks for it, rather than typed.
 - **A game adds commands** with `commandSources.register(name, (game) => [...])`, each a `label`, optional `phrases`, an optional `disabled` reason, and `run`.
+
+## Shareable seeds
+
+A game with random streams can let players share the world they got. Turn it on with `seeds` in `loominate.config.ts`:
+
+```ts
+export default defineConfig({
+  game: { id: "lantern-road", version: "1.2.0" },
+  start: "Start",
+  seeds: true,
+});
+```
+
+- **`seeds: true`:** each new game's seed is three words, like `amber-lantern-fog`.
+  - The game menu's **Seed** shows it with the game's version, `amber-lantern-fog@1.2.0`. **Copy** copies it, and **Copy link** copies a link that offers it.
+  - The dialog's **Play a seed** field starts a new game from one. Capitals and spaces don't matter: "Amber Lantern Fog" is the same seed.
+  - The start screen offers **New game with a seed…**.
+  - A link with `?seed=…` offers **Play this seed** on the start screen, beside Continue, so it never replaces the game in play unasked.
+- **Another version:** a seed from another version of the game still plays, after a note that its world may differ.
+- **`seeds: "daily"`:** today's seed, the same for everyone that day (by the date in UTC). **Seed** shows it, and there's no field to enter another.
+- **`seeds: "amber-lantern-fog"`,** or any other text: the seed every game starts from. Nothing is shown.
+- **Off by default.** A story with nothing random has nothing to share, and doesn't carry the word list.
+- **The same seed and version give the same world,** since each stream's draws come from the seed and its name alone (see [Randomness](../DESIGN.md#randomness)).
 
 ## The story log and transcript
 

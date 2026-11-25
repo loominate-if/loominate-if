@@ -128,6 +128,7 @@ export function loominateApp(config: ResolvedConfig, options: AppOptions = {}): 
           game: config.game,
           title: config.title ?? config.game.id,
           ...(config.author !== undefined && { author: config.author }),
+          ...(config.seeds !== undefined && { seeds: config.seeds }),
         }).replace(/^\{/, "{ passages, page: { onError: report }, ")});`,
         "markStarted();",
         ...(inspector ? ["inspect(player);"] : []),

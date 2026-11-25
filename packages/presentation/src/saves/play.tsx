@@ -42,6 +42,8 @@ import { addStyles } from "../page/theme.js";
 import { headerWidgets } from "../page/things.js";
 import { createLogDialog } from "../page/log.js";
 import { createSaveMenu } from "./menu.js";
+import { createSeedDialog } from "./seed-dialog.js";
+import { _dailySeed, _freshWordSeed, _parseSeed, _sharedSeed, type SeedSetting } from "./seed.js";
 import { createBrowserStorage } from "./storage.js";
 
 const SOURCE = "@loominate-if/presentation";
@@ -68,6 +70,14 @@ export type PlayOptions = {
    * each game; pass a fixed one for a seed-of-the-day or for tests.
    */
   readonly seed?: () => string;
+  /**
+   * Shareable seeds (#132): `true` makes each new game's seed memorable words,
+   * "amber-lantern-fog", shows it in the game menu's Seed to copy or share as
+   * a link, and takes one to play; `"daily"` gives everyone today's seed, the
+   * same for everyone on that date; any other text is the seed every game
+   * starts from. Off by default. `seed`, if given, makes the seed instead.
+   */
+  readonly seeds?: SeedSetting;
   /** Story options other than the start passage and seed, such as `guardMode`. */
   readonly story?: Omit<StoryOptions, "start" | "seed">;
   /** Page options. `onMove` is called after the shell's own checkpoint and autosave. */
@@ -204,6 +214,8 @@ type MenuActions = {
   readonly log: (view: "log" | "transcript") => void;
   readonly commandLine: () => boolean;
   readonly toggleCommandLine: () => void;
+  /** Opens the Seed dialog, for a game that shows its seed. */
+  readonly seed?: () => void;
 };
 
 /** The game menu widget: Undo, Save, Load, and Restart buttons. */
@@ -301,6 +313,11 @@ function GameMenu({
       >
         {message("menu.transcript")}
       </button>
+      {actions.seed && (
+        <button type="button" title={message("menu.seedTip")} onClick={actions.seed}>
+          {message("menu.seed")}
+        </button>
+      )}
       <button
         type="button"
         title={message("menu.commandLineTip")}
@@ -313,6 +330,30 @@ function GameMenu({
       </button>
     </div>
   );
+}
+
+/** The seed a link gives, `?seed=amber-lantern-fog@1.2.0`, removed from the address once read. */
+function sharedFromLink(doc: Document): { seed: string; version?: string } | undefined {
+  const view = doc.defaultView;
+  if (!view) return undefined;
+  try {
+    const url = new URL(view.location.href);
+    const text = url.searchParams.get("seed");
+    if (text === null) return undefined;
+    url.searchParams.delete("seed");
+    view.history.replaceState(view.history.state, "", url.href);
+    return _parseSeed(text);
+  } catch {
+    return undefined;
+  }
+}
+
+/** A random whole number below 2³², for choosing a seed's words. */
+function randomWord(): number {
+  const word = new Uint32Array(1);
+  // eslint-disable-next-line no-restricted-properties
+  crypto.getRandomValues(word);
+  return word[0] ?? 0;
 }
 
 /** A fresh master seed for a new game (ADR 0008: whatever starts a game supplies one). */
@@ -412,6 +453,47 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
     title: options.title ?? options.game.id,
     ...(options.author !== undefined && { author: options.author }),
   });
+  // Shareable seeds (#132): only a game that shows them loads the words.
+  const seeds = options.seeds ?? false;
+  const showsSeed = seeds === true || seeds === "daily";
+  const words = showsSeed ? (await import("./seed-words.js"))._SEED_WORDS : [];
+  /** The seed for a new game, unless the player chose one. */
+  const newSeed = (): string => {
+    if (options.seed) return options.seed();
+    if (seeds === true) return _freshWordSeed(words, randomWord);
+    if (seeds === "daily") {
+      // The date chooses the seed, as fresh randomness otherwise would; it's stored with the game.
+      // eslint-disable-next-line no-restricted-syntax
+      return _dailySeed(words, new Date().toISOString().slice(0, 10));
+    }
+    if (typeof seeds === "string") return seeds;
+    return freshSeed();
+  };
+  const location = doc.defaultView?.location;
+  const seedDialog = showsSeed
+    ? createSeedDialog(host, {
+        version: options.game.version,
+        current: () => (story?.current === undefined ? undefined : story.toReplay().seed),
+        daily: seeds === "daily",
+        entry: seeds === true,
+        link: (shared) => {
+          if (!location || !/^https?:$/.test(location.protocol)) return undefined;
+          const url = new URL(location.href);
+          url.search = "";
+          url.hash = "";
+          url.searchParams.set("seed", shared);
+          return url.href;
+        },
+        play: (seed) => {
+          autosaving
+            .then(() => {
+              start(undefined, undefined, seed);
+              host.querySelector<HTMLElement>(".loominate-passage")?.focus({ preventScroll: true });
+            })
+            .catch(onError);
+        },
+      })
+    : undefined;
   // The command line: as the player last chose, or as the game sets it.
   let commandLine = storedCommandLine(host.ownerDocument) ?? options.page?.commandLine ?? false;
   const menuWidget = gameMenu({
@@ -425,6 +507,11 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
     log: (view) => {
       logs.open(view);
     },
+    ...(seedDialog && {
+      seed: () => {
+        seedDialog.open();
+      },
+    }),
     canUndo: () => history?.canUndo ?? false,
     undo: () => {
       if (!history?.canUndo) return;
@@ -476,7 +563,11 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
   };
 
   /** Starts a game: a loaded one from its state, a new one, or a new one from a replay. */
-  const start = (snapshot?: StateSnapshot, replay?: Replay): PlayedReplay | undefined => {
+  const start = (
+    snapshot?: StateSnapshot,
+    replay?: Replay,
+    seed?: string,
+  ): PlayedReplay | undefined => {
     markPlaying();
     page?.destroy();
     const shown = host.querySelector<HTMLElement>(".loominate-start");
@@ -489,7 +580,7 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
     story = createStory(store, record, options.passages, {
       ...options.story,
       start: options.start,
-      ...(snapshot === undefined && { seed: replay?.seed ?? (options.seed ?? freshSeed)() }),
+      ...(snapshot === undefined && { seed: replay?.seed ?? seed ?? newSeed() }),
       // A replay plays against the persistent data it began with, in memory.
       ...(replay && { persistent: createPersistent(replay.persistent ?? {}) }),
     });
@@ -569,12 +660,16 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
    * as a page, with the game's own styles, so the first thing the player sees
    * looks like the game: the title as a heading, then choices like a passage's.
    */
-  const offer = (autosaved: LoadedSave, problem?: string): void => {
+  const offer = (
+    autosaved: LoadedSave | undefined,
+    problem?: string,
+    shared?: { readonly seed: string; readonly version?: string },
+  ): void => {
     const screen = doc.createElement("div");
     screen.className = "loominate-page loominate-start";
     screen.dataset.screen = "start";
     host.prepend(screen);
-    const where = autosaved.summary.passage;
+    const where = autosaved?.summary.passage;
     const choice = (text: string, className: string, onClick: () => void) => (
       <p className="loominate-choice">
         <button type="button" className={className} onClick={onClick}>
@@ -591,28 +686,58 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
               {message("start.byline", { author: options.author })}
             </p>
           )}
-          <p>
-            {problem !== undefined
-              ? message("start.cannotContinue")
-              : where === undefined
-                ? message("start.inProgress")
-                : message("start.inProgressAt", { where })}
-          </p>
+          {shared && (
+            <p>
+              {message("start.shared", {
+                seed: _sharedSeed(shared.seed, shared.version ?? options.game.version),
+              })}
+            </p>
+          )}
+          {shared?.version !== undefined && shared.version !== options.game.version && (
+            <p className="loominate-note">
+              {message("seed.otherVersion", {
+                version: shared.version,
+                current: options.game.version,
+              })}
+            </p>
+          )}
+          {shared &&
+            choice(message("start.playShared"), "loominate-continue", () => {
+              start(undefined, undefined, shared.seed);
+            })}
+          {autosaved && (
+            <p>
+              {problem !== undefined
+                ? message("start.cannotContinue")
+                : where === undefined
+                  ? message("start.inProgress")
+                  : message("start.inProgressAt", { where })}
+            </p>
+          )}
           {problem !== undefined && <p className="loominate-note">{problem}</p>}
-          {!autosaved.summary.sameGameVersion && (
+          {autosaved && !autosaved.summary.sameGameVersion && (
             <p className="loominate-note">
               {message("start.savedByVersion", { version: autosaved.summary.game.version })}
             </p>
           )}
-          {problem === undefined &&
-            choice(message("start.continue"), "loominate-continue", () => {
-              render(null, screen);
-              screen.remove();
-              resume(autosaved);
-            })}
+          {autosaved &&
+            problem === undefined &&
+            choice(
+              message("start.continue"),
+              shared ? "loominate-link" : "loominate-continue",
+              () => {
+                render(null, screen);
+                screen.remove();
+                resume(autosaved);
+              },
+            )}
           {choice(message("start.newGame"), "loominate-link", () => {
             start();
           })}
+          {seeds === true &&
+            choice(message("start.newGameSeed"), "loominate-link", () => {
+              seedDialog?.open("enter");
+            })}
         </div>
       </main>,
       screen,
@@ -629,7 +754,11 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
   }
   // A reload, or back and forward, in the same tab carries straight on; a
   // player who closed the tab and came back chooses.
-  if (autosaved && playingInThisTab()) resume(autosaved);
+  // A link to a shared seed offers it, beside Continue, never replacing the
+  // game in play unasked. It's taken from the address, so a reload carries on.
+  const shared = seeds === true ? sharedFromLink(doc) : undefined;
+  if (shared) offer(autosaved, undefined, shared);
+  else if (autosaved && playingInThisTab()) resume(autosaved);
   else if (autosaved) offer(autosaved);
   else start();
 

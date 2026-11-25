@@ -40,6 +40,7 @@ export {
   type PlayHistory,
   type PlayOptions,
 } from "./saves/play.js";
+export type { SeedSetting } from "./saves/seed.js";
 export {
   addToHeader,
   menuWidget,
