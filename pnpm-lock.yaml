@@ -390,6 +390,12 @@ importers:
         specifier: workspace:^
         version: link:../presentation
 
+  packages/tree-sitter-weft:
+    devDependencies:
+      tree-sitter-cli:
+        specifier: 0.26.13
+        version: 0.26.13
+
   packages/world:
     dependencies:
       '@loominate-if/core':
@@ -1504,6 +1510,11 @@ packages:
   tr46@7.0.0:
     resolution: {integrity: sha512-BcDSDW+SIGWVOns1Zm6Yg91q9AEj7eaID0QDY9oIqJD1A8dscNwMcl9Sms2DeuWCNov1X0/oXanHGYQBSLwZsg==}
     engines: {node: ^22.14.0 || >=24.0.0}
+
+  tree-sitter-cli@0.26.13:
+    resolution: {integrity: sha512-SIC74lxT2jsygxaIGGb50Bpf8jtll24aXju98Y3eJienBTXCRQ+5k3YigwN31pASEUZKcKh98EPSZWky7ugUMA==}
+    engines: {node: '>=12.0.0'}
+    hasBin: true
 
   ts-api-utils@2.5.0:
     resolution: {integrity: sha512-OJ/ibxhPlqrMM0UiNHJ/0CKQkoKF243/AEmplt3qpRgkW8VG7IfOS41h7V8TjITqdByHzrjcS/2si+y4lIh8NA==}
@@ -2759,6 +2770,8 @@ snapshots:
   tr46@7.0.0:
     dependencies:
       punycode: 2.3.1
+
+  tree-sitter-cli@0.26.13: {}
 
   ts-api-utils@2.5.0(typescript@6.0.3):
     dependencies:

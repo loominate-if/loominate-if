@@ -1,0 +1,21 @@
+:: Cellar Stairs [room: stairs]
+// <- punctuation.special
+// ^ title
+//                ^ property
+//                      ^ string
+{on enter: lamp.lit = true}
+// <- punctuation.special
+// ^ keyword
+The steps go *further* than they **should**.
+//           ^ emphasis
+//                               ^ emphasis.strong
+[[Go down -> Cellar]]{when lamp.lit}
+// <- punctuation.bracket
+// ^ link_text
+//            ^ link_uri
+//                     ^ keyword
+{continue -> Platform}
+// ^ keyword
+//           ^ link_uri
+Escaped \{braces\}.
+//      ^ string.escape

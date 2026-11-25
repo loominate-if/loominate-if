@@ -158,3 +158,8 @@ release/
 
 # A shell history kept in the project folder (direnv); never commit it.
 .bash_history_local
+
+# The Zed extension's Rust build, and what Zed builds into it as a dev extension (#411).
+packages/zed/target/
+packages/zed/extension.wasm
+packages/zed/grammars/

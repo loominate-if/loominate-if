@@ -1,0 +1,28 @@
+{
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/config.schema.json",
+  "grammars": [
+    {
+      "name": "weft",
+      "camelcase": "Weft",
+      "scope": "source.weft",
+      "path": ".",
+      "file-types": ["weft"],
+      "highlights": "queries/highlights.scm",
+      "injections": "queries/injections.scm"
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "MIT",
+    "description": "Loominate IF passage files",
+    "links": { "repository": "https://github.com/loominate-if/loominate-if" }
+  },
+  "bindings": {
+    "c": false,
+    "go": false,
+    "node": false,
+    "python": false,
+    "rust": false,
+    "swift": false
+  }
+}

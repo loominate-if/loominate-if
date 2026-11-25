@@ -2,3 +2,7 @@ packages:
   - packages/*
   - packages/kits/*
   - examples/*
+
+# Packages whose install scripts may run. tree-sitter-cli downloads its binary (#411).
+allowBuilds:
+  tree-sitter-cli: true

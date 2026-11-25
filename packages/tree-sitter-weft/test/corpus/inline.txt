@@ -1,0 +1,172 @@
+===============
+A printed value
+===============
+
+It is {lamp.lit ? "lit" : "dark"}.
+
+---
+
+(source_file
+  (line
+    (text)
+    (inline
+      (code
+        (identifier)
+        (identifier)))
+    (text)))
+
+=================================
+Braces in strings and nested code
+=================================
+
+{on enter: if (x) { say("}") }}
+
+---
+
+(source_file
+  (line
+    (inline
+      (directive
+        (directive_name)
+        (code
+          (identifier)
+          (identifier)
+          (code
+            (identifier)))))))
+
+=========
+If blocks
+=========
+
+{if lamp.lit}
+Bright.
+{else if dusk}
+Dim.
+{else}
+Dark.
+{/if}
+
+---
+
+(source_file
+  (line
+    (inline
+      (directive
+        (directive_name)
+        (arguments
+          (identifier)
+          (identifier)))))
+  (line
+    (text))
+  (line
+    (inline
+      (directive
+        (directive_name)
+        (arguments
+          (identifier)))))
+  (line
+    (text))
+  (line
+    (inline
+      (directive
+        (directive_name))))
+  (line
+    (text))
+  (line
+    (inline
+      (directive_end))))
+
+=====================
+Multi-word directives
+=====================
+
+{on first visit: count += 1}
+{log only}
+{ask or tell letter}
+
+---
+
+(source_file
+  (line
+    (inline
+      (directive
+        (directive_name)
+        (code
+          (identifier)))))
+  (line
+    (inline
+      (directive
+        (directive_name))))
+  (line
+    (inline
+      (directive
+        (directive_name)
+        (arguments
+          (identifier))))))
+
+=================================
+A directive with a passage target
+=================================
+
+{continue -> Platform}
+{beat 1.5s}
+
+---
+
+(source_file
+  (line
+    (inline
+      (directive
+        (directive_name)
+        (arguments
+          (target
+            (passage_name))))))
+  (line
+    (inline
+      (directive
+        (directive_name)
+        (arguments
+          (identifier))))))
+
+======================================
+A world directive, and a kit's as code
+======================================
+
+{show mira smiling}
+{stage left}
+
+---
+
+(source_file
+  (line
+    (inline
+      (directive
+        (directive_name)
+        (arguments
+          (identifier)
+          (identifier)))))
+  (line
+    (inline
+      (code
+        (identifier)
+        (identifier)))))
+
+===================
+Code spanning lines
+===================
+
+{on enter:
+  lamp.lit = true;
+}
+
+---
+
+(source_file
+  (line
+    (inline
+      (directive
+        (directive_name)
+        (code
+          (identifier)
+          (identifier)
+          (identifier))))))

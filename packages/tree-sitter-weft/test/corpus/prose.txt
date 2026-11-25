@@ -1,0 +1,65 @@
+======================
+Formatting and escapes
+======================
+
+The steps go *further* than they **should** \{really\}.
+5 * 3 stays literal.
+
+---
+
+(source_file
+  (line
+    (text)
+    (emphasis)
+    (text)
+    (strong)
+    (text)
+    (escape)
+    (text)
+    (escape)
+    (text))
+  (line
+    (text)
+    (text)
+    (text)))
+
+========
+Comments
+========
+
+/* A note. */ Prose.
+  // A line comment.
+See http://example.com/a.
+
+---
+
+(source_file
+  (line
+    (block_comment)
+    (text))
+  (line
+    (indent)
+    (line_comment))
+  (line
+    (text)
+    (text)
+    (text)
+    (text)
+    (text)
+    (text)))
+
+=========================
+Single brackets are prose
+=========================
+
+A [note] here.
+
+---
+
+(source_file
+  (line
+    (text)
+    (text)
+    (text)
+    (text)
+    (text)))

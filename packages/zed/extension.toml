@@ -1,0 +1,21 @@
+id = "loominate"
+name = "Loominate IF"
+description = "Passage files (.weft) for Loominate IF: highlighting, and the compiler's diagnostics and completion through its language server."
+version = "0.1.0"
+schema_version = 1
+authors = ["Loominate IF"]
+repository = "https://github.com/loominate-if/loominate-if"
+
+# The grammar lives in this repository (ADR 0119). After changing it, set `rev`
+# to a commit that has the change.
+[grammars.weft]
+repository = "https://github.com/loominate-if/loominate-if"
+rev = "GRAMMAR_REV"
+path = "packages/tree-sitter-weft"
+
+[language_servers.loominate]
+name = "Loominate IF"
+languages = ["Weft"]
+
+[language_servers.loominate.language_ids]
+"Weft" = "weft"

@@ -20,13 +20,18 @@ npx loominate-language-server --stdio
 
 - **It finds your game** from the file you open, by the nearest `loominate.config.ts` above it, and loads the packages that config lists, so their directives and checks work as they do in builds.
 - **Passage files** are read as you edit them, unsaved. **TypeScript files**, such as `story.ts`, are read again when you save them.
-- **Your `tsconfig.json`** should include the passage files, as `"include": ["*.ts", "*.weft"]`, so TypeScript sees them with the rest of the game.
 
-## Editors
+## Zed
+
+The Zed extension in `packages/zed` colors passage files, with TypeScript coloring inside `{ … }`, and starts the language server. It lists your passages in the outline (**outline: toggle** in the command palette) and in symbol search.
+
+- **Install it** as a dev extension until it's in Zed's extension gallery: in Zed, open the command palette, run **zed: install dev extension**, and choose the `packages/zed` folder of a Loominate IF checkout. Zed builds it with Rust, which you install from [rustup.rs](https://rustup.rs) first.
+- **Open your game's folder**, the one with `loominate.config.ts` and `node_modules`. The extension starts the language server your game depends on, so its compiler matches your game's. If your game doesn't depend on `@loominate-if/language-server`, the extension installs it from npm.
+
+## Other editors
 
 Each editor needs a small client that colors `.weft` files and starts the server. They're on their way:
 
-- Zed ([#411](https://github.com/loominate-if/loominate-if/issues/411))
 - BBEdit ([#412](https://github.com/loominate-if/loominate-if/issues/412))
 - Sublime Text, with the LSP package ([#413](https://github.com/loominate-if/loominate-if/issues/413))
 - VS Code ([#414](https://github.com/loominate-if/loominate-if/issues/414))

@@ -39,6 +39,8 @@ const TOOLING = new Set([
   "cli",
   "create",
   "language-server",
+  "tree-sitter-weft",
+  "zed",
   "vscode",
   "archive",
   "player",
