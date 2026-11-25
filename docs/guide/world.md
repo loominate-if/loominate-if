@@ -1388,7 +1388,16 @@ portrait(butler, { image: "butler.png", expressions: { stern: "butler-stern.png"
 topic(butler, { ask: letter, expression: "stern", says: "“I couldn't say, sir.”" });
 ```
 
-- **NPCs start conversations** with `approach(npc, { says, opens })` in an agenda item. With the player, it starts one, or brings them into the player's, says their line, opens a node if given, and returns true; otherwise false.
+- **NPCs start conversations** with `approach(npc, { says, opens })` in an agenda item. With the player, it starts one, or brings them into the player's, says their line, opens a node if given, and returns true; otherwise false. With `comes: true`, an NPC who isn't with the player takes a step toward them first, and speaks the turn they arrive, so they never stand there for a turn first:
+
+<!-- example: packages/world/src/approach.test.ts#comes -->
+```ts
+agenda(butler, "announce dinner", {
+  act: ({ npc, done }) => {
+    if (approach(npc, { says: "“Dinner is served, sir.”", comes: true })) done();
+  },
+});
+```
 
 <!-- example: packages/world/src/conversation-mode.test.ts#approach -->
 ```ts

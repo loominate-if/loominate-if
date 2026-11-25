@@ -40,6 +40,7 @@ import {
 } from "./conversations.js";
 import { _nodeById, openNode, openNodeOf, type ConvNode } from "./nodes.js";
 import { placeOf, thingFor } from "./things.js";
+import { stepToward } from "./agendas.js";
 import {
   _addressAction,
   _hideTopicLinksWhen,
@@ -300,27 +301,34 @@ layouts.register(
  * Has an NPC start a conversation with the player, for an agenda item's
  * `act`: if they're with the player, it starts one (or brings them into
  * the player's), says their opening line, opens a node if given, and
- * returns true, so `act` can call `done()`. Otherwise it returns false,
- * and `stepToward` can bring them closer.
+ * returns true, so `act` can call `done()`. Otherwise it returns false.
+ * With `comes: true`, an NPC who isn't with the player takes a step toward
+ * them first, through `stepToward`, and speaks the turn they arrive (#389).
  *
  * @example
  * ```ts
  * agenda(butler, "announce dinner", {
  *   act: ({ npc, done }) => {
- *     if (approach(npc, { says: "“Dinner is served, sir.”" })) done();
- *     else stepToward(npc, you);
+ *     if (approach(npc, { says: "“Dinner is served, sir.”", comes: true })) done();
  *   },
  * });
  * ```
  */
 export function approach(
   npc: ObjectRef,
-  options: { readonly says?: string; readonly opens?: ConvNode } = {},
+  options: {
+    readonly says?: string;
+    readonly opens?: ConvNode;
+    /** Whether they come to the player first, a step a turn, if they aren't together. */
+    readonly comes?: boolean;
+  } = {},
 ): boolean {
   const body = bodyOf(mindFor(npc, "approach"));
   const player = currentPlayerBody();
   const here = player ? placeOf(player) : undefined;
-  if (!body || !here || placeOf(body)?.id !== here.id) return false;
+  if (!body || !here || !player) return false;
+  if (placeOf(body)?.id !== here.id && options.comes === true) stepToward(npc, player);
+  if (placeOf(body)?.id !== here.id) return false;
   if (!conversation.active) startConversation(npc);
   else if (!inConversationWith(npc)) joinConversation(npc);
   address(npc);
