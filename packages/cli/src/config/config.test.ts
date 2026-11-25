@@ -47,7 +47,7 @@ describe("loominate.config.ts", () => {
   it("is read with its types, and loads extensions in the order listed", async () => {
     const root = game({
       ...config(
-        '{ game: { id: "lantern-road", version: "1.0.0" }, title: "Lantern Road", start: "Road", extensions: ["kit-b", "@scope/kit-a"] }',
+        '{ game: { id: "lantern-road", version: "1.0.0" }, title: "Lantern Road", author: "A. Writer", start: "Road", extensions: ["kit-b", "@scope/kit-a"] }',
       ),
       ...extensionPackage("@scope/kit-a"),
       ...extensionPackage("kit-b"),
@@ -57,6 +57,7 @@ describe("loominate.config.ts", () => {
       root,
       game: { id: "lantern-road", version: "1.0.0" },
       title: "Lantern Road",
+      author: "A. Writer",
       start: "Road",
     });
     expect(loaded.loaded.map((e) => e.name)).toEqual(["kit-b", "@scope/kit-a"]);
@@ -85,6 +86,9 @@ describe("loominate.config.ts", () => {
     ).toBe(
       'loominate.config.ts: `extensions` lists package names, like `extensions: ["@loominate-if/world"]`.',
     );
+    expect(
+      await problem('{ game: { id: "g", version: "1" }, start: "S", author: 3 } as never'),
+    ).toBe('loominate.config.ts: `author` must be a string, like `author: "A. Writer"`.');
     const noDefault = game({ "loominate.config.ts": "export const config = {};\n" });
     await expect(loadConfig(noDefault, options)).rejects.toThrow(
       "loominate.config.ts: export the game's configuration as the default: `export default defineConfig({ … })`.",

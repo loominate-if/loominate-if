@@ -192,6 +192,8 @@ export function createLogDialog(
   options: {
     /** The game's title, for exports. */
     readonly title?: string;
+    /** Who wrote it, for exports. */
+    readonly author?: string;
     /** Saves an exported file; defaults to downloading it. */
     readonly save?: (file: ExportedFile) => void;
   } = {},
@@ -364,6 +366,7 @@ export function createLogDialog(
                 onClick={() => {
                   const file = exportStoryLog(events(), format, {
                     title: options.title ?? doc.title,
+                    ...(options.author !== undefined && { author: options.author }),
                     language: doc.documentElement.lang || "en",
                   });
                   save(file);

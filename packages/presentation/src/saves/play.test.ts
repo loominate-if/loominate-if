@@ -275,6 +275,31 @@ describe("playing a game", () => {
     expect(document.head.querySelector("style[data-loominate-styles]")).not.toBeNull();
   });
 
+  it("shows the author on the start screen, and puts it in story log exports (#381)", async () => {
+    const storage = createMemoryStorage();
+    await createSaves({ storage, game }).autosave(createStore());
+    const { container, click } = await start({ storage, author: "A. Writer" });
+    expect(container.querySelector(".loominate-start .loominate-byline")?.textContent).toBe(
+      "by A. Writer",
+    );
+    click("Continue");
+    // Exporting from the story log: catch the download's contents.
+    const blobs: Blob[] = [];
+    const url = URL as unknown as Record<string, unknown>;
+    url.createObjectURL = (b: Blob) => (blobs.push(b), "blob:x");
+    url.revokeObjectURL = () => undefined;
+    const button = (label: string, within: ParentNode = document) =>
+      [...within.querySelectorAll("button")].find((b) => b.textContent === label);
+    button("Story log")?.click();
+    const log = document.querySelector<HTMLDialogElement>("dialog.loominate-log");
+    const select = log?.querySelector<HTMLSelectElement>('select[id$="-format"]');
+    if (!log || !select) throw new Error("no story log");
+    select.value = "markdown";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    button("Export", log)?.click();
+    expect(await blobs[0]?.text()).toContain("*A. Writer*");
+  });
+
   it("leaves the default styles out when the page's styles are off", async () => {
     document.head.replaceChildren();
     await start({ storage: createMemoryStorage(), page: { styles: false } });

@@ -302,6 +302,7 @@ export type PlayOptions = {
     readonly start: PassageId;
     readonly game: GameInfo;
     readonly title?: string;
+    readonly author?: string;
     readonly storage?: SaveStorage;
     readonly seed?: () => string;
     readonly story?: Omit<StoryOptions, "start" | "seed">;

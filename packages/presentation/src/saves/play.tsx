@@ -56,6 +56,8 @@ export type PlayOptions = {
   readonly game: GameInfo;
   /** The game's name, on the start screen. Defaults to the game's ID. */
   readonly title?: string;
+  /** Who wrote it: on the start screen and in story log exports. */
+  readonly author?: string;
   /**
    * Where save slots are kept. Defaults to the browser's IndexedDB, or to
    * memory, for this visit only, where the browser has none.
@@ -365,6 +367,7 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
   // The story log and transcript read the game in play's record (#127).
   const logs = createLogDialog(host, () => (store ? createEventRecord(store).events() : []), {
     title: options.title ?? options.game.id,
+    ...(options.author !== undefined && { author: options.author }),
   });
   const menuWidget = gameMenu({
     log: (view) => {
@@ -530,6 +533,11 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
       <main className="loominate-main" aria-labelledby="loominate-start-title">
         <div className="loominate-passage">
           <h1 id="loominate-start-title">{options.title ?? options.game.id}</h1>
+          {options.author !== undefined && (
+            <p className="loominate-byline">
+              {message("start.byline", { author: options.author })}
+            </p>
+          )}
           <p>
             {problem !== undefined
               ? message("start.cannotContinue")

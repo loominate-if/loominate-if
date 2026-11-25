@@ -37,7 +37,7 @@ The **Inspector** button in the corner, or Control+\`, opens the [inspector](ins
   });
   ```
 
-  `game.id` keeps your game's saves apart from other games'; don't change it once players have saves. Raise `game.version` when you release a new version, and players loading an older save are told. `start` is the passage a new game starts in.
+  `game.id` keeps your game's saves apart from other games'; don't change it once players have saves. Raise `game.version` when you release a new version, and players loading an older save are told. `start` is the passage a new game starts in. Add `author: "Your Name"` to show a byline on the start screen and put it in story log exports.
 - `walkthrough.test.ts` is a walkthrough test, which plays the game and checks what happens.
 - `index.html` is the page the game runs in. It loads `/@loominate/main`, which plays every passage file with the player shell: saves, autosave, undo, and the save menu ([playing guide](playing.md)).
 
