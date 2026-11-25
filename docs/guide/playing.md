@@ -29,6 +29,25 @@ await playGame(document.querySelector("#app")!, {
 - A note when a save was made by another version of the game.
 - **Errors shown, not swallowed.** If the story's code throws during a move, the page shows "Something went wrong: …" at the top of the passage, and the game stays where it was, as a failed move is rolled back. The next move clears it. `mountPage`'s `onError` option gets the error too. The words are the `page.error` message ([Rewording the library](messages.md)).
 
+## The command line
+
+The game menu's **Command line** turns on a text field below the passage, for playing by typing. It's for every game, branching stories too, and is off until the player turns it on. Their choice is remembered for every game in that browser, since it's how they like to play. A game can start with it on with `page: { commandLine: true }`.
+
+- **It takes only what the page offers:**
+  - the passage's choices, by their labels ("climb the tower", "west");
+  - the actions in things' menus, by their labels or their [verb phrases](actions.md#verb-phrases) with the things named ("take coin", "pull on the bell");
+  - a layout's action lists, such as a conversation's topics ("ask about the weather").
+- **Suggestions follow the typing.** Each typed word starts a word in order, and articles and punctuation don't matter: "sig ship" is "Signal the ship".
+  - Up and Down pick a suggestion, Tab completes it, and Enter does it, or what's typed.
+  - With the list closed, Up and Down recall earlier commands, and Escape clears the field.
+- **It never answers "I don't understand":**
+  - several matches: "Did you mean Ask about the weather or Ask about the butler?", listed to pick;
+  - none: "That isn't something you can do here. You could: …";
+  - something offered but disabled: its reason, "Polish the bell: You have no cloth.".
+- **Screen readers:** focus stays in the field, and what a command does is read through the page's live region, as after any move. A link followed with the mouse or keyboard moves focus as it always does. Speech tools such as Voice Control and Voice Access type into the field like a keyboard, so no speech input of the game's own is needed. Suggestions help most with invented names that dictation gets wrong.
+- **An action that asks for a number** is taken from its menu, which asks for it, rather than typed.
+- **A game adds commands** with `commandSources.register(name, (game) => [...])`, each a `label`, optional `phrases`, an optional `disabled` reason, and `run`.
+
 ## The story log and transcript
 
 The game menu has **Story log** and **Transcript**, each opening a dialog beside the page, read from the event record, so undo trims them. Focus goes to its filter; Escape or **Close** closes it, and the newest is at the bottom.

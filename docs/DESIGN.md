@@ -242,7 +242,7 @@ A thing's name in the text, `[[brass bell]]{menu bell}`, opens its menu: the act
 
 ### Autocomplete command line
 
-An optional keyboard-driven command line accepts only actions the menus would currently offer, with autocompletion. It feels parser-like without ever producing "I don't understand."
+An optional keyboard-driven command line accepts only actions the menus would currently offer, with autocompletion. It feels parser-like without ever producing "I don't understand." It's in presentation, for every game, and the player turns it on from the game menu. It takes the passage's choices by label, things' menu actions by label or verb phrase, a layout's action lists, and commands from the `commandSources` registry. Focus stays in the field, and what a command does is read through the live region ([ADR 0107](decisions/0107-command-line.md), [guide](guide/playing.md#the-command-line)).
 
 ### Future parser
 

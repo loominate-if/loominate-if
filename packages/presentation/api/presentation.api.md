@@ -91,6 +91,26 @@ export type CastOptions = {
 export function castWidget(options: CastOptions): WidgetDefinition<CastData>;
 
 // @public
+export type Command = {
+    readonly label: string;
+    readonly phrases?: readonly string[];
+    readonly disabled?: string;
+    readonly run: () => void;
+};
+
+// @public
+export type CommandMatch = {
+    readonly matches: readonly Command[];
+    readonly sure?: Command;
+};
+
+// @public
+export type CommandSource = (game: PageGame) => readonly Command[];
+
+// @public
+export const commandSources: Registry<CommandSource>;
+
+// @public
 export type CompassData = {
     readonly label: string;
     readonly ways: readonly CompassWay[];
@@ -194,6 +214,9 @@ export type LogEntry = {
 };
 
 // @public
+export function matchCommands(typed: string, commands: readonly Command[]): CommandMatch;
+
+// @public
 export type MenuChoice = {
     readonly call: ActionCall<any>;
     readonly label?: string;
@@ -230,6 +253,7 @@ export interface Page {
     destroy(): void;
     readonly element: HTMLElement;
     refresh(): void;
+    showCommandLine(on: boolean): void;
 }
 
 // @public
@@ -249,6 +273,7 @@ export type PageOptions = {
     readonly reasons?: "tooltip" | "inline";
     readonly styles?: boolean;
     readonly narrow?: string;
+    readonly commandLine?: boolean;
 };
 
 // @public

@@ -39,7 +39,9 @@ import { render, type ComponentChildren } from "preact";
 import { useLayoutEffect, useRef } from "preact/hooks";
 import "../messages.js";
 import { prose } from "./prose.js";
-import { createMenus, type MenuSource } from "./menus.js";
+import { createMenus, _menuChoices, type MenuSource } from "./menus.js";
+import { _phrasesOf, commandSources, type Command } from "./command.js";
+import { CommandLine } from "./command-line.js";
 import { effects, type EffectDefinition, type EffectFinish } from "./effects.js";
 import { addStyles } from "./theme.js";
 
@@ -105,6 +107,12 @@ export type PageOptions = {
    * Defaults to `(max-width: 48rem)`.
    */
   readonly narrow?: string;
+  /**
+   * Whether the command line shows, below the passage: a text field taking
+   * what the page offers, typed. Defaults to `false`; the player shell's game
+   * menu turns it on and off.
+   */
+  readonly commandLine?: boolean;
 };
 
 /** A story shown on a page. */
@@ -117,6 +125,8 @@ export interface Page {
    * named effects don't play again.
    */
   refresh(): void;
+  /** Shows or hides the command line, as the game menu's "Command line" does. */
+  showCommandLine(on: boolean): void;
   /** Removes the page from the document. */
   destroy(): void;
 }
@@ -325,6 +335,18 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
    * text from there through the live region.
    */
   const focusHeading = (key: string | undefined, kind: "passage" | "more", quiet = false): void => {
+    // A typed command: focus stays in the command line, and what's new is read where the player is.
+    if (commanding) {
+      if (key !== undefined) {
+        heading = {
+          key,
+          text: message(kind === "passage" ? "page.passageHeading" : "page.moreHeading"),
+        };
+        renderPage();
+        announce(textFrom(key));
+      }
+      return;
+    }
     if (key === undefined) {
       focusPassage();
       return;
@@ -387,6 +409,86 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
 
   /** Things' menus, whose actions are moves like following a link. */
   const menus = createMenus({ doc, act });
+
+  // ---- The command line (#131) --------------------------------------------
+
+  let commandLineOn = options.commandLine ?? false;
+  /** Whether a typed command is being done, so focus stays in the command line. */
+  let commanding = false;
+  /** What the player can type now: what the page offers, and what sources add. */
+  const commands = (): Command[] => {
+    const out: Command[] = [];
+    const continueLabel = options.continueLabel ?? message("page.continue");
+    const rendered = story.render();
+    const link = (l: RenderedLink): void => {
+      // A thing's name opening its menu: its actions are offered below, from the menus.
+      if (l.guard?.menu !== undefined) return;
+      out.push({
+        label: l.label,
+        ...(!l.available && { disabled: l.reason ?? message("command.unavailable") }),
+        run: () => {
+          follow(l);
+        },
+      });
+    };
+    for (const node of rendered.nodes) {
+      if (node.type === "link") link(node);
+      else if (node.type === "text") for (const l of node.links ?? []) link(l);
+      else if (node.type === "continue") {
+        out.push({ label: node.label ?? continueLabel, run: () => follow(node) });
+      }
+    }
+    if (rendered.beat && beatShown?.continues === true) {
+      out.push({ label: continueLabel, run: () => advance(true) });
+    }
+    // Things' menus on the page, as in the text or the inventory.
+    for (const source of menus._onPage()) {
+      for (const listed of _menuChoices(source)) {
+        // One asking for numbers is taken from its menu, which asks for them.
+        if (listed.status.asks !== undefined) continue;
+        out.push({
+          label: listed.label,
+          phrases: _phrasesOf(listed.call),
+          ...(listed.status.disabled !== undefined && { disabled: listed.status.disabled }),
+          run: () => {
+            act(listed.call, listed.label);
+          },
+        });
+      }
+    }
+    // A layout's action lists, as a conversation's topics.
+    for (const item of root.querySelectorAll<HTMLElement>(".loominate-action-list-item")) {
+      const why = item.getAttribute("aria-describedby");
+      const reason = why === null ? undefined : doc.getElementById(why)?.textContent;
+      const label = (item.firstChild?.textContent ?? item.textContent).trim();
+      out.push({
+        label,
+        ...(item.getAttribute("aria-disabled") === "true" && {
+          disabled: reason ?? message("command.unavailable"),
+        }),
+        run: () => {
+          item.click();
+        },
+      });
+    }
+    for (const entry of commandSources.entries()) out.push(...entry.value(game));
+    // The same thing offered twice, as giving the brooch to Rex from his menu and the brooch's, is one command.
+    const seen = new Set<string>();
+    return out.filter((c) => {
+      const key = c.label.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+  const runCommand = (command: Command): void => {
+    commanding = true;
+    try {
+      command.run();
+    } finally {
+      commanding = false;
+    }
+  };
 
   const tooltips = (options.reasons ?? "tooltip") === "tooltip";
   // Escape hides any reason on show; a tap elsewhere hides tapped ones.
@@ -1164,6 +1266,9 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
                 <div className="loominate-sr-only loominate-announce" aria-live="polite">
                   {announcement}
                 </div>
+                {commandLineOn && (
+                  <CommandLine key="command-line" commands={commands} run={runCommand} />
+                )}
                 {placed?.drawer === undefined && drawerView()}
               </main>,
               slots(region),
@@ -1336,6 +1441,11 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
   focusHeading(draw(fresh), "passage", true);
   return {
     element: root,
+    showCommandLine(on) {
+      commandLineOn = on;
+      renderPage();
+      if (on) root.querySelector<HTMLInputElement>(".loominate-command-input")?.focus();
+    },
     refresh: () => {
       // Undo, loading a save, or travel in the inspector: the passage is read
       // if what's on screen changed, and a redraw that changes nothing, as

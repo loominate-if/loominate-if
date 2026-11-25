@@ -103,7 +103,7 @@ describe("playing a game", () => {
     const header = container.querySelector('[data-region="header"]');
     expect(
       [...(header?.querySelectorAll<HTMLElement>("a, button") ?? [])].map((b) => b.textContent),
-    ).toEqual(["Undo", "Save", "Load", "Restart", "Story log", "Transcript"]);
+    ).toEqual(["Undo", "Save", "Load", "Restart", "Story log", "Transcript", "Command line"]);
     await vi.waitFor(async () => {
       expect(await autosaved(storage)).toBe("Road");
     });
@@ -163,7 +163,15 @@ describe("playing a game", () => {
       const header = container.querySelector('[data-region="header"]');
       expect(
         [...(header?.querySelectorAll<HTMLElement>("a, button") ?? [])].map((b) => b.textContent),
-      ).toEqual(["Undo", "Save", "Load", "Walk the plank", "Story log", "Transcript"]);
+      ).toEqual([
+        "Undo",
+        "Save",
+        "Load",
+        "Walk the plank",
+        "Story log",
+        "Transcript",
+        "Command line",
+      ]);
       // The tooltips still say what the reworded buttons do.
       expect(button("Walk the plank").title).toBe(
         "Start the story over from the beginning. Your saves are kept.",
@@ -298,6 +306,27 @@ describe("playing a game", () => {
     select.dispatchEvent(new Event("change", { bubbles: true }));
     button("Export", log)?.click();
     expect(await blobs[0]?.text()).toContain("*A. Writer*");
+  });
+
+  it("turns the command line on and off from the game menu, remembered for every game (#131)", async () => {
+    localStorage.removeItem("loominate:command-line");
+    const first = await start({ storage: createMemoryStorage() });
+    const toggle = () =>
+      [...first.container.querySelectorAll("button")].find((b) => b.textContent === "Command line");
+    expect(toggle()?.getAttribute("aria-pressed")).toBe("false");
+    expect(first.container.querySelector(".loominate-command-input")).toBeNull();
+    toggle()?.click();
+    expect(toggle()?.getAttribute("aria-pressed")).toBe("true");
+    expect(document.activeElement?.classList.contains("loominate-command-input")).toBe(true);
+    first.player.destroy();
+    // Another game, another visit: it's on, as the player left it.
+    const again = await start({
+      storage: createMemoryStorage(),
+      game: { id: "another-game", version: "1.0.0" },
+    });
+    expect(again.container.querySelector(".loominate-command-input")).not.toBeNull();
+    again.player.destroy();
+    localStorage.removeItem("loominate:command-line");
   });
 
   it("leaves the default styles out when the page's styles are off", async () => {
