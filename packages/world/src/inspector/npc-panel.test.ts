@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import {
   createEventRecord,
+  createHistory,
   createStore,
   createStory,
+  type History,
   type StateStore,
   type Story,
 } from "@loominate-if/core";
@@ -65,6 +67,7 @@ schedule(baker, [
 
 let store: StateStore;
 let story: Story;
+let history: History;
 beforeEach(() => {
   store = createStore();
   story = createStory(
@@ -74,15 +77,32 @@ beforeEach(() => {
     { start: "Study" },
   );
   story.begin();
+  history = createHistory(store);
+  history.clear();
+  store.commit();
 });
 const wait = () => {
   story.follow({ type: "link", label: "Wait", target: "Study" });
+  history.checkpoint("Wait");
 };
+/** The game as the inspector sees it: its store, and its undo history to travel through. */
+const player = () => ({
+  store,
+  get history() {
+    return { past: history.past, future: history.future };
+  },
+  travel(steps: number) {
+    for (let i = 0; i < Math.abs(steps); i++) {
+      if (steps < 0) history.undo();
+      else history.redo();
+    }
+  },
+});
 
 function mount() {
   const element = document.createElement("div");
   document.body.replaceChildren(element);
-  const view = panels.get("npcs")?.mount(element, { player: { store } } as unknown as PanelContext);
+  const view = panels.get("npcs")?.mount(element, { player: player() } as unknown as PanelContext);
   const tables = () => [...element.querySelectorAll("table")];
   const rows = (t: HTMLTableElement | undefined) =>
     [...(t?.querySelectorAll("tbody tr") ?? [])].map((r) =>
@@ -123,7 +143,7 @@ describe("the NPCs panel (#108)", () => {
     wait();
     const { timeline, showAll } = mount();
     expect(timeline()).toEqual([
-      expect.stringMatching(/^12:\d\d pm \| thief:mind \| go: refused, .+ \| no$/),
+      expect.stringMatching(/^1 \(now\) \| 12:\d\d pm \| thief:mind \| go: refused, .+ \| no$/),
     ]);
     showAll();
     expect(timeline()).toHaveLength(1); // the player saw nothing
@@ -138,7 +158,7 @@ describe("the NPCs panel (#108)", () => {
     expect(
       timeline()
         .filter((r) => r.includes("butler"))
-        .map((r) => r.split(" | ").slice(2).join(" | ")),
+        .map((r) => r.split(" | ").slice(3).join(" | ")),
     ).toEqual(["go: done | yes", "go: done | no"]);
   });
 
@@ -146,7 +166,37 @@ describe("the NPCs panel (#108)", () => {
     const { timeline, update } = mount();
     clock.advance(8 * 60); // 20:00
     update();
-    expect(timeline()[0]).toBe("8:00 pm | baker:mind | timetable: to home | no");
+    expect(timeline()[0]).toBe("start (now) | 8:00 pm | baker:mind | timetable: to home | no");
+  });
+
+  it("links each entry to its move, to go back to, and forward to again, as the History tab does (#138)", () => {
+    startAgenda(butler, "warn the player");
+    wait(); // move 1: kitchen to hall
+    wait(); // move 2: hall to study
+    const { element, timeline, showAll, update } = mount();
+    showAll();
+    const butlers = () => timeline().filter((r) => r.includes("butler"));
+    expect(butlers().map((r) => r.split(" | ")[0])).toEqual(["2 (now)", "1"]);
+    const button = (label: string) =>
+      [...element.querySelectorAll<HTMLButtonElement>("button")].find(
+        (b) => b.getAttribute("aria-label") === label,
+      );
+    // Where the game is now is marked, not a way to go.
+    expect([button("move 2, now")?.disabled, button("move 2, now")?.textContent]).toEqual([
+      true,
+      "2 (now)",
+    ]);
+    button("Go to move 1")?.click();
+    update();
+    expect(history.past).toHaveLength(1);
+    // Move 2 is undone, but still ahead: listed, to go forward to again.
+    expect(butlers()).toEqual([
+      expect.stringMatching(/^2 \| .+ \| go: done \(ahead, undone\) \| yes$/),
+      expect.stringMatching(/^1 \(now\) \| .+ \| go: done \| no$/),
+    ]);
+    button("Go to move 2, ahead")?.click();
+    update();
+    expect(history.past).toHaveLength(2);
   });
 
   it("passes automated accessibility checks", async () => {
