@@ -353,11 +353,38 @@ export type TopicOptions = {
   readonly expression?: string;
   /** A stable ID for the entry, kept across edits, for saves and the inspector. Compiled topic blocks get one from their line. */
   readonly id?: string;
+  /**
+   * For an entry that answers: how many others in the conversation may
+   * react to it, in place of the game's {@link reactionsPerExchange}. `0`
+   * allows none.
+   */
+  readonly reactions?: number;
+  /** A scripted exchange it plays after answering, by name, as defined with {@link exchange}. */
+  readonly then?: string;
 };
 
-/** A topic entry: what kind of exchange it answers, and its options. */
+/** What an entry answers, or what a reaction reacts to: an exchange's kind and subject. */
+export type TopicTrigger =
+  | { readonly ask: Subject }
+  | { readonly tell: Subject }
+  | { readonly askOrTell: Subject }
+  | { readonly yes: true }
+  | { readonly no: true }
+  | { readonly hello: true }
+  | { readonly bye: true }
+  | { readonly show: ObjectRef | typeof anything }
+  | { readonly give: ObjectRef | typeof anything }
+  | { readonly showOrGive: ObjectRef | typeof anything };
+
+/** A topic entry: what kind of exchange it answers, or reacts to, and its options. */
 export type TopicEntry = TopicOptions &
+  /**
+   * A reaction (#142): said by this NPC after someone else in the
+   * conversation answers the exchange, as "The maid goes pale.", within
+   * the exchange's cap on reactions.
+   */
   (
+    | { readonly reacts: TopicTrigger }
     | { readonly ask: Subject }
     | { readonly tell: Subject }
     | { readonly askOrTell: Subject }
@@ -395,6 +422,24 @@ type Entry = {
 } & TopicOptions;
 
 const entries = new Map<string, Entry[]>();
+/** Each NPC's reactions (#142), by mind: entries said after someone else answers an exchange. */
+const reactionEntries = new Map<string, Entry[]>();
+/** How many reactions an exchange may have, unless its entry says: one, by default. */
+let reactionCap = 1;
+
+/**
+ * Sets how many others in a conversation may react to each exchange, in
+ * `story.ts`: one by default, `0` for none. An entry's `reactions` sets its
+ * own.
+ *
+ * @throws StateError for a number that isn't a whole number, 0 or more.
+ */
+export function reactionsPerExchange(n: number): void {
+  if (!Number.isInteger(n) || n < 0) {
+    throw new StateError(`reactionsPerExchange: give a whole number, 0 or more, not ${String(n)}.`);
+  }
+  reactionCap = n;
+}
 
 const isFact = (s: unknown): s is Fact =>
   typeof s === "object" && s !== null && "id" in s && factNamed((s as Fact).id) === s;
@@ -447,7 +492,16 @@ function addEntry(
   entry: TopicEntry,
   block?: Passage,
   condition?: () => ConditionArgument,
+  reaction = false,
 ): void {
+  // A reaction is an entry for what it reacts to, kept apart from those that answer.
+  const reacts = (entry as { readonly reacts?: TopicTrigger }).reacts;
+  if (reacts !== undefined) {
+    const { reacts: _reacts, ...rest } = entry as TopicEntry & { readonly reacts?: TopicTrigger };
+    void _reacts;
+    addEntry(npc, { ...rest, ...reacts } as unknown as TopicEntry, block, condition, true);
+    return;
+  }
   const mind = mindFor(npc, "topic").id;
   const where = `topic for ${JSON.stringify(mind)}`;
   const e = entry as TopicOptions &
@@ -510,11 +564,12 @@ function addEntry(
       throw new StateError(`${where}: ${JSON.stringify(entry.in.id)} is another NPC's node.`);
     throw new StateError(`${where}: ${JSON.stringify(entry.in.id)} is another NPC's state.`);
   }
-  const list = entries.get(mind) ?? [];
+  const into = reaction ? reactionEntries : entries;
+  const list = into.get(mind) ?? [];
   const subject = subjectOf === undefined ? undefined : subjectKey(subjectOf);
   const id =
     entry.id ??
-    `${mind}:${kinds.join("|")}${subject === undefined ? "" : `:${subject}`}#${String(list.length + 1)}`;
+    `${mind}:${reaction ? "reacts:" : ""}${kinds.join("|")}${subject === undefined ? "" : `:${subject}`}#${String(list.length + 1)}`;
   if (list.some((other) => other.id === id)) {
     throw new StateError(
       `${where}: another entry has the ID ${JSON.stringify(id)}. Give each its own.`,
@@ -532,7 +587,7 @@ function addEntry(
     ...(e.takes !== undefined && { takes: e.takes }),
     index: list.length,
   });
-  entries.set(mind, list);
+  into.set(mind, list);
 }
 
 /** How often entries and exchanges have been answered: game state. */
@@ -740,11 +795,19 @@ export function _coverageEntries(): readonly {
   readonly in?: ConvNode;
   readonly answered: number;
 }[] {
-  return [...entries].flatMap(([mind, list]) => {
+  const answering = [...entries].map(([mind, list]) => [mind, list, false] as const);
+  const reacting = [...reactionEntries].map(([mind, list]) => [mind, list, true] as const);
+  return [...answering, ...reacting].flatMap(([mind, list, reaction]) => {
     const body = allBodies().find((b) => mindOf(b)?.id === mind);
+    const named = (e: Entry): string => {
+      const label = body ? inspectEntry(body, e).label : `${e.kinds.join(" or ")} (${mind})`;
+      return reaction
+        ? `${body ? t`{The subj x}`({ x: body }) : mind} reacting to: ${label}`
+        : label;
+    };
     return list.map((e) => ({
       id: e.id,
-      label: body ? inspectEntry(body, e).label : `${e.kinds.join(" or ")} (${mind})`,
+      label: named(e),
       kinds: e.kinds,
       ...(e.subject !== undefined && { subject: e.subject }),
       ...(e.opens !== undefined && { opens: e.opens }),
@@ -1008,10 +1071,60 @@ function answer(
       ...(options.about !== undefined && { about: options.about }),
       ...(options.how !== undefined && { how: options.how }),
     });
+    reactTo(who, kind, options.about, winner);
   } else if (fallback !== undefined) say(fallback, who);
   afterNode(who, kind, node, winner);
+  if (winner?.then !== undefined) _playExchangeAfter(winner.then);
   if (winner?.hearMeOut !== undefined) redirect(winner.hearMeOut);
   return winner;
+}
+
+/**
+ * After an answer, others in the conversation react (#142): each one's best
+ * reaction to the exchange, the highest priority first, then by the order
+ * they're in the conversation, up to the answering entry's `reactions`, or
+ * the game's cap.
+ */
+function reactTo(
+  who: ObjectRef,
+  kind: TopicKind,
+  about: ObjectRef | Fact | undefined,
+  answered: Entry,
+): void {
+  const cap = answered.reactions ?? reactionCap;
+  if (cap === 0 || !conversation.active) return;
+  const me = currentPlayerBody();
+  const subject = about === undefined ? undefined : subjectKey(about);
+  const offered = conversation.participants.flatMap((body, order) => {
+    if (body.id === who.id || body.id === me?.id) return [];
+    const mind = mindOf(body);
+    if (!mind) return [];
+    const best = (reactionEntries.get(mind.id) ?? [])
+      .filter((e) => e.kinds.includes(kind) && whyNot(e, kind, subject, false) === undefined)
+      .sort(rank)[0];
+    return best ? [{ body, entry: best, order }] : [];
+  });
+  offered.sort((a, b) => (b.entry.priority ?? 0) - (a.entry.priority ?? 0) || a.order - b.order);
+  for (const { body, entry } of offered.slice(0, cap)) {
+    counts.entries = { ...counts.entries, [entry.id]: (counts.entries[entry.id] ?? 0) + 1 };
+    respond(entry, { npc: body, ...(about !== undefined && { about }) });
+  }
+}
+
+/** Plays a scripted exchange after an answer, set by exchanges.ts. */
+let _playExchangeAfter = (name: string): void => {
+  void name;
+};
+/** The Continue to offer while a scripted exchange plays, set by exchanges.ts. */
+let exchangeContinue = (): SuggestedTopic | undefined => undefined;
+/** Says what to offer while a scripted exchange plays, from exchanges.ts. @internal */
+export function _useExchangeContinue(get: () => SuggestedTopic | undefined): void {
+  exchangeContinue = get;
+}
+
+/** Says how an entry's `then` plays its exchange, from exchanges.ts. @internal */
+export function _useExchanges(play: (name: string) => void): void {
+  _playExchangeAfter = play;
 }
 
 /** Exchanges a node never holds up: greeting and goodbye. */
@@ -1253,6 +1366,9 @@ export function suggestedTopics(): readonly SuggestedTopic[] {
   const who = conversation.addressee;
   const mind = who && mindOf(who);
   if (!who || !mind) return [];
+  // While a scripted exchange plays, the only thing to do is hear the next line.
+  const going = exchangeContinue();
+  if (going) return [going];
   const out: SuggestedTopic[] = [];
   const done = new Set<string>();
   const node = openNodeOf(who);
@@ -1583,6 +1699,10 @@ export type TopicBlockArguments = {
   readonly expression?: string;
   readonly suggested?: boolean;
   readonly informs?: boolean;
+  /** How many others may react to it. */
+  readonly reactions?: number;
+  /** A scripted exchange it plays after answering, by name. */
+  readonly then?: string;
 };
 
 /** Where a topic block was written: its actor passage, the block's directive, and the passage's tag role values. */
@@ -1603,6 +1723,13 @@ const BLOCK_KINDS: Readonly<Record<string, string>> = {
   no: "no",
   hello: "hello",
   bye: "bye",
+  "reacts ask": "reacts:ask",
+  "reacts tell": "reacts:tell",
+  "reacts ask or tell": "reacts:askOrTell",
+  "reacts show": "reacts:show",
+  "reacts give": "reacts:give",
+  "reacts yes": "reacts:yes",
+  "reacts no": "reacts:no",
 };
 
 /**
@@ -1636,8 +1763,10 @@ export function topicBlock(
   if (kind === undefined)
     throw new StateError(`${where}: \`{${passage.directive}}\` isn't a topic block.`);
   const when = args.when;
+  const trigger = kind.startsWith("reacts:") ? kind.slice("reacts:".length) : kind;
+  const answers = args.about !== undefined ? { [trigger]: args.about } : { [trigger]: true };
   const entry = {
-    ...(args.about !== undefined ? { [kind]: args.about } : { [kind]: true }),
+    ...(kind.startsWith("reacts:") ? { reacts: answers } : answers),
     says: "",
     id: block.id,
     ...(when && { when: () => when().value }),
@@ -1652,6 +1781,8 @@ export function topicBlock(
     ...(args.implicit && { implicit: args.implicit === "implicit" }),
     ...(args.suggested !== undefined && { suggested: args.suggested }),
     ...(args.informs !== undefined && { informs: args.informs }),
+    ...(args.reactions !== undefined && { reactions: args.reactions }),
+    ...(args.then !== undefined && { then: args.then }),
   } as unknown as TopicEntry;
   addEntry(npc, entry, block, when);
 }

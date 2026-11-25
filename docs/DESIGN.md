@@ -424,7 +424,7 @@ The compiler or test runner verifies every locked node has a reachable way out, 
 ### Group conversations
 
 - The player chooses an addressee (highlighted portrait), and the menu shows that character's topics. Group-level topics address everyone. The cast is a toolbar, one Tab stop, with the arrow keys moving between portraits; `groupTopic({ ask, says, speaker, reveals })` gives the conversation entries of its own, suggested to a group of two or more as "Ask everyone about the storm" whoever is addressed ([ADR 0113](decisions/0113-group-topics.md)).
-- Topic entries can trigger reactions from other participants, limited by priority and a per-exchange cap. NPCs can exchange scripted lines as beats.
+- Topic entries can trigger reactions from other participants, limited by priority and a per-exchange cap. NPCs can exchange scripted lines as beats. A reaction is an entry of the reacting character's, `topic(maid, { reacts: { ask: letter }, says })` or `{reacts ask letter}`, one an exchange by default (`reactionsPerExchange`, or an entry's `reactions`); `exchange(name, lines)` defines a scripted exchange, played by an entry's `then:` or `playExchange`, a line each Continue, each attributed to its speaker ([ADR 0114](decisions/0114-reactions-and-exchanges.md)).
 - Everyone present hears what's said and learns revealed facts. Topics can depend on who is present:
 
 ```
