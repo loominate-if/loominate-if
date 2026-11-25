@@ -53,6 +53,7 @@ describe("scaffolding a game", () => {
         build: "loominate build",
         "build:single": "loominate build --target single",
         test: "loominate test",
+        coverage: "loominate coverage",
       },
       dependencies: { "@loominate-if/core": "^1.2.3", "@loominate-if/presentation": "^1.2.3" },
       devDependencies: {

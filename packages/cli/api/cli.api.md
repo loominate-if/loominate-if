@@ -41,10 +41,31 @@ export type CommandOptions = {
 export const CONFIG_FILE = "loominate.config.ts";
 
 // @public
+export function coverage(options?: CoverageOptions): Promise<CoverageReport>;
+
+// @public
+export type CoverageOptions = CommandOptions & {
+    readonly json?: string;
+};
+
+// @public
+export type CoverageReport = {
+    readonly unreachable: readonly UnreachableEntry[];
+    readonly notReached: readonly NotReachedEntry[];
+    readonly walkthroughs: {
+        readonly tests: number;
+        readonly failed: number;
+    };
+};
+
+// @public
 export function defineConfig(config: LoominateConfig): LoominateConfig;
 
 // @public
 export function dev(options?: CommandOptions): Promise<ViteDevServer>;
+
+// @public
+export function formatCoverage(report: CoverageReport): string;
 
 // @public
 export function formatDiagnostic(root: string, d: ProjectDiagnostic): string;
@@ -97,6 +118,14 @@ export function loominateWalkthrough(config: ResolvedConfig): Plugin;
 export const MAIN = "/@loominate/main";
 
 // @public
+export type NotReachedEntry = {
+    readonly check: string;
+    readonly title: string;
+    readonly total: number;
+    readonly missed: readonly string[];
+};
+
+// @public
 export type ResolvedConfig = LoominateConfig & {
     readonly root: string;
     readonly loaded: readonly CompilerExtension[];
@@ -118,6 +147,16 @@ export type TestResult = {
     readonly passed: boolean;
     readonly tests: number;
     readonly failed: number;
+};
+
+// @public
+export type UnreachableEntry = {
+    readonly check: string;
+    readonly title: string;
+    readonly label: string;
+    readonly why: string;
+    readonly file?: string;
+    readonly line?: number;
 };
 
 // @public

@@ -417,6 +417,24 @@ export function action<A extends Readonly<Record<string, unknown>>>(
   return made;
 }
 
+/**
+ * Every action that's `on` things, with its label as written and its things,
+ * in the order defined: what a player can find in things' menus, for
+ * coverage reports (#133). @internal
+ */
+export function _actionsOnThings(): readonly {
+  readonly name: string;
+  readonly label: string;
+  readonly on: readonly ObjectRef[];
+}[] {
+  return [...ons]
+    .filter(([, on]) => on.length > 0)
+    .map(([name, on]) => {
+      const label = definitions.get(name)?.label;
+      return { name, label: typeof label === "string" ? label : name, on };
+    });
+}
+
 /** The context an action's rules see, with who's acting. */
 function contextFor<A>(
   call: ActionCall<A>,

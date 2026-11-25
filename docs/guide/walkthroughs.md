@@ -72,3 +72,34 @@ There's no choice "Go down" in passage "Stairs". "Go down" can't be followed: `l
 - `game.replay()` gives the replay file for the playthrough, to attach to a bug report or to check that two runs match.
 - `game.record` is the event record: `game.record.events({ tags: ["lamp"] })` lists the events with a tag, such as ones your passages record ([inspector guide](inspector.md#recording-your-own)).
 - `game.story`, `game.store`, and `game.history` are there for anything else.
+
+## Coverage reports
+
+`npx loominate coverage` reports, in two parts, what players can't reach and what your walkthroughs never reach:
+
+```
+Can't be reached (2):
+  Passages
+    rooms.weft:11: Nothing leads to `Cellar` from `Hall`, so players can't reach it. …
+  Facts
+    the affair (affair): No topic is about it, so no one can be asked about it. …
+
+Not reached by walkthroughs (3 of 22, from 7 tests):
+  Passages: all 5 reached
+  Topics: 2 of 15 not reached
+    Say no to the maid
+    Ask Rex about what they found
+  Actions: 1 of 2 not reached
+    Wave the fan
+```
+
+- **Can't be reached** is what the game's structure rules out:
+  - passages nothing leads to, and rooms no exit leads to, as the compiler warns;
+  - with the world model, facts no topic is about, so no one can be asked about them;
+  - conversation nodes no topic opens;
+  - actions on things that are all out of the world when the game begins;
+  - a game that can't start at all, as when a hard-locked node has no way out.
+- **Code can do what the structure can't show.** If a walkthrough reaches something the structure rules out, such as a passage only code goes to, that finding is left out. A node the game opens with `openNode()` can say `openedElsewhere: true` instead.
+- **Not reached by walkthroughs** is like code coverage: every passage, action on a thing, topic, fact, and conversation node, with those your walkthroughs never reached, so you know what to write a walkthrough for. A passage counts once it's visited, a topic once it answers, a fact once the player knows it, and a node once one of its replies answers.
+- **In CI,** `npx loominate coverage --strict` fails when anything can't be reached or a walkthrough fails. What walkthroughs don't reach never fails it. `--json coverage.json` writes the report as a file too.
+- **Packages add their own checks** with `coverageChecks.register(name, { title, unreachable, items, reached })` from `@loominate-if/core`. Each part is a function given the begun game, or the walkthrough's game at its end: `unreachable` returns findings, each with a `label`, a `why`, and an optional `key`; `items` lists what to reach, each with a `key` and a `label`; and `reached` gives the keys reached.

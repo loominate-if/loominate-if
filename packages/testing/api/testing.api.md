@@ -34,6 +34,12 @@ export type MenuEntry = {
 export function play(options?: WalkthroughOptions): Walkthrough;
 
 // @internal
+export type _PlayWatcher = {
+    readonly starting?: () => void;
+    readonly started?: (story: Story) => void;
+};
+
+// @internal
 export function _setGame(game: GameDefinition | undefined): void;
 
 // @public
@@ -72,5 +78,8 @@ export type WalkthroughOptions = Partial<GameDefinition> & {
     readonly seed?: string;
     readonly from?: StateSnapshot;
 };
+
+// @internal
+export function _watchPlays(watcher: _PlayWatcher): () => void;
 
 ```

@@ -48,6 +48,9 @@ describe("checkLinks", () => {
       "warning 54 Attic: Nothing leads to `Attic` from `Start`, so players can't reach it. Link to it from another passage, or remove it.",
       "warning 76 Cupboard: Nothing leads to `Cupboard` from `Start`, so players can't reach it. Link to it from another passage, or remove it.",
     ]);
+    // Marked, so `loominate coverage` reports them as what can't be reached (#133).
+    const problems = checkLinks(passages(source), new Set(["Secret"]), "Start");
+    expect(problems.map((p) => p.unreachable)).toEqual([true, true]);
   });
 
   it("doesn't check reachability without a start passage", () => {

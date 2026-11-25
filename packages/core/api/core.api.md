@@ -78,6 +78,13 @@ export type ActionRule = {
 // @public
 export function actionsFor(thing: ObjectRef): ActionCall[];
 
+// @internal
+export function _actionsOnThings(): readonly {
+    readonly name: string;
+    readonly label: string;
+    readonly on: readonly ObjectRef[];
+}[];
+
 // @public
 export interface ActionStage<P> extends RuleList<(context: P) => void> {
     explain(context: P): Explanation<undefined>;
@@ -192,6 +199,36 @@ export type Cooldown = number | {
     readonly moves: number;
 } | {
     readonly minutes: number;
+};
+
+// @public
+export type CoverageCheck = {
+    readonly title: string;
+    readonly unreachable?: (game: CoverageGame) => readonly CoverageFinding[];
+    readonly items?: (game: CoverageGame) => readonly CoverageItem[];
+    readonly reached?: (game: CoverageGame) => Iterable<string>;
+};
+
+// @public
+export const coverageChecks: Registry<CoverageCheck>;
+
+// @public
+export type CoverageFinding = {
+    readonly key?: string;
+    readonly label: string;
+    readonly why: string;
+};
+
+// @public
+export type CoverageGame = {
+    readonly story: Story;
+    readonly passages: readonly Passage[];
+};
+
+// @public
+export type CoverageItem = {
+    readonly key: string;
+    readonly label: string;
 };
 
 // @public

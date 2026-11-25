@@ -266,6 +266,7 @@ describe("rooms no exit leads to (#72)", () => {
       {
         severity: "warning",
         file: "rooms.weft",
+        unreachable: true,
         message:
           'No exit leads to the room `attic`, so the player can\'t reach "Attic". Connect a room to it in story.ts, as in connect(hall, { north: attic }), link to the passage, or start the game here.',
         span: { start: 10, end: 15 },

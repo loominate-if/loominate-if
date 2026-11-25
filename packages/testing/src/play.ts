@@ -152,6 +152,28 @@ export function _setGame(game: GameDefinition | undefined): void {
   loaded = game;
 }
 
+/** What watches walkthroughs' games, as `loominate coverage` does. @internal */
+export type _PlayWatcher = {
+  /** Called as a walkthrough begins a new game, while the last one's is still running. */
+  readonly starting?: () => void;
+  /** Called with each walkthrough's story once it's begun. */
+  readonly started?: (story: Story) => void;
+};
+const watchers: _PlayWatcher[] = [];
+
+/**
+ * Watches every game `play()` begins, for `loominate coverage` (#133) to
+ * see what walkthroughs reached. Returns a function that stops watching.
+ *
+ * @internal
+ */
+export function _watchPlays(watcher: _PlayWatcher): () => void {
+  watchers.push(watcher);
+  return () => {
+    watchers.splice(watchers.indexOf(watcher), 1);
+  };
+}
+
 const CONTINUE = "Continue";
 
 /**
@@ -181,6 +203,7 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
       "play() has no game to play. Run walkthroughs with `loominate test`, which loads the game, or pass one: play({ passages, start }).",
     );
   }
+  for (const w of watchers) w.starting?.();
   const store = createStore(options.from);
   const record = createEventRecord(store);
   const story = createStory(store, record, passages, {
@@ -190,6 +213,7 @@ export function play(options: WalkthroughOptions = {}): Walkthrough {
   });
   const history = createHistory(store);
   story.begin();
+  for (const w of watchers) w.started?.(story);
   // What came before the first move isn't undoable, as in play.
   history.clear();
   store.commit();

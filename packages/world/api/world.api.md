@@ -419,6 +419,7 @@ export type ConvNode = {
     readonly exit?: "soft" | "hard";
     readonly objects?: Presses;
     readonly closedElsewhere?: boolean;
+    readonly openedElsewhere?: boolean;
     readonly isNode: true;
 };
 
@@ -429,6 +430,7 @@ export function convNode(npc: ObjectRef, name: string, options?: {
     readonly exit?: "soft" | "hard";
     readonly objects?: Presses;
     readonly closedElsewhere?: boolean;
+    readonly openedElsewhere?: boolean;
 }): ConvNode;
 
 // @public

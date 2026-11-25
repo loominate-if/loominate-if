@@ -1341,7 +1341,7 @@ topic(widow, { ask: husband, hearMeOut: "The widow's tale", says: "“Let me tel
 | `exit: "hard"` | Goodbye and the room's exits are disabled, with the node's `objects` line or "You can't leave until you answer the inspector.", and only the node's replies are answered: a hard node is restrictive. |
 | `hearMeOut` | On an entry, a passage the NPC tells after answering: the player goes to that cut scene, the conversation held, and its `{continue back}` returns them to where they were talking. |
 
-- **A way out:** as the game starts, every hard node must have a reply that closes it, one without `stays`, or the game stops with an error naming the node. A node the game closes from code says `closedElsewhere: true`.
+- **A way out:** as the game starts, every hard node must have a reply that closes it, one without `stays`, or the game stops with an error naming the node. A node the game closes from code says `closedElsewhere: true`. Coverage reports list a node no topic opens; one the game opens from code, with `openNode()`, says `openedElsewhere: true` ([coverage reports](walkthroughs.md#coverage-reports)).
 - **Undo** always works, locks or not.
 - **The game's own links** are its own business: a lock holds goodbye and the room's exits, not every link a passage has.
 - **In passage files,** a block's `-> Passage` is its `hearMeOut`, checked like a link: `{ask husband, -> The widow's tale}`.

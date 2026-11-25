@@ -20,6 +20,8 @@ export type LinkProblem = {
   readonly file: string;
   readonly message: string;
   readonly at: NameSyntax;
+  /** True if it says the passage can't be reached. */
+  readonly unreachable?: true;
 };
 
 /** Every passage named after `->`, in links and directive arguments, in source order. */
@@ -251,6 +253,7 @@ export function checkLinks(
       severity: "warning",
       file,
       at: passage.name,
+      unreachable: true,
       message: `Nothing leads to \`${passage.name.name}\` from \`${start}\`, so players can't reach it. Link to it from another passage, or remove it.`,
     });
   }

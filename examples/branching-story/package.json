@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "loominate dev",
     "build": "loominate build && loominate build --target single",
-    "test": "loominate test"
+    "test": "loominate test",
+    "coverage": "loominate coverage --strict"
   },
   "dependencies": {
     "@loominate-if/core": "workspace:*",
