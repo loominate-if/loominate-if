@@ -1,0 +1,24 @@
+{
+  "name": "@loominate-if/example-conversation-demo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Gate 3: a conversation-driven piece at an inn on a stormy night, with scheduled NPCs, a traveller who comes to ask a favour, topics, conversation nodes, and exit control.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "loominate dev",
+    "build": "loominate build && loominate build --target single",
+    "test": "loominate test",
+    "coverage": "loominate coverage --strict"
+  },
+  "dependencies": {
+    "@loominate-if/core": "workspace:*",
+    "@loominate-if/presentation": "workspace:*",
+    "@loominate-if/world": "workspace:*"
+  },
+  "devDependencies": {
+    "@loominate-if/cli": "workspace:*",
+    "@loominate-if/testing": "workspace:*",
+    "vitest": "5.1.0"
+  }
+}
