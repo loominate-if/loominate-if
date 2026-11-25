@@ -75,3 +75,9 @@ export {
   type LogEntry,
   type TranscriptLine,
 } from "./page/log.js";
+export {
+  exportStoryLog,
+  type ExportedFile,
+  type ExportFormat,
+  type ExportOptions,
+} from "./page/export.js";

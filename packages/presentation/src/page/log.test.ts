@@ -279,7 +279,7 @@ describe("the log dialog (#127)", () => {
     const wheel = new WheelEvent("wheel", { deltaY: -40, bubbles: true, cancelable: true });
     element.querySelector("h2")?.dispatchEvent(wheel);
     expect([body.scrollTop, wheel.defaultPrevented]).toEqual([60, true]);
-    element.querySelector<HTMLButtonElement>("button:last-of-type")?.click();
+    [...element.querySelectorAll("button")].find((b) => b.textContent === "Close")?.click();
     expect(document.documentElement.classList.contains("loominate-modal-open")).toBe(false);
   });
 

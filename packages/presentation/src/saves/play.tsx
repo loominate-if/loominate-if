@@ -363,7 +363,9 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
   });
 
   // The story log and transcript read the game in play's record (#127).
-  const logs = createLogDialog(host, () => (store ? createEventRecord(store).events() : []));
+  const logs = createLogDialog(host, () => (store ? createEventRecord(store).events() : []), {
+    title: options.title ?? options.game.id,
+  });
   const menuWidget = gameMenu({
     log: (view) => {
       logs.open(view);

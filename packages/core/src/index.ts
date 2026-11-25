@@ -109,8 +109,10 @@ export {
 } from "./passages/storylets.js";
 export {
   beat,
+  chapter,
   continueTo,
   inLog,
+  markChapter,
   logOnly,
   pageOnly,
   emitEvent,

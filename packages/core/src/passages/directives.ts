@@ -3,7 +3,7 @@
  * modules call these; the compiler's core extension names them, so core's
  * directives work exactly as a package's would.
  */
-import { describeValue } from "../objects/objects.js";
+import { describeValue, emit } from "../objects/objects.js";
 import { StateError } from "../state/value.js";
 import { _previousPassage } from "./story.js";
 import type {
@@ -200,4 +200,26 @@ export function pageOnly(args: Readonly<Record<string, never>> = {}): LogNode {
 /** `{in log: "…"}`: the story log's own wording of the paragraph before. */
 export function inLog(args: { readonly log: string }): LogNode {
   return { type: "log", text: args.log };
+}
+
+/**
+ * What `{chapter "The House on the Hill"}` calls when the player reaches it:
+ * records the start of a chapter, which the story log shows as a heading
+ * and exports divide at.
+ */
+export function markChapter(args: { readonly title: string }, context: EffectContext): void {
+  context.emit("chapter", { title: args.title });
+}
+
+/**
+ * Starts a chapter of the story log, from code during a move, as
+ * `{chapter "…"}` does in a passage.
+ *
+ * @example
+ * ```ts
+ * chapter("The House on the Hill");
+ * ```
+ */
+export function chapter(title: string): void {
+  emit("chapter", { title });
 }
