@@ -5,7 +5,7 @@
  */
 import { _allMinds, bodyOf, currentPlayerBody } from "./actors.js";
 import { _agendaItems, _busyWithAgenda } from "./agendas.js";
-import { getsTurn, isSimulated } from "./npcs.js";
+import { getsTurn, isSimulated, pacingOf } from "./npcs.js";
 import { canHear, canSee } from "./scope.js";
 import { placeOf } from "./things.js";
 import { _timetableOf } from "./timetables.js";
@@ -30,6 +30,8 @@ export type _NpcRow = {
   readonly name: string;
   readonly place?: string;
   readonly level: "observed" | "scheduled" | "simulated";
+  /** For a paced NPC, how often their turns come: "every 5 minutes". */
+  readonly pace?: string;
   readonly turn: boolean;
   /** Why they get a turn now, or don't. */
   readonly why:
@@ -63,6 +65,13 @@ export function _npcRows(): readonly _NpcRow[] {
             ? "heard by the player"
             : "out of sight";
     const where = placeOf(body);
+    const pacing = pacingOf(mind)?.every;
+    const pace =
+      pacing === undefined
+        ? undefined
+        : "minutes" in pacing
+          ? `every ${String(pacing.minutes)} ${pacing.minutes === 1 ? "minute" : "minutes"}`
+          : `every ${String(pacing.moves)} ${pacing.moves === 1 ? "move" : "moves"}`;
     return [
       {
         mind: mind.id,
@@ -73,6 +82,7 @@ export function _npcRows(): readonly _NpcRow[] {
             : body.id,
         ...(where && { place: where.id }),
         level: isSimulated(mind) ? "simulated" : timetable ? "scheduled" : "observed",
+        ...(pace !== undefined && { pace }),
         turn: getsTurn(mind),
         why,
         agenda: _agendaItems(mind),

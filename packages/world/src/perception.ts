@@ -121,6 +121,33 @@ function notices(
   return { sense: "hear", text };
 }
 
+/** What the player was told while it's being caught, or `undefined` while it isn't. */
+let caught: string[] | undefined;
+
+/**
+ * Runs `fn`, catching what the player would be told by what they perceive,
+ * and returns it as lines instead, as a paced NPC's turn does to say it as
+ * its timer's line (#137). Everything else perceiving does still happens:
+ * minds see and learn. @internal
+ */
+export function _catchPerceived(fn: () => void): string[] {
+  const outer = caught;
+  const lines: string[] = [];
+  caught = lines;
+  try {
+    fn();
+  } finally {
+    caught = outer;
+  }
+  return lines;
+}
+
+/** Tells the player what they perceived, or catches it. */
+function perceived(text: string, sense: "see" | "hear", source: string): void {
+  if (caught) caught.push(text);
+  else emit("perception", { text, sense, source });
+}
+
 /** Tells the minds in `body` what they noticed: the player is narrated to, and all may learn. */
 function tell(body: Thing, source: Thing, noticed: Noticed, reveals: Fact | undefined): void {
   const playing = currentPlayerMind();
@@ -128,7 +155,7 @@ function tell(body: Thing, source: Thing, noticed: Noticed, reveals: Fact | unde
     if (noticed.sense === "see") m.see(source);
     if (reveals) m.learn(reveals, { from: source });
     if (m.id === playing?.id) {
-      emit("perception", { text: noticed.text, sense: noticed.sense, source: source.id });
+      perceived(noticed.text, noticed.sense, source.id);
     }
   }
 }
@@ -155,7 +182,7 @@ onMove((moved, from) => {
     const text = self.leaves
       ? self.leaves(way)
       : message("actor.leaves", { actor: moved, ...(way !== undefined && { toward: way }) });
-    if (text) emit("perception", { text, sense: "see", source: moved.id });
+    if (text) perceived(text, "see", moved.id);
   } else if (to?.id === here.id) {
     // Everyone here who can see the newcomer sees it, and the player is told.
     for (const b of allBodies()) {
@@ -167,6 +194,6 @@ onMove((moved, from) => {
     const text = self.arrives
       ? self.arrives(way)
       : message("actor.arrives", { actor: moved, ...(way !== undefined && { from: way }) });
-    if (text) emit("perception", { text, sense: "see", source: moved.id });
+    if (text) perceived(text, "see", moved.id);
   }
 });

@@ -117,7 +117,7 @@ export const npcPanel: InspectorPanel = {
             row.append(
               who,
               el("td", undefined, r.place ?? "nowhere"),
-              el("td", undefined, r.level),
+              el("td", undefined, r.pace === undefined ? r.level : `${r.level}, ${r.pace}`),
               el("td", undefined, describeTurn(r)),
               agenda,
               el("td", undefined, r.timetable ? describeTimetable(r.timetable) : "—"),

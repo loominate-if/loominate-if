@@ -271,10 +271,13 @@ export {
   getsTurn,
   go,
   isSimulated,
+  pacingOf,
   simulate,
   type CatchUp,
   type NpcTurn,
+  type Pacing,
 } from "./npcs.js";
+export { route, type RouteOptions } from "./routes.js";
 export {
   agenda,
   isAgendaActive,

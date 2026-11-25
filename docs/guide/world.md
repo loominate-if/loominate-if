@@ -1130,8 +1130,27 @@ everyTurn(villain, "steals", ({ npc }) => {
 
 - **Observed only, the default:** an NPC takes a turn only while the player can see or hear them. Most characters need nothing more, and an NPC with no turn rules costs nothing.
 - **Simulated:** with `simulate(npc)`, they take a turn after every move, wherever they are, acting offstage too; what they do is narrated only if the player sees it. `simulate(npc, false)` makes them observed only again. It's game state, so it can change in play; in `story.ts`, it's how they start.
-- **Order:** an NPC's rules run in the order they're added, and NPCs take their turns in ID order, so the same moves always give the same results. A continue isn't a move, so it gives no turns, and a long wait gives one turn, not one per minute.
+- **Order:** an NPC's rules run in the order they're added, and NPCs take their turns in ID order, so the same moves always give the same results. A continue isn't a move, so it gives no turns, and a long wait gives one turn, not one per minute, unless the NPC is paced.
+- **Paced:** `simulate(npc, { every: minutes(5) })`, in `story.ts`, gives a simulated NPC a turn every five minutes on the game clock instead of after every move, so a three-hour wait gives them 36 turns, each at its own time, as a daemon fires. `every: moves(2)` paces by moves. A move that takes no time gives a paced NPC no turn.
+  - **Coming into view** on one of their turns stops a wait there: "The guard arrives from the west. Your wait ends at 10:10 pm."
+  - **What the player sees** of their turns in one jump is summed up, each line once with how many times it happened: "The sentry paces past, 3 times." A single turn keeps its own line. `simulate(npc, { every, summary })` words it your way, as a daemon's `summary` does; the default is the `npc.repeats` message.
+  - **In play,** `simulate(npc, false)` and `simulate(npc)` switch them off and on again, still paced; `pacingOf(npc)` says how they're paced. The inspector's NPCs tab shows it: "simulated, every 5 minutes".
 - **In the inspector:** each NPC's turn is its own hook, `npc:` and their ID, in the Rules tab, so you can see whose turn ran and what each rule did. `getsTurn(npc)` says whether an NPC gets one now.
+
+### Routes
+
+A route is a patrol, built on paced turns: in each turn, the NPC takes a step toward the next place on it, through `go`, so a locked or closed door stops them as it would anyone:
+
+<!-- example: packages/world/src/pacing.test.ts#route -->
+```ts
+export const guard = actor("guard", { body: { name: "guard", location: gatehouse } });
+// A patrol: a step every five minutes, round and round.
+route(guard, [gatehouse, yard, wall], { every: minutes(5), loop: true });
+```
+
+- **`route(npc, places, { every, loop, summary })`** makes them simulated and paced, as `simulate(npc, { every })` does. Once at a place, they head for the next; with `loop`, after the last, the first again, and without it they stay at the last.
+- **Where they are on it** is game state, so undo, saves, and replays keep it, and a long jump walks them round it the same way every time.
+- **Their own turn rules** still run, after the route's step, so a guard can also look about.
 
 ### Catching up
 
