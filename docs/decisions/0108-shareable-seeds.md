@@ -22,7 +22,7 @@ The design says seeds are shown as memorable words ("amber-lantern-fog") and tie
 - **Today's seed** is three words chosen by an FNV-1a hash of the date in UTC, so players everywhere share it on the same day. The date chooses the seed as fresh randomness otherwise would, before the game begins; the seed is stored with the game, so the game itself never reads the clock.
 - **Where it's seen:**
   - The game menu's **Seed** opens a dialog with the seed and its version, **Copy**, **Copy link** (a link with `?seed=`), and, with `seeds: true`, a field to play another. Playing one starts a new game, as Restart does.
-  - Opening it focuses the seed itself, which is also the dialog's description, so a screen reader reads the seed rather than only a button and how to use it, as the story log focuses its newest entry.
+  - Opening it focuses the seed itself, so a screen reader reads the seed rather than only a button and how to use it, as the story log focuses its newest entry. The seed isn't also the dialog's description, which VoiceOver read before the focused seed, so it was heard twice.
   - The start screen offers **New game with a seed…**, which opens the dialog at its field.
   - A link with `?seed=` shows the start screen with **Play this seed** first, beside Continue when there's a game in progress, so a link never replaces a game unasked. The seed is taken out of the address once read, so a reload carries on.
 

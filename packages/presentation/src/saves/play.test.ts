@@ -412,9 +412,10 @@ describe("shareable seeds (#132)", () => {
     click("Seed");
     const dialog = seedDialog(container);
     expect(dialog?.querySelector(".loominate-seed-words")?.textContent).toBe(`${seed}@1.0.0`);
-    // The seed has focus, so a screen reader reads it, not just a button; it's the dialog's description too.
+    // The seed has focus, so a screen reader reads it, not just a button. It isn't the
+    // dialog's description as well, which VoiceOver would read first, then again.
     expect(document.activeElement?.textContent).toBe(`This game's seed: ${seed}@1.0.0`);
-    expect(dialog?.getAttribute("aria-describedby")).toBe(document.activeElement?.id);
+    expect(dialog?.hasAttribute("aria-describedby")).toBe(false);
     click("Copy");
     click("Copy link");
     await vi.waitFor(() => {

@@ -43,8 +43,6 @@ export function createSeedDialog(
   const dialog = doc.createElement("dialog");
   dialog.className = "loominate-seed";
   dialog.setAttribute("aria-labelledby", `${id}-title`);
-  // The seed is what the dialog is about, so it's read on opening.
-  dialog.setAttribute("aria-describedby", `${id}-seed`);
   parent.append(dialog);
   let typed = "";
   let status = "";
