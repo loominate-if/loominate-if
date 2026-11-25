@@ -1227,6 +1227,34 @@ startAgenda(butler, "warn the player");
 - **`stepToward(npc, target)`** takes one step along the shortest way to a place, or to where a thing or person is, through `go`, so a locked or closed door stops them. It returns true once they're there. Among equally short ways, it goes by direction order.
 - **`say(npc, text)`** narrates a line to whoever sees them, as "The butler says, “The east wing is on fire!”", or only hears them, as "Someone says, …". Write the speech with its quotation marks. These are the `say.seen` and `say.heard` messages.
 
+### NPCs telling each other
+
+NPCs can pass on what they know, to each other, whether or not the player is there ([ADR 0110](../decisions/0110-npc-to-npc-knowledge.md)). One way is on purpose, through the standard `tell` action, taken as the NPC:
+
+<!-- example: packages/world/src/gossip.test.ts#tell -->
+```ts
+const outcome = actAs(marta, tell({ who: tobias, about: facts.will.id }));
+```
+
+- **Telling** teaches the hearer the fact, sourced to the teller, through the action pipeline like any NPC action, so it's an `npc` event in the inspector's timeline. Topic entries are the player's: an NPC telling another starts no conversation and gets no answer.
+- **It isn't taken** for a fact the teller doesn't know, or a hearer who isn't with them: "Ada isn't there."
+
+The other is gossip, a fact that passes by itself:
+
+<!-- example: packages/world/src/gossip.test.ts#gossip -->
+```ts
+export const facts = defineFacts({
+  // Gossip: it passes by itself between NPCs together.
+  affair: { text: "The colonel and the cook are lovers.", spreads: true },
+  // Told only on purpose.
+  will: "The will was changed last week.",
+});
+```
+
+- **`spreads: true`:** after each move, NPCs together in a place who both get a turn pass it on, from one who knows it to one who doesn't, sourced to the teller. Two observed-only NPCs who meet offstage don't, since they don't act; simulated ones do, unseen.
+- **Order:** pairs by ID, then facts in the order defined, so the same moves spread the same facts.
+- **What the player sees:** "Marta whispers something to Tobias.", once a move for each pair, as the `gossip.seen` message. The player sees them talk, but doesn't learn the fact; to let them overhear, tell the player too, with `{reveal …}` or `happen(…, { reveals })`.
+
 ## Conversations
 
 Conversations follow adv3Lite's model, and are built for groups from the start: one-on-one is a group of one. Topics, conversation nodes, and conversation mode come next; underneath them is the conversation itself. There's one at a time, the player's:

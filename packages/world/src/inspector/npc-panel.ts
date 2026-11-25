@@ -106,6 +106,7 @@ export function describeTimetable(t: NonNullable<_NpcRow["timetable"]>): string 
 /** A timeline entry's description: "take gold: done", "go: refused, The cellar door is locked." */
 export function describeEvent(e: RecordedEvent<"npc">): string {
   if (e.what === "moved") return `timetable: to ${e.to ?? "?"}`;
+  if (e.what === "told") return `told ${e.to ?? "?"}: ${e.fact ?? "?"}`;
   if (e.what === "caughtUp") {
     return `caught up (${String(e.minutes ?? 0)} min, ${String(e.moves ?? 0)} moves)`;
   }

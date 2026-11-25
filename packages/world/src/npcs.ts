@@ -44,15 +44,17 @@ declare module "@loominate-if/core" {
      */
     npc: {
       readonly npc: string;
-      readonly what: "action" | "moved" | "caughtUp";
+      readonly what: "action" | "moved" | "caughtUp" | "told";
       readonly at: number;
       readonly perceived: boolean;
       /** For an action: its name, whether it was done, and why not. */
       readonly action?: string;
       readonly done?: boolean;
       readonly reason?: string;
-      /** For a timetable move: where to. */
+      /** For a timetable move: where to; for something told, to whom, by mind ID. */
       readonly to?: string;
+      /** For something told: the fact's ID. */
+      readonly fact?: string;
       /** For catching up: how long they were unseen. */
       readonly minutes?: number;
       readonly moves?: number;
