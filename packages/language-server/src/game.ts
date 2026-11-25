@@ -22,9 +22,20 @@ export type Game = {
   refresh(): void;
 };
 
+/**
+ * A path in one form, so the same file is always the same key: resolved, and on
+ * Windows with the drive letter in capitals, as Node writes it. Editors send
+ * `c:`, and Volar uses forward slashes.
+ */
+export function canonicalPath(p: string, platform: NodeJS.Platform = process.platform): string {
+  const resolved = platform === "win32" ? path.win32.resolve(p) : path.resolve(p);
+  return platform === "win32" ? resolved.replace(/^[a-z]:/, (d) => d.toUpperCase()) : resolved;
+}
+
 /** The folder holding `loominate.config.ts`, from `from` up, if there is one. */
 export function findGameRoot(from: string): string | undefined {
-  let dir = existsSync(from) && statSync(from).isDirectory() ? from : path.dirname(from);
+  const start = canonicalPath(from);
+  let dir = existsSync(start) && statSync(start).isDirectory() ? start : path.dirname(start);
   for (;;) {
     if (existsSync(path.join(dir, CONFIG_FILE))) return dir;
     const up = path.dirname(dir);
