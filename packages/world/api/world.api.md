@@ -170,6 +170,12 @@ export const askToCome: Action<{
 }>;
 
 // @public
+export const askToSearch: Action<{
+    thing: ActingOn;
+    place: ActingOn;
+}>;
+
+// @public
 export const askToWait: Action<{
     thing: ActingOn;
 }>;
@@ -333,7 +339,7 @@ export function companion(npc: ObjectRef, options?: {
 }): void;
 
 // @public
-export type CompanionState = "accompanying" | "waiting";
+export type CompanionState = "accompanying" | "waiting" | "independent";
 
 // @public
 export function companionState(npc: ObjectRef): CompanionState | undefined;
@@ -638,6 +644,15 @@ export type Endings = (() => boolean) | {
 
 // @public
 export function enterRoom(room: Place, context?: EffectContext): void;
+
+// @public
+export type ErrandEnd = "return" | "wait";
+
+// @public
+export function errandOf(npc: ObjectRef): {
+    readonly to: string;
+    readonly then: ErrandEnd;
+} | undefined;
 
 // @public
 export function everyTurn(npc: ObjectRef, name: string, rule: (turn: NpcTurn) => void): void;
@@ -1427,12 +1442,26 @@ export type _ScheduledInfo = Scheduled & {
 };
 
 // @public
+export const search: Action<    {
+place: ObjectRef;
+}>;
+
+// @public
+export function searchable(...places: readonly ObjectRef[]): void;
+
+// @public
 export type SeasonsByMonth = {
     readonly [season: string]: readonly string[];
 };
 
 // @public
 export function seesThrough(observer: ObjectRef, b: ObjectRef): boolean;
+
+// @public
+export function sendOff(npc: ObjectRef, options: {
+    readonly to: ObjectRef;
+    readonly then?: ErrandEnd;
+}): void;
 
 // @public
 export type Sense = "see" | "reach" | "hear";

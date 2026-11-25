@@ -485,7 +485,21 @@ export function _seenBy(m: ObjectRef): readonly string[] {
   return Object.keys(recall(m, "seenBy").seen);
 }
 
-/** Marks everything `observer` can see as seen by `minds`, such as on arrival in a room. @internal */
+/** The fact a thing says seeing it teaches, as `found: facts.diaryHidden`, if it says one. */
+function foundIn(t: ObjectRef): Fact | undefined {
+  const found = (t as { readonly found?: unknown }).found;
+  const id =
+    typeof found === "object" && found !== null
+      ? (found as { readonly id?: unknown }).id
+      : undefined;
+  return typeof id === "string" ? allFacts.get(id) : undefined;
+}
+
+/**
+ * Marks everything `observer` can see as seen by `minds`, such as on arrival
+ * in a room. A thing that says `found: fact` teaches it to each the first
+ * time they see it, sourced to the thing (#139). @internal
+ */
 export function noteSights(observer: ObjectRef, minds: readonly ObjectRef[]): void {
   const seen = inScope(observer, "see");
   for (const m of minds) {
@@ -494,6 +508,8 @@ export function noteSights(observer: ObjectRef, minds: readonly ObjectRef[]): vo
       if (Object.hasOwn(memories.seen, t.id)) continue;
       memories.seen[t.id] = true;
       for (const l of noticing) l(m, "thing", t.id);
+      const fact = foundIn(t);
+      if (fact) knowledgeOf(m).learn(fact, { from: t });
     }
   }
 }

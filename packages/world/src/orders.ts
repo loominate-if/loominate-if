@@ -21,6 +21,7 @@ import { _noReachFor } from "./acting.js";
 import { allBodies, currentPlayerBody, isBody, mindOf, type Mind } from "./actors.js";
 import { accompany, companionState, waitHere } from "./companions.js";
 import { actAs } from "./npcs.js";
+import { _searchablePlaces, search } from "./errands.js";
 import { give, type ActingOn } from "./standard.js";
 import { isWithin, placeOf } from "./things.js";
 
@@ -46,6 +47,8 @@ declare module "@loominate-if/core" {
     "order.askFor": { readonly from: ObjectRef; readonly thing: ObjectRef };
     /** The player's line when they ask for something: "You ask Mira for the key." */
     "order.askedFor": { readonly from: ObjectRef; readonly thing: ObjectRef };
+    /** The order to search a place: "Ask Mira to search the library". */
+    "order.search": { readonly who: ObjectRef; readonly place: ObjectRef };
     /** Why a companion isn't asked to wait or come along: they already are. */
     "order.already": { readonly who: ObjectRef };
   }
@@ -69,6 +72,9 @@ register("order.askedFor", ({ from, thing }) =>
   t`You ask {the from} for {the thing}.`({ from, thing }),
 );
 register("order.already", ({ who }) => t`{The subj who} already {is}.`({ who }));
+register("order.search", ({ who, place }) =>
+  t`Ask {the who} to search {the place}`({ who, place }),
+);
 
 /** What `obeying` rules are told: who's asked, their mind, and what they're asked to do. */
 export type Ordered = {
@@ -297,3 +303,29 @@ _noReachFor(askFor);
 function someoneHolding(thing: ObjectRef): ObjectRef | undefined {
   return allBodies().find((b) => someoneHere(b) && isWithin(thing, b));
 }
+
+/**
+ * "Ask Mira to search the library", on a companion's menu, for each place
+ * marked {@link searchable} but the one they're in (#139). They go there
+ * and back, as `sendOff` sends them, through `obeying`, so they can refuse.
+ */
+export const askToSearch = action<{ thing: ActingOn; place: ActingOn }>("order:search", {
+  source: SOURCE,
+  minutes: 1,
+  for: (t) => someoneHere(t) && companionState(t) !== undefined,
+  with: {
+    place: (p) =>
+      _searchablePlaces().some((x) => x.id === p.id) &&
+      p.id !== placeOf(currentPlayerBody() ?? p)?.id,
+  },
+  label: ({ thing, place }) => message("order.search", { who: thing, place }),
+  verify: ({ thing }) => cantAsk(thing),
+  run: ({ thing, place }) => {
+    carryOut(
+      thing,
+      search({ place }) as unknown as ActionCall<Readonly<Record<string, unknown>>>,
+      `${message("order.search", { who: thing, place }).replace(/^Ask/, "You ask")}.`,
+    );
+  },
+});
+_noReachFor(askToSearch);

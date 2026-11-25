@@ -1579,6 +1579,28 @@ obeying.rule("Tom won't touch the vault", ({ who, call }) =>
   - **or doing it,** narrated as their action: "Tom picks the lock."
 - **Standard orders:** a companion's menu has "Ask Mira to wait here" or "Ask Mira to come along". A thing someone here carries has "Ask Mira for the key", which they give through `give`, so the game's `giving` rules apply.
 
+### Splitting up
+
+A companion can be sent off on an errand of their own, to see what's somewhere and come back:
+
+<!-- example: packages/world/src/errands.test.ts#errand -->
+```ts
+export const facts = defineFacts({ diary: "The diary was in the bureau." });
+// Whoever sees the bureau learns where the diary was, from the bureau.
+export const bureau = thing("bureau", { name: "bureau", location: library, found: facts.diary });
+export const mira = actor("mira", { body: { name: "Mira", location: hall } });
+companion(mira);
+// "Ask Mira to search the library", on her menu.
+searchable(library, cellar);
+```
+
+- **`sendOff(mira, { to: library, then })`** sends a companion off during play: "Mira sets off for the library." They go a step a turn, even unseen, through `go`, so doors stop them. Their state is `independent` until they're back with the player, and `errandOf(mira)` says where they're bound.
+- **Then:** with `then: "return"`, the default, they spend a turn there and come back to the player, wherever the player has gone; with `"wait"`, they wait there for the player to come.
+- **What they find:** arriving anywhere, an NPC sees what's there, as the player does, and knows of it. A thing that says `found: facts.diary` teaches whoever first sees it that fact, sourced to the thing, the player too. Anything else, the game's own rules teach them, with `mira.learn(fact)`.
+- **Back with the player,** they tell what they learned on the errand, as their own words: "“The diary was in the bureau.”", and the player learns it from them. It's recorded as their dialogue, so the story log reads "Mira: “The diary was in the bureau.”". With nothing new, "“Nothing worth telling,” Mira says." Then they come along again, or, sent to wait, they wait.
+- **Asking:** `searchable(library, cellar)`, in `story.ts`, gives a companion's menu "Ask Mira to search the library" for each place but the one they're in. It's an order, so `obeying` can refuse it, and they say why if there's no way there.
+- **Offstage danger** is the game's own fuse or daemon, checking where they are.
+
 ### Following
 
 The player can follow an NPC they saw leave, the way they went:
