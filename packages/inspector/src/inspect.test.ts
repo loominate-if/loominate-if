@@ -149,6 +149,8 @@ async function setup(options: { open?: boolean } = {}) {
     game: { id: "inspected", version: "1.0.0" },
     storage: createMemoryStorage(),
     seed: () => "fixed",
+    // Straight into the game, past the start screen (#407).
+    startScreen: false,
   });
   live.push(player);
   const inspector: Inspector = inspect(player, options);

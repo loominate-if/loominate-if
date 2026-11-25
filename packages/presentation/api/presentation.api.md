@@ -329,6 +329,11 @@ export type PlayOptions = {
     readonly game: GameInfo;
     readonly title?: string;
     readonly author?: string;
+    readonly cover?: {
+        readonly image: string;
+        readonly alt: string;
+    };
+    readonly startScreen?: boolean;
     readonly storage?: SaveStorage;
     readonly seed?: () => string;
     readonly seeds?: SeedSetting;

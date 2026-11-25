@@ -75,6 +75,17 @@ describe("the generated entry point", () => {
     expect(main).toContain('"seeds":"daily"');
   });
 
+  it("passes the game's cover art to the player, for its start screen (#407)", async () => {
+    const plugin = loominateApp({
+      ...config,
+      cover: { image: "cover.jpg", alt: "A lighthouse" },
+    } as ResolvedConfig);
+    const resolveId = plugin.resolveId as (s: string, i?: string) => Promise<string | undefined>;
+    const load = plugin.load as (id: string) => string | undefined;
+    const main = load.call({}, (await resolveId.call({}, MAIN)) ?? "") ?? "";
+    expect(main).toContain('"cover":{"image":"cover.jpg","alt":"A lighthouse"}');
+  });
+
   it("shows an error that stops the game, instead of a blank page, and tells the dev server", async () => {
     const errors = await code("/@loominate/errors");
     const hot = { send: vi.fn() };

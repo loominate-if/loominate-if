@@ -61,6 +61,19 @@ export type PlayOptions = {
   /** Who wrote it: on the start screen and in story log exports. */
   readonly author?: string;
   /**
+   * The game's cover art, shown on the start screen (#407): an image, by
+   * path from the page, as `"cover.jpg"` from the game's `public/` folder,
+   * and what it shows, for those who can't see it.
+   */
+  readonly cover?: { readonly image: string; readonly alt: string };
+  /**
+   * Whether the game opens on its start screen, with Continue, Load, and
+   * New game. Defaults to true; `false` goes straight into a new game, or
+   * offers Continue only to a returning player, as for a game embedded in
+   * another page, or tests.
+   */
+  readonly startScreen?: boolean;
+  /**
    * Where save slots are kept. Defaults to the browser's IndexedDB, or to
    * memory, for this visit only, where the browser has none.
    */
@@ -664,6 +677,7 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
     autosaved: LoadedSave | undefined,
     problem?: string,
     shared?: { readonly seed: string; readonly version?: string },
+    saved = false,
   ): void => {
     const screen = doc.createElement("div");
     screen.className = "loominate-page loominate-start";
@@ -680,9 +694,29 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
     render(
       <main className="loominate-main" aria-labelledby="loominate-start-title">
         <div className="loominate-passage">
-          <h1 id="loominate-start-title">{options.title ?? options.game.id}</h1>
+          {options.cover && (
+            <img
+              id="loominate-start-cover"
+              className="loominate-cover"
+              src={options.cover.image}
+              alt={options.cover.alt}
+            />
+          )}
+          {/* Focus starts here, as the page's does: the title, then the cover and byline as its description. */}
+          <h1
+            id="loominate-start-title"
+            tabIndex={-1}
+            {...((options.cover || options.author !== undefined) && {
+              "aria-describedby": [
+                ...(options.cover ? ["loominate-start-cover"] : []),
+                ...(options.author !== undefined ? ["loominate-start-byline"] : []),
+              ].join(" "),
+            })}
+          >
+            {options.title ?? options.game.id}
+          </h1>
           {options.author !== undefined && (
-            <p className="loominate-byline">
+            <p id="loominate-start-byline" className="loominate-byline">
               {message("start.byline", { author: options.author })}
             </p>
           )}
@@ -731,9 +765,17 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
                 resume(autosaved);
               },
             )}
-          {choice(message("start.newGame"), "loominate-link", () => {
-            start();
-          })}
+          {saved &&
+            choice(message("start.load"), "loominate-link", () => {
+              menu.open("load").catch(onError);
+            })}
+          {choice(
+            message("start.newGame"),
+            autosaved || shared ? "loominate-link" : "loominate-continue",
+            () => {
+              start();
+            },
+          )}
           {seeds === true &&
             choice(message("start.newGameSeed"), "loominate-link", () => {
               seedDialog?.open("enter");
@@ -742,7 +784,8 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
       </main>,
       screen,
     );
-    screen.querySelector<HTMLButtonElement>(".loominate-choice button")?.focus();
+    // The title first, so a screen reader reads the cover and byline with it; the next Tab reaches the first choice.
+    screen.querySelector<HTMLElement>("#loominate-start-title")?.focus();
   };
 
   let autosaved: LoadedSave | undefined;
@@ -757,9 +800,18 @@ export async function playGame(container: HTMLElement, options: PlayOptions): Pr
   // A link to a shared seed offers it, beside Continue, never replacing the
   // game in play unasked. It's taken from the address, so a reload carries on.
   const shared = seeds === true ? sharedFromLink(doc) : undefined;
-  if (shared) offer(autosaved, undefined, shared);
+  // Whether there are saves to load, besides the autosave, for the start screen's Load.
+  let saved = false;
+  try {
+    saved = (await saves.list()).some((s) => !("problem" in s) && s.slot !== AUTOSAVE_SLOT);
+  } catch (error) {
+    onError(error);
+  }
+  const screen = options.startScreen ?? true;
+  if (shared) offer(autosaved, undefined, shared, saved);
   else if (autosaved && playingInThisTab()) resume(autosaved);
-  else if (autosaved) offer(autosaved);
+  // Every game opens on its start screen (#407), unless it says not to.
+  else if (autosaved || screen) offer(autosaved, undefined, undefined, saved && screen);
   else start();
 
   return {

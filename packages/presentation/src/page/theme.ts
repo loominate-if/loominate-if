@@ -138,6 +138,8 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
 .loominate-command-option[aria-disabled="true"], .loominate-command-why { color: ${v("color-muted")}; }
 .loominate-command-said:empty { display: none; }
 .loominate-byline { color: ${v("color-muted")}; font-style: italic; }
+/* The game's cover art, on its start screen (#407). */
+.loominate-cover { display: block; max-width: 100%; max-height: 60vh; margin: 0 auto ${v("space")}; border-radius: ${v("radius")}; }
 .loominate-system { color: ${v("color-muted")}; font-size: 0.9em; }
 .loominate-notice[data-tags~="player"] { color: ${v("color-muted")}; font-style: italic; }
 /* A layout's placed passage parts: prose as a strip of context, links in a disclosure. */
