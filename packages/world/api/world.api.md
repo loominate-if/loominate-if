@@ -696,6 +696,7 @@ export type Fact<Id extends string = string> = {
     readonly id: Id;
     readonly text: string;
     readonly name?: string;
+    readonly spreads?: true;
 };
 
 // @public
@@ -708,6 +709,7 @@ export function factNamed(id: string): Fact | undefined;
 export type FactOptions = {
     readonly text: string;
     readonly name?: string;
+    readonly spreads?: boolean;
 };
 
 // @public

@@ -30,6 +30,8 @@ export type Fact<Id extends string = string> = {
   readonly text: string;
   /** How the player refers to it, as "the missing letter", when topics are suggested. */
   readonly name?: string;
+  /** Whether it passes between NPCs by itself, as gossip, when they're together (ADR 0110). */
+  readonly spreads?: true;
 };
 
 /** How {@link fact} defines a fact. */
@@ -38,6 +40,12 @@ export type FactOptions = {
   readonly text: string;
   /** How the player refers to it, as "the missing letter", when topics are suggested. */
   readonly name?: string;
+  /**
+   * Whether it passes between NPCs by itself, as gossip: after each move,
+   * from one who knows it to one who doesn't, when they're together and
+   * both get a turn. Defaults to false.
+   */
+  readonly spreads?: boolean;
 };
 
 /** Where a mind learned a fact. */
@@ -155,6 +163,7 @@ export function fact<Id extends string>(id: Id, options: FactOptions): Fact<Id> 
     id,
     text: options.text,
     ...(options.name !== undefined && { name: options.name }),
+    ...(options.spreads === true && { spreads: true as const }),
   });
   allFacts.set(id, defined);
   return defined;

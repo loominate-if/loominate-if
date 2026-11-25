@@ -47,6 +47,7 @@ import {
 import { _allNodes, _isNode, closeNode, openNode, openNodeOf, type ConvNode } from "./nodes.js";
 import { _knowable, factNamed, player, type Fact } from "./knowledge.js";
 import { clock } from "./clock.js";
+import { _npcTell, _npcTellProblem, _npcTellSeen } from "./gossip.js";
 import {
   _givingTopics,
   _showingTopics,
@@ -1077,13 +1078,24 @@ const talk = (kind: "ask" | "tell") =>
         ? ["ask {who} about {about}", "ask {who} {about}", "question {who} about {about}"]
         : ["tell {who} about {about}", "inform {who} about {about}"],
     minutes: EXCHANGE_MINUTES,
-    verify: ({ who, about }) => {
+    // An NPC telling another is seen as talking, not overheard (ADR 0110).
+    seen: ({ who, body }) =>
+      kind === "tell" && body && body.id !== currentPlayerBody()?.id ? _npcTellSeen(body, who) : "",
+    verify: ({ who, about, body }) => {
+      if (kind === "tell" && body && body.id !== currentPlayerBody()?.id) {
+        return _npcTellProblem(body, who, about);
+      }
       const subject = subjectFrom(about);
       if (subject === undefined) return message("topic.noSubject", { about: String(about) });
       if (isFact(subject) && !player.knows(subject)) return message("topic.unknown", {});
       return cantTalkTo(who);
     },
-    run: ({ who, about }) => {
+    run: ({ who, about, body }) => {
+      // An NPC telling another: no topics, no conversation; the hearer learns it from them.
+      if (kind === "tell" && body && body.id !== currentPlayerBody()?.id) {
+        _npcTell(body, who, about);
+        return;
+      }
       const subject = subjectFrom(about);
       if (subject !== undefined) {
         playerSays(
