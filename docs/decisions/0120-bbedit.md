@@ -19,5 +19,6 @@ BBEdit colors a language through a language module and starts a language server 
 ## Consequences
 
 - Inline code isn't colored as TypeScript: a declarative module can't embed another language outside HTML templates.
+- BBEdit doesn't ask for hover information when the mouse rests on a word, so the server's hovers don't show there.
 - Updating the checkout needs the install script again, as BBEdit keeps copies.
 - A kit's directives color as prose until the grammar and module learn them.

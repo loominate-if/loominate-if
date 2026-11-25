@@ -30,7 +30,7 @@ The Zed extension in `packages/zed` colors passage files, with TypeScript colori
 
 ## BBEdit
 
-BBEdit (tested with 16.1) colors passage files through a language module in `packages/bbedit`: headers, directives, links, comments, and escapes. It lists your passages in the function menu, and starts the language server for errors, completion, hover, and go to definition.
+BBEdit (tested with 16.1) colors passage files through a language module in `packages/bbedit`: headers, directives, links, comments, and escapes. It lists your passages in the function menu, and starts the language server for errors, completion, and go to definition (Command-double-click, or **Go > Go to Definition**). BBEdit doesn't show hover information when you rest the mouse on a word.
 
 - **Install it** from a Loominate IF checkout: run `packages/bbedit/install.sh`, then quit and reopen BBEdit. It copies the language module and the server's launcher into BBEdit's Application Support folder. Run it again after updating the checkout.
 - **Open your game's folder** as a project, or any file in it. The launcher finds the language server your game depends on, in its `node_modules`, or a Loominate IF checkout's own, after `pnpm build`. It finds Node.js through your login shell, so version managers such as nvm work.
