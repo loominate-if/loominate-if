@@ -18,9 +18,13 @@ import type {} from "@volar/typescript";
 import type { URI } from "vscode-uri";
 import type { Game } from "./game.js";
 
-/** What passage files' mapped code supports: everything but TypeScript's own diagnostics. */
+/**
+ * What passage files' mapped code supports: everything but TypeScript's own
+ * diagnostics. Its completions are additional, so they're merged with the
+ * passage features' own, as directives right after `{` (#410).
+ */
 const MAPPED: CodeInformation = {
-  completion: true,
+  completion: { isAdditional: true },
   navigation: true,
   semantic: true,
   verification: false,
@@ -51,13 +55,13 @@ function virtualCode(
         sourceOffsets: [0],
         generatedOffsets: [0],
         lengths: [text.length],
-        data: { ...MAPPED, verification: true, structure: true, format: true },
+        data: { ...MAPPED, completion: true, verification: true, structure: true, format: true },
       },
     ],
     embeddedCodes: [],
   };
   if (!game) return root;
-  game.session.update(file, text);
+  game.update(file, text);
   const module = game.session.module(file);
   if (!module) return root;
   const mappings: CodeMapping[] = module.mappings

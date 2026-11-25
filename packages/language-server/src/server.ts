@@ -6,6 +6,7 @@
  * the CLI's `loadConfig`, so its extensions are the ones it builds with.
  */
 import { fileURLToPath } from "node:url";
+import type { LanguageServicePlugin } from "@volar/language-server";
 import {
   createConnection,
   createServer,
@@ -21,6 +22,34 @@ import { URI } from "vscode-uri";
 import { compilerDiagnostics } from "./diagnostics.js";
 import { findGameRoot, loadGame, type Game } from "./game.js";
 import { weftLanguagePlugin } from "./language.js";
+import { passageFeatures } from "./passages.js";
+
+/**
+ * Names the compiler's generated modules declare for themselves: its
+ * `$`-prefixed helpers and the module's own `passages`. They're not the
+ * author's to write, so TypeScript's completions leave them out (#410).
+ */
+const INTERNAL = /^(\$|passages$)/;
+
+/** A TypeScript service plugin whose completions leave out the generated modules' internals. */
+function withoutInternals(plugin: LanguageServicePlugin): LanguageServicePlugin {
+  return {
+    ...plugin,
+    create(context) {
+      const instance = plugin.create(context);
+      const provide = instance.provideCompletionItems?.bind(instance);
+      if (!provide) return instance;
+      return {
+        ...instance,
+        async provideCompletionItems(document, position, completion, token) {
+          const list = await provide(document, position, completion, token);
+          if (!list || !document.uri.startsWith("volar-embedded-content:")) return list;
+          return { ...list, items: list.items.filter((i) => !INTERNAL.test(i.label)) };
+        },
+      };
+    },
+  };
+}
 
 /** Options for {@link startLanguageServer}. */
 export type LanguageServerOptions = {
@@ -75,7 +104,11 @@ export function startLanguageServer(options: LanguageServerOptions = {}): void {
         }
         return { languagePlugins: [weftLanguagePlugin(gameFor, fileOf)] };
       }),
-      [...createTypeScriptServices(ts), compilerDiagnostics(gameFor, fileOf, (u) => URI.parse(u))],
+      [
+        ...createTypeScriptServices(ts).map(withoutInternals),
+        compilerDiagnostics(gameFor, fileOf, (u) => URI.parse(u)),
+        passageFeatures(gameFor, fileOf, (u) => URI.parse(u)),
+      ],
     ),
   );
   connection.onInitialized(() => {

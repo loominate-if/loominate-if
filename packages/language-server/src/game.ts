@@ -14,6 +14,10 @@ export type Game = {
   readonly root: string;
   readonly config: ResolvedConfig;
   readonly session: CompilerSession;
+  /** Updates a passage file from the editor, as it's edited. */
+  update(file: string, text: string): void;
+  /** A file's text, as the session last had it, or `""` if it isn't one of the game's. */
+  text(file: string): string;
   /** Reads the game's TypeScript files again, those that changed on disk, as on save. */
   refresh(): void;
 };
@@ -54,6 +58,12 @@ export async function loadGame(
     root,
     config,
     session,
+    update(file, text) {
+      if (onDisk.get(file) === text) return;
+      onDisk.set(file, text);
+      session.update(file, text);
+    },
+    text: (file) => onDisk.get(file) ?? "",
     refresh() {
       // Passage files come from the editor, as they're edited; TypeScript from disk, as it's saved.
       for (const file of [...onDisk.keys()].filter((f) => /\.(m|c)?tsx?$/.test(f))) {

@@ -78,4 +78,47 @@ describe("a compiler session", { timeout: 30_000 }, () => {
     session.update("cellar.weft", cellar);
     expect(messages(session)).toEqual([]);
   });
+
+  it("gives each passage file as last parsed, for an editor (#410)", () => {
+    const session = start();
+    session.update("cellar.weft", ":: Cellar\nDamp.\n[[Garden]]\n");
+    const parsed = session.parsed("cellar.weft");
+    expect(parsed?.passages.map((p) => p.name.name)).toEqual(["Cellar"]);
+    expect(session.parsed(at("hall.weft"))?.passages.map((p) => p.name.name)).toEqual(["Hall"]);
+    expect(session.parsed("story.ts")).toBeUndefined();
+  });
+
+  it("gives the directives and tag roles its packages add, with where each is from (#410)", () => {
+    const session = createCompilerSession({
+      root,
+      compilerOptions,
+      files: [{ path: "hall.weft", text: hall }],
+      extensions: [
+        {
+          name: "@example/rooms",
+          tagRoles: [{ name: "room", entry: true }],
+          directives: [
+            {
+              name: "describe",
+              kind: "content",
+              example: "{describe lamp}",
+              unsupported: "Not yet.",
+            },
+          ],
+        },
+      ],
+    });
+    const { directives, tagRoles } = session.syntax();
+    expect(directives.find((d) => d.name === "when")).toMatchObject({
+      kind: "guard",
+      from: "@loominate-if/core",
+    });
+    expect(directives.find((d) => d.name === "describe")).toEqual({
+      name: "describe",
+      kind: "content",
+      example: "{describe lamp}",
+      from: "@example/rooms",
+    });
+    expect(tagRoles).toEqual([{ name: "room", from: "@example/rooms" }]);
+  });
 });

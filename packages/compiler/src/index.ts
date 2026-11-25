@@ -19,6 +19,7 @@ export type {
   TagRoleDefinition,
 } from "./extensions/extension.js";
 export { parsePassageFile, type ParseOptions } from "./passages/parse.js";
+export { passageTargets } from "./modules/links.js";
 export type * from "./passages/syntax.js";
 export {
   generatePassageModule,
@@ -31,6 +32,7 @@ export {
   shownDiagnostics,
   createCompilerSession,
   type CompilerSession,
+  type SessionSyntax,
   type SessionChange,
   PASSAGE_EXTENSION,
   type CompiledProject,
