@@ -55,6 +55,7 @@ export function templateFiles(id: string, title: string, version: string): Recor
           build: "loominate build",
           "build:single": "loominate build --target single",
           test: "loominate test",
+          coverage: "loominate coverage",
         },
         dependencies: { "@loominate-if/core": range, "@loominate-if/presentation": range },
         devDependencies: {

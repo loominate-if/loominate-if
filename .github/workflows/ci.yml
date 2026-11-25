@@ -37,6 +37,8 @@ jobs:
       - run: pnpm lint
       - run: pnpm test
       - run: pnpm build
+      # The acceptance games: nothing they can't reach (#133).
+      - run: pnpm coverage
       - run: pnpm api
 
   # The single check to require in branch protection, so changing the matrix

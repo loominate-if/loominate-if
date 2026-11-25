@@ -2,6 +2,7 @@
 /** The `loominate` command. */
 import { parseArgs } from "node:util";
 import { build, dev, test } from "./commands.js";
+import { coverage, formatCoverage } from "./coverage.js";
 
 const HELP = `Usage: loominate <command> [options]
 
@@ -9,6 +10,7 @@ Commands:
   dev      Serve the game, recompiling and reloading as you edit
   build    Build the game in dist/: a static site, or with --target single, one HTML file
   test     Run the game's walkthrough tests, *.test.ts; name files to run only those
+  coverage Report what can't be reached, and what the walkthroughs never reach
 
 Options:
   --root <dir>   The game's folder (default: the current folder)
@@ -17,6 +19,8 @@ Options:
   --target <t>   What to build: static (default) or single (build)
   --inspector    Include the inspector, as dev does, e.g. for testers (build)
   --watch        Rerun tests as files change (test)
+  --strict       Fail when anything can't be reached, or a walkthrough fails, for CI (coverage)
+  --json <file>  Write the report as JSON to this file too (coverage)
   --verbose      Show every error, including those that likely follow from another
   -h, --help     Show this help`;
 
@@ -31,6 +35,8 @@ async function main(argv: readonly string[]): Promise<void> {
       target: { type: "string" },
       inspector: { type: "boolean" },
       watch: { type: "boolean" },
+      strict: { type: "boolean" },
+      json: { type: "string" },
       verbose: { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
@@ -75,6 +81,16 @@ async function main(argv: readonly string[]): Promise<void> {
       ...(values.watch && { watch: true }),
     });
     if (!result.passed) process.exitCode = 1;
+  } else if (command === "coverage") {
+    const report = await coverage({
+      ...(root !== undefined && { root }),
+      ...verbose,
+      ...(values.json !== undefined && { json: values.json }),
+    });
+    process.stdout.write(formatCoverage(report));
+    if (values.strict && (report.unreachable.length > 0 || report.walkthroughs.failed > 0)) {
+      process.exitCode = 1;
+    }
   } else {
     throw new Error(`There's no command "${command}". Run \`loominate --help\` to see them.`);
   }

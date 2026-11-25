@@ -167,6 +167,7 @@ export type ExtensionDiagnostic = {
     readonly file: string;
     readonly message: string;
     readonly span: Span;
+    readonly unreachable?: true;
 };
 
 // @public
@@ -333,6 +334,7 @@ export type ProjectDiagnostic = {
     readonly column: number;
     readonly code?: number;
     readonly followOn?: true;
+    readonly unreachable?: true;
 };
 
 // @public

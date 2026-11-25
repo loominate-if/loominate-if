@@ -184,6 +184,11 @@ export function defineFacts<D extends Record<string, string | FactOptions>>(
   return Object.freeze(out) as { readonly [K in keyof D & string]: Fact<K> };
 }
 
+/** Every fact, in the order defined, for coverage reports (#133). @internal */
+export function _allFacts(): readonly Fact[] {
+  return [...allFacts.values()];
+}
+
 /** The fact with ID `id`, or `undefined`. */
 export function factNamed(id: string): Fact | undefined {
   return allFacts.get(id);

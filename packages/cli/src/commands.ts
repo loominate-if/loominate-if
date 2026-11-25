@@ -9,6 +9,7 @@ import {
   createServer,
   mergeConfig,
   type InlineConfig,
+  type Plugin,
   type ViteDevServer,
 } from "vite";
 import { loadConfig, type ResolvedConfig } from "./config/config.js";
@@ -49,8 +50,8 @@ export type BuildOptions = CommandOptions & {
   readonly inspector?: boolean;
 };
 
-/** The Vite configuration for a game, from its resolved config. */
-function viteConfig(config: ResolvedConfig, options: BuildOptions): InlineConfig {
+/** The Vite configuration for a game, from its resolved config. @internal */
+export function viteConfig(config: ResolvedConfig, options: BuildOptions): InlineConfig {
   const conditions = options.conditions ?? [];
   const base: InlineConfig = {
     root: config.root,
@@ -156,6 +157,24 @@ export async function test(options: TestOptions = {}): Promise<TestResult> {
   const config = await loadConfig(options.root ?? process.cwd(), {
     ...(options.conditions && { conditions: options.conditions }),
   });
+  return runWalkthroughs(config, options);
+}
+
+/**
+ * Runs the game's walkthroughs, with more plugins and setup files if given,
+ * as `loominate coverage` does. @internal
+ */
+export async function runWalkthroughs(
+  config: ResolvedConfig,
+  options: TestOptions,
+  more: {
+    readonly plugins?: readonly Plugin[];
+    readonly setupFiles?: readonly string[];
+    readonly passWithNoTests?: boolean;
+    /** Leaves out Vite's own messages, such as the compiler's warnings, which coverage reports itself. */
+    readonly quiet?: boolean;
+  } = {},
+): Promise<TestResult> {
   let vitest: typeof import("vitest/node");
   try {
     vitest = await import("vitest/node");
@@ -169,8 +188,12 @@ export async function test(options: TestOptions = {}): Promise<TestResult> {
     [...(options.filters ?? [])],
     { root: config.root, watch: options.watch ?? false, run: !(options.watch ?? false) },
     mergeConfig(base, {
-      plugins: [loominateWalkthrough(config)],
-      test: { setupFiles: [WALKTHROUGH_SETUP], passWithNoTests: false },
+      plugins: [loominateWalkthrough(config), ...(more.plugins ?? [])],
+      ...(more.quiet === true && { logLevel: "silent" as const }),
+      test: {
+        setupFiles: [WALKTHROUGH_SETUP, ...(more.setupFiles ?? [])],
+        passWithNoTests: more.passWithNoTests ?? false,
+      },
     }),
   );
   const files = run.state.getFiles();

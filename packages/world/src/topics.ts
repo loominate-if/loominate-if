@@ -711,6 +711,35 @@ function inspectEntry(
   };
 }
 
+/**
+ * Every topic entry, as coverage reports (#133) need them: what it's about,
+ * the node it opens or applies in, its label, and how often it's answered in
+ * the game in play. @internal
+ */
+export function _coverageEntries(): readonly {
+  readonly id: string;
+  readonly label: string;
+  readonly kinds: readonly TopicKind[];
+  /** The subject's key: `fact:` and its ID for a fact. */
+  readonly subject?: string;
+  readonly opens?: ConvNode;
+  readonly in?: ConvNode;
+  readonly answered: number;
+}[] {
+  return [...entries].flatMap(([mind, list]) => {
+    const body = allBodies().find((b) => mindOf(b)?.id === mind);
+    return list.map((e) => ({
+      id: e.id,
+      label: body ? inspectEntry(body, e).label : `${e.kinds.join(" or ")} (${mind})`,
+      kinds: e.kinds,
+      ...(e.subject !== undefined && { subject: e.subject }),
+      ...(e.opens !== undefined && { opens: e.opens }),
+      ...(e.in !== undefined && _isNode(e.in) && { in: e.in }),
+      answered: counts.entries[e.id] ?? 0,
+    }));
+  });
+}
+
 /** A topic entry as the inspector's Conversation tab shows it. @internal */
 export type _TopicRow = {
   readonly id: string;

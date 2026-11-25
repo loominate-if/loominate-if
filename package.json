@@ -13,6 +13,7 @@
     "docs:update": "node scripts/snippets.ts --update",
     "test": "vitest run",
     "build": "tsc -b && pnpm --filter \"./examples/*\" build",
+    "coverage": "pnpm --filter \"./examples/*\" coverage",
     "api": "tsc -b && node scripts/api-report.ts",
     "api:update": "tsc -b && node scripts/api-report.ts --update"
   },

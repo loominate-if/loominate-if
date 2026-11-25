@@ -21,5 +21,13 @@ export {
   type TestOptions,
   type TestResult,
 } from "./commands.js";
+export {
+  coverage,
+  formatCoverage,
+  type CoverageOptions,
+  type CoverageReport,
+  type NotReachedEntry,
+  type UnreachableEntry,
+} from "./coverage.js";
 export { MAIN, loominateApp, type AppOptions } from "./vite/app.js";
 export { loominateWalkthrough, WALKTHROUGH_SETUP } from "./vite/walkthrough.js";

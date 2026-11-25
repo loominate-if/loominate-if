@@ -196,6 +196,13 @@ export {
 export { hook, type Hook, type HookContext, type HookKinds } from "./rules/hooks.js";
 export { registry, type Registry, type RegistryEntry } from "./rules/registry.js";
 export {
+  coverageChecks,
+  type CoverageCheck,
+  type CoverageFinding,
+  type CoverageGame,
+  type CoverageItem,
+} from "./reports/coverage.js";
+export {
   action,
   actionCandidates,
   actionsFor,
@@ -204,6 +211,7 @@ export {
   everyAction,
   perform,
   _statusAs,
+  _actionsOnThings,
   statusOf,
   useActor,
   useCandidates,

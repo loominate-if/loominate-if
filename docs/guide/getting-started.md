@@ -49,7 +49,7 @@ The **Inspector** button in the corner, or Control+\`, opens the [inspector](ins
 npm test
 ```
 
-Add a walkthrough for each path through your story, and they'll catch it when an edit breaks one ([walkthrough guide](walkthroughs.md)).
+Add a walkthrough for each path through your story, and they'll catch it when an edit breaks one ([walkthrough guide](walkthroughs.md)). `npm run coverage` says what players can't reach, and what your walkthroughs never reach ([coverage reports](walkthroughs.md#coverage-reports)).
 
 ## Build it
 

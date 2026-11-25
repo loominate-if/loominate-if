@@ -1,6 +1,6 @@
 import { beat, emit, object, randomStream, wait, type Passage } from "@loominate-if/core";
 import { afterEach, describe, expect, it } from "vitest";
-import { _setGame, play } from "./play.js";
+import { _setGame, _watchPlays, play } from "./play.js";
 
 const lamp = object("walkthrough-lamp", { lit: false });
 const weather = randomStream("walkthrough-weather");
@@ -238,5 +238,21 @@ describe("walkthroughs", () => {
     );
     _setGame({ passages, start: "Room" });
     expect(play().text).toBe("Bare walls.");
+  });
+});
+
+describe("watching walkthroughs (#133)", () => {
+  it("tells a watcher as each game begins, and before the next, until it stops", () => {
+    const seen: string[] = [];
+    const stop = _watchPlays({
+      starting: () => seen.push("starting"),
+      started: (story) => seen.push(`started at ${String(story.current)}`),
+    });
+    const passages: Passage[] = [{ id: "Here", tags: [], body: () => [] }];
+    play({ passages, start: "Here" });
+    play({ passages, start: "Here" });
+    stop();
+    play({ passages, start: "Here" });
+    expect(seen).toEqual(["starting", "started at Here", "starting", "started at Here"]);
   });
 });

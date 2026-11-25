@@ -27,7 +27,13 @@ type ParsedFile = {
   }[];
 };
 /** A problem the check reports. */
-type Problem = { severity: "error" | "warning"; file: string; message: string; span: Span };
+type Problem = {
+  severity: "error" | "warning";
+  file: string;
+  message: string;
+  span: Span;
+  unreachable?: true;
+};
 /** Where a name is used, as the compiler tells checks. */
 type NameUse = {
   readonly file: string;
@@ -107,6 +113,7 @@ function checkUnreachableRooms(context: Context): Problem[] {
       problems.push({
         severity: "warning",
         file: f.file,
+        unreachable: true,
         message: `No exit leads to the room \`${name}\`, so the player can't reach "${p.name.name}". Connect a room to it in story.ts, as in connect(hall, { north: ${name} }), link to the passage, or start the game here.`,
         span: room.span,
       });

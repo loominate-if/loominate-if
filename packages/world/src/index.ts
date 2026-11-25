@@ -8,6 +8,8 @@
 import "./grammar.js";
 // Registers the world model's messages, which a game can reword.
 import "./messages.js";
+// Registers the world model's coverage checks: facts, topics, nodes, and actions out of the world.
+import "./coverage.js";
 // Says who acts, and adds the rules every action needs: a body, and its things in reach.
 export { reachNotNeeded } from "./acting.js";
 export {

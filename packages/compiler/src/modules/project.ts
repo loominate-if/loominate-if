@@ -111,6 +111,11 @@ export type ProjectDiagnostic = {
    * holds these back unless asked for every diagnostic.
    */
   readonly followOn?: true;
+  /**
+   * True if it says something can't be reached, as a passage nothing leads
+   * to: `loominate coverage` reports these (#133).
+   */
+  readonly unreachable?: true;
 };
 
 /** The result of {@link compileProject}. */
@@ -448,6 +453,7 @@ export function createCompilerSession(options: ProjectOptions): CompilerSession 
           message: d.message,
           span: d.span,
           ...locator(sources.get(d.file) ?? "").locate(d.span.start),
+          ...(d.unreachable === true && { unreachable: true as const }),
         });
       }
     }
@@ -468,6 +474,7 @@ export function createCompilerSession(options: ProjectOptions): CompilerSession 
         message: problem.message,
         span: problem.at.span,
         ...locator(sources.get(problem.file) ?? "").locate(at),
+        ...(problem.unreachable === true && { unreachable: true as const }),
       });
     }
 

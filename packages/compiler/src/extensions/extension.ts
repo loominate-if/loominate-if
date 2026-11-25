@@ -210,6 +210,8 @@ export type ExtensionDiagnostic = {
   readonly message: string;
   /** Where, in `file`. */
   readonly span: Span;
+  /** True if it says something can't be reached, so `loominate coverage` reports it. */
+  readonly unreachable?: true;
 };
 
 /** What an extension's check can see. */

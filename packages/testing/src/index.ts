@@ -4,6 +4,8 @@
  */
 export {
   _setGame,
+  _watchPlays,
+  type _PlayWatcher,
   play,
   type GameDefinition,
   type MenuEntry,

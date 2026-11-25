@@ -37,6 +37,8 @@ export type ConvNode = {
   readonly objects?: Presses;
   /** True if the game closes it from code, so the check for a way out passes it. */
   readonly closedElsewhere?: boolean;
+  /** True if the game opens it from code, with `openNode`, so coverage reports don't say nothing opens it. */
+  readonly openedElsewhere?: boolean;
   /** Marks it as a node, apart from actor states and scenes. */
   readonly isNode: true;
 };
@@ -72,6 +74,7 @@ export function convNode(
     readonly exit?: "soft" | "hard";
     readonly objects?: Presses;
     readonly closedElsewhere?: boolean;
+    readonly openedElsewhere?: boolean;
   } = {},
 ): ConvNode {
   const mind = mindFor(npc, "convNode").id;
@@ -96,6 +99,7 @@ export function convNode(
     ...(options.exit !== undefined && { exit: options.exit }),
     ...(options.objects !== undefined && { objects: options.objects }),
     ...(options.closedElsewhere === true && { closedElsewhere: true }),
+    ...(options.openedElsewhere === true && { openedElsewhere: true }),
     isNode: true as const,
   });
   nodes.set(id, node);
