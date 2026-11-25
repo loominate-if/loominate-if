@@ -2,7 +2,12 @@
  * The NPCs panel (#108, ADR 0086): where every NPC is, what they're doing
  * and why, and a timeline of what they did, offstage by default.
  */
-import { createEventRecord, type RecordedEvent } from "@loominate-if/core";
+import {
+  createEventRecord,
+  type HistoryStep,
+  type RecordedEvent,
+  type StateValue,
+} from "@loominate-if/core";
 import type { InspectorPanel } from "@loominate-if/inspector";
 import { _npcRows, timeOfDay, type _NpcRow } from "@loominate-if/world";
 
@@ -14,11 +19,65 @@ const STYLES = `
 .npcs ul { margin: 0; padding-inline-start: 1rem; }
 .npcs .idle { color: var(--muted, inherit); }
 .npcs .next { font-weight: 600; }
+.npcs .ahead { color: var(--muted, inherit); font-style: italic; }
+.npcs button { font: inherit; }
 h3 { font-size: 1em; margin: 1rem 0 0.25rem; }
 `;
 
 /** How many timeline entries the panel shows, newest first. */
 const TIMELINE_LENGTH = 100;
+
+/** Where core keeps the event record, each event under its sequence number. */
+const EVENTS_ID = "$events";
+
+/** An NPC event in the timeline, with the move it happened in, and whether that move is ahead, undone. */
+export type TimelineEntry = {
+  readonly event: RecordedEvent<"npc">;
+  /** How many moves from the start: 0 for what happened as the game began. */
+  readonly move: number;
+  readonly ahead: boolean;
+};
+
+/** Whether a stored value is an NPC event, as a history step's change records one. */
+const isNpcEvent = (value: StateValue | undefined): value is StateValue =>
+  value !== null &&
+  typeof value === "object" &&
+  !Array.isArray(value) &&
+  (value as { readonly kind?: unknown }).kind === "npc";
+
+/**
+ * The timeline, linked to the undo history (#138): each NPC event with the
+ * move whose changes added it, then those of moves undone and still ahead.
+ * Events from before the history begins, as the game's start, are move 0.
+ */
+export function timelineEntries(
+  events: readonly RecordedEvent<"npc">[],
+  history:
+    { readonly past: readonly HistoryStep[]; readonly future: readonly HistoryStep[] } | undefined,
+): TimelineEntry[] {
+  const past = history?.past ?? [];
+  const moveOf = new Map<string, number>();
+  past.forEach((step, i) => {
+    for (const c of step.diff) if (c.id === EVENTS_ID) moveOf.set(c.key, i + 1);
+  });
+  // One recorded since the last move, not yet part of any, belongs to where the game is now.
+  const last = Math.max(-1, ...[...moveOf.keys()].map(Number));
+  const now = events.map((event) => ({
+    event,
+    move: moveOf.get(String(event.seq)) ?? (past.length > 0 && event.seq > last ? past.length : 0),
+    ahead: false,
+  }));
+  const later = (history?.future ?? []).flatMap((step, i) =>
+    step.diff
+      .filter((c) => c.id === EVENTS_ID && isNpcEvent(c.to))
+      .map((c) => ({
+        event: c.to as unknown as RecordedEvent<"npc">,
+        move: past.length + i + 1,
+        ahead: true,
+      })),
+  );
+  return [...now, ...later];
+}
 
 /** Whether an NPC gets a turn now, and why: "yes, seen by the player". */
 export function describeTurn(row: _NpcRow): string {
@@ -130,13 +189,13 @@ export const npcPanel: InspectorPanel = {
 
     const showTimeline = () => {
       timeline.replaceChildren();
-      const store = context.player.store;
-      const events = store
-        ? createEventRecord(store)
-            .events({ kinds: ["npc"] })
-            .filter((e) => all.checked || !e.perceived)
-        : [];
-      if (events.length === 0) {
+      const { player } = context;
+      const store = player.store;
+      const history = player.history;
+      const entries = (
+        store ? timelineEntries(createEventRecord(store).events({ kinds: ["npc"] }), history) : []
+      ).filter((e) => all.checked || !e.event.perceived);
+      if (entries.length === 0) {
         timeline.append(
           el(
             "p",
@@ -146,20 +205,39 @@ export const npcPanel: InspectorPanel = {
         );
         return;
       }
+      const here = history?.past.length ?? 0;
       timeline.append(
         table(
-          ["When", "NPC", "What", "Seen"],
-          events
+          ["Move", "When", "NPC", "What", "Seen"],
+          entries
             .slice(-TIMELINE_LENGTH)
             .reverse()
-            .map((e) => {
-              const row = el("tr");
+            .map(({ event: e, move, ahead }) => {
+              const row = el("tr", ahead ? "ahead" : undefined);
+              // The move it happened in, to go to through the history, as the History tab does.
+              const go = el("button", undefined, move === 0 ? "start" : String(move));
+              go.type = "button";
+              const name = move === 0 ? "the start" : `move ${String(move)}`;
+              go.setAttribute(
+                "aria-label",
+                move === here ? `${name}, now` : `Go to ${name}${ahead ? ", ahead" : ""}`,
+              );
+              if (move === here) {
+                go.setAttribute("aria-current", "step");
+                go.disabled = true;
+              }
+              go.addEventListener("click", () => {
+                player.travel(move - here);
+              });
+              const when = el("td");
+              when.append(go);
               const who = el("td");
               who.append(el("code", undefined, e.npc));
               row.append(
+                when,
                 el("td", undefined, timeOfDay(e.at)),
                 who,
-                el("td", undefined, describeEvent(e)),
+                el("td", undefined, `${describeEvent(e)}${ahead ? " (ahead, undone)" : ""}`),
                 el("td", undefined, e.perceived ? "yes" : "no"),
               );
               return row;
