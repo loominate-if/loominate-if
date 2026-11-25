@@ -889,12 +889,13 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
 
   /**
    * Who said a line, before it, as the story log names them (#142):
-   * "Maid: ", for a line tagged with its speaker and not the player's own.
-   * Nothing, where no package names speakers.
+   * "Maid: ", for speech, a line that opens with a quotation mark, tagged
+   * with its speaker and not the player's own. Narration, as "The cook
+   * snorts.", already says who. Nothing, where no package names speakers.
    */
   const speakerOf = (notice: Proseful): ComponentChildren => {
     const tags = (notice as { readonly tags?: readonly string[] }).tags ?? [];
-    if (tags.includes("player")) return null;
+    if (tags.includes("player") || !/^["“‘'«„]/.test(notice.text.trimStart())) return null;
     const id = tags.find((t) => t.startsWith("speaker:"))?.slice("speaker:".length);
     const name = id === undefined ? undefined : _speakerName(id);
     return name === undefined ? null : <span className="loominate-speaker">{`${name}: `}</span>;

@@ -1336,7 +1336,7 @@ topic(cook, {
 - Each exchange takes a minute of game time.
 - When a conversation ends without goodbye, as when the player walks off, each participant says their implicit goodbye.
 
-What NPCs say is recorded as `action-result` events tagged `topic` and `speaker:` and their body's ID, so the page shows it after the move, with the speaker's name before it, as the story log does: "**Maid:** “Gone, miss.”". The player's own lines aren't named.
+What NPCs say is recorded as `action-result` events tagged `topic` and `speaker:` and their body's ID, so the page shows it after the move, with the speaker's name before speech, a line that opens with a quotation mark, as the story log does: "**Maid:** “Gone, miss.”". Narration, as "The maid goes pale.", already says who, and the player's own lines aren't named.
 
 ### Group topics
 
