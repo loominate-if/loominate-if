@@ -140,20 +140,27 @@ describe("the command line (#131)", () => {
   });
 
   it("reads the suggestions once typing pauses, since a screen reader only echoes the typing", async () => {
-    const { type, key, said } = play();
+    const { type, key, said, announced, input } = play();
+    // The help is read on arriving; while typing, it would be read at every pause instead.
+    expect(input()?.getAttribute("aria-describedby")).toMatch(/-help$/);
     commandSources.register("cl-extra", () => [{ label: "Ring for help", run: () => undefined }]);
     cleanup.push(() => {
       commandSources.remove("cl-extra");
     });
     type("r");
     type("ring");
+    expect(input()?.hasAttribute("aria-describedby")).toBe(false);
     expect(said()).toBe("");
+    // Shown below the field, and read through the page's live region.
     await vi.waitFor(() => {
-      expect(said()).toBe("2 suggestions: Ring the bell, Ring for help.");
+      expect([said(), announced()]).toEqual([
+        "2 suggestions: Ring the bell, Ring for help.",
+        "2 suggestions: Ring the bell, Ring for help.",
+      ]);
     });
     type("xyzzy");
     await vi.waitFor(() => {
-      expect(said()).toBe("No suggestions.");
+      expect(announced()).toBe("No suggestions.");
     });
     // Taken before the pause is over: what it did is read, not the suggestions.
     type("ring bell");

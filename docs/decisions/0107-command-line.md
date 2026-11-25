@@ -37,8 +37,9 @@ The command line is a keyboard command line that accepts only currently offered 
   - Up and Down move through the list.
   - Tab completes the suggestion picked, and Escape closes the list or clears the field.
   - With the list closed, Up and Down recall earlier commands.
-  - What it says is in a status region.
-  - Screen readers echo the typing but not the list that appears, so half a second after typing pauses the status reads the count and the first three: "2 suggestions: Ring the bell, Ring for help." Picking or taking one before then cancels it.
+  - What it says is shown below the field and read through the page's live region, the one that reads what a move did. A status region of its own wasn't heard over VoiceOver's speech about the field.
+  - Screen readers echo the typing but not the list that appears, so half a second after typing pauses it reads the count and the first three: "2 suggestions: Ring the bell, Ring for help." Picking or taking one before then cancels it.
+  - The help, the field's description, is read only on arriving at an empty field. Once typing, VoiceOver read it again at every pause, over the suggestions.
 - **Focus stays in the field:** while a command runs, the page reads what's new through its live region instead of moving focus to the passage heading. A link followed by mouse or keyboard behaves as before.
 
 ## Consequences

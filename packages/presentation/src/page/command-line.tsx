@@ -29,6 +29,8 @@ export function CommandLine(props: {
   readonly commands: () => readonly Command[];
   /** Does a command, as a move. */
   readonly run: (command: Command) => void;
+  /** Reads what it says through the page's live region. */
+  readonly say: (text: string) => void;
 }) {
   const id = useRef(`loominate-command-${String(++lines)}`).current;
   const input = useRef<HTMLInputElement>(null);
@@ -36,6 +38,11 @@ export function CommandLine(props: {
   const [active, setActive] = useState(-1);
   const [listOpen, setListOpen] = useState(false);
   const [said, setSaid] = useState("");
+  /** Shows what it says below the field, and reads it. */
+  const tell = (text: string): void => {
+    setSaid(text);
+    props.say(text);
+  };
   const history = useRef<string[]>([]);
   const back = useRef(-1);
 
@@ -56,7 +63,7 @@ export function CommandLine(props: {
     pause.current = setTimeout(() => {
       const found = matchCommands(value, props.commands()).matches;
       now(() => {
-        setSaid(
+        tell(
           message("command.shown", {
             count: found.length,
             options: found.slice(0, READ).map((c) => c.label),
@@ -70,7 +77,7 @@ export function CommandLine(props: {
     setListOpen(false);
     setActive(-1);
     if (command.disabled !== undefined) {
-      setSaid(message("command.cannot", { what: command.label, why: command.disabled }));
+      tell(message("command.cannot", { what: command.label, why: command.disabled }));
       return;
     }
     history.current.push(command.label);
@@ -93,15 +100,13 @@ export function CommandLine(props: {
     if (sure) take(sure);
     else if (found.length > 0) {
       // Several it could mean: listed to pick from, never guessed.
-      setSaid(message("command.which", { options: found.slice(0, SHOWN).map((c) => c.label) }));
+      tell(message("command.which", { options: found.slice(0, SHOWN).map((c) => c.label) }));
       setListOpen(true);
       setActive(0);
     } else {
       // Nothing it could mean: what's possible instead, never "I don't understand".
       const could = all.filter((c) => c.disabled === undefined).map((c) => c.label);
-      setSaid(
-        message("command.none", { options: could.slice(0, COULD), more: could.length > COULD }),
-      );
+      tell(message("command.none", { options: could.slice(0, COULD), more: could.length > COULD }));
     }
   };
 
@@ -170,7 +175,10 @@ export function CommandLine(props: {
         aria-autocomplete="list"
         aria-expanded={expanded ? "true" : "false"}
         aria-controls={`${id}-list`}
-        aria-describedby={`${id}-help`}
+        // The help is read on arriving at an empty field. Once typing, a
+        // screen reader would read it again at every pause, over the
+        // suggestions.
+        {...(typed === "" && { "aria-describedby": `${id}-help` })}
         {...(expanded && active >= 0 && { "aria-activedescendant": option(active) })}
         autoComplete="off"
         autoCapitalize="none"
@@ -229,9 +237,8 @@ export function CommandLine(props: {
           </li>
         ))}
       </ul>
-      <p className="loominate-command-said" role="status">
-        {said}
-      </p>
+      {/* Read through the page's live region, which screen readers hear over the field's own speech. */}
+      <p className="loominate-command-said">{said}</p>
     </div>
   );
 }

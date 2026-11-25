@@ -1267,7 +1267,12 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
                   {announcement}
                 </div>
                 {commandLineOn && (
-                  <CommandLine key="command-line" commands={commands} run={runCommand} />
+                  <CommandLine
+                    key="command-line"
+                    commands={commands}
+                    run={runCommand}
+                    say={announce}
+                  />
                 )}
                 {placed?.drawer === undefined && drawerView()}
               </main>,
