@@ -12,7 +12,7 @@ import { _parseSeed, _sharedSeed } from "./seed.js";
 export type SeedDialog = {
   /** The dialog element. */
   readonly element: HTMLDialogElement;
-  /** Opens it, focused on the seed to copy, or on the field to play one. */
+  /** Opens it, focused on the seed, or on the field to play one. */
   open(focus?: "copy" | "enter"): void;
   /** Closes it. */
   close(): void;
@@ -43,6 +43,8 @@ export function createSeedDialog(
   const dialog = doc.createElement("dialog");
   dialog.className = "loominate-seed";
   dialog.setAttribute("aria-labelledby", `${id}-title`);
+  // The seed is what the dialog is about, so it's read on opening.
+  dialog.setAttribute("aria-describedby", `${id}-seed`);
   parent.append(dialog);
   let typed = "";
   let status = "";
@@ -84,10 +86,13 @@ export function createSeedDialog(
     render(
       <>
         <h2 id={`${id}-title`}>{message("seed.title")}</h2>
+        {/* Focusable, so a screen reader reads the seed on opening, not just a button. */}
         {shared === undefined ? (
-          <p>{message("seed.none")}</p>
+          <p id={`${id}-seed`} className="loominate-seed-current" tabIndex={-1}>
+            {message("seed.none")}
+          </p>
         ) : (
-          <p>
+          <p id={`${id}-seed`} className="loominate-seed-current" tabIndex={-1}>
             {`${message(options.daily ? "seed.daily" : "seed.current")} `}
             {/* A seed is its words, as they are: not to be translated. */}
             <strong className="loominate-seed-words" translate={false}>
@@ -178,7 +183,7 @@ export function createSeedDialog(
       const target =
         focus === "enter" || options.current() === undefined
           ? dialog.querySelector<HTMLElement>(".loominate-seed-input")
-          : dialog.querySelector<HTMLElement>(".loominate-seed-copy");
+          : dialog.querySelector<HTMLElement>(".loominate-seed-current");
       (target ?? dialog.querySelector<HTMLElement>("button"))?.focus();
     },
     close,

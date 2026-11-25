@@ -412,7 +412,9 @@ describe("shareable seeds (#132)", () => {
     click("Seed");
     const dialog = seedDialog(container);
     expect(dialog?.querySelector(".loominate-seed-words")?.textContent).toBe(`${seed}@1.0.0`);
-    expect(document.activeElement?.textContent).toBe("Copy");
+    // The seed has focus, so a screen reader reads it, not just a button; it's the dialog's description too.
+    expect(document.activeElement?.textContent).toBe(`This game's seed: ${seed}@1.0.0`);
+    expect(dialog?.getAttribute("aria-describedby")).toBe(document.activeElement?.id);
     click("Copy");
     click("Copy link");
     await vi.waitFor(() => {
