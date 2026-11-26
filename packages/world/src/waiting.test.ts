@@ -11,7 +11,7 @@ import {
   type LinkNode,
   type Story,
 } from "@loominate-if/core";
-import { widgets } from "@loominate-if/presentation";
+import { storyLog, transcript, widgets } from "@loominate-if/presentation";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   actor,
@@ -114,6 +114,18 @@ describe("waiting", () => {
     choose("Wait 10 minutes");
     expect(timeOfDay()).toBe("5:40 am");
     expect(told()).toEqual(["You wait ten minutes."]);
+  });
+
+  it("leaves its report out of the story log, keeping it in the transcript (#387)", () => {
+    choose("Wait until 6:00 am");
+    const log = storyLog(record.events()).map((e) => e.text);
+    expect(log).toContain("A train pulls in.");
+    expect(log).not.toContain("You wait until 6:00 am.");
+    expect(transcript(record.events()).map((l) => l.text)).toContain("You wait until 6:00 am.");
+    // On the page, as any action's report.
+    expect(record.events({ kinds: ["action-result"] }).map((e) => e.text)).toEqual([
+      "You wait until 6:00 am.",
+    ]);
   });
 
   it("waits until a time of day, and isn't offered at that time", () => {

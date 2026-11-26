@@ -43,6 +43,7 @@ export type ActionDefinition<A> = {
     readonly check?: (context: ActionContext<A>) => string | undefined;
     readonly run?: (context: ActionContext<A>) => void;
     readonly report?: string | ((context: ActionContext<A>) => string);
+    readonly reportTags?: readonly string[];
     readonly turn?: false;
     readonly minutes?: number | ((context: ActionContext<A>) => number);
     readonly on?: ObjectRef | readonly ObjectRef[];

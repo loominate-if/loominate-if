@@ -74,6 +74,11 @@ export type ActionDefinition<A> = {
   /** What happened, recorded as an `action-result` event the page shows. */
   readonly report?: string | ((context: ActionContext<A>) => string);
   /**
+   * Tags for its report's `action-result` event, as `["no-log"]` for a
+   * report the story log leaves out, as the standard waits' (#387).
+   */
+  readonly reportTags?: readonly string[];
+  /**
    * `false` for an action outside the story, as a player's note on the map
    * (#397): it's logged, saved, and undone like any, but it isn't a turn.
    * The move count doesn't go up, and `turnEnd`'s rules, such as other
@@ -715,7 +720,10 @@ export function perform<A>(call: ActionCall<A>, options: PerformOptions = {}): A
     hook("actionTime").run({ action: a.actionName, minutes: spent, ...(stopsFor && { stopsFor }) });
   }
   const said = a.report.run(c);
-  if (said !== undefined && said !== "") emit("action-result", { text: said });
+  if (said !== undefined && said !== "") {
+    const tags = definitions.get(a.actionName)?.reportTags;
+    emit("action-result", { text: said }, tags ? [...tags] : []);
+  }
   return { done: true };
 }
 

@@ -203,6 +203,20 @@ describe("stages", () => {
     expect(spent).toEqual(["open 1"]); // unlock takes no time
   });
 
+  it("tag their report with reportTags (#387)", () => {
+    begin();
+    const hum = action<{ thing: typeof bell }>("hum", {
+      report: "You hum.",
+      reportTags: ["no-log"],
+    });
+    perform(hum({ thing: bell }));
+    perform(ring({ thing: bell }));
+    expect(record.events({ kinds: ["action-result"] }).map((e) => e.tags)).toEqual([
+      ["no-log"],
+      [],
+    ]);
+  });
+
   it("explain a name that's taken, or a thing named like the context", () => {
     expect(() => action("open")).toThrow(
       'action "open": another action has this name, perhaps one a package',
