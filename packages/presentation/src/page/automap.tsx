@@ -121,8 +121,8 @@ type Scale = {
   /** A marker's size. */
   readonly mark: number;
 };
-const SMALL: Scale = { cellW: 64, cellH: 40, boxW: 52, boxH: 24, letters: 8, mark: 7 };
-const FULL: Scale = { cellW: 128, cellH: 72, boxW: 104, boxH: 36, letters: 14, mark: 14 };
+const SMALL: Scale = { cellW: 64, cellH: 40, boxW: 52, boxH: 24, letters: 8, mark: 11 };
+const FULL: Scale = { cellW: 128, cellH: 72, boxW: 104, boxH: 36, letters: 14, mark: 16 };
 /** The full map's margin around its rooms, for stubs off rooms on its edges. */
 const MARGIN = { x: FULL.cellW / 2, y: FULL.cellH / 2 };
 /** How many markers a room's box shows before "+2". */
