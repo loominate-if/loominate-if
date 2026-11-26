@@ -122,6 +122,8 @@ export const wait = action<{ readonly minutes: number }>("wait", {
     last = { advanced: clock.advance(minutes), until: "minutes" };
   },
   report: told,
+  // The story log leaves the wait out, and keeps what happened meanwhile.
+  reportTags: ["no-log"],
 });
 
 /** What {@link waitUntil} waits for: one of a time of day, a fuse or daemon firing, or a condition. */
@@ -208,6 +210,8 @@ export const waitUntil = action<WaitUntil>("waitUntil", {
     };
   },
   report: told,
+  // The story log leaves the wait out, and keeps what happened meanwhile.
+  reportTags: ["no-log"],
 });
 
 /**
