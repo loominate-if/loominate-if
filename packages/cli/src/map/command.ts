@@ -6,11 +6,12 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createCompilerSession } from "@loominate-if/compiler";
-import { build, type Plugin, type Rolldown } from "vite";
-import type { CommandOptions } from "../commands.js";
-import { loadConfig } from "../config/config.js";
+import { build, createServer, mergeConfig, type Plugin, type Rolldown } from "vite";
+import { viteConfig, type CommandOptions } from "../commands.js";
+import { loadConfig, type ResolvedConfig } from "../config/config.js";
 import { gameFiles } from "../vite/plugin.js";
-import { layoutStoryMap } from "./layout.js";
+import { layoutStoryMap, type MapViewInput } from "./layout.js";
+import { MAP_VIEWS, unreadable, type ViewsModule } from "./runtime.js";
 import { mapPage, STANDALONE_SCRIPT } from "./page.js";
 
 /** Options for {@link storyMap}. */
@@ -32,6 +33,30 @@ export type MapResult = {
 const ENTRY = "\0loominate-map-entry";
 const INSPECTOR = "@loominate-if/inspector";
 
+/** The views packages add, as the world model's rooms, read from the game begun once. */
+async function packageViews(
+  config: ResolvedConfig,
+  options: CommandOptions,
+): Promise<readonly MapViewInput[]> {
+  try {
+    const server = await createServer(
+      mergeConfig(viteConfig(config, options), {
+        // No HMR socket or watcher: it loads the game once.
+        server: { middlewareMode: true, hmr: false, ws: false, watch: null },
+        appType: "custom",
+        logLevel: "silent",
+      }),
+    );
+    try {
+      return ((await server.ssrLoadModule(MAP_VIEWS)) as ViewsModule).views;
+    } finally {
+      await server.close();
+    }
+  } catch (error) {
+    return [unreadable(error)];
+  }
+}
+
 /**
  * Writes the game's story map as one HTML file.
  * @throws Error if the game's config can't be loaded.
@@ -51,7 +76,10 @@ export async function storyMap(options: MapOptions = {}): Promise<MapResult> {
   });
   const title = config.title ?? config.game.id;
   const map = session.storyMap();
-  const drawing = await layoutStoryMap(map, title);
+  const drawing = await layoutStoryMap(
+    { views: [...map.views, ...(await packageViews(config, options))] },
+    title,
+  );
   const conditions = options.conditions ?? [];
   const entry: Plugin = {
     name: "loominate-map-entry",

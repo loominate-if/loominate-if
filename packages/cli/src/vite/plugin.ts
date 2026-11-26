@@ -21,8 +21,16 @@ import {
   type SessionChange,
 } from "@loominate-if/compiler";
 import type { ServerResponse } from "node:http";
-import type { EnvironmentModuleNode, ErrorPayload, Logger, Plugin } from "vite";
-import { layoutStoryMap } from "../map/layout.js";
+import {
+  createServerModuleRunner,
+  type EnvironmentModuleNode,
+  type ErrorPayload,
+  type Logger,
+  type Plugin,
+  type ViteDevServer,
+} from "vite";
+import { layoutStoryMap, type MapViewInput } from "../map/layout.js";
+import { MAP_VIEWS, unreadable, type ViewsModule } from "../map/runtime.js";
 import { MAP_DATA, MAP_EVENTS, MAP_PATH, MAP_SCRIPT, mapPage } from "../map/page.js";
 
 /** Options for {@link loominate}. */
@@ -237,6 +245,23 @@ export function loominate(options: LoominateOptions = {}): Plugin {
     },
 
     configureServer(server) {
+      /**
+       * The compiler's Passages view, and the views packages add, read from
+       * the game begun in a runner of its own each time, so its registries
+       * start fresh (#426).
+       */
+      const mapWithViews = async (dev: ViteDevServer) => {
+        let added: readonly MapViewInput[];
+        const runner = createServerModuleRunner(dev.environments.ssr, { hmr: false });
+        try {
+          added = ((await runner.import(MAP_VIEWS)) as ViewsModule).views;
+        } catch (error) {
+          added = [unreadable(error)];
+        } finally {
+          await runner.close();
+        }
+        return layoutStoryMap({ views: [...active().storyMap().views, ...added] }, options.title);
+      };
       // The story map (#149): its page, its data, and an event each time it may have changed.
       server.middlewares.use((request, response, next) => {
         const url = (request.url ?? "").split("?")[0];
@@ -244,7 +269,7 @@ export function loominate(options: LoominateOptions = {}): Plugin {
           response.setHeader("Content-Type", "text/html; charset=utf-8");
           response.end(mapPage(options.title ?? "the game", { src: MAP_SCRIPT }));
         } else if (url === MAP_DATA) {
-          layoutStoryMap(active().storyMap(), options.title).then(
+          mapWithViews(server).then(
             (drawing) => {
               response.setHeader("Content-Type", "application/json");
               response.end(JSON.stringify(drawing));
@@ -369,9 +394,8 @@ export function loominate(options: LoominateOptions = {}): Plugin {
       if (!change) {
         change = active().update(file, type === "delete" ? undefined : await read());
         changes.set(key, change);
-        if (change.modules.length > 0 || change.passageNames) {
-          for (const listener of mapListeners) listener.write("event: change\ndata: \n\n");
-        }
+        // Any change to the game can change the map: passages, or rooms read from its code (#426).
+        for (const listener of mapListeners) listener.write("event: change\ndata: \n\n");
         // Only the latest few are needed: one per environment for each change.
         for (const old of [...changes.keys()].slice(0, -16)) changes.delete(old);
         report();

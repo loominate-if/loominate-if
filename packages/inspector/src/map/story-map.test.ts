@@ -189,4 +189,101 @@ describe("the story map viewer", () => {
     const results = await axe.run(document.body, { rules: { region: { enabled: false } } });
     expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
   });
+
+  describe("on a grid, as rooms", () => {
+    const cell = (
+      id: string,
+      label: string,
+      x: number,
+      y: number,
+      extra: Partial<DrawnNode> = {},
+    ): DrawnNode => ({
+      id,
+      label,
+      x: x * 150,
+      y: y * 100,
+      width: 100,
+      height: 36,
+      tags: [],
+      ...extra,
+    });
+    const line = {
+      points: [
+        { x: 0, y: 0 },
+        { x: 1, y: 1 },
+      ],
+    };
+    const ROOMS: MapDrawing = {
+      views: [
+        {
+          id: "rooms",
+          title: "Rooms",
+          width: 300,
+          height: 200,
+          grid: true,
+          nodes: [
+            cell("hall", "great hall", 0, 0, { start: true }),
+            cell("library", "library", 0, -1),
+            cell("cellar", "cellar", 1, 0),
+          ],
+          edges: [
+            { from: "hall", to: "library", kind: "north", label: "North", ...line },
+            { from: "library", to: "hall", kind: "south", label: "South", ...line },
+            {
+              from: "cellar",
+              to: "hall",
+              kind: "up",
+              label: "Up, through the trapdoor",
+              guarded: true,
+              bent: true,
+              ...line,
+            },
+          ],
+        },
+      ],
+    };
+
+    it("lists exits by their direction, and only one-way ways in", () => {
+      mountStoryMap(document.body, ROOMS);
+      const hall = place("hall");
+      expect(hall?.querySelector('[aria-label="Exits"]')?.textContent).toBe("North: library");
+      expect(hall?.querySelector('[aria-label="One-way in from"]')?.textContent).toBe(
+        "cellar, by its Up, through the trapdoor exit",
+      );
+      expect(place("library")?.querySelector('[aria-label="One-way in from"]')).toBeNull();
+    });
+
+    it("draws a way both directions as one line without arrows", () => {
+      mountStoryMap(document.body, ROOMS);
+      const edges = [...document.querySelectorAll(".map-edge")];
+      expect(edges.map((e) => [e.getAttribute("data-from"), e.getAttribute("marker-end")])).toEqual(
+        [
+          ["hall", null],
+          ["cellar", "url(#map-arrow)"],
+        ],
+      );
+      expect(edges[1]?.getAttribute("class")).toBe("map-edge guarded bent");
+    });
+
+    it("says why a view couldn't be made", () => {
+      const [rooms] = ROOMS.views;
+      if (!rooms) throw new Error("no view");
+      mountStoryMap(document.body, { views: [{ ...rooms, error: "The game couldn't begin." }] });
+      expect(document.querySelector(".map-error")?.textContent).toBe("The game couldn't begin.");
+    });
+
+    it("opens on the view it's asked for, and says when the reader chooses another", async () => {
+      const [rooms] = ROOMS.views;
+      const [passages] = MAP.views;
+      if (!rooms || !passages) throw new Error("no view");
+      const chosen = vi.fn();
+      mountStoryMap(document.body, { views: [passages, rooms] }, { view: "rooms", onView: chosen });
+      expect(document.querySelector("nav")?.getAttribute("aria-label")).toBe("Rooms");
+      const tab = [...document.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(
+        (t) => t.textContent === "Passages",
+      );
+      if (tab) await userEvent.setup().click(tab);
+      expect(chosen).toHaveBeenCalledWith("passages");
+    });
+  });
 });

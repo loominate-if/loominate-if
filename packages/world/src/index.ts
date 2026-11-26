@@ -10,6 +10,8 @@ import "./grammar.js";
 import "./messages.js";
 // Registers the world model's coverage checks: facts, topics, nodes, and actions out of the world.
 import "./coverage.js";
+// Registers the world model's view of the story map: its rooms and exits (#426).
+import "./map-view.js";
 // Says who acts, and adds the rules every action needs: a body, and its things in reach.
 export { reachNotNeeded } from "./acting.js";
 export {

@@ -66,6 +66,8 @@ export function mapPage(
 export const DEV_SCRIPT = `import { mountStoryMap } from "@loominate-if/inspector";
 const load = async () => (await fetch(${JSON.stringify(MAP_DATA)})).json();
 const map = mountStoryMap(document.body, await load(), {
+  view: location.hash.slice(1),
+  onView: (id) => { history.replaceState(null, "", "#" + id); },
   open: (s) => { void fetch("/__open-in-editor?file=" + encodeURIComponent(s.file + ":" + s.line + ":" + s.column)); },
 });
 new EventSource(${JSON.stringify(MAP_EVENTS)}).addEventListener("change", async () => { map.update(await load()); });
@@ -74,5 +76,8 @@ new EventSource(${JSON.stringify(MAP_EVENTS)}).addEventListener("change", async 
 /** A standalone map's script: the map beside it, drawn once, with sources shown rather than opened. */
 export const STANDALONE_SCRIPT = `import { mountStoryMap } from "@loominate-if/inspector";
 const data = document.getElementById(${JSON.stringify(MAP_DATA_ID)});
-mountStoryMap(document.body, JSON.parse(data?.textContent ?? '{"views":[]}'));
+mountStoryMap(document.body, JSON.parse(data?.textContent ?? '{"views":[]}'), {
+  view: location.hash.slice(1),
+  onView: (id) => { history.replaceState(null, "", "#" + id); },
+});
 `;

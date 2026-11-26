@@ -5,6 +5,7 @@
  * its own shell points `index.html` at its own module instead.
  */
 import { DEV_SCRIPT, MAP_SCRIPT } from "../map/page.js";
+import { MAP_VIEWS, mapViewsCode, RESOLVED_MAP_VIEWS } from "../map/runtime.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PASSAGE_EXTENSION } from "@loominate-if/compiler";
@@ -89,6 +90,7 @@ export function loominateApp(config: ResolvedConfig, options: AppOptions = {}): 
     async resolveId(source, importer) {
       if (source === MAIN) return RESOLVED;
       if (source === MAP_SCRIPT) return RESOLVED_MAP;
+      if (source === MAP_VIEWS) return RESOLVED_MAP_VIEWS;
       if (source === ERRORS) return RESOLVED_ERRORS;
       // Everything gets one copy of the inspector, so the panels that packages
       // and the game register are the ones it shows: the game's own if it
@@ -104,6 +106,7 @@ export function loominateApp(config: ResolvedConfig, options: AppOptions = {}): 
     load(id) {
       if (id === RESOLVED_ERRORS) return ERRORS_CODE;
       if (id === RESOLVED_MAP) return DEV_SCRIPT;
+      if (id === RESOLVED_MAP_VIEWS) return mapViewsCode(config);
       if (id !== RESOLVED) return;
       const files = passageFiles();
       const imports = files.map(

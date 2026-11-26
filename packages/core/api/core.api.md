@@ -637,6 +637,43 @@ export type LogNode = {
 export function logOnly(args?: Readonly<Record<string, never>>): LogNode;
 
 // @public
+export type MapViewContent = {
+    readonly nodes: readonly MapViewNode[];
+    readonly edges: readonly MapViewEdge[];
+};
+
+// @public
+export type MapViewEdge = {
+    readonly from: string;
+    readonly to: string;
+    readonly kind: string;
+    readonly label?: string;
+    readonly guarded?: true;
+    readonly bent?: true;
+};
+
+// @public
+export type MapViewNode = {
+    readonly id: string;
+    readonly label: string;
+    readonly tags?: readonly string[];
+    readonly start?: true;
+    readonly cell?: {
+        readonly x: number;
+        readonly y: number;
+    };
+};
+
+// @public
+export const mapViews: Registry<MapViewSource>;
+
+// @public
+export type MapViewSource = {
+    readonly title: string;
+    readonly view: (game: CoverageGame) => MapViewContent;
+};
+
+// @public
 export function markChapter(args: {
     readonly title: string;
 }, context: EffectContext): void;

@@ -33,7 +33,10 @@ export type DrawnEdge = {
   readonly label?: string;
   readonly guarded?: true;
   readonly conditional?: true;
-  readonly source: MapSource;
+  /** True if it doesn't run straight in its direction on a grid view, as `up`: it's drawn bent. */
+  readonly bent?: true;
+  /** Where it's written, when it's written in a passage. */
+  readonly source?: MapSource;
   /** The route, from the edge of `from` to the edge of `to`. */
   readonly points: readonly { readonly x: number; readonly y: number }[];
 };
@@ -46,6 +49,13 @@ export type DrawnView = {
   readonly height: number;
   readonly nodes: readonly DrawnNode[];
   readonly edges: readonly DrawnEdge[];
+  /**
+   * True for a view laid out on a grid, as rooms by compass: ways are named
+   * by their labels, as "North", and a way both directions is one line.
+   */
+  readonly grid?: true;
+  /** Why the view couldn't be made, as when the game couldn't begin. */
+  readonly error?: string;
 };
 
 /** A laid-out story map, as the CLI gives it to {@link mountStoryMap}. */
@@ -59,6 +69,10 @@ export type MapDrawing = {
 export type StoryMapOptions = {
   /** Opens a place's source, as in the author's editor. Without it, sources are shown as text. */
   readonly open?: (source: MapSource) => void;
+  /** The view to show first, by its id, as `rooms`. Defaults to the first. */
+  readonly view?: string;
+  /** Called with a view's id when the reader chooses it, as to put it in the page's address. */
+  readonly onView?: (id: string) => void;
 };
 
 /** A mounted story map. */
@@ -158,7 +172,7 @@ export function mountStoryMap(
   container.append(style, root);
 
   let current = drawing;
-  let viewId = drawing.views[0]?.id ?? "";
+  let viewId = drawing.views.find((v) => v.id === options.view)?.id ?? drawing.views[0]?.id ?? "";
   let selected: string | undefined;
   // The picture's viewBox: what part of the drawing shows, and at what zoom.
   let box = { x: 0, y: 0, w: 1, h: 1 };
@@ -178,12 +192,12 @@ export function mountStoryMap(
     const v = view();
     if (!v) return;
     const pad = 24;
-    setBox({
-      x: -pad,
-      y: -pad,
-      w: Math.max(v.width, 1) + pad * 2,
-      h: Math.max(v.height, 1) + pad * 2,
-    });
+    const w = Math.max(v.width, 1) + pad * 2;
+    const h = Math.max(v.height, 1) + pad * 2;
+    // Never larger than life: a small map sits in the middle at its own size.
+    const fw = Math.max(w, picture.clientWidth);
+    const fh = Math.max(h, picture.clientHeight);
+    setBox({ x: -pad - (fw - w) / 2, y: -pad - (fh - h) / 2, w: fw, h: fh });
   };
   const zoom = (factor: number, cx = box.x + box.w / 2, cy = box.y + box.h / 2): void => {
     const w = box.w * factor;
@@ -238,6 +252,8 @@ export function mountStoryMap(
   const drawOutline = (v: DrawnView): void => {
     outline.setAttribute("aria-label", v.title);
     const list = el("ul", { class: "map-places" });
+    const names = new Map(v.nodes.map((n) => [n.id, n.label]));
+    const nameOf = (id: string): string => names.get(id) ?? id;
     for (const node of v.nodes) {
       const heading = el("h2", { id: domId(v.id, node.id), tabindex: "-1" }, node.label);
       const notes = marks(node);
@@ -254,12 +270,26 @@ export function mountStoryMap(
         const ul = el("ul", { "aria-label": label });
         for (const e of edges) {
           const other = forward ? e.to : e.from;
-          const text = e.label !== undefined ? `${other}: “${e.label}”` : other;
-          ul.append(el("li", {}, goTo(other, text, qualifiers(e))));
+          // On a grid the label is the way, "North: library"; elsewhere it's a link's words.
+          const text = v.grid
+            ? forward
+              ? `${e.label ?? e.kind}: ${nameOf(other)}`
+              : `${nameOf(other)}, by its ${e.label ?? e.kind} exit`
+            : e.label !== undefined
+              ? `${nameOf(other)}: “${e.label}”`
+              : nameOf(other);
+          ul.append(el("li", {}, goTo(other, text, v.grid ? [] : qualifiers(e))));
         }
         return el("div", {}, el("p", { class: "map-label" }, `${label}:`), ul);
       };
-      item.append(section("Leads to", out, true), section("Reached from", into, false));
+      if (v.grid) {
+        // On a grid, a way back is the other room's exit, so only one-way ways in are listed.
+        const oneWay = into.filter((e) => !v.edges.some((r) => r.from === e.to && r.to === e.from));
+        item.append(section("Exits", out, true));
+        if (oneWay.length > 0) item.append(section("One-way in from", oneWay, false));
+      } else {
+        item.append(section("Leads to", out, true), section("Reached from", into, false));
+      }
       if (node.source) {
         const where = `${fileName(node.source.file)}, line ${String(node.source.line)}`;
         const open = options.open;
@@ -279,7 +309,10 @@ export function mountStoryMap(
       });
       list.append(item);
     }
-    outline.replaceChildren(list);
+    outline.replaceChildren(
+      ...(v.error !== undefined ? [el("p", { class: "map-error" }, v.error)] : []),
+      list,
+    );
   };
 
   const drawPicture = (v: DrawnView): void => {
@@ -296,22 +329,61 @@ export function mountStoryMap(
     marker.append(svg("path", { d: "M 0 0 L 10 5 L 0 10 z", class: "map-arrowhead" }));
     defs.append(marker);
     const edges = svg("g");
+    // On a grid, a way both directions between two rooms is one line, without arrows.
+    const pair = (e: DrawnEdge): string => `${e.from}\u0000${e.to}`;
+    const both = new Set(
+      v.grid
+        ? v.edges.filter((e) => v.edges.some((r) => r.from === e.to && r.to === e.from)).map(pair)
+        : [],
+    );
+    const drawn = new Set<string>();
+    const order = new Map(v.nodes.map((n, i) => [n.id, i]));
     for (const e of v.edges) {
       if (e.points.length < 2) continue;
+      const twoWay = both.has(pair(e));
+      // A pair is drawn once, from the room the reader meets first, so it reads "up / down" from there.
+      if (twoWay && (order.get(e.to) ?? 0) < (order.get(e.from) ?? 0)) continue;
+      if (twoWay && drawn.has(`${e.to}\u0000${e.from}`)) continue;
+      drawn.add(pair(e));
       const d = e.points
         .map((p, i) => `${i === 0 ? "M" : "L"} ${String(p.x)} ${String(p.y)}`)
         .join(" ");
       const path = svg("path", {
         d,
-        class: classes("map-edge", e.guarded && "guarded", e.conditional && "conditional"),
+        class: classes(
+          "map-edge",
+          e.guarded && "guarded",
+          e.conditional && "conditional",
+          e.bent && "bent",
+        ),
         "data-from": e.from,
         "data-to": e.to,
-        "marker-end": "url(#map-arrow)",
+        ...(!twoWay && { "marker-end": "url(#map-arrow)" }),
       });
       const tip = svg("title");
       tip.textContent = `${e.from} → ${e.to}${e.label !== undefined ? `: “${e.label}”` : ""}${qualifiers(e).length > 0 ? ` (${qualifiers(e).join(", ")})` : ""}`;
       path.append(tip);
       edges.append(path);
+      // A way that isn't a compass step says which way it is, as "up / down".
+      if (v.grid && e.bent) {
+        const back = twoWay ? v.edges.find((r) => r.from === e.to && r.to === e.from) : undefined;
+        const at =
+          e.points.length === 3
+            ? e.points[1]
+            : {
+                x: ((e.points[0]?.x ?? 0) + (e.points.at(-1)?.x ?? 0)) / 2,
+                y: ((e.points[0]?.y ?? 0) + (e.points.at(-1)?.y ?? 0)) / 2,
+              };
+        const label = svg("text", {
+          x: at?.x ?? 0,
+          y: at?.y ?? 0,
+          class: "map-way",
+          "text-anchor": "middle",
+          "dominant-baseline": "central",
+        });
+        label.textContent = back ? `${e.kind} / ${back.kind}` : e.kind;
+        edges.append(label);
+      }
     }
     const nodes = svg("g");
     for (const n of v.nodes) {
@@ -358,6 +430,7 @@ export function mountStoryMap(
           viewId = v.id;
           selected = undefined;
           render(true);
+          options.onView?.(v.id);
         });
         return tab;
       }),
