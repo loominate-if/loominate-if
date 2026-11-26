@@ -20,7 +20,10 @@ import {
   type ProjectFile,
   type SessionChange,
 } from "@loominate-if/compiler";
+import type { ServerResponse } from "node:http";
 import type { EnvironmentModuleNode, ErrorPayload, Logger, Plugin } from "vite";
+import { layoutStoryMap } from "../map/layout.js";
+import { MAP_DATA, MAP_EVENTS, MAP_PATH, MAP_SCRIPT, mapPage } from "../map/page.js";
 
 /** Options for {@link loominate}. */
 export type LoominateOptions = {
@@ -38,6 +41,8 @@ export type LoominateOptions = {
    * doesn't bury the error that matters.
    */
   readonly verbose?: boolean;
+  /** The game's title, for the story map's page. */
+  readonly title?: string;
 };
 
 /** The line saying how many diagnostics were held back, if any. */
@@ -152,6 +157,8 @@ export function loominate(options: LoominateOptions = {}): Plugin {
   let logger: Logger | undefined;
   /** Each file change, applied once and shared by every environment's hot update. */
   const changes = new Map<string, SessionChange>();
+  /** Story map pages open now, told when the game changes. */
+  const mapListeners = new Set<ServerResponse>();
 
   const active = (): CompilerSession => {
     if (!session) throw new Error("loominate: the plugin's config hasn't been resolved yet.");
@@ -230,6 +237,35 @@ export function loominate(options: LoominateOptions = {}): Plugin {
     },
 
     configureServer(server) {
+      // The story map (#149): its page, its data, and an event each time it may have changed.
+      server.middlewares.use((request, response, next) => {
+        const url = (request.url ?? "").split("?")[0];
+        if (url === MAP_PATH) {
+          response.setHeader("Content-Type", "text/html; charset=utf-8");
+          response.end(mapPage(options.title ?? "the game", { src: MAP_SCRIPT }));
+        } else if (url === MAP_DATA) {
+          layoutStoryMap(active().storyMap(), options.title).then(
+            (drawing) => {
+              response.setHeader("Content-Type", "application/json");
+              response.end(JSON.stringify(drawing));
+            },
+            (error: unknown) => {
+              next(error);
+            },
+          );
+        } else if (url === MAP_EVENTS) {
+          response.writeHead(200, {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive",
+          });
+          response.write(": connected\n\n");
+          mapListeners.add(response);
+          request.on("close", () => mapListeners.delete(response));
+        } else {
+          next();
+        }
+      });
       // Problems already in the game when the server starts, before any edit.
       report();
       // Each page that connects, including after the reload an edit causes,
@@ -333,6 +369,9 @@ export function loominate(options: LoominateOptions = {}): Plugin {
       if (!change) {
         change = active().update(file, type === "delete" ? undefined : await read());
         changes.set(key, change);
+        if (change.modules.length > 0 || change.passageNames) {
+          for (const listener of mapListeners) listener.write("event: change\ndata: \n\n");
+        }
         // Only the latest few are needed: one per environment for each change.
         for (const old of [...changes.keys()].slice(0, -16)) changes.delete(old);
         report();

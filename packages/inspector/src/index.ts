@@ -20,3 +20,13 @@ export { history } from "./history.js";
 export { replay } from "./replay.js";
 export { rules } from "./rules.js";
 export { stateTree } from "./state-tree.js";
+export {
+  mountStoryMap,
+  type DrawnEdge,
+  type DrawnNode,
+  type DrawnView,
+  type MapDrawing,
+  type MapSource,
+  type StoryMapOptions,
+  type StoryMapView,
+} from "./map/story-map.js";

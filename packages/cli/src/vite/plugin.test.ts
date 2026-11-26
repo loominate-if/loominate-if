@@ -177,6 +177,8 @@ describe("the loominate Vite plugin", () => {
             if (event === "vite:client:connect") listeners.push(listener);
           },
         },
+        // The story map's routes (#149), which this test doesn't use.
+        middlewares: { use: () => undefined },
       } as never,
     );
     const page: Client = { send: (payload) => sent.push(payload) };

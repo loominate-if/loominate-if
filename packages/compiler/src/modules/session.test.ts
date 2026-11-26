@@ -121,4 +121,28 @@ describe("a compiler session", { timeout: 30_000 }, () => {
     });
     expect(tagRoles).toEqual([{ name: "room", from: "@example/rooms" }]);
   });
+
+  it("maps the game's passages, with the start and unreachable passages marked (#149)", () => {
+    const session = createCompilerSession({
+      root,
+      compilerOptions,
+      start: "Hall",
+      files: [
+        { path: "story.ts", text: story },
+        { path: "hall.weft", text: hall },
+        { path: "cellar.weft", text: cellar },
+        { path: "attic.weft", text: ":: Attic\nDusty.\n" },
+      ],
+    });
+    const [passages] = session.storyMap().views;
+    expect(passages?.nodes.map((n) => [n.id, n.start ?? false, n.unreachable ?? false])).toEqual([
+      ["Hall", true, false],
+      ["Cellar", false, false],
+      ["Attic", false, true],
+    ]);
+    expect(passages?.edges.map((e) => `${e.from} -> ${e.to}`)).toEqual([
+      "Cellar -> Hall",
+      "Hall -> Cellar",
+    ]);
+  });
 });

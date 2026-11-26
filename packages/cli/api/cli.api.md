@@ -114,6 +114,7 @@ export type LoominateOptions = {
     readonly extensions?: readonly CompilerExtension[];
     readonly compilerOptions?: Parameters<typeof createCompilerSession>[0]["compilerOptions"];
     readonly verbose?: boolean;
+    readonly title?: string;
 };
 
 // @public
@@ -121,6 +122,18 @@ export function loominateWalkthrough(config: ResolvedConfig): Plugin;
 
 // @public
 export const MAIN = "/@loominate/main";
+
+// @public
+export type MapOptions = CommandOptions & {
+    readonly out?: string;
+};
+
+// @public
+export type MapResult = {
+    readonly file: string;
+    readonly passages: number;
+    readonly errors: number;
+};
 
 // @public
 export type NotReachedEntry = {
@@ -137,6 +150,9 @@ export type ResolvedConfig = LoominateConfig & {
     readonly inspectorModules: readonly string[];
     readonly runtimePackages: readonly string[];
 };
+
+// @public
+export function storyMap(options?: MapOptions): Promise<MapResult>;
 
 // @public
 export function test(options?: TestOptions): Promise<TestResult>;

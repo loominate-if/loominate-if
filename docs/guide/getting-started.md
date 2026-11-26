@@ -69,6 +69,10 @@ This writes `dist/my-game.html`, with everything inlined. Browsers differ in how
 
 Either build fails if the game has errors.
 
+## See it
+
+While `npm run dev` runs, the **Story map** address it prints shows your passages and the links between them, redrawn as you edit, with an outline for keyboards and screen readers. `npx loominate map` writes the map as one HTML file ([the story map](story-map.md)).
+
 ## Editing
 
 `@loominate-if/language-server` gives your editor the compiler's errors and TypeScript completion inside passage files ([editing passage files](editors.md)).
