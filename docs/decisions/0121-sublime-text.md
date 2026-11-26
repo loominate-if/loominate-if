@@ -1,6 +1,6 @@
 # 0121. Sublime Text support
 
-- **Status:** Accepted, 2026-11-25
+- **Status:** Withdrawn, 2026-11-25. Sublime Text support was removed ([#423](https://github.com/loominate-if/loominate-if/issues/423)): testing on Windows, its LSP plugin failed silently (the server never registered, [#421](https://github.com/loominate-if/loominate-if/issues/421)), and Sublime and its LSP package report only to the console, so each problem was slow to find. Zed, BBEdit, and VS Code remain.
 - **Issue:** [#413](https://github.com/loominate-if/loominate-if/issues/413)
 - **Design:** [Tooling](../DESIGN.md#tooling-1), [ADR 0118](0118-language-server.md), [ADR 0120](0120-bbedit.md)
 

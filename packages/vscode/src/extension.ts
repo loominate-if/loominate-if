@@ -2,7 +2,7 @@
  * @packageDocumentation
  * The VS Code extension for Loominate IF (#414, ADR 0122): passage files,
  * with the language server (#148) found from the workspace folder by the
- * same proxy BBEdit and Sublime Text start (ADR 0120).
+ * same proxy BBEdit starts (ADR 0120).
  */
 import { workspace, window, type ExtensionContext } from "vscode";
 import {
