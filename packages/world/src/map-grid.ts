@@ -48,6 +48,17 @@ const BESIDE: Readonly<Record<string, GridCell>> = {
   out: { x: -1, y: 1 },
 };
 
+/**
+ * Which way an exit in `direction` points on the grid, one cell's step, and
+ * whether it's a compass point; others point to the diagonal their room
+ * goes beside. @internal
+ */
+export function _gridStep(direction: string): GridCell & { readonly compass: boolean } {
+  const step = STEPS[direction];
+  if (step) return { ...step, compass: true };
+  return { ...(BESIDE[direction] ?? { x: 1, y: 0 }), compass: false };
+}
+
 const key = (c: GridCell): string => `${String(c.x)},${String(c.y)}`;
 const add = (a: GridCell, b: GridCell): GridCell => ({ x: a.x + b.x, y: a.y + b.y });
 

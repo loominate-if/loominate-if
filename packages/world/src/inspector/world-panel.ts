@@ -220,6 +220,19 @@ export const worldPanel: InspectorPanel = {
         };
         put("Has seen", k.seen);
         put("Knows of", k.knownOf);
+        // Where it believes things are, which the auto-map shows for the player (#396).
+        const where = el("dd");
+        where.append(
+          ...(k.lastSaw.length === 0
+            ? ["nothing"]
+            : k.lastSaw.flatMap((l, i) => [
+                ...(i === 0 ? [] : ["; "]),
+                jump(l.thing),
+                " in ",
+                jump(l.room),
+              ])),
+        );
+        seen.append(el("dt", undefined, "Last saw"), where);
         details.append(seen);
       }
       const store = context.player.store;

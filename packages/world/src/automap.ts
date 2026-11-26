@@ -15,12 +15,15 @@ import {
   type WidgetDefinition,
   type AutomapData,
   type AutomapFullMap,
+  type AutomapMarker,
+  type AutomapStub,
 } from "@loominate-if/presentation";
-import { currentPlayerBody } from "./actors.js";
+import { currentPlayerBody, currentPlayerMind, isBody } from "./actors.js";
+import { _gridStep } from "./map-grid.js";
 import { exitsOf } from "./exits.js";
 import { _worldMap, type WorldMap } from "./map-layout.js";
 import { visitsTo } from "./rooms.js";
-import { placeOf, type Place } from "./things.js";
+import { _allThings, _mapMarking, isPlace, isWithin, placeOf, type Place } from "./things.js";
 
 /** How the world model's auto-map is drawn, for {@link automap}. */
 export type AutomapSettings = {
@@ -96,6 +99,67 @@ function summaryOf(map: WorldMap, here: Place, visited: ReadonlySet<string>): st
   return message("automap.summary", { room: here, nearby });
 }
 
+/**
+ * What the player last saw where (#396), by room: people, unless marked
+ * `onMap: false`, and things marked `onMap`. It's what the player's mind
+ * remembers, not where they are now. What the player carries isn't marked.
+ */
+function markersByRoom(): Map<string, AutomapMarker[]> {
+  const byRoom = new Map<string, AutomapMarker[]>();
+  const mind = currentPlayerMind();
+  const body = currentPlayerBody();
+  if (!mind) return byRoom;
+  const people: [string, AutomapMarker][] = [];
+  const things: [string, AutomapMarker][] = [];
+  for (const t of _allThings()) {
+    if (isPlace(t) || (body && (t.id === body.id || isWithin(t, body)))) continue;
+    const marking = _mapMarking(t);
+    const person = isBody(t);
+    if (marking === false || (marking === undefined && !person)) continue;
+    const room = mind.lastSaw(t);
+    if (!room) continue;
+    const marked = typeof marking === "object" ? marking : {};
+    const marker: AutomapMarker = {
+      label: marked.label ?? t.name,
+      ...(marked.icon !== undefined && { icon: marked.icon }),
+      ...(person && { person: true as const }),
+    };
+    (person ? people : things).push([room.id, marker]);
+  }
+  // People first, then things, each in the order they're defined.
+  for (const [room, marker] of [...people, ...things]) {
+    byRoom.set(room, [...(byRoom.get(room) ?? []), marker]);
+  }
+  return byRoom;
+}
+
+/** A visited room's ways to rooms the player hasn't been to, as stubs pointing their way. */
+function stubsOf(room: Place, visited: ReadonlySet<string>): AutomapStub[] {
+  return exitsOf(room)
+    .filter((e) => e.hidden !== true && !visited.has(e.to.id))
+    .map((e) => {
+      const step = _gridStep(e.direction.name);
+      return {
+        x: step.x,
+        y: step.y,
+        ...(!step.compass && {
+          label: message("compass.short", { direction: e.direction.name }),
+        }),
+      };
+    });
+}
+
+/** What a room shows besides its name: its markers and stubs, if it has any. */
+function extras(
+  room: Place,
+  visited: ReadonlySet<string>,
+  markers: ReadonlyMap<string, readonly AutomapMarker[]>,
+): Pick<AutomapRoom, "markers" | "stubs"> {
+  const here = markers.get(room.id) ?? [];
+  const stubs = stubsOf(room, visited);
+  return { ...(here.length > 0 && { markers: here }), ...(stubs.length > 0 && { stubs }) };
+}
+
 /** The visited rooms around the player, in a window of `columns` by `rows` cells. @internal */
 export function _automapView(size: { columns: number; rows: number }): AutomapView | undefined {
   const now = whereNow();
@@ -105,6 +169,7 @@ export function _automapView(size: { columns: number; rows: number }): AutomapVi
   const left = centre.x - Math.floor(size.columns / 2);
   const top = centre.y - Math.floor(size.rows / 2);
   const visited = visitedRooms(map, here);
+  const markers = markersByRoom();
   // A room in the window, or just outside it, so a way can run off the edge toward it.
   const near = (x: number, y: number): boolean =>
     x >= -1 && y >= -1 && x <= size.columns && y <= size.rows;
@@ -114,7 +179,16 @@ export function _automapView(size: { columns: number; rows: number }): AutomapVi
     const x = cell.x - left;
     const y = cell.y - top;
     if (!near(x, y)) return [];
-    return [{ id: r.id, label: r.name, x, y, ...(r.id === here.id && { current: true as const }) }];
+    return [
+      {
+        id: r.id,
+        label: r.name,
+        x,
+        y,
+        ...(r.id === here.id && { current: true as const }),
+        ...extras(r, visited, markers),
+      },
+    ];
   });
   return {
     summary: summaryOf(map, here, visited),
@@ -133,6 +207,7 @@ export function _automapFull(): AutomapFullMap | undefined {
   if (!now) return undefined;
   const { here, map } = now;
   const visited = visitedRooms(map, here);
+  const markers = markersByRoom();
   const placed = map.rooms.flatMap((r) => {
     const cell = map.layout.cells.get(r.id);
     return cell && visited.has(r.id) ? [{ room: r, cell }] : [];
@@ -154,6 +229,7 @@ export function _automapFull(): AutomapFullMap | undefined {
         }),
         ...(visited.has(exit.to.id) && { to: exit.to.id }),
       })),
+    ...extras(room, visited, markers),
   }));
   return {
     columns: Math.max(...rooms.map((r) => r.x)) + 1,

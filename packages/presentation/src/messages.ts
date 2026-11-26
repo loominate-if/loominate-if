@@ -71,7 +71,10 @@ declare module "@loominate-if/core" {
       readonly room: string;
       readonly current: boolean;
       readonly ways: readonly string[];
+      readonly markers: readonly string[];
     };
+    /** What the player last saw in a room, in the full map's list (#396): "Last seen here: Tobias, chest." */
+    "automap.seenHere": { readonly markers: readonly string[] };
     /** Beside the player's room in the full map's list: "you're here". */
     "automap.here": None;
     /** The full map's Close button. */
@@ -274,9 +277,14 @@ register("automap.nowhere", "Nowhere on the map.");
 register("automap.title", "Map");
 register("automap.keys", "Arrow keys move between rooms on the map, and Home goes back to yours.");
 register("automap.rooms", "Rooms");
-register("automap.room", ({ room, current, ways }) =>
-  [`${room}${current ? ", where you are" : ""}.`, ...ways.map((w) => `${w}.`)].join(" "),
+register("automap.room", ({ room, current, ways, markers }) =>
+  [
+    `${room}${current ? ", where you are" : ""}.`,
+    ...ways.map((w) => `${w}.`),
+    ...(markers.length > 0 ? [`Last seen here: ${markers.join(", ")}.`] : []),
+  ].join(" "),
 );
+register("automap.seenHere", ({ markers }) => `Last seen here: ${markers.join(", ")}.`);
 register("automap.here", "you're here");
 register("automap.close", "Close");
 register("menu.nothing", "Nothing to do with it.");

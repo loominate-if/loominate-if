@@ -22,6 +22,25 @@ export type AutomapWay = {
   readonly to?: string;
 };
 
+/** Something or someone on the map, where the player last saw it (#396). */
+export type AutomapMarker = {
+  /** What it's called: "Tobias", "chest". */
+  readonly label: string;
+  /** An image's URL to draw it with; without one, it's a small mark. */
+  readonly icon?: string;
+  /** True for a person, drawn as a round mark when there's no icon. */
+  readonly person?: true;
+};
+
+/** A way out of a room to somewhere the player hasn't been, drawn as a short line that way. */
+export type AutomapStub = {
+  /** Which way it points: a step of -1, 0, or 1 across and down. */
+  readonly x: number;
+  readonly y: number;
+  /** What to write by it, for a way that isn't a compass point, as "Up". */
+  readonly label?: string;
+};
+
 /** A room on the map, in its cell: x to the east, y to the south, counted from the window's top left. */
 export type AutomapRoom = {
   /** A stable ID, as the room's object ID. */
@@ -34,6 +53,10 @@ export type AutomapRoom = {
   readonly current?: true;
   /** Its ways out, for the full map. */
   readonly ways?: readonly AutomapWay[];
+  /** What the player last saw here. */
+  readonly markers?: readonly AutomapMarker[];
+  /** Its ways to rooms the player hasn't been to. */
+  readonly stubs?: readonly AutomapStub[];
 };
 
 /** A way between two rooms on the map. */
@@ -95,9 +118,15 @@ type Scale = {
   readonly boxW: number;
   readonly boxH: number;
   readonly letters: number;
+  /** A marker's size. */
+  readonly mark: number;
 };
-const SMALL: Scale = { cellW: 64, cellH: 40, boxW: 52, boxH: 24, letters: 8 };
-const FULL: Scale = { cellW: 128, cellH: 72, boxW: 104, boxH: 36, letters: 14 };
+const SMALL: Scale = { cellW: 64, cellH: 40, boxW: 52, boxH: 24, letters: 8, mark: 7 };
+const FULL: Scale = { cellW: 128, cellH: 72, boxW: 104, boxH: 36, letters: 14, mark: 14 };
+/** The full map's margin around its rooms, for stubs off rooms on its edges. */
+const MARGIN = { x: FULL.cellW / 2, y: FULL.cellH / 2 };
+/** How many markers a room's box shows before "+2". */
+const MARKS_SHOWN = 3;
 
 /** Where the line from a box's centre toward a point leaves the box. */
 function edgeOf(scale: Scale, cx: number, cy: number, tx: number, ty: number): [number, number] {
@@ -148,6 +177,90 @@ export function _roomToward(
   return best?.room;
 }
 
+/** A short line from a room's box toward a way the player hasn't taken, named if it isn't a compass point. */
+function Stub(props: {
+  readonly scale: Scale;
+  readonly cx: number;
+  readonly cy: number;
+  readonly stub: AutomapStub;
+  readonly full: boolean;
+}) {
+  const { scale, cx, cy, stub, full } = props;
+  const tx = cx + stub.x * scale.cellW * 0.45;
+  const ty = cy + stub.y * scale.cellH * 0.45;
+  const [x1, y1] = edgeOf(scale, cx, cy, tx, ty);
+  return (
+    <g className="loominate-automap-stub" aria-hidden="true">
+      <line x1={x1} y1={y1} x2={tx} y2={ty} />
+      {full && stub.label !== undefined && (
+        <text
+          className="loominate-automap-way"
+          x={tx}
+          y={ty}
+          text-anchor="middle"
+          dominant-baseline="central"
+        >
+          {stub.label}
+        </text>
+      )}
+    </g>
+  );
+}
+
+/** A room's markers, along the top of its box: icons, or small marks, and "+2" for the rest. */
+function Marks(props: {
+  readonly scale: Scale;
+  readonly cx: number;
+  readonly cy: number;
+  readonly markers: readonly AutomapMarker[];
+}) {
+  const { scale, cx, cy, markers } = props;
+  const size = scale.mark;
+  const top = cy - scale.boxH / 2 - size / 2;
+  const right = cx + scale.boxW / 2 - 2;
+  const shown = markers.slice(0, MARKS_SHOWN);
+  const more = markers.length - shown.length;
+  return (
+    <g className="loominate-automap-marks" aria-hidden="true">
+      {shown.map((m, i) => {
+        const x = right - (i + 1) * (size + 2);
+        return m.icon !== undefined ? (
+          <image key={i} href={m.icon} x={x} y={top} width={size} height={size} />
+        ) : m.person ? (
+          <circle
+            key={i}
+            className="loominate-automap-person"
+            cx={x + size / 2}
+            cy={top + size / 2}
+            r={size / 2 - 1}
+          />
+        ) : (
+          <rect
+            key={i}
+            className="loominate-automap-thing"
+            x={x + size * 0.2}
+            y={top + size * 0.2}
+            width={size * 0.6}
+            height={size * 0.6}
+            transform={`rotate(45 ${String(x + size / 2)} ${String(top + size / 2)})`}
+          />
+        );
+      })}
+      {more > 0 && (
+        <text
+          className="loominate-automap-more"
+          x={right - shown.length * (size + 2) - 2}
+          y={top + size / 2}
+          text-anchor="end"
+          dominant-baseline="central"
+        >
+          {`+${String(more)}`}
+        </text>
+      )}
+    </g>
+  );
+}
+
 /** A map's rooms and ways, drawn: hidden from screen readers when small, rooms to move between when full. */
 function Drawing(props: {
   readonly scale: Scale;
@@ -166,12 +279,14 @@ function Drawing(props: {
   const { scale, columns, rows, view, focus } = props;
   const at = new Map(view.rooms.map((r) => [r.id, r]));
   const centre = (r: AutomapRoom): [number, number] => [
-    r.x * scale.cellW + scale.cellW / 2,
-    r.y * scale.cellH + scale.cellH / 2,
+    (focus ? MARGIN.x : 0) + r.x * scale.cellW + scale.cellW / 2,
+    (focus ? MARGIN.y : 0) + r.y * scale.cellH + scale.cellH / 2,
   ];
   const shown = (r: AutomapRoom): boolean => r.x >= 0 && r.y >= 0 && r.x < columns && r.y < rows;
-  const width = columns * scale.cellW;
-  const height = rows * scale.cellH;
+  // The full map has half a cell's margin, for stubs off rooms on its edges.
+  const margin = focus ? MARGIN : { x: 0, y: 0 };
+  const width = columns * scale.cellW + 2 * margin.x;
+  const height = rows * scale.cellH + 2 * margin.y;
   const arrow = focus ? "loominate-automap-arrow-full" : "loominate-automap-arrow";
   return (
     <svg
@@ -265,6 +380,19 @@ function Drawing(props: {
             <text x={cx} y={cy} text-anchor="middle" dominant-baseline="central" aria-hidden="true">
               {shortened(r.label, scale.letters)}
             </text>
+            {(r.stubs ?? []).map((stub) => (
+              <Stub
+                key={`${String(stub.x)},${String(stub.y)},${stub.label ?? ""}`}
+                scale={scale}
+                cx={cx}
+                cy={cy}
+                stub={stub}
+                full={focus !== undefined}
+              />
+            ))}
+            {(r.markers ?? []).length > 0 && (
+              <Marks scale={scale} cx={cx} cy={cy} markers={r.markers ?? []} />
+            )}
           </g>
         );
       })}
@@ -278,7 +406,14 @@ const roomLabel = (r: AutomapRoom): string =>
     room: r.label,
     current: r.current === true,
     ways: (r.ways ?? []).map((w) => w.label),
+    markers: (r.markers ?? []).map((m) => m.label),
   });
+
+/** A room's tooltip: its full name, and what was last seen there. */
+const tipOf = (r: AutomapRoom): string =>
+  (r.markers ?? []).length > 0
+    ? `${r.label}: ${(r.markers ?? []).map((m) => m.label).join(", ")}`
+    : r.label;
 
 /** The full map, in a modal dialog: the drawing, rooms to move between, and the list beside it. */
 function FullMap(props: {
@@ -389,11 +524,11 @@ function FullMap(props: {
                 className="loominate-automap-tip"
                 aria-hidden="true"
                 style={{
-                  left: `${String(shownTip.x * FULL.cellW + FULL.cellW / 2)}px`,
-                  top: `${String(shownTip.y * FULL.cellH + FULL.cellH / 2 + FULL.boxH / 2 + 4)}px`,
+                  left: `${String(MARGIN.x + shownTip.x * FULL.cellW + FULL.cellW / 2)}px`,
+                  top: `${String(MARGIN.y + shownTip.y * FULL.cellH + FULL.cellH / 2 + FULL.boxH / 2 + 4)}px`,
                 }}
               >
-                {shownTip.label}
+                {tipOf(shownTip)}
               </div>
             )}
           </div>
@@ -414,6 +549,13 @@ function FullMap(props: {
                 </button>
                 {r.current && (
                   <span className="loominate-automap-here">{` (${message("automap.here")})`}</span>
+                )}
+                {(r.markers ?? []).length > 0 && (
+                  <p className="loominate-automap-seen">
+                    {message("automap.seenHere", {
+                      markers: (r.markers ?? []).map((m) => m.label),
+                    })}
+                  </p>
                 )}
                 {(r.ways ?? []).length > 0 && (
                   <ul>
