@@ -9,7 +9,7 @@ import {
 } from "@loominate-if/core";
 import { widgets, type AutomapData } from "@loominate-if/presentation";
 import { beforeEach, describe, expect, it } from "vitest";
-import { _automapView } from "./automap.js";
+import { _automapFull, _automapView } from "./automap.js";
 import { actor, connect, enterRoom, place, registerRoom, startAs, type Place } from "./index.js";
 
 const taproom = place("taproom", { name: "taproom" });
@@ -92,5 +92,56 @@ describe("the auto-map", () => {
   it("is registered as a widget", () => {
     const data = widgets.get("automap")?.data({} as never) as AutomapData;
     expect([data.columns, data.rows, data.view?.rooms.length]).toEqual([5, 3, 1]);
+    // With the whole map, which the small one opens (#395).
+    expect(data.full?.view.rooms.map((r) => r.id)).toEqual(["taproom"]);
+  });
+});
+
+describe("the full map (#395)", () => {
+  const full = () => _automapFull();
+
+  it("has every visited room, on a grid just big enough for them", () => {
+    story.goTo("Kitchen");
+    story.goTo("Taproom");
+    story.goTo("Landing");
+    story.goTo("Bedroom");
+    const map = full();
+    expect([map?.columns, map?.rows]).toEqual([3, 2]);
+    expect(
+      map?.view.rooms.map((r) => `${r.id} ${String(r.x)},${String(r.y)}${r.current ? " *" : ""}`),
+    ).toEqual(["taproom 0,1", "kitchen 1,1", "landing 1,0", "bedroom 2,0 *"]);
+    expect(map?.view.summary).toBe(
+      "Map: you're in the bedroom. Visited nearby: the landing to the west.",
+    );
+  });
+
+  it("gives each room its ways out, naming only rooms the player has been to", () => {
+    story.goTo("Kitchen");
+    story.goTo("Taproom");
+    const taproom = full()?.view.rooms.find((r) => r.id === "taproom");
+    expect(taproom?.ways).toEqual([
+      { label: "East: the kitchen", to: "kitchen" },
+      { label: "West: not explored" },
+      { label: "Up: not explored" },
+    ]);
+  });
+
+  it("draws the ways between visited rooms, wherever they are", () => {
+    story.goTo("Landing");
+    story.goTo("Bedroom");
+    expect(full()?.view.links).toEqual([
+      { from: "taproom", to: "landing", label: "Up / Down" },
+      { from: "landing", to: "bedroom" },
+    ]);
+  });
+
+  it("follows an undo, as it's read from state", () => {
+    const history = createHistory(store);
+    history.checkpoint("begun");
+    story.goTo("Kitchen");
+    history.checkpoint("kitchen");
+    expect(full()?.view.rooms.map((r) => r.id)).toEqual(["taproom", "kitchen"]);
+    history.undo();
+    expect(full()?.view.rooms.map((r) => r.id)).toEqual(["taproom"]);
   });
 });

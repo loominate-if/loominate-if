@@ -183,6 +183,29 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
 .loominate-automap-arrowhead { fill: ${v("color-muted")}; }
 .loominate-automap-way { fill: ${v("color-muted")}; font-size: 9px; paint-order: stroke; stroke: ${v("color-background")}; stroke-width: 3px; }
 .loominate-automap-empty { margin: 0; color: ${v("color-muted")}; }
+/* The small map as the button that opens the full map (#395). */
+.loominate-automap-open { display: block; width: 100%; max-width: 20em; padding: 0; color: inherit; background: none; border: 1px solid transparent; border-radius: ${v("radius")}; cursor: pointer; }
+.loominate-automap-open:hover { border-color: ${v("color-border")}; }
+.loominate-automap-open:focus-visible { outline: 2px solid ${v("color-focus")}; outline-offset: 2px; }
+/* The full map: the drawing, scrolled when large, and the list of rooms beside it. */
+.loominate-automap-full { display: flex; flex-wrap: wrap; gap: ${v("space")}; align-items: flex-start; }
+.loominate-automap-scroll { flex: 1 1 24rem; min-width: 0; max-height: 60vh; overflow: auto; overscroll-behavior: contain; border: 1px solid ${v("color-border")}; border-radius: ${v("radius")}; }
+/* Room below the bottom row for a room's tooltip. */
+.loominate-automap-canvas { position: relative; width: max-content; padding-block-end: 1.75em; }
+.loominate-automap-canvas .loominate-automap-picture { width: auto; max-width: none; }
+.loominate-automap-canvas .loominate-automap-room text { font-size: 13px; }
+.loominate-automap-canvas .loominate-automap-way { font-size: 11px; }
+.loominate-automap-canvas .loominate-automap-room { cursor: default; }
+.loominate-automap-canvas .loominate-automap-room:focus { outline: none; }
+.loominate-automap-canvas .loominate-automap-room:focus-visible rect { stroke: ${v("color-focus")}; stroke-width: 3; stroke-dasharray: 4 2; }
+.loominate-automap-tip { position: absolute; transform: translateX(-50%); padding: 0.1em 0.4em; white-space: nowrap; pointer-events: none; color: ${v("color-background")}; background: ${v("color-text")}; border-radius: ${v("radius")}; font-size: 0.85em; }
+.loominate-automap-list { flex: 0 1 16rem; max-height: 60vh; overflow-y: auto; }
+.loominate-automap-list h3 { margin-block: 0 0.5em; font-size: 1em; }
+.loominate-automap-list ul { margin: 0; padding-inline-start: 1.2em; }
+.loominate-automap-list > ul { padding: 0; list-style: none; }
+.loominate-automap-list > ul > li { margin-block-end: 0.5em; }
+.loominate-automap-here { color: ${v("color-muted")}; }
+.loominate-automap-unexplored { color: ${v("color-muted")}; }
 .loominate-things-title { color: ${v("color-muted")}; }
 /* A thing's menu, under its name. */
 .loominate-has-menu { position: relative; display: inline-block; }
@@ -319,7 +342,7 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   color: ${v("color-muted")};
   cursor: not-allowed;
 }
-.loominate-saves, .loominate-log, .loominate-seed, .loominate-sound {
+.loominate-saves, .loominate-log, .loominate-seed, .loominate-sound, .loominate-automap-dialog {
   color: ${v("color-text")};
   background: ${v("color-background")};
   line-height: ${v("line-height")};
@@ -329,11 +352,13 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
   border-radius: ${v("radius")};
   font-family: ${v("font-ui")};
 }
-.loominate-saves::backdrop, .loominate-log::backdrop, .loominate-seed::backdrop, .loominate-sound::backdrop { background: rgb(0 0 0 / 0.4); }
-.loominate-saves :focus-visible, .loominate-log :focus-visible, .loominate-seed :focus-visible, .loominate-sound :focus-visible {
+.loominate-saves::backdrop, .loominate-log::backdrop, .loominate-seed::backdrop, .loominate-sound::backdrop, .loominate-automap-dialog::backdrop { background: rgb(0 0 0 / 0.4); }
+.loominate-saves :focus-visible, .loominate-log :focus-visible, .loominate-seed :focus-visible, .loominate-sound :focus-visible, .loominate-automap-dialog button:focus-visible {
   outline: 2px solid ${v("color-focus")};
   outline-offset: 2px;
 }
+/* The full map (#395): wide enough for the drawing and the list of rooms side by side. */
+.loominate-automap-dialog { width: min(60rem, 100% - 2 * ${v("space")}); max-height: calc(100vh - 2 * ${v("space")}); }
 /* The story log and transcript (#127): a tall dialog, the newest at the bottom. */
 .loominate-log { width: min(44rem, 100% - 2 * ${v("space")}); max-height: calc(100vh - 2 * ${v("space")}); }
 .loominate-log-body { max-height: 60vh; overflow-y: auto; overscroll-behavior: contain; font-family: ${v("font-body")}; }

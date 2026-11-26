@@ -35,6 +35,8 @@ declare module "@loominate-if/core" {
     "automap.summary": { readonly room: ObjectRef; readonly nearby: readonly string[] };
     /** A visited room next to the player's, in the auto-map's summary: "the kitchen to the east", "the landing upstairs". */
     "automap.nearby": { readonly room: ObjectRef; readonly direction: string };
+    /** A way out of a room, in the full map's list (#395): "East: the kitchen", or "North: not explored" for a room the player hasn't been to. */
+    "automap.way": { readonly direction: string; readonly room?: ObjectRef };
   }
 }
 
@@ -66,6 +68,11 @@ register("automap.summary", ({ room, nearby }) =>
       ? `Visited nearby: ${nearby.join(", ")}.`
       : "You haven't been anywhere next to it.",
   ].join(" "),
+);
+register("automap.way", ({ direction, room }) =>
+  room
+    ? `${directionNamed(direction)?.label ?? direction}: ${t`{the room}`({ room })}`
+    : `${directionNamed(direction)?.label ?? direction}: not explored`,
 );
 register(
   "automap.nearby",

@@ -871,7 +871,8 @@ addToHeader("automap");
 
 - **What it shows:** a window five cells across and three down, with the player's room in the middle and marked. Only rooms the player has visited are drawn, so the map grows as they explore. Rooms keep their places as it grows, as the map is laid out from the room the player starts in.
 - **Ways between rooms:** a way both directions is a line, and a one-way exit has an arrow. Up, down, in, and out, and your own directions, put their room on a diagonal beside the one they lead from, and are named on the line, as "Up / Down".
-- **For a screen reader**, the map is one image that says where the player is and the visited rooms next to it: "Map: you're in the taproom. Visited nearby: the kitchen to the east, the landing upstairs." The words are the `automap.summary` and `automap.nearby` messages.
+- **For a screen reader**, the small map is a button that says where the player is and the visited rooms next to it: "Map: you're in the taproom. Visited nearby: the kitchen to the east, the landing upstairs." The words are the `automap.summary` and `automap.nearby` messages.
+- **Choosing it opens the full map:** every room the player has visited, scrolled when it's large, with a list of the rooms beside it. Each room's ways out are listed, as "East: the kitchen", or "North: not explored" for a room the player hasn't been to (the `automap.way` message). On the drawing, the arrow keys move between rooms, reading each with its ways, and Home goes back to the player's room. Escape or Close returns to the game.
 - **It follows the game:** it's read from the game's state each time it's drawn, so undo, loading a save, and replays show what they should.
 
 Change the window by replacing the widget: `widgets.replace("automap", automap({ columns: 7, rows: 5 }))`. Like the compass's, its data is plain, rooms in cells and the ways between them, so you can draw it your own way.

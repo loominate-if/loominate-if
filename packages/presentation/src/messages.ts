@@ -60,6 +60,22 @@ declare module "@loominate-if/core" {
     "automap.label": None;
     /** The auto-map when the player isn't in a room on it. */
     "automap.nowhere": None;
+    /** The full map's title (#395). */
+    "automap.title": None;
+    /** How to move about the full map's drawing, for screen readers and as a hint. */
+    "automap.keys": None;
+    /** The heading over the full map's list of rooms. */
+    "automap.rooms": None;
+    /** A room on the full map, as a screen reader reads it: "kitchen, where you are. West: the taproom. North: not explored." */
+    "automap.room": {
+      readonly room: string;
+      readonly current: boolean;
+      readonly ways: readonly string[];
+    };
+    /** Beside the player's room in the full map's list: "you're here". */
+    "automap.here": None;
+    /** The full map's Close button. */
+    "automap.close": None;
     /** A things widget, such as the inventory, with nothing in it. */
     "things.nothing": None;
     /** A thing's menu with nothing to offer. */
@@ -255,6 +271,14 @@ register("status.moves", ({ count }) => `Moves: ${String(count)}`);
 register("compass.label", "Compass");
 register("automap.label", "Map");
 register("automap.nowhere", "Nowhere on the map.");
+register("automap.title", "Map");
+register("automap.keys", "Arrow keys move between rooms on the map, and Home goes back to yours.");
+register("automap.rooms", "Rooms");
+register("automap.room", ({ room, current, ways }) =>
+  [`${room}${current ? ", where you are" : ""}.`, ...ways.map((w) => `${w}.`)].join(" "),
+);
+register("automap.here", "you're here");
+register("automap.close", "Close");
 register("menu.nothing", "Nothing to do with it.");
 register("menu.ask.back", "Back");
 register("menu.ask.of", ({ max }) => `of ${String(max)}`);
