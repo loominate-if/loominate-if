@@ -555,6 +555,11 @@ export type _Details = {
         readonly nudged: boolean;
         readonly pinned: boolean;
     };
+    readonly exits?: readonly {
+        readonly direction: string;
+        readonly to: string;
+        readonly hidden: boolean;
+    }[];
 };
 
 // @public
@@ -698,6 +703,7 @@ export type Exit = {
     readonly via?: Thing;
     readonly minutes?: number;
     readonly journey?: string;
+    readonly hidden?: true;
 };
 
 // @public
@@ -717,6 +723,7 @@ export type ExitSpec = {
     readonly via?: ObjectRef;
     readonly minutes?: number;
     readonly journey?: string;
+    readonly hidden?: boolean;
 };
 
 // @public

@@ -57,7 +57,8 @@ export type CompassSettings = {
 const exitsHere = (): readonly Exit[] => {
   const body = currentPlayerBody();
   const here = body ? placeOf(body) : undefined;
-  return here ? exitsOf(here) : [];
+  // A hidden exit isn't a way the player knows of (#431).
+  return here ? exitsOf(here).filter((e) => e.hidden !== true) : [];
 };
 
 /**

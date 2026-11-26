@@ -78,7 +78,8 @@ onMove((moved, from) => {
   }
   if (from?.id !== here.id || !to || !isInLight(player)) return;
   const exit = exitsOf(here).find((e) => e.to.id === to.id);
-  if (exit) {
+  // Someone who takes a hidden way can't be followed: the player doesn't know it's there (#431).
+  if (exit && exit.hidden !== true) {
     state.trails = { ...state.trails, [moved.id]: { from: here.id, way: exit.direction.name } };
   }
 });

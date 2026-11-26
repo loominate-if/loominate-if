@@ -177,7 +177,10 @@ onMove((moved, from) => {
   if (!here || from?.id === to?.id) return;
   const self = moved as Thing & Narrated;
   if (from?.id === here.id && isInLight(player)) {
-    const d = to ? exitsOf(here).find((e) => e.to.id === to.id)?.direction : undefined;
+    // A hidden way isn't named, so it isn't given away (#431).
+    const d = to
+      ? exitsOf(here).find((e) => e.to.id === to.id && e.hidden !== true)?.direction
+      : undefined;
     const way = d ? message("direction.toward", { direction: d.name }) : undefined;
     const text = self.leaves
       ? self.leaves(way)
@@ -189,7 +192,9 @@ onMove((moved, from) => {
       if (b.id !== moved.id && canSee(b, moved)) for (const m of mindsIn(b)) m.see(moved);
     }
     if (!canSee(player, moved)) return;
-    const d = from ? exitsOf(here).find((e) => e.to.id === from.id)?.direction : undefined;
+    const d = from
+      ? exitsOf(here).find((e) => e.to.id === from.id && e.hidden !== true)?.direction
+      : undefined;
     const way = d ? message("direction.from", { direction: d.name }) : undefined;
     const text = self.arrives
       ? self.arrives(way)

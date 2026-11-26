@@ -788,6 +788,30 @@ expect(summary()).toEqual(["North -> Library", "Down -> Cellar"]);
 - `exitsOf(room)` lists a room's exits, and `blockedReason(exit, traveler)` says why one is blocked.
 - `setExit(room, direction, exit)` changes an exit during play, and `setExit(room, direction, null)` removes one, such as when a tunnel collapses. Exits are state, so undo and saves keep the change. A room changed this way must be connected in `story.ts`, even with no exits: `connect(cave, {})`.
 
+### Hidden exits
+
+A secret way, such as a passage behind a bookcase, is an exit with `hidden: true`:
+
+<!-- example: packages/world/src/hidden-exits.test.ts#hidden -->
+```ts
+const library = place("library", { name: "library" });
+const vault = place("vault", { name: "vault" });
+connect(library, { south: hall, north: { to: vault, hidden: true } });
+```
+
+The player can't find or take it: the compass, the `{exits}` links, and the auto-map leave it out, and someone the player sees go through it just "leaves", with no way named, and can't be followed. Characters you move can still take it, and the map still uses it to place rooms, so revealing it doesn't move rooms already drawn. The story map's Rooms view and the inspector's World tab show it, marked hidden.
+
+Reveal it with `setExit`, giving the exit without `hidden`, as when the player pulls the right book:
+
+<!-- example: packages/world/src/hidden-exits.test.ts#reveal -->
+```ts
+enter: () => {
+  setExit(library, "north", { to: vault });
+},
+```
+
+A door or obstacle on a hidden exit is still a thing in the room; make it secret too if it would give the way away. `exitsOf` lists hidden exits, with `hidden: true`, so filter them out for ways the player knows.
+
 ### Journeys
 
 A **journey** is a way long enough to be stopped partway: a subway ride a bomb on the tracks brings to a halt, though a phone call on the way is only told. Define it with `journey()`, and have exits name it:

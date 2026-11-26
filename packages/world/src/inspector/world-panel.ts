@@ -183,6 +183,19 @@ export const worldPanel: InspectorPanel = {
               : cell,
         );
       }
+      if (d.exits) {
+        row(
+          "Exits",
+          ...(d.exits.length === 0
+            ? ["none"]
+            : d.exits.flatMap((e, i) => [
+                ...(i === 0 ? [] : ["; "]),
+                `${e.direction}: `,
+                jump(e.to),
+                ...(e.hidden ? [" (hidden)"] : []),
+              ])),
+        );
+      }
       details.append(facts);
       const k = d.knowledge;
       if (k) {
