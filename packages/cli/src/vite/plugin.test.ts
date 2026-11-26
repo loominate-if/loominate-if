@@ -252,7 +252,7 @@ describe("the error overlay", () => {
 });
 
 describe("game files", () => {
-  it("are the passage files and TypeScript modules outside dependencies and output", () => {
+  it("are the passage files, TypeScript modules, and declarations outside dependencies and output", () => {
     const run = game({
       "a.weft": ":: A\n",
       "b.ts": "",
@@ -262,7 +262,12 @@ describe("game files", () => {
       "vite.config.ts": "export default {};\n",
       "vitest.config.mts": "",
     });
-    expect(gameFiles(run.dir).map((f) => path.basename(f.path))).toEqual(["a.weft", "b.ts"]);
+    expect(gameFiles(run.dir).map((f) => path.basename(f.path))).toEqual([
+      "a.weft",
+      "b.ts",
+      // The game's own declarations, as its assets.d.ts (#434).
+      "c.d.ts",
+    ]);
   });
 
   it("format diagnostics relative to the game", () => {

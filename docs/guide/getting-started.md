@@ -39,7 +39,33 @@ The **Inspector** button in the corner, or Control+\`, opens the [inspector](ins
 
   `game.id` keeps your game's saves apart from other games'; don't change it once players have saves. Raise `game.version` when you release a new version, and players loading an older save are told. `start` is the passage a new game starts in. Add `author: "Your Name"` to show a byline on the start screen and put it in story log exports.
 - `walkthrough.test.ts` is a walkthrough test, which plays the game and checks what happens.
+- `assets.d.ts` lets `story.ts` import images, sound, and fonts ([below](#images-and-other-files)).
 - `index.html` is the page the game runs in. It loads `/@loominate/main`, which plays every passage file with the player shell: saves, autosave, undo, and the save menu ([playing guide](playing.md)).
+
+## Images and other files
+
+`story.ts`, and the modules it imports, can import an image, a sound, or a font. The import is the file's URL, a string:
+
+```ts
+import keyIcon from "./icons/key.svg";
+
+export const key = thing("key", { name: "brass key", onMap: { label: "key", icon: keyIcon } });
+```
+
+The build copies the file into `dist/` under a name that changes when it does, so browsers never show an old copy; small files, under 4 KB, and every file in a single-file build, are inlined in the game itself. A missing file is a build error.
+
+`assets.d.ts` is what tells TypeScript that `./icons/key.svg` is a string. It declares the common image (`.svg`, `.png`, `.jpg`, `.webp`, `.gif`, `.avif`, …), sound and video (`.mp3`, `.ogg`, `.wav`, `.m4a`, …), and font (`.woff2`, `.woff`, `.ttf`, `.otf`) files; add a line for another kind:
+
+```ts
+declare module "*.glb" {
+  const url: string;
+  export default url;
+}
+```
+
+A game made before this file existed can copy it from a new game. The compiler reads every `.d.ts` file in the game, so it can declare other types the same way.
+
+Files in `public/` are the other way: the build copies them as they are, under their own names, and a game names them by their path, as `"icons/key.svg"`. Use it for files a game names by path, as music and sound do ([playing guide](playing.md#sound)), and for files that keep their name, as a favicon.
 
 ## Test it
 

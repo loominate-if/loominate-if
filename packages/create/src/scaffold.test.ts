@@ -1,5 +1,13 @@
 // @vitest-environment jsdom
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build, dev, test } from "@loominate-if/cli";
@@ -39,6 +47,7 @@ describe("scaffolding a game", () => {
       "start.weft",
       "walkthrough.test.ts",
       "index.html",
+      "assets.d.ts",
       "tsconfig.json",
       ".gitignore",
     ]);
@@ -122,5 +131,39 @@ describe("scaffolding a game", () => {
     } finally {
       quiet.mockRestore();
     }
+  }, 120_000);
+
+  it("imports images in story.ts as URLs, inlined in a single-file build (#434)", async () => {
+    const root = path.join(temp, "with-icon");
+    scaffold(root);
+    install(root);
+    mkdirSync(path.join(root, "icons"));
+    // Over Vite's 4 KB inlining limit, so a static build keeps it a file.
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><!-- ${"key ".repeat(1200)}--><rect width="1" height="1"/></svg>`;
+    writeFileSync(path.join(root, "icons/key.svg"), svg);
+    const story = path.join(root, "story.ts");
+    writeFileSync(
+      story,
+      `import keyIcon from "./icons/key.svg";\nimport { object as kept } from "@loominate-if/core";\nexport const icon = kept("icon", { url: keyIcon satisfies string });\n${readFileSync(story, "utf8")}`,
+    );
+    const options = {
+      root,
+      conditions: ["source"],
+      vite: { configFile: false as const, logLevel: "silent" as const },
+    };
+    // Type-checked: the import is a string, from the game's assets.d.ts.
+    await build(options);
+    expect(readdirSync(path.join(root, "dist/assets")).some((f) => /^key-.*\.svg$/.test(f))).toBe(
+      true,
+    );
+    await build({ ...options, target: "single" });
+    expect(readFileSync(path.join(root, "dist/with-icon.html"), "utf8")).toContain(
+      "data:image/svg+xml",
+    );
+    // Without it, the compiler says it can't find the module.
+    rmSync(path.join(root, "assets.d.ts"));
+    await expect(build({ ...options, target: "single" })).rejects.toThrow(
+      "Cannot find module './icons/key.svg'",
+    );
   }, 120_000);
 });

@@ -46,7 +46,7 @@ sound("sounds/door.ogg", { caption: "A door slams." });
 music.stop({ fade: 3 });
 ```
 
-- **Files** go in the game's `public/` folder and are named by their path there, `"sounds/door.ogg"`. Vite copies the folder into builds as it is; the single-file build doesn't inline sound, so its files go beside it.
+- **Files** go in the game's `public/` folder and are named by their path there, `"sounds/door.ogg"`. Vite copies the folder into builds as it is; the single-file build doesn't inline sound, so its files go beside it. What music and ambience play is kept in saves, so name them by path rather than [importing](getting-started.md#images-and-other-files) them: an imported file's URL changes with each build that changes the file, and in a single-file build it's the whole file.
 - **Music and ambience** are looping channels. What each plays is game state, so undo, saves, and replays bring it back, crossfading. `fade` is seconds, 0 by default, and `volume` is 0 to 1.
 - **`sound`** plays once, as the move is shown, and not again on undo or loading. Its `caption` says what it is, for players who can't hear it.
 - **In passages:** `{music "music/storm.ogg", fade: 2}`, `{ambience "sounds/rain.ogg"}`, `{music stop}`, `{ambience stop fade: 3}`, and `{sound "sounds/door.ogg", caption: "A door slams."}`, after a beat too, as the player reaches them.

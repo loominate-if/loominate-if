@@ -632,7 +632,7 @@ The same source builds to four targets; the static site is the default for web h
 
 **Single-file trade-off.** Inlined binary assets grow by about a third and load up front.
 
-`loominate build` writes the static site; `loominate build --target single` writes `dist/<game id>.html` with the script and assets inlined, which opens from disk ([ADR 0025](decisions/0025-build-targets.md)).
+`loominate build` writes the static site; `loominate build --target single` writes `dist/<game id>.html` with the script and assets inlined, which opens from disk ([ADR 0025](decisions/0025-build-targets.md)). A game imports its images, sound, and fonts in `story.ts` as URLs, which static builds copy under hashed names and single-file builds inline; a new game's `assets.d.ts` declares them, and the compiler reads a game's own `.d.ts` files ([ADR 0131](decisions/0131-asset-imports.md)).
 
 **Security.** Authors are trusted in their own builds, but a generic player that opens third-party archives runs each game in a sandboxed iframe under a strict content security policy.
 
