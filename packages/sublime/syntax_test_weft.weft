@@ -1,0 +1,49 @@
+// SYNTAX TEST "Packages/Loominate IF/Loominate IF.sublime-syntax"
+:: Cellar Stairs [room: stairs, scene]
+// <- punctuation.definition.heading.weft
+// ^^^^^^^^^^^^^ entity.name.section.weft
+//                ^^^^ entity.other.attribute-name.weft
+//                      ^^^^^^ string.unquoted.weft
+//                              ^^^^^ entity.other.attribute-name.weft
+{on enter: lamp.oil -= 1}
+// <- punctuation.section.braces.begin.weft
+//^^^^^^^ keyword.control.directive.weft
+//         ^^^^ meta.embedded.weft source.ts.embedded.weft
+//                      ^ punctuation.section.braces.end.weft
+The lamp is {lamp.lit ? "lit" : "dark"}, in no time, if ever.
+//          ^ punctuation.section.braces.begin.weft
+//           ^^^^^^^^ source.ts.embedded.weft
+//                                    ^ punctuation.section.braces.end.weft
+//                                       ^^ - keyword
+//                                                   ^^ - keyword
+It has *some* oil and **no** wick. \{Really\}
+//     ^^^^^^ markup.italic.weft
+//                    ^^^^^^ markup.bold.weft
+//                                 ^^ constant.character.escape.weft
+/* A note. */ See http://example.com.
+// <- comment.block.weft
+//^^^^^^^^^^^ comment.block.weft
+//                     ^^^^^^^^^ - comment
+  // A line comment.
+//^^^^^^^^^^^^^^^^^^ comment.line.double-slash.weft
+{if lamp.lit}Bright.{else}Dark.{/if}
+//^ keyword.control.directive.weft
+//                   ^^^^ keyword.control.directive.weft
+//                              ^^^ keyword.control.directive.weft
+[[Go down -> Cellar]]{when lamp.lit, reason: "Too dark."}
+// <- punctuation.definition.link.begin.weft
+//^^^^^^^ string.other.link.title.weft
+//        ^^ keyword.operator.arrow.weft
+//           ^^^^^^ entity.name.label.passage.weft
+//                    ^^^^ keyword.control.directive.weft
+//                         ^^^^^^^^ source.ts.embedded.weft
+Back to the [[Hall]].
+//            ^^^^ entity.name.label.passage.weft
+{continue -> Platform, label: "Begin"}
+//^^^^^^^ keyword.control.directive.weft
+//        ^^ keyword.operator.arrow.weft
+//           ^^^^^^^^ entity.name.label.passage.weft
+{show mira smiling}
+//^^^ keyword.control.directive.weft
+{stage left}
+//^^^^ - keyword.control.directive

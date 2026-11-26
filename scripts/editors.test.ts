@@ -202,3 +202,72 @@ describe("BBEdit's language server proxy", () => {
     }
   });
 });
+
+const SUBLIME = join(REPO, "packages/sublime");
+
+describe("the Sublime Text package", () => {
+  it("knows the grammar's directives, longest first", () => {
+    const grammar = JSON.parse(read(join(GRAMMAR, "src/grammar.json"))) as {
+      rules: { directive_name: { members: { value: string }[] } };
+    };
+    const known = grammar.rules.directive_name.members.map((m) => m.value);
+    const syntax = read(join(SUBLIME, "Loominate IF.sublime-syntax"));
+    const listed = /^ {2}directive: '\(\?:(.*)\)'$/m.exec(syntax)?.[1]?.split("|") ?? [];
+    expect(
+      [...listed].sort(),
+      "Update `directive` in packages/sublime/Loominate IF.sublime-syntax",
+    ).toEqual([...known].sort());
+    expect(listed).toEqual([...listed].sort((a, b) => b.length - a.length));
+  });
+
+  it("starts the same proxy as BBEdit", () => {
+    expect(
+      read(join(SUBLIME, "loominate-proxy.mjs")) ===
+        read(join(BBEDIT, "Language Servers/loominate-proxy.mjs")),
+      "packages/sublime/loominate-proxy.mjs must match packages/bbedit/Language Servers/loominate-proxy.mjs; copy it.",
+    ).toBe(true);
+  });
+});
+
+const VSCODE = join(REPO, "packages/vscode");
+
+describe("the VS Code extension", () => {
+  const manifest = JSON.parse(read(join(VSCODE, "package.json"))) as {
+    contributes: { languages: { configuration: string }[]; grammars: { path: string }[] };
+  };
+
+  it("contributes files that exist", () => {
+    for (const file of [
+      ...manifest.contributes.languages.map((l) => l.configuration),
+      ...manifest.contributes.grammars.map((g) => g.path),
+    ]) {
+      expect(() => read(join(VSCODE, file)), file).not.toThrow();
+    }
+  });
+
+  it("knows the grammar's directives, longest first", () => {
+    const grammar = JSON.parse(read(join(GRAMMAR, "src/grammar.json"))) as {
+      rules: { directive_name: { members: { value: string }[] } };
+    };
+    const known = grammar.rules.directive_name.members.map((m) => m.value);
+    const textmate = JSON.parse(read(join(VSCODE, "syntaxes/weft.tmLanguage.json"))) as {
+      repository: { inline: { patterns: { begin?: string }[] } };
+    };
+    const begin =
+      textmate.repository.inline.patterns.find((p) => p.begin?.includes("(?=[ ,:}])"))?.begin ?? "";
+    const listed = /^\(\\\{\)\((.*)\)\(\?=/.exec(begin)?.[1]?.split("|") ?? [];
+    expect(
+      [...listed].sort(),
+      "Update the directive pattern in packages/vscode/syntaxes/weft.tmLanguage.json",
+    ).toEqual([...known].sort());
+    expect(listed).toEqual([...listed].sort((a, b) => b.length - a.length));
+  });
+
+  it("starts the same proxy as BBEdit", () => {
+    expect(
+      read(join(VSCODE, "server/loominate-proxy.mjs")) ===
+        read(join(BBEDIT, "Language Servers/loominate-proxy.mjs")),
+      "packages/vscode/server/loominate-proxy.mjs must match packages/bbedit/Language Servers/loominate-proxy.mjs; copy it.",
+    ).toBe(true);
+  });
+});

@@ -35,11 +35,23 @@ BBEdit (tested with 16.1) colors passage files through a language module in `pac
 - **Install it** from a Loominate IF checkout: run `packages/bbedit/install.sh`, then quit and reopen BBEdit. It copies the language module and the server's launcher into BBEdit's Application Support folder. Run it again after updating the checkout.
 - **Open your game's folder** as a project, or any file in it. The launcher finds the language server your game depends on, in its `node_modules`, or a Loominate IF checkout's own, after `pnpm build`. It finds Node.js through your login shell, so version managers such as nvm work.
 
+## Sublime Text
+
+Sublime Text 4 colors passage files through the package in `packages/sublime`, with TypeScript colors inside `{ … }`, and lists passages in **Goto Symbol**. With the [LSP package](https://packagecontrol.io/packages/LSP), it starts the language server for errors, completion, hover, and go to definition.
+
+- **Install the LSP package** with Package Control (**Package Control: Install Package**, then **LSP**).
+- **Link the package** into Sublime's Packages folder as `Loominate IF`, so updates to your checkout apply. Find the folder with **Preferences > Browse Packages**, then, from that folder:
+  - on Windows, in Command Prompt: `mklink /J "Loominate IF" "C:\path	o\loominate\packages\sublime"`;
+  - on macOS or Linux: `ln -s /path/to/loominate/packages/sublime "Loominate IF"`.
+- **Open your game's folder** (**File > Open Folder**). The server's proxy finds the language server your game depends on, or a Loominate IF checkout's own, after `pnpm build`. Node.js must be on your PATH.
+
+## VS Code
+
+The extension in `packages/vscode` colors passage files, with TypeScript colors inside `{ … }`, and starts the language server for errors, completion, hover, and go to definition.
+
+- **Build and install it** from a Loominate IF checkout until it's on the Marketplace: run `npx pnpm --filter loominate package`, then, in VS Code, **Extensions: Install from VSIX…** and choose `packages/vscode/loominate.vsix`.
+- **Open your game's folder** (**File > Open Folder**). The extension finds the language server your game depends on, or a Loominate IF checkout's own, after `pnpm build`. It runs the server with the Node.js on your PATH, or the one the `loominate.nodePath` setting names.
+
 ## Other editors
-
-Each editor needs a small client that colors `.weft` files and starts the server. They're on their way:
-
-- Sublime Text, with the LSP package ([#413](https://github.com/loominate-if/loominate-if/issues/413))
-- VS Code ([#414](https://github.com/loominate-if/loominate-if/issues/414))
 
 Any other editor that can start a language server for a file type can use it now, with the command above.

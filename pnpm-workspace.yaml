@@ -6,3 +6,9 @@ packages:
 # Packages whose install scripts may run. tree-sitter-cli downloads its binary (#411).
 allowBuilds:
   tree-sitter-cli: true
+  # The VS Code extension's tools get their binaries through optional
+  # dependencies, so their install scripts aren't needed (#414).
+  esbuild: false
+  "@vscode/vsce-sign": false
+  # vsce keeps publishing credentials with it, which packaging doesn't need (#414).
+  keytar: false

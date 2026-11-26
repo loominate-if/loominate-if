@@ -1,0 +1,70 @@
+{
+  "name": "loominate",
+  "displayName": "Loominate IF",
+  "description": "Passage files (.weft) for Loominate IF: highlighting, and the compiler's diagnostics and completion through its language server.",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "publisher": "loominate-if",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/loominate-if/loominate-if.git",
+    "directory": "packages/vscode"
+  },
+  "type": "module",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "main": "./dist/extension.cjs",
+  "contributes": {
+    "languages": [
+      {
+        "id": "weft",
+        "aliases": [
+          "Loominate IF",
+          "weft"
+        ],
+        "extensions": [
+          ".weft"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "weft",
+        "scopeName": "source.weft",
+        "path": "./syntaxes/weft.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.weft": "typescript"
+        }
+      }
+    ],
+    "configuration": {
+      "title": "Loominate IF",
+      "properties": {
+        "loominate.nodePath": {
+          "type": "string",
+          "default": "node",
+          "description": "The Node.js that runs the language server. The default finds it on PATH."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/extension.cjs",
+    "package": "pnpm run build && vsce package --no-dependencies --skip-license --out loominate.vsix"
+  },
+  "devDependencies": {
+    "@types/vscode": "1.95.0",
+    "@vscode/vsce": "3.6.0",
+    "esbuild": "0.25.10",
+    "vitest": "5.1.0",
+    "vscode-languageclient": "9.0.1",
+    "vscode-oniguruma": "2.0.1",
+    "vscode-textmate": "9.2.0"
+  }
+}

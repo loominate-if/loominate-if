@@ -20,7 +20,7 @@ import {
 import { create as createTypeScriptServices } from "volar-service-typescript";
 import { URI } from "vscode-uri";
 import { compilerDiagnostics } from "./diagnostics.js";
-import { findGameRoot, loadGame, type Game } from "./game.js";
+import { canonicalPath, findGameRoot, loadGame, type Game } from "./game.js";
 import { weftLanguagePlugin } from "./language.js";
 import { passageFeatures } from "./passages.js";
 
@@ -81,7 +81,7 @@ export function startLanguageServer(options: LanguageServerOptions = {}): void {
     return root === undefined ? undefined : games.get(root);
   };
   const fileOf = (uri: URI): string =>
-    uri.scheme === "file" ? fileURLToPath(uri.toString()) : uri.path;
+    uri.scheme === "file" ? canonicalPath(fileURLToPath(uri.toString())) : uri.path;
 
   connection.onInitialize((params) =>
     server.initialize(

@@ -163,3 +163,7 @@ release/
 packages/zed/target/
 packages/zed/extension.wasm
 packages/zed/grammars/
+
+# The VS Code extension's type-check output and package (#414).
+packages/vscode/out/
+packages/vscode/*.vsix

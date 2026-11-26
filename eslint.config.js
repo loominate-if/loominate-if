@@ -70,8 +70,13 @@ export default tseslint.config(
   },
   js.configs.recommended,
   {
-    // The Zed extension's launcher and BBEdit's server proxy run in Node (#411, #412).
-    files: ["packages/zed/src/launcher.mjs", "packages/bbedit/**/*.mjs"],
+    // The Zed extension's launcher and the BBEdit and Sublime Text server proxy run in Node (#411, #412, #413).
+    files: [
+      "packages/zed/src/launcher.mjs",
+      "packages/bbedit/**/*.mjs",
+      "packages/sublime/*.mjs",
+      "packages/vscode/server/*.mjs",
+    ],
     languageOptions: { globals: { ...globals.node } },
   },
   {

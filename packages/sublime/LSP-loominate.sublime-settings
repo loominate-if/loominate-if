@@ -1,0 +1,7 @@
+{
+  // The proxy finds the game's own language server from the project folder (ADR 0121).
+  // Node.js must be on PATH.
+  "command": ["node", "${packages}/Loominate IF/loominate-proxy.mjs", "--stdio"],
+  "selector": "source.weft",
+  "enabled": true,
+}
