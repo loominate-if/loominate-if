@@ -267,7 +267,7 @@ describe("the Rooms view, from the begun game (#426)", () => {
     const server = await dev({
       root,
       conditions: ["source"],
-      vite: { configFile: false, logLevel: "silent", server: { middlewareMode: true } },
+      vite: { configFile: false, logLevel: "silent", server: { middlewareMode: true, ws: false } },
     });
     const http: Server = createServer(server.middlewares);
     await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", resolve));
@@ -317,7 +317,7 @@ describe("the dev server's story map", () => {
     const server = await dev({
       root,
       conditions: ["source"],
-      vite: { configFile: false, logLevel: "silent", server: { middlewareMode: true } },
+      vite: { configFile: false, logLevel: "silent", server: { middlewareMode: true, ws: false } },
     });
     const http: Server = createServer(server.middlewares);
     await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", resolve));
