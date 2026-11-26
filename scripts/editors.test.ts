@@ -227,6 +227,59 @@ describe("the Sublime Text package", () => {
       "packages/sublime/loominate-proxy.mjs must match packages/bbedit/Language Servers/loominate-proxy.mjs; copy it.",
     ).toBe(true);
   });
+
+  // LSP registers a plugin from the settings path its `configuration()` gives
+  // and refuses one that doesn't exist, logging it only to the console. The
+  // stand-ins build the default path as LSP's AbstractPlugin does.
+  it("registers with LSP from a settings file the package has", () => {
+    const stubs = mkdtempSync(join(tmpdir(), "sublime-stubs-"));
+    try {
+      mkdirSync(join(stubs, "LSP"));
+      writeFileSync(join(stubs, "LSP/__init__.py"), "");
+      writeFileSync(
+        join(stubs, "sublime.py"),
+        "def load_settings(basename):\n    return basename\n",
+      );
+      writeFileSync(
+        join(stubs, "LSP/plugin.py"),
+        [
+          "import sublime",
+          "registered = []",
+          "class AbstractPlugin:",
+          "    @classmethod",
+          "    def configuration(cls):",
+          "        basename = 'LSP-{}.sublime-settings'.format(cls.name())",
+          "        return sublime.load_settings(basename), 'Packages/LSP-{}/{}'.format(cls.name(), basename)",
+          "def register_plugin(plugin):",
+          "    registered.append((plugin.name(),) + plugin.configuration())",
+          "def unregister_plugin(plugin):",
+          "    pass",
+        ].join("\n"),
+      );
+      const script = [
+        "import json, runpy",
+        `runpy.run_path(${JSON.stringify(join(SUBLIME, "plugin.py"))}, run_name='plugin')['plugin_loaded']()`,
+        "from LSP.plugin import registered",
+        "print(json.dumps(registered))",
+      ].join("\n");
+      const out = execFileSync(
+        "python3",
+        ["-I", "-c", `import sys; sys.path.insert(0, ${JSON.stringify(stubs)})\n${script}`],
+        {
+          encoding: "utf8",
+        },
+      );
+      const registered = JSON.parse(out) as [string, string, string][];
+      expect(registered).toHaveLength(1);
+      const [name, settings, path] = registered[0] ?? [];
+      if (settings === undefined) throw new Error("plugin_loaded() registered nothing");
+      expect(name).not.toMatch(/^LSP-/);
+      expect(path).toBe(`Packages/Loominate IF/${settings}`);
+      expect(read(join(SUBLIME, settings))).toContain('"selector": "source.weft"');
+    } finally {
+      rmSync(stubs, { recursive: true, force: true });
+    }
+  });
 });
 
 const VSCODE = join(REPO, "packages/vscode");
