@@ -44,6 +44,13 @@ export type ExitSpec = {
    * stopped partway through, as a subway ride by a bomb on the tracks.
    */
   readonly journey?: string;
+  /**
+   * Hidden from the player, as a secret passage (#431): the compass, the
+   * `{exits}` links, and the auto-map leave it out, and characters seen
+   * taking it aren't said to go that way. Characters the game moves still
+   * use it. Reveal it with `setExit`, giving the exit without `hidden`.
+   */
+  readonly hidden?: boolean;
 };
 
 /** A room's exits, by direction: a room, or an {@link ExitSpec}. */
@@ -61,10 +68,18 @@ export type Exit = {
   readonly minutes?: number;
   /** The journey it is, if it can be stopped partway. */
   readonly journey?: string;
+  /** True if it's hidden from the player until revealed. */
+  readonly hidden?: true;
 };
 
 /** An exit as stored. */
-type StoredExit = { to: ObjectRef; via?: ObjectRef; minutes?: number; journey?: string };
+type StoredExit = {
+  to: ObjectRef;
+  via?: ObjectRef;
+  minutes?: number;
+  journey?: string;
+  hidden?: true;
+};
 type ExitRecord = Handle<{ exits: Record<string, StoredExit> }>;
 
 /** Each connected room's exits, by the room's ID. */
@@ -142,6 +157,7 @@ function stored(exit: ObjectRef | ExitSpec, where: string): StoredExit {
     ...(spec.via !== undefined && { via: thingFor(spec.via) as Thing }),
     ...(spec.minutes !== undefined && { minutes: spec.minutes }),
     ...(spec.journey !== undefined && { journey: spec.journey }),
+    ...(spec.hidden === true && { hidden: true as const }),
   };
 }
 
@@ -216,7 +232,10 @@ export function setExit(
   );
 }
 
-/** `room`'s exits, in the order directions are registered. */
+/**
+ * `room`'s exits, in the order directions are registered, hidden ones
+ * too: filter out `hidden` for the ways the player knows.
+ */
 export function exitsOf(room: ObjectRef): Exit[] {
   const stored = records.get(room.id)?.exits;
   if (!stored) return [];
@@ -232,6 +251,7 @@ export function exitsOf(room: ObjectRef): Exit[] {
         ...(via !== undefined && { via }),
         ...(e.minutes !== undefined && { minutes: e.minutes }),
         ...(e.journey !== undefined && { journey: e.journey }),
+        ...(e.hidden === true && { hidden: true as const }),
       },
     ];
   });
@@ -290,58 +310,60 @@ function ways(): LinkNode[] {
   if (!body || !here) return [];
   const locked = conversation.active ? _lockedReason() : undefined;
   const objects = conversation.active && _objectsToLeaving();
-  return exitsOf(here).map((e): LinkNode => {
-    const target = arrivalPassage(e.to);
-    if (target === undefined) {
-      throw new StateError(
-        `{exits}: the ${e.direction.name} exit from ${JSON.stringify(here.id)} leads to ${JSON.stringify(e.to.id)}, which no passage describes. Tag one [room: …] for it.`,
-      );
-    }
-    const label = message("exit.label", {
-      direction: message("direction.label", { direction: e.direction.name }),
-      room: e.to,
-      visited: visitsTo(e.to) > 0,
+  return exitsOf(here)
+    .filter((e) => e.hidden !== true)
+    .map((e): LinkNode => {
+      const target = arrivalPassage(e.to);
+      if (target === undefined) {
+        throw new StateError(
+          `{exits}: the ${e.direction.name} exit from ${JSON.stringify(here.id)} leads to ${JSON.stringify(e.to.id)}, which no passage describes. Tag one [room: …] for it.`,
+        );
+      }
+      const label = message("exit.label", {
+        direction: message("direction.label", { direction: e.direction.name }),
+        room: e.to,
+        visited: visitsTo(e.to) > 0,
+      });
+      // A journey is taken as an action, so it can be stopped partway and end somewhere else.
+      // A locked conversation holds the player (#117): a hard lock disables every
+      // way out, and a soft one meets the first try with an objection.
+      if (locked !== undefined) {
+        return {
+          type: "link",
+          label,
+          target,
+          guard: {
+            open: false,
+            condition: "the conversation isn't locked",
+            mode: "disabled-with-reason" as const,
+            reason: locked,
+          },
+        };
+      }
+      if (objects && blockedReason(e, body) === undefined) {
+        return {
+          type: "link",
+          label,
+          target,
+          guard: actLink({ call: _excuseYourself({ way: e.direction.name }) }),
+        };
+      }
+      if (e.journey !== undefined) {
+        return { type: "link", label, target, guard: journeyLink(e.direction.name) };
+      }
+      const reason = blockedReason(e, body);
+      return {
+        type: "link",
+        label,
+        target,
+        ...(reason !== undefined && {
+          guard: {
+            open: false,
+            condition: `nothing blocks the way ${e.direction.name} (${e.via?.id ?? ""})`,
+            mode: "disabled-with-reason" as const,
+            reason,
+          },
+        }),
+      };
     });
-    // A journey is taken as an action, so it can be stopped partway and end somewhere else.
-    // A locked conversation holds the player (#117): a hard lock disables every
-    // way out, and a soft one meets the first try with an objection.
-    if (locked !== undefined) {
-      return {
-        type: "link",
-        label,
-        target,
-        guard: {
-          open: false,
-          condition: "the conversation isn't locked",
-          mode: "disabled-with-reason" as const,
-          reason: locked,
-        },
-      };
-    }
-    if (objects && blockedReason(e, body) === undefined) {
-      return {
-        type: "link",
-        label,
-        target,
-        guard: actLink({ call: _excuseYourself({ way: e.direction.name }) }),
-      };
-    }
-    if (e.journey !== undefined) {
-      return { type: "link", label, target, guard: journeyLink(e.direction.name) };
-    }
-    const reason = blockedReason(e, body);
-    return {
-      type: "link",
-      label,
-      target,
-      ...(reason !== undefined && {
-        guard: {
-          open: false,
-          condition: `nothing blocks the way ${e.direction.name} (${e.via?.id ?? ""})`,
-          mode: "disabled-with-reason" as const,
-          reason,
-        },
-      }),
-    };
-  });
 }

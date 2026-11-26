@@ -40,9 +40,9 @@ mapViews.register(
         from: room.id,
         to: exit.to.id,
         kind: exit.direction.name,
-        label: exit.via
-          ? `${exit.direction.label}, through the ${exit.via.name}`
-          : exit.direction.label,
+        label: `${
+          exit.via ? `${exit.direction.label}, through the ${exit.via.name}` : exit.direction.label
+        }${exit.hidden === true ? " (hidden)" : ""}`,
         ...(exit.via !== undefined && { guarded: true as const }),
         ...(layout.bent.has(i) && { bent: true as const }),
       }));

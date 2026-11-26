@@ -50,11 +50,14 @@ function linksAmong(map: WorldMap, on: ReadonlySet<string>): AutomapLink[] {
     .map((e, i) => ({ ...e, i }))
     .sort((a, b) => (order.get(a.room.id) ?? 0) - (order.get(b.room.id) ?? 0) || a.i - b.i);
   for (const { room, exit, i } of met) {
-    if (!on.has(room.id) || !on.has(exit.to.id)) continue;
+    // A hidden way isn't drawn until it's revealed (#431); it still placed the rooms.
+    if (exit.hidden === true || !on.has(room.id) || !on.has(exit.to.id)) continue;
     const pair = [room.id, exit.to.id].sort().join("\u0000");
     if (drawn.has(pair)) continue;
     drawn.add(pair);
-    const back = exits.find((e) => e.room.id === exit.to.id && e.exit.to.id === room.id);
+    const back = exits.find(
+      (e) => e.room.id === exit.to.id && e.exit.to.id === room.id && e.exit.hidden !== true,
+    );
     const label = back
       ? `${short(exit.direction.name)} / ${short(back.exit.direction.name)}`
       : short(exit.direction.name);
@@ -81,7 +84,11 @@ function whereNow(): { here: Place; map: WorldMap } | undefined {
 function summaryOf(map: WorldMap, here: Place, visited: ReadonlySet<string>): string {
   const nearby = map.exits
     .filter(
-      ({ room, exit }) => room.id === here.id && visited.has(exit.to.id) && exit.to.id !== here.id,
+      ({ room, exit }) =>
+        room.id === here.id &&
+        exit.hidden !== true &&
+        visited.has(exit.to.id) &&
+        exit.to.id !== here.id,
     )
     .map(({ exit }) =>
       message("automap.nearby", { room: exit.to, direction: exit.direction.name }),
@@ -138,13 +145,15 @@ export function _automapFull(): AutomapFullMap | undefined {
     x: cell.x - left,
     y: cell.y - top,
     ...(room.id === here.id && { current: true as const }),
-    ways: exitsOf(room).map((exit) => ({
-      label: message("automap.way", {
-        direction: exit.direction.name,
-        ...(visited.has(exit.to.id) && { room: exit.to }),
-      }),
-      ...(visited.has(exit.to.id) && { to: exit.to.id }),
-    })),
+    ways: exitsOf(room)
+      .filter((exit) => exit.hidden !== true)
+      .map((exit) => ({
+        label: message("automap.way", {
+          direction: exit.direction.name,
+          ...(visited.has(exit.to.id) && { room: exit.to }),
+        }),
+        ...(visited.has(exit.to.id) && { to: exit.to.id }),
+      })),
   }));
   return {
     columns: Math.max(...rooms.map((r) => r.x)) + 1,

@@ -4,6 +4,7 @@
  * no body; and for any node, where it is, its mind or body, and who knows
  * what. It reads the world and changes nothing.
  */
+import { exitsOf } from "./exits.js";
 import { _worldMap } from "./map-layout.js";
 import { _allMinds, bodyOf, currentPlayerBody, isBody, isMind, mindFor, mindOf } from "./actors.js";
 import { _allThings, _mapPin, isPlace, thingFor } from "./things.js";
@@ -100,6 +101,12 @@ export type _Details = {
     readonly nudged: boolean;
     readonly pinned: boolean;
   };
+  /** For a place: its exits, hidden ones too, marked (#431). */
+  readonly exits?: readonly {
+    readonly direction: string;
+    readonly to: string;
+    readonly hidden: boolean;
+  }[];
 };
 
 function knowledgeOf(mindId: string): _Knowledge {
@@ -158,6 +165,13 @@ export function _worldDetails(id: string): _Details | undefined {
         nudged: grid?.nudged.includes(id) === true,
         pinned: _mapPin(t) !== undefined,
       },
+    }),
+    ...(isPlace(t) && {
+      exits: exitsOf(t).map((e) => ({
+        direction: e.direction.name,
+        to: e.to.id,
+        hidden: e.hidden === true,
+      })),
     }),
   };
 }
