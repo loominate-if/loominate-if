@@ -988,6 +988,10 @@ export type _Knowledge = {
     }[];
     readonly seen: readonly string[];
     readonly knownOf: readonly string[];
+    readonly lastSaw: readonly {
+        readonly thing: string;
+        readonly room: string;
+    }[];
 };
 
 // @public
@@ -1052,6 +1056,12 @@ export function lockConversation(lock: {
 // @public
 export type LockLevel = "soft" | "hard";
 
+// @public
+export type MapMarking = boolean | string | {
+    readonly label?: string;
+    readonly icon?: string;
+};
+
 // @internal
 export function _matchTopic(npc: ObjectRef, kind: TopicKind, about?: ObjectRef | Fact, implicit?: boolean): {
     readonly winner: string | undefined;
@@ -1083,6 +1093,7 @@ export type MindKnowledge = {
     knownFacts(): Fact[];
     see(thing: ObjectRef): void;
     hasSeen(thing: ObjectRef): boolean;
+    lastSaw(thing: ObjectRef): Place | undefined;
     learnAbout(thing: ObjectRef): void;
     knowsAbout(thing: ObjectRef): boolean;
     forget(what: Fact | ObjectRef): void;
@@ -1748,6 +1759,7 @@ export function thing<Id extends StateId, D extends ObjectDefinition<D> & {
 }>(id: Id, definition: D & {
     location?: ObjectRef | null;
     vocab?: Vocabulary;
+    onMap?: MapMarking;
 } & ThisType<Handle<ThingOf<D>, Id>>): Handle<ThingOf<D>, Id>;
 
 // @public

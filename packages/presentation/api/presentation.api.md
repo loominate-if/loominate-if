@@ -83,6 +83,13 @@ export type AutomapLink = {
 };
 
 // @public
+export type AutomapMarker = {
+    readonly label: string;
+    readonly icon?: string;
+    readonly person?: true;
+};
+
+// @public
 export type AutomapOptions = {
     readonly rooms: (game: PageGame, size: {
         columns: number;
@@ -101,6 +108,15 @@ export type AutomapRoom = {
     readonly y: number;
     readonly current?: true;
     readonly ways?: readonly AutomapWay[];
+    readonly markers?: readonly AutomapMarker[];
+    readonly stubs?: readonly AutomapStub[];
+};
+
+// @public
+export type AutomapStub = {
+    readonly x: number;
+    readonly y: number;
+    readonly label?: string;
 };
 
 // @public

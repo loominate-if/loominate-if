@@ -20,7 +20,7 @@ import {
 import { currentPlayerMind, mindFor, playerMind } from "./actors.js";
 import { inScope } from "./scope.js";
 import { roomPassageIds } from "./rooms.js";
-import { isPlace, thingFor, type Thing } from "./things.js";
+import { isPlace, placeOf, thingFor, type Place, type Thing } from "./things.js";
 
 /** A fact a mind can know, such as "the butler handled the letter". */
 export type Fact<Id extends string = string> = {
@@ -76,6 +76,12 @@ export type MindKnowledge = {
   see(thing: ObjectRef): void;
   /** Whether it has seen `thing`. */
   hasSeen(thing: ObjectRef): boolean;
+  /**
+   * The room it last saw `thing` in (#396), or `undefined` if it hasn't seen
+   * it, or has since seen it isn't there. It's what this mind believes, not
+   * where the thing is now.
+   */
+  lastSaw(thing: ObjectRef): Place | undefined;
   /** Makes `thing` familiar: known of without being seen, such as a famous painting. */
   learnAbout(thing: ObjectRef): void;
   /** Whether it knows of `thing`: it has seen it, it's familiar, or the thing has `isFamiliar: true`. */
@@ -110,6 +116,7 @@ export const KNOWLEDGE_METHODS = [
   "knownFacts",
   "see",
   "hasSeen",
+  "lastSaw",
   "learnAbout",
   "knowsAbout",
   "forget",
@@ -123,6 +130,11 @@ export const KNOWLEDGE_METHODS = [
 type Memories = {
   facts: Record<string, { from?: ObjectRef; passage?: string }>;
   seen: Record<string, true>;
+  /**
+   * The room each thing was last seen in, by the thing's ID (#396). Saves
+   * from before it have none, which reads as no sightings.
+   */
+  seenIn?: Record<string, string>;
   familiar: Record<string, true>;
   /** Visits to passages, by passage ID. */
   visits: Record<string, number>;
@@ -133,7 +145,20 @@ type Memories = {
 /** What one mind knows: its memories, and those formed during amnesia, which hides the rest. */
 type KnowledgeRecord = Handle<{ memories: Memories; amnesia: Memories | null }>;
 
-const blank = (): Memories => ({ facts: {}, seen: {}, familiar: {}, visits: {}, roomVisits: {} });
+const blank = (): Memories => ({
+  facts: {},
+  seen: {},
+  seenIn: {},
+  familiar: {},
+  visits: {},
+  roomVisits: {},
+});
+
+/** Records that `memories` saw `thing` in `room`, writing only a change. */
+function sawIn(memories: Memories, thing: string, room: string): void {
+  if (memories.seenIn?.[thing] === room) return;
+  memories.seenIn = { ...memories.seenIn, [thing]: room };
+}
 
 /** Every fact, by ID. */
 const allFacts = new Map<string, Fact>();
@@ -307,7 +332,10 @@ function knowledgeOf(m: ObjectRef): MindKnowledge {
     },
     see(t) {
       checkThing(t, "see");
-      const seen = recall(m, "see").seen;
+      const memories = recall(m, "see");
+      const room = isPlace(t) ? undefined : placeOf(t);
+      if (room) sawIn(memories, t.id, room.id);
+      const seen = memories.seen;
       if (Object.hasOwn(seen, t.id)) return;
       seen[t.id] = true;
       for (const l of noticing) l(m, "thing", t.id);
@@ -315,6 +343,11 @@ function knowledgeOf(m: ObjectRef): MindKnowledge {
     hasSeen(t) {
       checkThing(t, "hasSeen");
       return Object.hasOwn(recall(m, "hasSeen").seen, t.id);
+    },
+    lastSaw(t) {
+      checkThing(t, "lastSaw");
+      const room = recall(m, "lastSaw").seenIn?.[t.id];
+      return room === undefined ? undefined : (thingFor({ id: room }) as Place | undefined);
     },
     learnAbout(t) {
       checkThing(t, "learnAbout");
@@ -340,6 +373,7 @@ function knowledgeOf(m: ObjectRef): MindKnowledge {
       const passages = isPlace(t) ? roomPassageIds(t) : [];
       for (const memories of layers(m, "forget")) {
         memories.seen = without(memories.seen, [t.id]);
+        memories.seenIn = without(memories.seenIn ?? {}, [t.id]);
         memories.familiar = without(memories.familiar, [t.id]);
         memories.roomVisits = without(memories.roomVisits, [t.id]);
         memories.visits = without(memories.visits, passages);
@@ -367,6 +401,7 @@ function knowledgeOf(m: ObjectRef): MindKnowledge {
       record.memories = {
         facts: { ...before.facts, ...without(since.facts, Object.keys(before.facts)) },
         seen: { ...before.seen, ...since.seen },
+        seenIn: { ...before.seenIn, ...since.seenIn },
         familiar: { ...before.familiar, ...since.familiar },
         visits: added(before.visits, since.visits),
         roomVisits: added(before.roomVisits, since.roomVisits),
@@ -521,8 +556,18 @@ function foundIn(t: ObjectRef): Fact | undefined {
  */
 export function noteSights(observer: ObjectRef, minds: readonly ObjectRef[]): void {
   const seen = inScope(observer, "see");
+  const here = placeOf(observer);
+  const inSight = new Set(seen.map((t) => t.id));
   for (const m of minds) {
     const memories = recall(m, "seeing");
+    if (here) {
+      // Where each thing is seen now; and what was last seen here but isn't, it now knows isn't.
+      for (const t of seen) if (!isPlace(t) && t.id !== observer.id) sawIn(memories, t.id, here.id);
+      const gone = Object.entries(memories.seenIn ?? {})
+        .filter(([id, room]) => room === here.id && !inSight.has(id))
+        .map(([id]) => id);
+      if (gone.length > 0) memories.seenIn = without(memories.seenIn ?? {}, gone);
+    }
     for (const t of seen) {
       if (Object.hasOwn(memories.seen, t.id)) continue;
       memories.seen[t.id] = true;
@@ -544,3 +589,16 @@ useVisitMemory({
     if (m) rememberVisit(m, passage);
   },
 });
+
+/**
+ * Forgets where `minds` last saw `thing`, as when they watch it leave and
+ * don't know where it went (#396). @internal
+ */
+export function _lostSight(thing: ObjectRef, minds: readonly ObjectRef[]): void {
+  for (const m of minds) {
+    const memories = recall(m, "lostSight");
+    if (memories.seenIn && Object.hasOwn(memories.seenIn, thing.id)) {
+      memories.seenIn = without(memories.seenIn, [thing.id]);
+    }
+  }
+}

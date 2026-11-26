@@ -32,6 +32,7 @@ export {
   thingTemplate,
   transparent,
   type Holding,
+  type MapMarking,
   type Place,
   type PlaceFields,
   type Thing,

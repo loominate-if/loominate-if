@@ -12,7 +12,7 @@ import { emit, message, StateError, type ObjectRef } from "@loominate-if/core";
 import { allBodies, currentPlayerBody, currentPlayerMind, isBody, mindsIn } from "./actors.js";
 import { type Direction } from "./directions.js";
 import { connectedRooms, exitsOf } from "./exits.js";
-import { type Fact } from "./knowledge.js";
+import { _lostSight, type Fact } from "./knowledge.js";
 import { canHear, canSee, isInLight } from "./scope.js";
 import { isWithin, onMove, placeOf, thingFor, type Place, type Thing } from "./things.js";
 
@@ -177,6 +177,8 @@ onMove((moved, from) => {
   if (!here || from?.id === to?.id) return;
   const self = moved as Thing & Narrated;
   if (from?.id === here.id && isInLight(player)) {
+    // The player watched them go, and doesn't know where to (#396).
+    _lostSight(moved, mindsIn(player));
     // A hidden way isn't named, so it isn't given away (#431).
     const d = to
       ? exitsOf(here).find((e) => e.to.id === to.id && e.hidden !== true)?.direction

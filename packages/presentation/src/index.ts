@@ -56,8 +56,10 @@ export {
   type AutomapData,
   type AutomapFullMap,
   type AutomapLink,
+  type AutomapMarker,
   type AutomapOptions,
   type AutomapRoom,
+  type AutomapStub,
   type AutomapView,
   type AutomapWay,
 } from "./page/automap.js";

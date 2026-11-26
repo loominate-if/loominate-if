@@ -290,3 +290,77 @@ describe("moving on the full map's grid", () => {
     expect(_roomToward(rooms, from, [0, -1])).toBeUndefined();
   });
 });
+
+describe("markers and stubs (#396)", () => {
+  const marked: AutomapFullMap = {
+    columns: 2,
+    rows: 1,
+    view: {
+      summary: VIEW.summary,
+      rooms: [
+        {
+          id: "hall",
+          label: "hall",
+          x: 0,
+          y: 0,
+          current: true,
+          ways: [{ label: "East: the kitchen", to: "kitchen" }, { label: "Down: not explored" }],
+          stubs: [{ x: 1, y: 1, label: "Down" }],
+          markers: [
+            { label: "Tobias", person: true },
+            { label: "key", icon: "icons/key.svg" },
+            { label: "chest" },
+            { label: "lamp" },
+          ],
+        },
+        { id: "kitchen", label: "kitchen", x: 1, y: 0, ways: [] },
+      ],
+      links: [{ from: "hall", to: "kitchen" }],
+    },
+  };
+
+  it("draws a room's markers on its box: icons, marks for people and things, and +1 for the rest", () => {
+    const { element } = mount(VIEW, marked);
+    const marks = element.querySelector("dialog g[data-room='hall'] .loominate-automap-marks");
+    expect(marks?.getAttribute("aria-hidden")).toBe("true");
+    expect(marks?.querySelector(".loominate-automap-person")).not.toBeNull();
+    expect(marks?.querySelector("image")?.getAttribute("href")).toBe("icons/key.svg");
+    expect(marks?.querySelector(".loominate-automap-thing")).not.toBeNull();
+    expect(marks?.querySelector(".loominate-automap-more")?.textContent).toBe("lamp+1");
+    // Each mark has its own tooltip; "+1" names the ones it stands for.
+    expect([...(marks?.querySelectorAll("title") ?? [])].map((t) => t.textContent)).toEqual([
+      "Tobias",
+      "key",
+      "chest",
+      "lamp",
+    ]);
+  });
+
+  it("draws a stub toward each way not yet taken, named on the full map", () => {
+    const { element } = mount(VIEW, marked);
+    const stub = element.querySelector("dialog g[data-room='hall'] .loominate-automap-stub");
+    expect(stub?.querySelector("line")).not.toBeNull();
+    expect(stub?.textContent).toBe("Down");
+  });
+
+  it("names the markers in the room's reading, tooltip, and list", () => {
+    const { element } = mount(VIEW, marked);
+    element.querySelector<HTMLButtonElement>(".loominate-automap-open")?.click();
+    expect(document.activeElement?.getAttribute("aria-label")).toBe(
+      "hall, where you are. East: the kitchen. Down: not explored. Last seen here: Tobias, key, chest, lamp.",
+    );
+    expect(element.querySelector(".loominate-automap-tip")?.textContent).toBe(
+      "hall: Tobias, key, chest, lamp",
+    );
+    expect(element.querySelector(".loominate-automap-seen")?.textContent).toBe(
+      "Last seen here: Tobias, key, chest, lamp.",
+    );
+  });
+
+  it("passes axe with markers and stubs", async () => {
+    const { element } = mount(VIEW, marked);
+    element.querySelector<HTMLButtonElement>(".loominate-automap-open")?.click();
+    const results = await axe.run(document.body, { rules: { region: { enabled: false } } });
+    expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  });
+});

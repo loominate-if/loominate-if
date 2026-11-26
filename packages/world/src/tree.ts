@@ -77,6 +77,8 @@ export type _Knowledge = {
   readonly seen: readonly string[];
   /** Things it knows of without having seen them. */
   readonly knownOf: readonly string[];
+  /** Where it last saw each thing it remembers seeing somewhere (#396). */
+  readonly lastSaw: readonly { readonly thing: string; readonly room: string }[];
 };
 
 /** A node's details. @internal */
@@ -125,6 +127,10 @@ function knowledgeOf(mindId: string): _Knowledge {
     }),
     seen: things.filter((t) => m.hasSeen(t)).map((t) => t.id),
     knownOf: things.filter((t) => !m.hasSeen(t) && m.knowsAbout(t)).map((t) => t.id),
+    lastSaw: things.flatMap((t) => {
+      const room = m.lastSaw(t);
+      return room ? [{ thing: t.id, room: room.id }] : [];
+    }),
   };
 }
 

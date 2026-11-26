@@ -114,6 +114,22 @@ export function _allThings(): Thing[] {
 }
 /** The IDs of places, which bound sight, reach, and hearing. */
 const places = new Set<StateId>();
+/**
+ * How a thing is marked on the auto-map (#396), where the player last saw
+ * it: `true` by its name, a short label, or a label and an icon, an image's
+ * URL the game supplies. `false` leaves a person off, as people are marked
+ * by name without it.
+ */
+export type MapMarking = boolean | string | { readonly label?: string; readonly icon?: string };
+
+/** Things' markings on the map, by ID: part of their definitions, not state. */
+const markings = new Map<StateId, Exclude<MapMarking, string>>();
+
+/** How `thing` is marked on the map, if its definition says. @internal */
+export function _mapMarking(thing: ObjectRef): Exclude<MapMarking, string> | undefined {
+  return markings.get(thing.id);
+}
+
 /** Places pinned to a cell of the map, by ID. */
 const pins = new Map<StateId, { readonly x: number; readonly y: number }>();
 
@@ -217,6 +233,10 @@ export type ThingOf<D> = Omit<D, "location"> & {
  * to hold things, {@link openable}, {@link lockable}, {@link transparent}, and
  * {@link lightSource}. `location` defaults to `null`, nowhere.
  *
+ * Mark it on the auto-map where the player last saw it with `onMap`: `true`
+ * by its name, a short label as `"chest"`, or `{ label, icon }` with an
+ * image's URL for the drawing ({@link MapMarking}).
+ *
  * @example
  * ```ts
  * export const chest = thing("chest", {
@@ -228,17 +248,54 @@ export type ThingOf<D> = Omit<D, "location"> & {
  * });
  * ```
  *
- * @throws StateError if the ID is taken or invalid, or a property isn't valid state.
+ * @throws StateError if the ID is taken or invalid, a property isn't valid
+ * state, or `onMap` isn't a marking.
  */
 export function thing<Id extends StateId, D extends ObjectDefinition<D> & { name: string }>(
   id: Id,
-  definition: D & { location?: ObjectRef | null; vocab?: Vocabulary } & ThisType<
-      Handle<ThingOf<D>, Id>
-    >,
+  definition: D & {
+    location?: ObjectRef | null;
+    vocab?: Vocabulary;
+    /** How it's marked on the auto-map, where the player last saw it. */
+    onMap?: MapMarking;
+  } & ThisType<Handle<ThingOf<D>, Id>>,
 ): Handle<ThingOf<D>, Id> {
-  const handle = object(id, withDefaults({ location: null }, definition) as ObjectDefinition<D>);
+  // A marking is part of the definition, not state: it's kept here, not in the store.
+  const descriptors = Object.getOwnPropertyDescriptors(definition) as Record<
+    string,
+    PropertyDescriptor
+  >;
+  const marking = descriptors.onMap ? checkMarking(descriptors.onMap.value, id) : undefined;
+  delete descriptors.onMap;
+  const handle = object(
+    id,
+    withDefaults(
+      { location: null },
+      Object.defineProperties({}, descriptors),
+    ) as ObjectDefinition<D>,
+  );
   registry.set(id, handle as unknown as Thing);
+  if (marking !== undefined) markings.set(id, marking);
   return handle as unknown as Handle<ThingOf<D>, Id>;
+}
+
+/** `onMap`, checked: a short label becomes `{ label }`. */
+function checkMarking(value: unknown, id: string): Exclude<MapMarking, string> {
+  const nonEmpty = (v: unknown): boolean => v === undefined || (typeof v === "string" && v !== "");
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string" && value !== "") return { label: value };
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    const { label, icon, ...rest } = value as Record<string, unknown>;
+    if (Object.keys(rest).length === 0 && nonEmpty(label) && nonEmpty(icon)) {
+      return {
+        ...(label !== undefined && { label: label as string }),
+        ...(icon !== undefined && { icon: icon as string }),
+      };
+    }
+  }
+  throw new StateError(
+    `thing ${JSON.stringify(id)}: onMap must be true, false, a short label as "chest", or { label, icon } with an image's URL.`,
+  );
 }
 
 /**

@@ -174,10 +174,10 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
 /* The auto-map: rooms in their cells, the player's marked. */
 .loominate-automap { margin: 0; font-family: ${v("font-ui")}; }
 .loominate-automap-picture { display: block; width: 100%; max-width: 20em; height: auto; }
-.loominate-automap-room rect { fill: ${v("color-surface")}; stroke: ${v("color-border")}; stroke-width: 1.5; }
-.loominate-automap-room text { fill: ${v("color-text")}; font-size: 10px; }
-.loominate-automap-current rect { stroke: ${v("color-accent")}; stroke-width: 3; }
-.loominate-automap-current text { font-weight: 700; }
+.loominate-automap-room > rect { fill: ${v("color-surface")}; stroke: ${v("color-border")}; stroke-width: 1.5; }
+.loominate-automap-room > text { fill: ${v("color-text")}; font-size: 10px; }
+.loominate-automap-current > rect { stroke: ${v("color-accent")}; stroke-width: 3; }
+.loominate-automap-current > text { font-weight: 700; }
 .loominate-automap-link { stroke: ${v("color-muted")}; stroke-width: 1.5; }
 .loominate-automap-bent { stroke-dasharray: 3 2; }
 .loominate-automap-arrowhead { fill: ${v("color-muted")}; }
@@ -193,11 +193,11 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
 /* Room below the bottom row for a room's tooltip. */
 .loominate-automap-canvas { position: relative; width: max-content; padding-block-end: 1.75em; }
 .loominate-automap-canvas .loominate-automap-picture { width: auto; max-width: none; }
-.loominate-automap-canvas .loominate-automap-room text { font-size: 13px; }
+.loominate-automap-canvas .loominate-automap-room > text { font-size: 13px; }
 .loominate-automap-canvas .loominate-automap-way { font-size: 11px; }
 .loominate-automap-canvas .loominate-automap-room { cursor: default; }
 .loominate-automap-canvas .loominate-automap-room:focus { outline: none; }
-.loominate-automap-canvas .loominate-automap-room:focus-visible rect { stroke: ${v("color-focus")}; stroke-width: 3; stroke-dasharray: 4 2; }
+.loominate-automap-canvas .loominate-automap-room:focus-visible > rect { stroke: ${v("color-focus")}; stroke-width: 3; stroke-dasharray: 4 2; }
 .loominate-automap-tip { position: absolute; transform: translateX(-50%); padding: 0.1em 0.4em; white-space: nowrap; pointer-events: none; color: ${v("color-background")}; background: ${v("color-text")}; border-radius: ${v("radius")}; font-size: 0.85em; }
 .loominate-automap-list { flex: 0 1 16rem; max-height: 60vh; overflow-y: auto; }
 .loominate-automap-list h3 { margin-block: 0 0.5em; font-size: 1em; }
@@ -206,6 +206,15 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
 .loominate-automap-list > ul > li { margin-block-end: 0.5em; }
 .loominate-automap-here { color: ${v("color-muted")}; }
 .loominate-automap-unexplored { color: ${v("color-muted")}; }
+/* Markers and stubs (#396): what was last seen where, and ways not yet taken. */
+.loominate-automap-stub line { stroke: ${v("color-muted")}; stroke-width: 1.5; stroke-dasharray: 2 2; }
+.loominate-automap-person { fill: ${v("color-accent")}; stroke: ${v("color-background")}; stroke-width: 1; }
+.loominate-automap-thing { fill: ${v("color-text")}; stroke: ${v("color-background")}; stroke-width: 1; }
+.loominate-automap-more { fill: ${v("color-muted")}; font-size: 9px; }
+/* A mark's tooltip shows wherever the pointer is on its square, not only on the dot itself. */
+.loominate-automap-hit { fill: transparent; stroke: none; }
+.loominate-automap-mark, .loominate-automap-more { cursor: help; }
+.loominate-automap-seen { margin: 0.2em 0 0; color: ${v("color-muted")}; }
 .loominate-things-title { color: ${v("color-muted")}; }
 /* A thing's menu, under its name. */
 .loominate-has-menu { position: relative; display: inline-block; }
