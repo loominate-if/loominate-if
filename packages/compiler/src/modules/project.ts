@@ -12,6 +12,7 @@ import { resolveExtensions } from "../extensions/resolve.js";
 import { parsePassageFile } from "../passages/parse.js";
 import { locator } from "../passages/positions.js";
 import type { PassageFileSyntax, Span } from "../passages/syntax.js";
+import { passageView, type StoryMap } from "../map/story-map.js";
 import { CONTEXT_NAMES, generatePassageModule, type GeneratedModule } from "./generate.js";
 import {
   checkLinks,
@@ -170,6 +171,8 @@ export type CompilerSession = {
   modules(): ReadonlyMap<string, GeneratedModule>;
   /** The generated module listing every passage name as a type. */
   passageNames(): { readonly path: string; readonly code: string };
+  /** The game's story map: its passages and the ways between them (#149). */
+  storyMap(): StoryMap;
   /** A passage file as last parsed, by its path, for an editor's features (#410). */
   parsed(path: string): PassageFileSyntax | undefined;
   /**
@@ -733,6 +736,38 @@ export function createCompilerSession(options: ProjectOptions): CompilerSession 
       ),
     passageNames: () => ({ path: namesPath, code: namesCode }),
     parsed: (p) => generated.get(resolve(p))?.parsed,
+    storyMap() {
+      const files = [...generated]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([, g]) => ({ parsed: g.parsed, text: g.text }));
+      // The compiler reports an unreachable passage at its header.
+      const unreachable = new Set<string>();
+      for (const d of (checked ??= check())) {
+        if (d.unreachable !== true) continue;
+        const passage = generated
+          .get(d.file)
+          ?.parsed.passages.find(
+            (p) => p.header.start <= d.span.start && d.span.start <= p.header.end,
+          );
+        if (passage) unreachable.add(passage.name.name);
+      }
+      const stays = new Set(
+        [...syntax.directives].flatMap(([name, defs]) =>
+          defs.some((d) => d.definition.kind === "guard" && d.definition.stays === true)
+            ? [name]
+            : [],
+        ),
+      );
+      return {
+        views: [
+          passageView(files, {
+            ...(options.start !== undefined && { start: options.start }),
+            stays,
+            unreachable,
+          }),
+        ],
+      };
+    },
     syntax: () => ({
       directives: [...syntax.directives].flatMap(([name, defs]) =>
         defs.map(({ definition: d, from }) => ({

@@ -20,6 +20,13 @@ export type {
 } from "./extensions/extension.js";
 export { parsePassageFile, type ParseOptions } from "./passages/parse.js";
 export { passageTargets } from "./modules/links.js";
+export type {
+  StoryMap,
+  StoryMapEdge,
+  StoryMapNode,
+  StoryMapSource,
+  StoryMapView,
+} from "./map/story-map.js";
 export type * from "./passages/syntax.js";
 export {
   generatePassageModule,

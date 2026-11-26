@@ -72,6 +72,7 @@ export function viteConfig(config: ResolvedConfig, options: BuildOptions): Inlin
         ...(config.scope !== undefined && { scope: config.scope }),
         ...(conditions.length > 0 && { compilerOptions: { customConditions: [...conditions] } }),
         ...(options.verbose && { verbose: true }),
+        title: config.title ?? config.game.id,
       }),
       loominateApp(config, { inspector: options.inspector ?? false }),
     ],

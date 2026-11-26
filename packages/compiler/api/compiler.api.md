@@ -80,6 +80,7 @@ export type CompilerSession = {
         readonly path: string;
         readonly code: string;
     };
+    storyMap(): StoryMap;
     parsed(path: string): PassageFileSyntax | undefined;
     syntax(): SessionSyntax;
     diagnostics(): readonly ProjectDiagnostic[];
@@ -412,6 +413,48 @@ export type SourceMap = {
 export type Span = {
     readonly start: number;
     readonly end: number;
+};
+
+// @public
+export type StoryMap = {
+    readonly views: readonly StoryMapView[];
+};
+
+// @public
+export type StoryMapEdge = {
+    readonly from: string;
+    readonly to: string;
+    readonly kind: string;
+    readonly label?: string;
+    readonly guarded?: true;
+    readonly conditional?: true;
+    readonly source: StoryMapSource;
+};
+
+// @public
+export type StoryMapNode = {
+    readonly id: string;
+    readonly label: string;
+    readonly source?: StoryMapSource;
+    readonly tags: readonly string[];
+    readonly start?: true;
+    readonly unreachable?: true;
+    readonly missing?: true;
+};
+
+// @public
+export type StoryMapSource = {
+    readonly file: string;
+    readonly line: number;
+    readonly column: number;
+};
+
+// @public
+export type StoryMapView = {
+    readonly id: string;
+    readonly title: string;
+    readonly nodes: readonly StoryMapNode[];
+    readonly edges: readonly StoryMapEdge[];
 };
 
 // @public

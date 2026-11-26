@@ -16,6 +16,46 @@ export const actionExplainer: Explainer;
 export const choices: InspectorPanel;
 
 // @public
+export type DrawnEdge = {
+    readonly from: string;
+    readonly to: string;
+    readonly kind: string;
+    readonly label?: string;
+    readonly guarded?: true;
+    readonly conditional?: true;
+    readonly source: MapSource;
+    readonly points: readonly {
+        readonly x: number;
+        readonly y: number;
+    }[];
+};
+
+// @public
+export type DrawnNode = {
+    readonly id: string;
+    readonly label: string;
+    readonly x: number;
+    readonly y: number;
+    readonly width: number;
+    readonly height: number;
+    readonly tags: readonly string[];
+    readonly source?: MapSource;
+    readonly start?: true;
+    readonly unreachable?: true;
+    readonly missing?: true;
+};
+
+// @public
+export type DrawnView = {
+    readonly id: string;
+    readonly title: string;
+    readonly width: number;
+    readonly height: number;
+    readonly nodes: readonly DrawnNode[];
+    readonly edges: readonly DrawnEdge[];
+};
+
+// @public
 export const eventLog: InspectorPanel;
 
 // @public
@@ -76,6 +116,22 @@ export interface InspectorPanel {
 export const linkExplainer: Explainer;
 
 // @public
+export type MapDrawing = {
+    readonly title?: string;
+    readonly views: readonly DrawnView[];
+};
+
+// @public
+export type MapSource = {
+    readonly file: string;
+    readonly line: number;
+    readonly column: number;
+};
+
+// @public
+export function mountStoryMap(container: HTMLElement, drawing: MapDrawing, options?: StoryMapOptions): StoryMapView;
+
+// @public
 export interface PanelContext {
     readonly player: Player;
 }
@@ -100,5 +156,17 @@ export const stateTree: InspectorPanel;
 
 // @public
 export const storyletExplainer: Explainer;
+
+// @public
+export type StoryMapOptions = {
+    readonly open?: (source: MapSource) => void;
+};
+
+// @public
+export type StoryMapView = {
+    update(drawing: MapDrawing): void;
+    select(id: string): void;
+    destroy(): void;
+};
 
 ```
