@@ -72,7 +72,7 @@ async function serve(dir: string, logged?: Logged) {
     // Resolve workspace packages to their TypeScript source, as tests do everywhere.
     resolve: { conditions: ["source"] },
     ssr: { resolve: { conditions: ["source", ...defaultServerConditions] } },
-    server: { middlewareMode: true, hmr: false, watch: null },
+    server: { middlewareMode: true, hmr: false, ws: false, watch: null },
   });
 }
 
