@@ -17,6 +17,6 @@ export type ScaffoldOptions = {
 };
 
 // @public
-export function templateFiles(id: string, title: string, version: string): Record<string, string>;
+export function templateFiles(id: string, title: string, version: string, ifid?: string): Record<string, string>;
 
 ```

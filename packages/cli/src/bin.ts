@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /** The `loominate` command. */
 import { parseArgs } from "node:util";
+import { validate } from "./archive.js";
 import { build, dev, test } from "./commands.js";
 import { coverage, formatCoverage } from "./coverage.js";
 import { storyMap } from "./map/command.js";
@@ -10,16 +11,17 @@ const HELP = `Usage: loominate <command> [options]
 
 Commands:
   dev      Serve the game, recompiling and reloading as you edit
-  build    Build the game in dist/: a static site, or with --target single, one HTML file
+  build    Build the game in dist/: a static site, one HTML file (--target single), or a .loom archive (--target archive)
   test     Run the game's walkthrough tests, *.test.ts; name files to run only those
   coverage Report what can't be reached, and what the walkthroughs never reach
   map      Write the story map, the game's passages and links, as one HTML file
+  validate Check a .loom archive: loominate validate dist/my-game.loom
 
 Options:
   --root <dir>   The game's folder (default: the current folder)
   --port <n>     The dev server's port
   --open         Open the game in a browser (dev)
-  --target <t>   What to build: static (default) or single (build)
+  --target <t>   What to build: static (default), single, or archive (build)
   --inspector    Include the inspector, as dev does, e.g. for testers (build)
   --watch        Rerun tests as files change (test)
   --strict       Fail when anything can't be reached, or a walkthrough fails, for CI (coverage)
@@ -69,9 +71,9 @@ async function main(argv: readonly string[]): Promise<void> {
     server.bindCLIShortcuts({ print: true });
   } else if (command === "build") {
     const target = values.target ?? "static";
-    if (target !== "static" && target !== "single") {
+    if (target !== "static" && target !== "single" && target !== "archive") {
       throw new Error(
-        `There's no build target "${target}". Use --target static or --target single.`,
+        `There's no build target "${target}". Use --target static, --target single, or --target archive.`,
       );
     }
     await build({
@@ -110,6 +112,20 @@ async function main(argv: readonly string[]): Promise<void> {
     console.log(
       `Wrote the story map, ${String(result.passages)} passage${result.passages === 1 ? "" : "s"}, to ${result.file}.${errors}`,
     );
+  } else if (command === "validate") {
+    const files = positionals.slice(1);
+    if (files.length === 0)
+      throw new Error("Name the archive to check: loominate validate my-game.loom");
+    for (const file of files) {
+      const problems = await validate(file);
+      if (problems.length === 0) {
+        console.log(`${file}: a valid archive.`);
+      } else {
+        process.exitCode = 1;
+        console.log(`${file}:`);
+        for (const p of problems) console.log(`  ${p}`);
+      }
+    }
   } else {
     throw new Error(`There's no command "${command}". Run \`loominate --help\` to see them.`);
   }

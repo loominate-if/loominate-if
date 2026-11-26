@@ -20,6 +20,9 @@
       "path": "packages/world/src/inspector"
     },
     {
+      "path": "packages/archive"
+    },
+    {
       "path": "packages/testing"
     },
     {

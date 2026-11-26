@@ -43,6 +43,7 @@ describe("the repository", () => {
 
   it("publishes the packages authors install and the ones the CLI needs", () => {
     expect(publishedPackages(REPO).map((p) => p.name)).toEqual([
+      "@loominate-if/archive",
       "@loominate-if/cli",
       "@loominate-if/compiler",
       "@loominate-if/core",

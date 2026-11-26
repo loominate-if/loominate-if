@@ -1,0 +1,31 @@
+{
+  "name": "@loominate-if/archive",
+  "version": "0.1.0",
+  "description": "The .loom archive format: writing, reading, and validating game archives.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/loominate-if/loominate-if.git",
+    "directory": "packages/archive"
+  },
+  "homepage": "https://github.com/loominate-if/loominate-if#readme",
+  "bugs": "https://github.com/loominate-if/loominate-if/issues",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

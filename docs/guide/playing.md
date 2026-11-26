@@ -14,7 +14,7 @@ await playGame(document.querySelector("#app")!, {
 });
 ```
 
-- `game` is the game's stable ID, which keeps its saves apart from other games', and its version, which saves record so the player can be told when a save is from another version.
+- `game` is the game's stable ID, which keeps its saves apart from other games', and its version, which saves record so the player can be told when a save is from another version, and its IFID, `ifid`, which names it to IF archives and catalogs ([archives](getting-started.md#build-it)).
 - `title` is shown on the start screen, and names story log exports.
 - `author`, if given, is shown under the title on the start screen, "by Your Name", and recorded in story log exports.
 - `cover`, if given, is the game's cover art on the start screen: `cover: { image: "cover.jpg", alt: "A lantern on a long road" }`, an image in the game's `public/` folder, with what it shows for those who can't see it. It goes in `loominate.config.ts` too.

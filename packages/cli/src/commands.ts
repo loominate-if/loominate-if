@@ -12,6 +12,7 @@ import {
   type Plugin,
   type ViteDevServer,
 } from "vite";
+import { buildArchive } from "./archive.js";
 import { loadConfig, type ResolvedConfig } from "./config/config.js";
 import { findConflict } from "./vite/conflicts.js";
 import { loominateApp } from "./vite/app.js";
@@ -31,8 +32,8 @@ export type CommandOptions = {
   readonly vite?: InlineConfig;
 };
 
-/** The build targets: a static site of files, or one HTML file. */
-export type BuildTarget = "static" | "single";
+/** The build targets: a static site of files, one HTML file, or a `.loom` archive. */
+export type BuildTarget = "static" | "single" | "archive";
 
 /** Options for {@link build}. */
 export type BuildOptions = CommandOptions & {
@@ -41,6 +42,9 @@ export type BuildOptions = CommandOptions & {
    * `index.html`, the bundled script, and assets as files, for any static
    * host. `single` writes one HTML file, `dist/<game id>.html`, with
    * everything inlined, which opens by double-click with no server.
+   * `archive` writes `dist/<game id>.loom`, the static site in one file,
+   * with a manifest and the game's IFID, for IF archives and players; the
+   * config's `game.ifid` must be set.
    */
   readonly target?: BuildTarget;
   /**
@@ -108,8 +112,8 @@ export async function dev(options: CommandOptions = {}): Promise<ViteDevServer> 
  */
 export async function build(options: BuildOptions = {}): Promise<void> {
   const target = options.target ?? "static";
-  if (target !== "static" && target !== "single") {
-    throw new Error(`There's no build target "${String(target)}". Use static or single.`);
+  if (target !== "static" && target !== "single" && target !== "archive") {
+    throw new Error(`There's no build target "${String(target)}". Use static, single, or archive.`);
   }
   const config = await loadConfig(options.root ?? process.cwd(), {
     ...(options.conditions && { conditions: options.conditions }),
@@ -121,6 +125,10 @@ export async function build(options: BuildOptions = {}): Promise<void> {
   );
   if (conflict !== undefined) throw new Error(conflict);
   const base = viteConfig(config, options);
+  if (target === "archive") {
+    await buildArchive(config, base);
+    return;
+  }
   await viteBuild(
     target === "single"
       ? mergeConfig(mergeConfig(base, singleFileConfig), {

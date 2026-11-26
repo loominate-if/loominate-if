@@ -31,13 +31,13 @@ The **Inspector** button in the corner, or Control+\`, opens the [inspector](ins
   import { defineConfig } from "@loominate-if/cli";
 
   export default defineConfig({
-    game: { id: "my-game", version: "0.1.0" },
+    game: { id: "my-game", version: "0.1.0", ifid: "0B3A7F64-8E2C-4D1A-9F6B-2C5E8A1D3F70" },
     title: "My Game",
     start: "Start",
   });
   ```
 
-  `game.id` keeps your game's saves apart from other games'; don't change it once players have saves. Raise `game.version` when you release a new version, and players loading an older save are told. `start` is the passage a new game starts in. Add `author: "Your Name"` to show a byline on the start screen and put it in story log exports.
+  `game.id` keeps your game's saves apart from other games'; don't change it once players have saves. Raise `game.version` when you release a new version, and players loading an older save are told. `game.ifid` is the game's IFID, which names it to IF archives and catalogs such as IFDB; a new game gets one of its own. Keep it for every version of the game; a different game needs a new one. `start` is the passage a new game starts in. Add `author: "Your Name"` to show a byline on the start screen and put it in story log exports.
 - `walkthrough.test.ts` is a walkthrough test, which plays the game and checks what happens.
 - `assets.d.ts` lets `story.ts` import images, sound, and fonts ([below](#images-and-other-files)).
 - `index.html` is the page the game runs in. It loads `/@loominate/main`, which plays every passage file with the player shell: saves, autosave, undo, and the save menu ([playing guide](playing.md)).
@@ -93,7 +93,15 @@ npm run build:single
 
 This writes `dist/my-game.html`, with everything inlined. Browsers differ in how they keep saves for files opened from disk, so moving the file or opening it in another browser can start afresh; players can carry saves across with the save menu's export and import.
 
-Either build fails if the game has errors.
+To share it as a `.loom` archive, for the IF Archive or a player app:
+
+```sh
+npx loominate build --target archive
+```
+
+This writes `dist/my-game.loom`: the static site in one zip, with a manifest, `manifest.json`, first, saying what the game is and listing each file with its SHA-256, then its Treaty of Babel record, `ifiction.xml`, with its IFID, title, and author. It needs `game.ifid`; for a game made before new games had one, the build says so and gives a new IFID to add. `npx loominate validate dist/my-game.loom` checks an archive: its layout, its manifest, and every file in it. Every build puts the IFID in the page too, as the Treaty of Babel says a web game does, so catalogs can find it.
+
+Every build fails if the game has errors.
 
 ## See it
 

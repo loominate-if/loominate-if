@@ -13,6 +13,8 @@ import {
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { afterAll, describe, expect, it, vi } from "vitest";
+import { readArchive } from "@loominate-if/archive";
+import { validate } from "./archive.js";
 import { build, dev, test } from "./commands.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -242,6 +244,46 @@ export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, start
     expect(html.indexOf("second-kit")).toBeLessThan(html.indexOf("first-kit"));
   }, 60_000);
 
+  it("builds an archive of the static site, with its manifest and IFID (#151)", async () => {
+    const ifid = "0B3A7F64-8E2C-4D1A-9F6B-2C5E8A1D3F70";
+    const root = game({
+      "loominate.config.ts": `import { defineConfig } from "@loominate-if/cli";
+export default defineConfig({ game: { id: "test-game", version: "0.2.0", ifid: "${ifid.toLowerCase()}" }, title: "Test Game", author: "A. Writer", start: "Start" });
+`,
+      "start.weft": START,
+      "public/sounds/door.ogg": "not really a sound",
+    });
+    await build({ ...options(root), target: "archive" });
+    // Only the archive: the site it holds was built elsewhere.
+    expect(readdirSync(path.join(root, "dist"))).toEqual(["test-game.loom"]);
+    const file = path.join(root, "dist/test-game.loom");
+    expect(await validate(file)).toEqual([]);
+    const archive = await readArchive(readFileSync(file));
+    expect(archive.manifest).toMatchObject({
+      ifid,
+      title: "Test Game",
+      author: "A. Writer",
+      game: { id: "test-game", version: "0.2.0" },
+      entry: "index.html",
+    });
+    const paths = archive.manifest.files.map((f) => f.path);
+    expect(paths).toContain("index.html");
+    expect(paths).toContain("sounds/door.ogg");
+    expect(paths.some((p) => /^assets\/.+\.js$/.test(p))).toBe(true);
+    const html = new TextDecoder().decode(await archive.read("index.html"));
+    // The IFID, as the Treaty of Babel says an HTML game gives it; every build has it.
+    expect(html).toContain(
+      `<meta prefix="ifiction: http://babel.ifarchive.org/protocol/iFiction/" property="ifiction:ifid" content="${ifid}">`,
+    );
+  }, 60_000);
+
+  it("asks for an IFID before building an archive", async () => {
+    const root = game({ "start.weft": START });
+    await expect(build({ ...options(root), target: "archive" })).rejects.toThrow(
+      /An archive needs the game's IFID.*like `ifid: "[0-9A-F-]{36}"`, a new one/,
+    );
+  });
+
   it("builds the game as a static site, with relative URLs", async () => {
     const root = game({ "start.weft": START });
     await build(options(root));
@@ -337,7 +379,7 @@ export default defineConfig({ game: { id: "test-game", version: "0.1.0" }, start
   it("names the build targets when given another", async () => {
     const root = game({ "start.weft": START });
     await expect(build({ ...options(root), target: "zip" as never })).rejects.toThrow(
-      'There\'s no build target "zip". Use static or single.',
+      'There\'s no build target "zip". Use static, single, or archive.',
     );
   });
 

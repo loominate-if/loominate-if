@@ -3,6 +3,7 @@
  * module, the game's configuration, and the page that loads it, ready for
  * `npm install` and `npm run dev`.
  */
+import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -64,7 +65,12 @@ function assetDeclarations(): string {
 }
 
 /** The files of a new game, by path, for {@link scaffold}. */
-export function templateFiles(id: string, title: string, version: string): Record<string, string> {
+export function templateFiles(
+  id: string,
+  title: string,
+  version: string,
+  ifid: string = randomUUID().toUpperCase(),
+): Record<string, string> {
   const range = `^${version}`;
   return {
     "package.json": `${JSON.stringify(
@@ -93,7 +99,8 @@ export function templateFiles(id: string, title: string, version: string): Recor
     "loominate.config.ts": `import { defineConfig } from "@loominate-if/cli";
 
 export default defineConfig({
-  game: { id: ${JSON.stringify(id)}, version: "0.1.0" },
+  // The IFID names this game to IF archives and catalogs, in every version: keep it.
+  game: { id: ${JSON.stringify(id)}, version: "0.1.0", ifid: ${JSON.stringify(ifid)} },
   title: ${JSON.stringify(title)},
   start: "Start",
 });

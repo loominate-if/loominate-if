@@ -9,6 +9,8 @@ import { findPackageJSON } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { CompilerExtension } from "@loominate-if/compiler";
+import { randomUUID } from "node:crypto";
+import { isIfid } from "@loominate-if/archive";
 import { runnerImport } from "vite";
 
 /** The module a config's `import { defineConfig } from "@loominate-if/cli"` loads. */
@@ -21,8 +23,14 @@ export const CONFIG_FILE = "loominate.config.ts";
 
 /** What `loominate.config.ts` exports. */
 export type LoominateConfig = {
-  /** The game's stable ID, which keeps its saves apart from other games', and its version, which saves record. */
-  readonly game: { readonly id: string; readonly version: string };
+  /**
+   * The game's stable ID, which keeps its saves apart from other games', and
+   * its version, which saves record. `ifid` is its IFID, a UUID that
+   * identifies the work, across every version of it, to IF archives and
+   * catalogs (the Treaty of Babel). An archive build needs one; a new game's
+   * config has one.
+   */
+  readonly game: { readonly id: string; readonly version: string; readonly ifid?: string };
   /** The game's name, shown on its start screen. Defaults to the game's ID. */
   readonly title?: string;
   /** Who wrote it: on its start screen and in story log exports. */
@@ -189,6 +197,12 @@ function check(value: unknown): LoominateConfig {
   if (!isRecord(game) || !text(game.id) || !text(game.version)) {
     fail(
       '`game` needs an `id` and a `version`, like `game: { id: "lantern-road", version: "1.0.0" }`.',
+    );
+  }
+  const ifid = isRecord(game) ? game.ifid : undefined;
+  if (ifid !== undefined && !(typeof ifid === "string" && isIfid(ifid))) {
+    fail(
+      `\`game.ifid\` must be a UUID, like \`ifid: "${randomUUID().toUpperCase()}"\`, a new one you can use.`,
     );
   }
   if (!text(start)) fail('`start` names the passage a new game starts in, like `start: "Start"`.');
