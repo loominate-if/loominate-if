@@ -172,6 +172,17 @@ export const worldPanel: InspectorPanel = {
       if (d.kind === "mind") row("Body", ...(d.body === undefined ? ["none"] : [jump(d.body)]));
       if (d.seenBy) row("Seen by", ...(d.seenBy.length === 0 ? ["no one"] : d.seenBy));
       if (d.knownOfBy && d.knownOfBy.length > 0) row("Known of by", d.knownOfBy.join(", "));
+      if (d.map) {
+        const cell = `x ${String(d.map.x)}, y ${String(d.map.y)}`;
+        row(
+          "Map",
+          d.map.pinned
+            ? `${cell}, pinned`
+            : d.map.nudged
+              ? `${cell}: nudged, as another room has the cell its exits ask for. Pin it with map: { x, y } in its place() to choose.`
+              : cell,
+        );
+      }
       details.append(facts);
       const k = d.knowledge;
       if (k) {

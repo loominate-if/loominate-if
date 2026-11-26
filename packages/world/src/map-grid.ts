@@ -78,12 +78,16 @@ function* nearby(around: GridCell): Generator<GridCell> {
  * are laid out the same way, to the right of the rest. Exits that don't run
  * one step in their direction are listed as bent.
  *
+ * Pinned rooms are in their cells, whatever their exits say, and the
+ * rest fit around them; the layout walks on from a pinned room as from any.
+ *
  * The same rooms and exits, in the same order, always give the same layout.
  */
 export function gridLayout(
   rooms: readonly string[],
   exits: readonly GridExit[],
   start?: string,
+  pins: ReadonlyMap<string, GridCell> = new Map(),
 ): GridLayout {
   const cells = new Map<string, GridCell>();
   const taken = new Map<string, string>();
@@ -110,26 +114,42 @@ export function gridLayout(
     way(e.to, e.from, step && flip(step), flip(BESIDE[e.direction] ?? { x: 1, y: 0 }));
   }
   const known = new Set(rooms);
+  // Pinned rooms first: they're where the author says, and the rest fit around them.
+  for (const [room, cell] of pins) if (known.has(room)) place(room, cell);
+  // Rooms walked from: each is reached once, pinned or not, and its exits followed from there.
+  const walked = new Set<string>();
   const order = [...(start !== undefined && known.has(start) ? [start] : []), ...rooms];
   for (const root of order) {
-    if (cells.has(root)) continue;
-    // A new group: the start at the origin, the rest to the right of what's placed.
-    const right = cells.size === 0 ? 0 : Math.max(...[...cells.values()].map((c) => c.x)) + 2;
-    const top = cells.size === 0 ? 0 : Math.min(...[...cells.values()].map((c) => c.y));
-    place(root, free({ x: right, y: top }));
+    if (walked.has(root)) continue;
+    if (!cells.has(root)) {
+      // A new group: the start at the origin, the rest to the right of what's placed.
+      const right =
+        root === start || cells.size === 0
+          ? 0
+          : Math.max(...[...cells.values()].map((c) => c.x)) + 2;
+      const top =
+        root === start || cells.size === 0 ? 0 : Math.min(...[...cells.values()].map((c) => c.y));
+      place(root, free({ x: right, y: top }));
+    }
+    walked.add(root);
     const group = [root];
+    /** Reaches `other` from a room: places it where it's wanted, unless it's placed already. */
+    const reach = (other: string, wanted: GridCell, compass: boolean): void => {
+      walked.add(other);
+      group.push(other);
+      if (cells.has(other)) return;
+      const cell = free(wanted);
+      if (compass && key(cell) !== key(wanted)) nudged.push(other);
+      place(other, cell);
+    };
     // Compass exits first, so a room up a ladder doesn't take a cell a room to the east should have.
     const walk = (queue: string[]): void => {
       for (let room = queue.shift(); room !== undefined; room = queue.shift()) {
         const at = cells.get(room);
         if (!at) continue;
         for (const { other, step } of ways.get(room) ?? []) {
-          if (!step || cells.has(other) || !known.has(other)) continue;
-          const wanted = add(at, step);
-          const cell = free(wanted);
-          if (key(cell) !== key(wanted)) nudged.push(other);
-          place(other, cell);
-          group.push(other);
+          if (!step || walked.has(other) || !known.has(other)) continue;
+          reach(other, add(at, step), true);
           queue.push(other);
         }
       }
@@ -137,13 +157,11 @@ export function gridLayout(
     walk([root]);
     // Then each room reached only another way, beside the room it's reached from, and on from there.
     for (let i = 0; i < group.length; i++) {
-      const room = group[i] ?? "";
-      const at = cells.get(room);
+      const at = cells.get(group[i] ?? "");
       if (!at) continue;
-      for (const { other, step, beside } of ways.get(room) ?? []) {
-        if (step || cells.has(other) || !known.has(other)) continue;
-        place(other, free(add(at, beside)));
-        group.push(other);
+      for (const { other, step, beside } of ways.get(group[i] ?? "") ?? []) {
+        if (step || walked.has(other) || !known.has(other)) continue;
+        reach(other, add(at, beside), false);
         walk([other]);
       }
     }

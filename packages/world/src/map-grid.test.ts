@@ -78,4 +78,35 @@ describe("gridLayout", () => {
       cells(gridLayout(["a", "b", "c", "d"], exits, "a")),
     );
   });
+
+  it("puts pinned rooms in their cells, fitting the rest around them", () => {
+    const exits: GridExit[] = [
+      { from: "hall", to: "library", direction: "north" },
+      { from: "library", to: "attic", direction: "up" },
+      { from: "hall", to: "yard", direction: "east" },
+    ];
+    const layout = gridLayout(
+      ["hall", "library", "attic", "yard"],
+      exits,
+      "hall",
+      new Map([
+        ["attic", { x: 0, y: -2 }],
+        ["yard", { x: 3, y: 0 }],
+      ]),
+    );
+    expect(cells(layout)).toEqual({ hall: [0, 0], library: [0, -1], attic: [0, -2], yard: [3, 0] });
+    // The pinned rooms aren't nudged; the east exit doesn't run one step, so it's bent.
+    expect(layout.nudged).toEqual([]);
+    expect(layout.bent).toEqual(new Set([1, 2]));
+  });
+
+  it("walks on from a pinned room that the start doesn't reach", () => {
+    const layout = gridLayout(
+      ["hall", "island", "shore"],
+      [{ from: "island", to: "shore", direction: "south" }],
+      "hall",
+      new Map([["island", { x: 5, y: 5 }]]),
+    );
+    expect(cells(layout)).toEqual({ hall: [0, 0], island: [5, 5], shore: [5, 6] });
+  });
 });

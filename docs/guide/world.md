@@ -860,6 +860,31 @@ Change the defaults by replacing the widget: `widgets.replace("compass", compass
 
 The compass's data is plain, a list of ways with each one's direction, label, title, and whether it can be taken and why not, so you can replace its view to draw a brass ship's compass or a subway map, keeping the data.
 
+### The auto-map
+
+The world model registers an `automap` widget too: the rooms the player has visited around their room, drawn small on a grid, north up. Place it as you place the compass:
+
+```ts
+import { addToHeader } from "@loominate-if/presentation";
+addToHeader("automap");
+```
+
+- **What it shows:** a window five cells across and three down, with the player's room in the middle and marked. Only rooms the player has visited are drawn, so the map grows as they explore. Rooms keep their places as it grows, as the map is laid out from the room the player starts in.
+- **Ways between rooms:** a way both directions is a line, and a one-way exit has an arrow. Up, down, in, and out, and your own directions, put their room on a diagonal beside the one they lead from, and are named on the line, as "Up / Down".
+- **For a screen reader**, the map is one image that says where the player is and the visited rooms next to it: "Map: you're in the taproom. Visited nearby: the kitchen to the east, the landing upstairs." The words are the `automap.summary` and `automap.nearby` messages.
+- **It follows the game:** it's read from the game's state each time it's drawn, so undo, loading a save, and replays show what they should.
+
+Change the window by replacing the widget: `widgets.replace("automap", automap({ columns: 7, rows: 5 }))`. Like the compass's, its data is plain, rooms in cells and the ways between them, so you can draw it your own way.
+
+The map is laid out from the exits: each room one step from the last in its exit's direction. Where that doesn't work, as when two rooms would share a cell, the later one moves to the nearest free cell. The story map's Rooms view and the inspector's World tab say which rooms were moved. Pin a room to the cell you want with `map`, x to the east and y to the south, counting from the room the player starts in:
+
+<!-- example: packages/world/src/map-view.test.ts#pin -->
+```ts
+const yard = place("yard", { name: "yard", map: { x: 3, y: 1 } });
+```
+
+The rest fit around pinned rooms. The story map's Rooms view uses the same layout.
+
 ### Doors and obstacles
 
 A **door** is one thing that both rooms' exits name with `via`. It's in scope from both rooms, and opening it from one side opens it for both. Spread in `door`, and `lockable` for one that locks. A closed door blocks the way until something opens it: until actions arrive, write a link that does, such as `{on enter: cellarDoor.open()}`.

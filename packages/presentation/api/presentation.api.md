@@ -60,6 +60,50 @@ export type ActionMove = {
 export function addToHeader(name: string): void;
 
 // @public
+export type AutomapData = {
+    readonly columns: number;
+    readonly rows: number;
+    readonly view?: AutomapView;
+};
+
+// @public
+export type AutomapLink = {
+    readonly from: string;
+    readonly to: string;
+    readonly oneWay?: true;
+    readonly label?: string;
+};
+
+// @public
+export type AutomapOptions = {
+    readonly rooms: (game: PageGame, size: {
+        columns: number;
+        rows: number;
+    }) => AutomapView | undefined;
+    readonly columns?: number;
+    readonly rows?: number;
+};
+
+// @public
+export type AutomapRoom = {
+    readonly id: string;
+    readonly label: string;
+    readonly x: number;
+    readonly y: number;
+    readonly current?: true;
+};
+
+// @public
+export type AutomapView = {
+    readonly summary: string;
+    readonly rooms: readonly AutomapRoom[];
+    readonly links: readonly AutomapLink[];
+};
+
+// @public
+export function automapWidget(options: AutomapOptions): WidgetDefinition<AutomapData>;
+
+// @public
 export type BrowserStorageOptions = {
     readonly indexedDB?: IDBFactory;
 };

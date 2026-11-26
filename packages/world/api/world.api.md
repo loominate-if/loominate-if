@@ -7,6 +7,7 @@
 import { Action } from '@loominate-if/core';
 import { ActionCall } from '@loominate-if/core';
 import { ActionOutcome } from '@loominate-if/core';
+import { AutomapData } from '@loominate-if/presentation';
 import { CastMember } from '@loominate-if/presentation';
 import { CompassData } from '@loominate-if/presentation';
 import { ConditionArgument } from '@loominate-if/core';
@@ -180,6 +181,15 @@ export const askToCome: Action<{
 export const askToWait: Action<{
     thing: ActingOn;
 }>;
+
+// @public
+export function automap(settings?: AutomapSettings): WidgetDefinition<AutomapData>;
+
+// @public
+export type AutomapSettings = {
+    readonly columns?: number;
+    readonly rows?: number;
+};
 
 // @public
 export function baseStat(who: ObjectRef, name: StatName): number;
@@ -539,6 +549,12 @@ export type _Details = {
     readonly knowledge?: _Knowledge;
     readonly seenBy?: readonly string[];
     readonly knownOfBy?: readonly string[];
+    readonly map?: {
+        readonly x: number;
+        readonly y: number;
+        readonly nudged: boolean;
+        readonly pinned: boolean;
+    };
 };
 
 // @public
@@ -1231,6 +1247,10 @@ export function place<Id extends StateId, D extends ObjectDefinition<D> & {
     isDark?: boolean;
     regions?: readonly ObjectRef[];
     vocab?: Vocabulary;
+    map?: {
+        readonly x: number;
+        readonly y: number;
+    };
 } & ThisType<Handle<ThingOf<D> & PlaceFields, Id>>): Handle<ThingOf<D> & PlaceFields, Id>;
 
 // @public

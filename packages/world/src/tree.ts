@@ -4,8 +4,9 @@
  * no body; and for any node, where it is, its mind or body, and who knows
  * what. It reads the world and changes nothing.
  */
+import { _worldMap } from "./map-layout.js";
 import { _allMinds, bodyOf, currentPlayerBody, isBody, isMind, mindFor, mindOf } from "./actors.js";
-import { _allThings, isPlace, thingFor } from "./things.js";
+import { _allThings, _mapPin, isPlace, thingFor } from "./things.js";
 
 /** A node in the world tree. @internal */
 export type _TreeNode = {
@@ -92,6 +93,13 @@ export type _Details = {
   /** For a thing: the minds that have seen it, and those that know of it without having seen it. */
   readonly seenBy?: readonly string[];
   readonly knownOfBy?: readonly string[];
+  /** For a place on the map grid: its cell, and whether it was nudged off the one its exits ask for (#394). */
+  readonly map?: {
+    readonly x: number;
+    readonly y: number;
+    readonly nudged: boolean;
+    readonly pinned: boolean;
+  };
 };
 
 function knowledgeOf(mindId: string): _Knowledge {
@@ -134,6 +142,8 @@ export function _worldDetails(id: string): _Details | undefined {
   const minds = _allMinds();
   const body = isBody(t);
   const inside = body ? mindOf(t)?.id : undefined;
+  const grid = isPlace(t) ? _worldMap().layout : undefined;
+  const cell = grid?.cells.get(id);
   return {
     id,
     name: nameOf(t),
@@ -142,6 +152,13 @@ export function _worldDetails(id: string): _Details | undefined {
     ...(inside !== undefined && { mind: inside, knowledge: knowledgeOf(inside) }),
     seenBy: minds.filter((m) => m.hasSeen(t)).map((m) => m.id),
     knownOfBy: minds.filter((m) => !m.hasSeen(t) && m.knowsAbout(t)).map((m) => m.id),
+    ...(cell && {
+      map: {
+        ...cell,
+        nudged: grid?.nudged.includes(id) === true,
+        pinned: _mapPin(t) !== undefined,
+      },
+    }),
   };
 }
 

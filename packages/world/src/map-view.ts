@@ -1,66 +1,37 @@
 /**
  * The world model's view of the story map (#426, ADR 0124): every room with
- * exits, by name, laid out by compass, with each exit's direction and door,
- * read from the begun game.
+ * exits, by name, on the grid the auto-map uses, with each exit's direction
+ * and door. Rooms moved off the cell their exits asked for say so, with how
+ * to pin them, for the author.
  */
 import { mapViews, type MapViewEdge, type MapViewNode } from "@loominate-if/core";
-import { playerBody } from "./actors.js";
-import { connectedRooms, exitsOf } from "./exits.js";
-import { gridLayout } from "./map-grid.js";
+import { _worldMap } from "./map-layout.js";
 import { roomPassageIds } from "./rooms.js";
-import { placeOf, type Place } from "./things.js";
 
 const SOURCE = "@loominate-if/world";
-
-/** The room the player is in when the game begins, if there's a player yet. */
-function startRoom(): Place | undefined {
-  try {
-    const body = playerBody();
-    return body ? placeOf(body) : undefined;
-  } catch {
-    // No startAs() in the game: there's no player, so no start room.
-    return undefined;
-  }
-}
 
 mapViews.register(
   "rooms",
   {
     title: "Rooms",
     view: () => {
-      const connected = connectedRooms();
-      const exits = connected.flatMap((room) => exitsOf(room).map((exit) => ({ room, exit })));
-      // Rooms exits lead to but that have none of their own are rooms too.
-      const rooms = new Map<string, Place>(connected.map((r) => [r.id, r]));
-      for (const { exit } of exits) if (!rooms.has(exit.to.id)) rooms.set(exit.to.id, exit.to);
-      const start = startRoom();
-      const layout = gridLayout(
-        [...rooms.keys()],
-        exits.map(({ room, exit }) => ({
-          from: room.id,
-          to: exit.to.id,
-          direction: exit.direction.name,
-        })),
-        start?.id,
-      );
-      // In the order a player meets them: the start, then along the exits, then the rest.
-      const ordered = new Map<string, Place>();
-      const roots = [...(start && rooms.has(start.id) ? [start] : []), ...rooms.values()];
-      for (const root of roots) {
-        const queue = [root];
-        for (let at = queue.shift(); at !== undefined; at = queue.shift()) {
-          if (ordered.has(at.id)) continue;
-          ordered.set(at.id, at);
-          for (const { room, exit } of exits) if (room.id === at.id) queue.push(exit.to);
-        }
-      }
-      const nodes: MapViewNode[] = [...ordered.values()].map((room) => {
+      const { rooms, exits, start, layout } = _worldMap();
+      const nudged = new Set(layout.nudged);
+      const nodes: MapViewNode[] = rooms.map((room) => {
         const passages = roomPassageIds(room);
         const cell = layout.cells.get(room.id);
+        const tags = [
+          ...passages.map((p) => `passage: ${p}`),
+          ...(nudged.has(room.id) && cell
+            ? [
+                `nudged: another room has the cell its exits ask for. Pin it, as map: { x: ${String(cell.x)}, y: ${String(cell.y)} } where it is now, to keep it there or choose another cell`,
+              ]
+            : []),
+        ];
         return {
           id: room.id,
           label: room.name,
-          ...(passages.length > 0 && { tags: passages.map((p) => `passage: ${p}`) }),
+          ...(tags.length > 0 && { tags }),
           ...(room.id === start?.id && { start: true as const }),
           ...(cell && { cell }),
         };
