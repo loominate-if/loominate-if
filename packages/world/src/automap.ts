@@ -14,11 +14,13 @@ import {
   type AutomapView,
   type WidgetDefinition,
   type AutomapData,
+  type AutomapFullMap,
 } from "@loominate-if/presentation";
 import { currentPlayerBody } from "./actors.js";
-import { _worldMap } from "./map-layout.js";
+import { exitsOf } from "./exits.js";
+import { _worldMap, type WorldMap } from "./map-layout.js";
 import { visitsTo } from "./rooms.js";
-import { placeOf } from "./things.js";
+import { placeOf, type Place } from "./things.js";
 
 /** How the world model's auto-map is drawn, for {@link automap}. */
 export type AutomapSettings = {
@@ -28,35 +30,21 @@ export type AutomapSettings = {
   readonly rows?: number;
 };
 
-/** The visited rooms around the player, in a window of `columns` by `rows` cells. @internal */
-export function _automapView(size: { columns: number; rows: number }): AutomapView | undefined {
-  const body = currentPlayerBody();
-  const here = body ? placeOf(body) : undefined;
-  if (!here) return undefined;
-  const { rooms, exits, layout } = _worldMap();
-  const centre = layout.cells.get(here.id);
-  if (!centre) return undefined;
-  const left = centre.x - Math.floor(size.columns / 2);
-  const top = centre.y - Math.floor(size.rows / 2);
-  const visited = new Set(
-    rooms.filter((r) => r.id === here.id || visitsTo(r) > 0).map((r) => r.id),
-  );
-  // A room in the window, or just outside it, so a way can run off the edge toward it.
-  const near = (x: number, y: number): boolean =>
-    x >= -1 && y >= -1 && x <= size.columns && y <= size.rows;
-  const shown: AutomapRoom[] = rooms.flatMap((r) => {
-    const cell = layout.cells.get(r.id);
-    if (!cell || !visited.has(r.id)) return [];
-    const x = cell.x - left;
-    const y = cell.y - top;
-    if (!near(x, y)) return [];
-    return [{ id: r.id, label: r.name, x, y, ...(r.id === here.id && { current: true as const }) }];
-  });
-  const on = new Set(shown.map((r) => r.id));
+/** The rooms the player has visited, and the room they're in. */
+function visitedRooms(map: WorldMap, here: Place): Set<string> {
+  return new Set(map.rooms.filter((r) => r.id === here.id || visitsTo(r) > 0).map((r) => r.id));
+}
+
+/**
+ * The ways between rooms on show: each pair once, from the room met first,
+ * so a ladder reads "Up / Down" from the bottom; one-way ways marked, and
+ * ways that aren't a step in their direction named.
+ */
+function linksAmong(map: WorldMap, on: ReadonlySet<string>): AutomapLink[] {
+  const { rooms, exits, layout } = map;
   const links: AutomapLink[] = [];
   const drawn = new Set<string>();
   const short = (direction: string): string => message("compass.short", { direction });
-  // Each pair once, from the room met first, so a ladder reads "Up / Down" from the bottom.
   const order = new Map(rooms.map((r, i) => [r.id, i]));
   const met = exits
     .map((e, i) => ({ ...e, i }))
@@ -77,14 +65,96 @@ export function _automapView(size: { columns: number; rows: number }): AutomapVi
       ...(layout.bent.has(i) && { label }),
     });
   }
-  const nearby = exits
+  return links;
+}
+
+/** The player's room now, and the map, if they're somewhere on it. */
+function whereNow(): { here: Place; map: WorldMap } | undefined {
+  const body = currentPlayerBody();
+  const here = body ? placeOf(body) : undefined;
+  if (!here) return undefined;
+  const map = _worldMap();
+  return map.layout.cells.has(here.id) ? { here, map } : undefined;
+}
+
+/** What a screen reader says for the map: where the player is, and the visited rooms next to it. */
+function summaryOf(map: WorldMap, here: Place, visited: ReadonlySet<string>): string {
+  const nearby = map.exits
     .filter(
       ({ room, exit }) => room.id === here.id && visited.has(exit.to.id) && exit.to.id !== here.id,
     )
     .map(({ exit }) =>
       message("automap.nearby", { room: exit.to, direction: exit.direction.name }),
     );
-  return { summary: message("automap.summary", { room: here, nearby }), rooms: shown, links };
+  return message("automap.summary", { room: here, nearby });
+}
+
+/** The visited rooms around the player, in a window of `columns` by `rows` cells. @internal */
+export function _automapView(size: { columns: number; rows: number }): AutomapView | undefined {
+  const now = whereNow();
+  if (!now) return undefined;
+  const { here, map } = now;
+  const centre = map.layout.cells.get(here.id) ?? { x: 0, y: 0 };
+  const left = centre.x - Math.floor(size.columns / 2);
+  const top = centre.y - Math.floor(size.rows / 2);
+  const visited = visitedRooms(map, here);
+  // A room in the window, or just outside it, so a way can run off the edge toward it.
+  const near = (x: number, y: number): boolean =>
+    x >= -1 && y >= -1 && x <= size.columns && y <= size.rows;
+  const shown: AutomapRoom[] = map.rooms.flatMap((r) => {
+    const cell = map.layout.cells.get(r.id);
+    if (!cell || !visited.has(r.id)) return [];
+    const x = cell.x - left;
+    const y = cell.y - top;
+    if (!near(x, y)) return [];
+    return [{ id: r.id, label: r.name, x, y, ...(r.id === here.id && { current: true as const }) }];
+  });
+  return {
+    summary: summaryOf(map, here, visited),
+    rooms: shown,
+    links: linksAmong(map, new Set(shown.map((r) => r.id))),
+  };
+}
+
+/**
+ * Every room the player has visited, for the full map (#395), on a grid
+ * just big enough for them, each with its ways out: to the room, named, if
+ * the player has been there. @internal
+ */
+export function _automapFull(): AutomapFullMap | undefined {
+  const now = whereNow();
+  if (!now) return undefined;
+  const { here, map } = now;
+  const visited = visitedRooms(map, here);
+  const placed = map.rooms.flatMap((r) => {
+    const cell = map.layout.cells.get(r.id);
+    return cell && visited.has(r.id) ? [{ room: r, cell }] : [];
+  });
+  const left = Math.min(...placed.map((p) => p.cell.x));
+  const top = Math.min(...placed.map((p) => p.cell.y));
+  const rooms: AutomapRoom[] = placed.map(({ room, cell }) => ({
+    id: room.id,
+    label: room.name,
+    x: cell.x - left,
+    y: cell.y - top,
+    ...(room.id === here.id && { current: true as const }),
+    ways: exitsOf(room).map((exit) => ({
+      label: message("automap.way", {
+        direction: exit.direction.name,
+        ...(visited.has(exit.to.id) && { room: exit.to }),
+      }),
+      ...(visited.has(exit.to.id) && { to: exit.to.id }),
+    })),
+  }));
+  return {
+    columns: Math.max(...rooms.map((r) => r.x)) + 1,
+    rows: Math.max(...rooms.map((r) => r.y)) + 1,
+    view: {
+      summary: summaryOf(map, here, visited),
+      rooms,
+      links: linksAmong(map, visited),
+    },
+  };
 }
 
 /**
@@ -98,6 +168,7 @@ export function automap(settings: AutomapSettings = {}): WidgetDefinition<Automa
     ...(settings.columns !== undefined && { columns: settings.columns }),
     ...(settings.rows !== undefined && { rows: settings.rows }),
     rooms: (_game, size) => _automapView(size),
+    full: () => _automapFull(),
   });
 }
 

@@ -54,10 +54,12 @@ export { textWidget, type TextWidgetOptions } from "./page/text.js";
 export {
   automapWidget,
   type AutomapData,
+  type AutomapFullMap,
   type AutomapLink,
   type AutomapOptions,
   type AutomapRoom,
   type AutomapView,
+  type AutomapWay,
 } from "./page/automap.js";
 export {
   compassWidget,
