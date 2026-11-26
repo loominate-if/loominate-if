@@ -23,7 +23,8 @@ export type DrawnEdge = {
     readonly label?: string;
     readonly guarded?: true;
     readonly conditional?: true;
-    readonly source: MapSource;
+    readonly bent?: true;
+    readonly source?: MapSource;
     readonly points: readonly {
         readonly x: number;
         readonly y: number;
@@ -53,6 +54,8 @@ export type DrawnView = {
     readonly height: number;
     readonly nodes: readonly DrawnNode[];
     readonly edges: readonly DrawnEdge[];
+    readonly grid?: true;
+    readonly error?: string;
 };
 
 // @public
@@ -160,6 +163,8 @@ export const storyletExplainer: Explainer;
 // @public
 export type StoryMapOptions = {
     readonly open?: (source: MapSource) => void;
+    readonly view?: string;
+    readonly onView?: (id: string) => void;
 };
 
 // @public

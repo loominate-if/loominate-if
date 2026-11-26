@@ -55,8 +55,10 @@ export const MAP_STYLES = `
 .map-edge { fill: none; stroke: var(--muted); stroke-width: 1.5; }
 .map-edge.guarded { stroke-dasharray: 6 4; }
 .map-edge.conditional { stroke-dasharray: 2 3; }
+.map-error { margin: 0.5rem 0; padding: 0.5rem; border-inline-start: 3px solid var(--error); }
 .map-edge.touching { stroke: var(--accent); stroke-width: 2.5; }
 .map-arrowhead { fill: var(--muted); }
+.map-way { font-size: 11px; fill: var(--muted); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; }
 @media (max-width: 40rem) {
   .map-body { grid-template-columns: 1fr; grid-template-rows: 45vh 1fr; }
   .map-outline { border-inline-end: none; border-block-end: 1px solid var(--line); order: 2; }

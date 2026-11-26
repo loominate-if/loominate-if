@@ -218,6 +218,13 @@ export {
   type CoverageItem,
 } from "./reports/coverage.js";
 export {
+  mapViews,
+  type MapViewContent,
+  type MapViewEdge,
+  type MapViewNode,
+  type MapViewSource,
+} from "./reports/map.js";
+export {
   action,
   actionCandidates,
   actionsFor,

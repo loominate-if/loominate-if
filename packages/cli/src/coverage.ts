@@ -18,6 +18,7 @@ import { createServer, mergeConfig, type Plugin } from "vite";
 import { loadConfig, type ResolvedConfig } from "./config/config.js";
 import { viteConfig, runWalkthroughs, type CommandOptions } from "./commands.js";
 import { formatDiagnostic, gameFiles } from "./vite/plugin.js";
+import { gameModule } from "./game-module.js";
 
 /** Options for {@link coverage}. */
 export type CoverageOptions = CommandOptions & {
@@ -227,21 +228,6 @@ function sectionedPassages(
     .flatMap((f) => parsePassageFile(f.text, { file: f.path }).passages)
     .filter((p) => p.tags.some((t) => t.value !== undefined && roles.has(t.name)))
     .map((p) => p.name.name);
-}
-
-/** The game's passage files, imported, and the passages a player can visit. */
-function gameModule(config: ResolvedConfig, sectioned: readonly string[]): string[] {
-  const files = gameFiles(config.root)
-    .map((f) => f.path)
-    .filter((p) => p.endsWith(PASSAGE_EXTENSION));
-  return [
-    // The listed packages first, in order, as the game loads them, so their checks are registered.
-    ...config.runtimePackages.map((p) => `import ${JSON.stringify(p)};`),
-    ...files.map((file, i) => `import { passages as p${String(i)} } from ${JSON.stringify(file)};`),
-    `const passages = [${files.map((_, i) => `...p${String(i)}`).join(", ")}];`,
-    `const sectioned = new Set(${JSON.stringify(sectioned)});`,
-    "const shown = passages.filter((p) => !sectioned.has(p.id));",
-  ];
 }
 
 /** The modules coverage loads: the begun game's structure, and the walkthroughs' setup. */

@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import { dev } from "../commands.js";
 import { layoutStoryMap } from "./layout.js";
@@ -49,6 +49,52 @@ export default defineConfig({ game: { id: "map-game", version: "0.1.0" }, title:
   }
   return root;
 }
+
+/** A game with the world model's rooms and exits, its extension from source. */
+function worldGame(): string {
+  const root = game({
+    "loominate.config.ts": `import { defineConfig } from "@loominate-if/cli";
+export default defineConfig({ game: { id: "rooms-game", version: "0.1.0" }, title: "Rooms Game", start: "Hall", extensions: ["world-from-source"] });
+`,
+    "node_modules/world-from-source/package.json": JSON.stringify({
+      name: "world-from-source",
+      type: "module",
+      loominate: { extension: "./extension.js" },
+    }),
+    "node_modules/world-from-source/extension.js": `export { default } from ${JSON.stringify(
+      pathToFileURL(path.join(packages, "world/src/extension.ts")).href,
+    )};\n`,
+    "story.ts": `import { actor, connect, door, place, startAs, thing } from "@loominate-if/world";
+export const hall = place("hall", { name: "great hall" });
+export const library = place("library", { name: "library" });
+export const cellar = place("cellar", { name: "cellar" });
+export const trapdoor = thing("trapdoor", { ...door, name: "trapdoor" });
+connect(hall, { north: library, down: { to: cellar, via: trapdoor } });
+connect(library, { south: hall });
+connect(cellar, { up: { to: hall, via: trapdoor } });
+startAs(actor("you", { body: { name: "you", location: hall } }));
+`,
+    "start.weft":
+      ":: Hall [room: hall]\nA great hall.\n\n:: Library [room: library]\nBooks.\n\n:: Cellar [room: cellar]\nDamp.\n",
+  });
+  symlinkSync(
+    path.join(packages, "world"),
+    path.join(root, "node_modules/@loominate-if/world"),
+    "dir",
+  );
+  return root;
+}
+
+/** A Rooms view as drawn: each room's name and cell, and each exit. */
+type Drawn = {
+  views: {
+    id: string;
+    grid?: boolean;
+    error?: string;
+    nodes: { id: string; label: string; x: number; y: number; start?: boolean }[];
+    edges: { from: string; to: string; label?: string; bent?: boolean }[];
+  }[];
+};
 
 /** The drawing in a standalone map's page. */
 const inlined = (html: string): { title: string; views: { nodes: { id: string }[] }[] } => {
@@ -102,6 +148,35 @@ describe("layoutStoryMap", () => {
     expect(view?.width).toBeGreaterThan(0);
   });
 
+  it("puts a view whose places have cells on its grid, north up, bending what's off it", async () => {
+    const drawing = await layoutStoryMap({
+      views: [
+        {
+          id: "rooms",
+          title: "Rooms",
+          nodes: [
+            { id: "hall", label: "hall", start: true, cell: { x: 0, y: 0 } },
+            { id: "library", label: "library", cell: { x: 0, y: -1 } },
+            { id: "cellar", label: "cellar", cell: { x: 1, y: 1 } },
+            { id: "attic", label: "attic", cell: { x: 2, y: -1 } },
+          ],
+          edges: [
+            { from: "hall", to: "library", kind: "north" },
+            { from: "hall", to: "cellar", kind: "down", bent: true },
+            { from: "hall", to: "attic", kind: "up", bent: true },
+          ],
+        },
+      ],
+    });
+    const [view] = drawing.views;
+    expect(view?.grid).toBe(true);
+    const at = Object.fromEntries((view?.nodes ?? []).map((n) => [n.id, n]));
+    expect(at.library?.y).toBeLessThan(at.hall?.y ?? 0);
+    expect(at.cellar?.x).toBeGreaterThan(at.hall?.x ?? 0);
+    // Straight to a neighbouring cell, even when bent; curved around to one farther off.
+    expect(view?.edges.map((e) => e.points.length)).toEqual([2, 2, 3]);
+  });
+
   it("lays out the same map the same way each time", async () => {
     const map = {
       views: [
@@ -144,6 +219,79 @@ describe("loominate map", () => {
     const result = await storyMap({ root, conditions: ["source"], out: "maps/here.html" });
     expect(result.file).toBe(path.join(root, "maps/here.html"));
     expect(readFileSync(result.file, "utf8")).toContain("Story map: Map Game");
+  }, 60_000);
+});
+
+describe("the Rooms view, from the begun game (#426)", () => {
+  it("is in the map file beside Passages, by compass from the player's room", async () => {
+    const root = worldGame();
+    const result = await storyMap({ root, conditions: ["source"] });
+    const drawing = inlined(readFileSync(result.file, "utf8")) as unknown as Drawn;
+    expect(drawing.views.map((v) => v.id)).toEqual(["passages", "rooms"]);
+    const rooms = drawing.views[1];
+    expect(rooms?.grid).toBe(true);
+    expect(rooms?.error).toBeUndefined();
+    expect(rooms?.nodes.map((n) => [n.id, n.label, n.start ?? false])).toEqual([
+      ["hall", "great hall", true],
+      ["library", "library", false],
+      ["cellar", "cellar", false],
+    ]);
+    const at = Object.fromEntries((rooms?.nodes ?? []).map((n) => [n.id, n]));
+    expect(at.library?.y).toBeLessThan(at.hall?.y ?? 0);
+    expect(rooms?.edges.map((e) => [e.from, e.to, e.label, e.bent ?? false])).toEqual([
+      ["cellar", "hall", "Up, through the trapdoor", true],
+      ["hall", "library", "North", false],
+      ["hall", "cellar", "Down, through the trapdoor", true],
+      ["library", "hall", "South", false],
+    ]);
+  }, 60_000);
+
+  it("is served live by the dev server", async () => {
+    const root = worldGame();
+    const server = await dev({
+      root,
+      conditions: ["source"],
+      vite: { configFile: false, logLevel: "silent", server: { middlewareMode: true } },
+    });
+    const http: Server = createServer(server.middlewares);
+    await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", resolve));
+    const base = `http://127.0.0.1:${String((http.address() as AddressInfo).port)}`;
+    try {
+      // Twice: each read begins the game afresh, so the world's registries don't clash.
+      for (let i = 0; i < 2; i++) {
+        const data = (await (await fetch(base + MAP_DATA)).json()) as Drawn;
+        expect(data.views.map((v) => [v.id, v.error])).toEqual([
+          ["passages", undefined],
+          ["rooms", undefined],
+        ]);
+        expect(data.views[1]?.nodes.map((n) => n.id)).toEqual(["hall", "library", "cellar"]);
+      }
+      // An edit to story.ts that only changes an exit still says the map changed.
+      const events = new AbortController();
+      const stream = await fetch(base + MAP_EVENTS, { signal: events.signal });
+      const reader = stream.body?.getReader();
+      if (!reader) throw new Error("no event stream");
+      const decoder = new TextDecoder();
+      let received = decoder.decode((await reader.read()).value);
+      const story = path.join(root, "story.ts");
+      writeFileSync(
+        story,
+        readFileSync(story, "utf8").replace("{ south: hall }", "{ south: hall, east: cellar }"),
+      );
+      while (!received.includes("event: change")) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        received += decoder.decode(value);
+      }
+      events.abort();
+      const after = (await (await fetch(base + MAP_DATA)).json()) as Drawn;
+      expect(after.views[1]?.edges.some((e) => e.from === "library" && e.to === "cellar")).toBe(
+        true,
+      );
+    } finally {
+      await new Promise((resolve) => http.close(resolve));
+      await server.close();
+    }
   }, 60_000);
 });
 

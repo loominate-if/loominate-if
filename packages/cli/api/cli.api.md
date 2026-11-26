@@ -7,7 +7,7 @@
 import { CompilerExtension } from '@loominate-if/compiler';
 import { createCompilerSession } from '@loominate-if/compiler';
 import { InlineConfig } from 'vite';
-import type { Plugin } from 'vite';
+import { Plugin } from 'vite';
 import { ProjectDiagnostic } from '@loominate-if/compiler';
 import { ProjectFile } from '@loominate-if/compiler';
 import { ViteDevServer } from 'vite';
