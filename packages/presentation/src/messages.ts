@@ -56,6 +56,10 @@ declare module "@loominate-if/core" {
     "status.moves": { readonly count: number };
     /** What the compass is, for screen readers. */
     "compass.label": Record<never, never>;
+    /** What the auto-map is, for screen readers. */
+    "automap.label": None;
+    /** The auto-map when the player isn't in a room on it. */
+    "automap.nowhere": None;
     /** A things widget, such as the inventory, with nothing in it. */
     "things.nothing": None;
     /** A thing's menu with nothing to offer. */
@@ -249,6 +253,8 @@ register("history.afterBeat", "After a beat");
 register("history.goTo", ({ passage }) => `Go to ${passage}`);
 register("status.moves", ({ count }) => `Moves: ${String(count)}`);
 register("compass.label", "Compass");
+register("automap.label", "Map");
+register("automap.nowhere", "Nowhere on the map.");
 register("menu.nothing", "Nothing to do with it.");
 register("menu.ask.back", "Back");
 register("menu.ask.of", ({ max }) => `of ${String(max)}`);

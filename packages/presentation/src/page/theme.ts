@@ -171,6 +171,18 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
 .loominate-compass-none::before { content: ""; width: 0.3em; height: 0.3em; border-radius: 50%; background: ${v("color-border")}; }
 .loominate-compass-centre::before { content: ""; width: 0.5em; height: 0.5em; transform: rotate(45deg); border: 1px solid ${v("color-muted")}; }
 .loominate-compass-reason { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* The auto-map: rooms in their cells, the player's marked. */
+.loominate-automap { margin: 0; font-family: ${v("font-ui")}; }
+.loominate-automap-picture { display: block; width: 100%; max-width: 20em; height: auto; }
+.loominate-automap-room rect { fill: ${v("color-surface")}; stroke: ${v("color-border")}; stroke-width: 1.5; }
+.loominate-automap-room text { fill: ${v("color-text")}; font-size: 10px; }
+.loominate-automap-current rect { stroke: ${v("color-accent")}; stroke-width: 3; }
+.loominate-automap-current text { font-weight: 700; }
+.loominate-automap-link { stroke: ${v("color-muted")}; stroke-width: 1.5; }
+.loominate-automap-bent { stroke-dasharray: 3 2; }
+.loominate-automap-arrowhead { fill: ${v("color-muted")}; }
+.loominate-automap-way { fill: ${v("color-muted")}; font-size: 9px; paint-order: stroke; stroke: ${v("color-background")}; stroke-width: 3px; }
+.loominate-automap-empty { margin: 0; color: ${v("color-muted")}; }
 .loominate-things-title { color: ${v("color-muted")}; }
 /* A thing's menu, under its name. */
 .loominate-has-menu { position: relative; display: inline-block; }

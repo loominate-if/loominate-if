@@ -114,6 +114,13 @@ export function _allThings(): Thing[] {
 }
 /** The IDs of places, which bound sight, reach, and hearing. */
 const places = new Set<StateId>();
+/** Places pinned to a cell of the map, by ID. */
+const pins = new Map<StateId, { readonly x: number; readonly y: number }>();
+
+/** The cell `place` is pinned to on the map, if it is. @internal */
+export function _mapPin(place: ObjectRef): { readonly x: number; readonly y: number } | undefined {
+  return pins.get(place.id);
+}
 
 /**
  * A container: things go in it. It's open unless it's also {@link openable},
@@ -270,12 +277,17 @@ export function thingTemplate<D extends ObjectDefinition<D> & { name: string }>(
  * List the regions it's in as `regions`; it takes their `roomDefaults` for
  * whatever it doesn't set itself, the nearest region's first.
  *
+ * Pin it to a cell of the auto-map and story map with `map`, as
+ * `map: { x: 2, y: 0 }` (x to the east, y to the south), where its exits
+ * alone would put it somewhere else. Rooms without pins fit around it.
+ *
  * @example
  * ```ts
  * export const cellar = place("cellar", { name: "cellar", isDark: true });
  * ```
  *
- * @throws StateError if the ID is taken or invalid, or a property isn't valid state.
+ * @throws StateError if the ID is taken or invalid, a property isn't valid
+ * state, or `map` isn't whole numbers.
  */
 export function place<Id extends StateId, D extends ObjectDefinition<D> & { name: string }>(
   id: Id,
@@ -283,16 +295,34 @@ export function place<Id extends StateId, D extends ObjectDefinition<D> & { name
     isDark?: boolean;
     regions?: readonly ObjectRef[];
     vocab?: Vocabulary;
+    /** Its cell on the auto-map and story map, where its exits alone wouldn't put it. */
+    map?: { readonly x: number; readonly y: number };
   } & ThisType<Handle<ThingOf<D> & PlaceFields, Id>>,
 ): Handle<ThingOf<D> & PlaceFields, Id> {
   const where = `place ${JSON.stringify(id)}`;
   const regions = checkRegions(definition.regions ?? [], where);
   const defaults = withDefaults({ holds: "in", isDark: false }, roomDefaultsFor(regions));
+  // A pin is part of the definition, not state: it's kept here, not in the store.
+  const descriptors = Object.getOwnPropertyDescriptors(definition) as Record<
+    string,
+    PropertyDescriptor
+  >;
+  const pin = descriptors.map?.value as { x: unknown; y: unknown } | undefined;
+  if (descriptors.map) {
+    if (!pin || !Number.isInteger(pin.x) || !Number.isInteger(pin.y)) {
+      throw new StateError(`${where}: map must be a cell of whole numbers, as { x: 2, y: 0 }.`);
+    }
+    delete descriptors.map;
+  }
   const handle = thing(
     id,
-    withDefaults(defaults, withDefaults(definition, { regions })) as unknown as D,
+    withDefaults(
+      defaults,
+      withDefaults(Object.defineProperties({}, descriptors), { regions }),
+    ) as unknown as D,
   );
   places.add(id);
+  if (pin) pins.set(id, { x: pin.x as number, y: pin.y as number });
   return handle as unknown as Handle<ThingOf<D> & PlaceFields, Id>;
 }
 

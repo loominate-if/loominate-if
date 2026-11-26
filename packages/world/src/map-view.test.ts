@@ -6,7 +6,9 @@ import { actor, connect, door, place, registerRoom, startAs, thing } from "./ind
 const hall = place("hall", { name: "great hall" });
 const library = place("library", { name: "library" });
 const cellar = place("cellar", { name: "cellar" });
-const yard = place("yard", { name: "yard" });
+// #region pin
+const yard = place("yard", { name: "yard", map: { x: 3, y: 1 } });
+// #endregion
 const trapdoor = thing("trapdoor", { ...door, name: "trapdoor" });
 connect(hall, { north: library, down: { to: cellar, via: trapdoor }, east: yard });
 connect(library, { south: hall });
@@ -50,7 +52,8 @@ describe("the Rooms view", () => {
     const cells = Object.fromEntries(rooms().nodes.map((n) => [n.id, n.cell]));
     expect(cells.library).toEqual({ x: 0, y: 0 });
     expect(cells.hall).toEqual({ x: 0, y: 1 });
-    expect(cells.yard).toEqual({ x: 1, y: 1 });
+    // The yard is pinned, wherever its exit would put it.
+    expect(cells.yard).toEqual({ x: 3, y: 1 });
   });
 
   it("has each exit with its direction and door, bending those off the grid", () => {
@@ -59,9 +62,19 @@ describe("the Rooms view", () => {
     ).toEqual([
       ["cellar", "hall", "Up, through the trapdoor", true, true],
       ["hall", "library", "North", false, false],
-      ["hall", "yard", "East", false, false],
+      ["hall", "yard", "East", false, true],
       ["hall", "cellar", "Down, through the trapdoor", true, true],
       ["library", "hall", "South", false, false],
     ]);
+  });
+
+  it("anchors on the room the player's body starts in by definition, even after it moves", async () => {
+    const { _worldMap } = await import("./map-layout.js");
+    expect(_worldMap().start?.id).toBe("library");
+    const before = Object.fromEntries([..._worldMap().layout.cells]);
+    const { move } = await import("./index.js");
+    move({ id: "you" }, cellar);
+    expect(_worldMap().start?.id).toBe("library");
+    expect(Object.fromEntries([..._worldMap().layout.cells])).toEqual(before);
   });
 });
