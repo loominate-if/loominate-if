@@ -25,6 +25,7 @@ import type {
   Story,
   TextStyle,
 } from "@loominate-if/core";
+import { _isTurn } from "@loominate-if/core";
 import {
   display,
   layouts,
@@ -411,6 +412,11 @@ export function mountPage(container: HTMLElement, game: PageGame, options: PageO
   const act = guarded((call: ActionCall, label: string): void => {
     story.act(call);
     options.onMove?.({ type: "action", label });
+    // An action outside the story, as a note on the map, isn't a move: focus stays where the player is (#397).
+    if (!_isTurn(call.action.actionName)) {
+      draw();
+      return;
+    }
     focusHeading(draw(true), "passage");
   });
 

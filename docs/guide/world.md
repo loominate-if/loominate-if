@@ -911,6 +911,15 @@ const key = thing("key", {
 
 The icon is an image's URL. Put the file in your game's `public/` folder, which the dev server serves and builds copy, and give its path, as `"icons/key.svg"`; for a single-file build, use a `data:` URL. Finding or drawing the icons is up to you. Without an icon, a person is a round mark and a thing a diamond. `onMap: false` leaves a person off the map. What the player carries isn't marked.
 
+**Notes:** on the full map, each room in the list has **Add note**; the player writes a note, and can edit or remove it later. A note shows as a page mark on the room's box, in its tooltip and reading ("Your note: …"), and in the list. Notes are the person playing's, not the character's, and are kept with the game, so they're saved and undone with it. Writing one is the `noteRoom` action, outside the story (`turn: false`), so no time passes and no one else acts while the player writes. A game can write one too, as in an effect:
+
+<!-- example: packages/world/src/map-notes.test.ts#note -->
+```ts
+perform(noteRoom({ room: kitchen, text: "Tobias hides the key under the bread bin." }));
+```
+
+Only rooms the player has been to can have notes, and a note is cut to `MAP_NOTE_LENGTH` (500) characters.
+
 **Ways not yet taken** are short dashed lines off a room, toward each exit to a room the player hasn't been to; up, down, in, and out are named on the full map.
 - **It follows the game:** it's read from the game's state each time it's drawn, so undo, loading a save, and replays show what they should.
 

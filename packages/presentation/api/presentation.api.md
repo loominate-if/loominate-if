@@ -65,6 +65,7 @@ export type AutomapData = {
     readonly rows: number;
     readonly view?: AutomapView;
     readonly full?: AutomapFullMap;
+    readonly notes?: true;
 };
 
 // @public
@@ -96,6 +97,7 @@ export type AutomapOptions = {
         rows: number;
     }) => AutomapView | undefined;
     readonly full?: (game: PageGame) => AutomapFullMap | undefined;
+    readonly note?: (host: WidgetHost, room: string, text: string) => void;
     readonly columns?: number;
     readonly rows?: number;
 };
@@ -110,6 +112,7 @@ export type AutomapRoom = {
     readonly ways?: readonly AutomapWay[];
     readonly markers?: readonly AutomapMarker[];
     readonly stubs?: readonly AutomapStub[];
+    readonly note?: string;
 };
 
 // @public

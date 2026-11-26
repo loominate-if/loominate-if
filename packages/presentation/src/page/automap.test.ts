@@ -28,7 +28,11 @@ const VIEW: AutomapView = {
   ],
 };
 
-function mount(view: AutomapView | undefined, full?: AutomapFullMap) {
+function mount(
+  view: AutomapView | undefined,
+  full?: AutomapFullMap,
+  note?: (host: WidgetHost, room: string, text: string) => void,
+) {
   const sizes: { columns: number; rows: number }[] = [];
   const definition = automapWidget({
     rooms: (_game, size) => {
@@ -36,6 +40,7 @@ function mount(view: AutomapView | undefined, full?: AutomapFullMap) {
       return view;
     },
     ...(full && { full: () => full }),
+    ...(note && { note }),
   });
   const element = document.createElement("div");
   document.body.append(element);
@@ -360,6 +365,114 @@ describe("markers and stubs (#396)", () => {
   it("passes axe with markers and stubs", async () => {
     const { element } = mount(VIEW, marked);
     element.querySelector<HTMLButtonElement>(".loominate-automap-open")?.click();
+    const results = await axe.run(document.body, { rules: { region: { enabled: false } } });
+    expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  });
+});
+
+describe("notes (#397)", () => {
+  const noted: AutomapFullMap = {
+    columns: 2,
+    rows: 1,
+    view: {
+      summary: VIEW.summary,
+      rooms: [
+        { id: "hall", label: "hall", x: 0, y: 0, current: true, ways: [] },
+        { id: "kitchen", label: "kitchen", x: 1, y: 0, ways: [], note: "Warm by the range." },
+      ],
+      links: [{ from: "hall", to: "kitchen" }],
+    },
+  };
+  const open = (element: HTMLElement): void => {
+    element.querySelector<HTMLButtonElement>(".loominate-automap-open")?.click();
+  };
+  const buttonIn = (element: HTMLElement, room: string, text: string) =>
+    [
+      ...element.querySelectorAll<HTMLButtonElement>(
+        `.loominate-automap-list li[data-room='${room}'] button`,
+      ),
+    ].find((b) => b.textContent === text);
+
+  it("shows a note on the room's box, in its reading and tooltip, and in the list", () => {
+    const { element } = mount(VIEW, noted, () => undefined);
+    open(element);
+    const kitchen = element.querySelector("dialog g[data-room='kitchen']");
+    expect(kitchen?.querySelector(".loominate-automap-noted title")?.textContent).toBe(
+      "Your note: Warm by the range.",
+    );
+    expect(kitchen?.getAttribute("aria-label")).toBe("kitchen. Your note: Warm by the range.");
+    expect(
+      element.querySelector("li[data-room='kitchen'] .loominate-automap-note-text")?.textContent,
+    ).toBe("Your note: Warm by the range.");
+  });
+
+  it("offers to add, edit, and remove notes, each button saying which room", () => {
+    const { element } = mount(VIEW, noted, () => undefined);
+    expect(buttonIn(element, "hall", "Add note")?.getAttribute("aria-label")).toBe(
+      "Add note: hall",
+    );
+    expect(buttonIn(element, "kitchen", "Edit note")?.getAttribute("aria-label")).toBe(
+      "Edit note: kitchen",
+    );
+    expect(buttonIn(element, "kitchen", "Remove note")?.getAttribute("aria-label")).toBe(
+      "Remove note: kitchen",
+    );
+  });
+
+  it("writes a note in a labelled field, and gives focus back to the room's button", () => {
+    const written: [string, string][] = [];
+    const { element } = mount(VIEW, noted, (_host, room, text) => written.push([room, text]));
+    open(element);
+    buttonIn(element, "hall", "Add note")?.click();
+    const field = document.activeElement as HTMLTextAreaElement;
+    expect(field.tagName).toBe("TEXTAREA");
+    expect(element.querySelector(`label[for='${field.id}']`)?.textContent).toBe(
+      "Your note on hall",
+    );
+    field.value = "Draughty.";
+    field.form?.requestSubmit();
+    expect(written).toEqual([["hall", "Draughty."]]);
+    expect(document.activeElement?.getAttribute("aria-label")).toBe("Add note: hall");
+  });
+
+  it("gives up a note with Cancel or Escape, leaving the map open", () => {
+    const written: [string, string][] = [];
+    const { element } = mount(VIEW, noted, (_host, room, text) => written.push([room, text]));
+    open(element);
+    buttonIn(element, "kitchen", "Edit note")?.click();
+    expect((document.activeElement as HTMLTextAreaElement).value).toBe("Warm by the range.");
+    document.activeElement?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+    );
+    expect(element.querySelector("textarea")).toBeNull();
+    expect(element.querySelector("dialog")?.open).toBe(true);
+    expect(document.activeElement?.getAttribute("aria-label")).toBe("Edit note: kitchen");
+    buttonIn(element, "kitchen", "Edit note")?.click();
+    buttonIn(element, "kitchen", "Cancel")?.click();
+    expect(element.querySelector("textarea")).toBeNull();
+    expect(written).toEqual([]);
+  });
+
+  it("removes a note", () => {
+    const written: [string, string][] = [];
+    const { element } = mount(VIEW, noted, (_host, room, text) => written.push([room, text]));
+    buttonIn(element, "kitchen", "Remove note")?.click();
+    expect(written).toEqual([["kitchen", ""]]);
+  });
+
+  it("doesn't offer notes when the game can't take them", () => {
+    const { element } = mount(VIEW, noted);
+    expect(buttonIn(element, "hall", "Add note")).toBeUndefined();
+    // A note already written is still shown.
+    expect(element.querySelector(".loominate-automap-note-text")?.textContent).toBe(
+      "Your note: Warm by the range.",
+    );
+  });
+
+  it("passes axe while a note is being written", async () => {
+    const { element } = mount(VIEW, noted, () => undefined);
+    open(element);
+    buttonIn(element, "hall", "Add note")?.click();
     const results = await axe.run(document.body, { rules: { region: { enabled: false } } });
     expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
   });

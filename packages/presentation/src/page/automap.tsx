@@ -11,7 +11,7 @@ import { message } from "@loominate-if/core";
 import "../messages.js";
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { componentView, now } from "./view.js";
-import { widget, type WidgetDefinition } from "./layout.js";
+import { widget, type WidgetDefinition, type WidgetHost } from "./layout.js";
 import type { PageGame } from "./page.js";
 
 /** A way out of a room, as the full map's list shows it. */
@@ -57,6 +57,8 @@ export type AutomapRoom = {
   readonly markers?: readonly AutomapMarker[];
   /** Its ways to rooms the player hasn't been to. */
   readonly stubs?: readonly AutomapStub[];
+  /** The player's own note on it (#397). */
+  readonly note?: string;
 };
 
 /** A way between two rooms on the map. */
@@ -94,6 +96,8 @@ export type AutomapData = {
   readonly view?: AutomapView;
   /** The whole map, which the small one opens, if there's one to open. */
   readonly full?: AutomapFullMap;
+  /** True if the player can write notes on rooms, on the full map. */
+  readonly notes?: true;
 };
 
 /** How {@link automapWidget} finds the rooms. */
@@ -105,11 +109,20 @@ export type AutomapOptions = {
   ) => AutomapView | undefined;
   /** The whole map, for the dialog the small map opens. Without it, the small map is only a picture. */
   readonly full?: (game: PageGame) => AutomapFullMap | undefined;
+  /**
+   * Writes the player's note on the room with ID `room`, replacing any, or
+   * removes it, given `""`, as a move outside the story through `host`.
+   * Without it, the full map doesn't offer notes.
+   */
+  readonly note?: (host: WidgetHost, room: string, text: string) => void;
   /** Cells across, odd so the player's room is in the middle. Defaults to 5. */
   readonly columns?: number;
   /** Cells down, odd. Defaults to 3. */
   readonly rows?: number;
 };
+
+/** How long a note can be, in characters. */
+const NOTE_LENGTH = 500;
 
 /** A cell's size in a drawing, the box a room is drawn as in it, and how long a name fits. */
 type Scale = {
@@ -273,6 +286,29 @@ function Marks(props: {
   );
 }
 
+/** The mark of the player's note on a room, at its box's top left, with the note as its tooltip. */
+function NoteMark(props: {
+  readonly scale: Scale;
+  readonly cx: number;
+  readonly cy: number;
+  readonly note: string;
+}) {
+  const { scale, cx, cy, note } = props;
+  const size = scale.mark;
+  const x = cx - scale.boxW / 2 + 2;
+  const y = cy - scale.boxH / 2 - size / 2;
+  return (
+    <g className="loominate-automap-mark loominate-automap-noted" aria-hidden="true">
+      <title>{message("automap.note", { text: note })}</title>
+      <rect className="loominate-automap-hit" x={x} y={y} width={size} height={size} />
+      <path
+        className="loominate-automap-note"
+        d={`M ${String(x + 1)} ${String(y + 1)} h ${String(size * 0.65)} l ${String(size * 0.3)} ${String(size * 0.3)} v ${String(size * 0.65)} h ${String(-size * 0.95)} z`}
+      />
+    </g>
+  );
+}
+
 /** A map's rooms and ways, drawn: hidden from screen readers when small, rooms to move between when full. */
 function Drawing(props: {
   readonly scale: Scale;
@@ -405,6 +441,7 @@ function Drawing(props: {
             {(r.markers ?? []).length > 0 && (
               <Marks scale={scale} cx={cx} cy={cy} markers={r.markers ?? []} />
             )}
+            {r.note !== undefined && <NoteMark scale={scale} cx={cx} cy={cy} note={r.note} />}
           </g>
         );
       })}
@@ -419,21 +456,125 @@ const roomLabel = (r: AutomapRoom): string =>
     current: r.current === true,
     ways: (r.ways ?? []).map((w) => w.label),
     markers: (r.markers ?? []).map((m) => m.label),
+    ...(r.note !== undefined && { note: r.note }),
   });
 
-/** A room's tooltip: its full name, and what was last seen there. */
+/** A room's tooltip: its full name, what was last seen there, and the player's note. */
 const tipOf = (r: AutomapRoom): string =>
-  (r.markers ?? []).length > 0
-    ? `${r.label}: ${(r.markers ?? []).map((m) => m.label).join(", ")}`
-    : r.label;
+  [
+    (r.markers ?? []).length > 0
+      ? `${r.label}: ${(r.markers ?? []).map((m) => m.label).join(", ")}`
+      : r.label,
+    ...(r.note !== undefined ? [message("automap.note", { text: r.note })] : []),
+  ].join(" — ");
+
+/** A room's note in the full map's list, with buttons to add, edit, or remove it, and the field to write it in. */
+function RoomNote(props: {
+  readonly room: AutomapRoom;
+  readonly editing: boolean;
+  readonly onEdit: (editing: boolean) => void;
+  readonly onNote: (text: string) => void;
+}) {
+  const { room, editing, onEdit, onNote } = props;
+  const field = useRef<HTMLTextAreaElement>(null);
+  const id = `loominate-automap-note-${room.id}`;
+  useLayoutEffect(() => {
+    if (editing) field.current?.focus();
+  }, [editing]);
+  if (editing) {
+    return (
+      <form
+        className="loominate-automap-note-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onNote(field.current?.value ?? "");
+        }}
+      >
+        <label htmlFor={id}>{message("automap.noteField", { room: room.label })}</label>
+        <textarea
+          ref={field}
+          id={id}
+          rows={3}
+          maxLength={NOTE_LENGTH}
+          defaultValue={room.note ?? ""}
+          onKeyDown={(event) => {
+            // Escape in the note gives up the edit, not the whole map.
+            if (event.key === "Escape") {
+              event.preventDefault();
+              event.stopPropagation();
+              onEdit(false);
+            }
+          }}
+        />
+        <p className="loominate-automap-note-buttons">
+          <button type="submit">{message("automap.saveNote")}</button>{" "}
+          <button
+            type="button"
+            onClick={() => {
+              onEdit(false);
+            }}
+          >
+            {message("automap.cancelNote")}
+          </button>
+        </p>
+      </form>
+    );
+  }
+  return (
+    <>
+      {room.note !== undefined && (
+        <p className="loominate-automap-note-text">
+          {message("automap.note", { text: room.note })}
+        </p>
+      )}
+      <p className="loominate-automap-note-buttons">
+        <button
+          type="button"
+          data-note-button={room.id}
+          aria-label={message(room.note === undefined ? "automap.addNote" : "automap.editNote", {
+            room: room.label,
+          })}
+          onClick={() => {
+            onEdit(true);
+          }}
+        >
+          {message(room.note === undefined ? "automap.addNote" : "automap.editNote", {})}
+        </button>
+        {room.note !== undefined && (
+          <>
+            {" "}
+            <button
+              type="button"
+              aria-label={message("automap.removeNote", { room: room.label })}
+              onClick={() => {
+                onNote("");
+              }}
+            >
+              {message("automap.removeNote", {})}
+            </button>
+          </>
+        )}
+      </p>
+    </>
+  );
+}
 
 /** The full map, in a modal dialog: the drawing, rooms to move between, and the list beside it. */
 function FullMap(props: {
   readonly map: AutomapFullMap;
   readonly open: boolean;
   readonly onClose: () => void;
+  /** Writes or removes a note on a room, if the player can. */
+  readonly onNote?: (room: string, text: string) => void;
 }) {
-  const { map, open, onClose } = props;
+  const { map, open, onClose, onNote } = props;
+  /** The room whose note is being written, if one is. */
+  const [editing, setEditing] = useState<string | undefined>(undefined);
+  /** Back to a room's note button, after its note is written, removed, or given up. */
+  const toNoteButton = (room: string): void => {
+    const buttons = dialog.current?.querySelectorAll<HTMLButtonElement>("[data-note-button]") ?? [];
+    [...buttons].find((b) => b.dataset.noteButton === room)?.focus();
+  };
   const dialog = useRef<HTMLDialogElement>(null);
   const current = map.view.rooms.find((r) => r.current) ?? map.view.rooms[0];
   const [at, setAt] = useState<string | undefined>(current?.id);
@@ -483,6 +624,23 @@ function FullMap(props: {
       d.removeEventListener("close", closed);
     };
   }, [onClose]);
+  useLayoutEffect(() => {
+    const d = dialog.current;
+    if (!d || editing === undefined) return undefined;
+    // While a note is being written, Escape gives up the note, not the map.
+    const cancel = (event: Event): void => {
+      event.preventDefault();
+      const room = editing;
+      now(() => {
+        setEditing(undefined);
+      });
+      toNoteButton(room);
+    };
+    d.addEventListener("cancel", cancel);
+    return () => {
+      d.removeEventListener("cancel", cancel);
+    };
+  }, [editing]);
   const onKey = (event: KeyboardEvent, from: AutomapRoom): void => {
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     const step = ARROWS[event.key];
@@ -569,6 +727,31 @@ function FullMap(props: {
                     })}
                   </p>
                 )}
+                {onNote ? (
+                  <RoomNote
+                    room={r}
+                    editing={editing === r.id}
+                    onEdit={(on) => {
+                      now(() => {
+                        setEditing(on ? r.id : undefined);
+                      });
+                      if (!on) toNoteButton(r.id);
+                    }}
+                    onNote={(text) => {
+                      now(() => {
+                        setEditing(undefined);
+                        onNote(r.id, text);
+                      });
+                      toNoteButton(r.id);
+                    }}
+                  />
+                ) : (
+                  r.note !== undefined && (
+                    <p className="loominate-automap-note-text">
+                      {message("automap.note", { text: r.note })}
+                    </p>
+                  )
+                )}
                 {(r.ways ?? []).length > 0 && (
                   <ul>
                     {(r.ways ?? []).map((w) => (
@@ -612,9 +795,15 @@ export function automapWidget(options: AutomapOptions): WidgetDefinition<Automap
     data: (game) => {
       const view = options.rooms(game, { columns, rows });
       const full = options.full?.(game);
-      return { columns, rows, ...(view && { view }), ...(full && { full }) };
+      return {
+        columns,
+        rows,
+        ...(view && { view }),
+        ...(full && { full }),
+        ...(options.note && { notes: true as const }),
+      };
     },
-    view: componentView<AutomapData>(({ data }) => {
+    view: componentView<AutomapData>(({ data, host }) => {
       const d = data.value;
       const view = d.view;
       const [open, setOpen] = useState(false);
@@ -654,6 +843,12 @@ export function automapWidget(options: AutomapOptions): WidgetDefinition<Automap
           <FullMap
             map={d.full}
             open={open}
+            {...(d.notes &&
+              options.note && {
+                onNote: (room: string, text: string) => {
+                  options.note?.(host, room, text);
+                },
+              })}
             onClose={() => {
               now(() => {
                 setOpen(false);

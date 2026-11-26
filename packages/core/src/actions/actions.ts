@@ -73,6 +73,13 @@ export type ActionDefinition<A> = {
   readonly run?: (context: ActionContext<A>) => void;
   /** What happened, recorded as an `action-result` event the page shows. */
   readonly report?: string | ((context: ActionContext<A>) => string);
+  /**
+   * `false` for an action outside the story, as a player's note on the map
+   * (#397): it's logged, saved, and undone like any, but it isn't a turn.
+   * The move count doesn't go up, and `turnEnd`'s rules, such as other
+   * characters' turns, don't run.
+   */
+  readonly turn?: false;
   /** How many minutes it takes, for a game clock. Defaults to 0. */
   readonly minutes?: number | ((context: ActionContext<A>) => number);
   /**
@@ -737,6 +744,11 @@ export function logCall<A>(call: ActionCall<A>): LoggedCall {
     }
   }
   return { action: call.action.actionName, args };
+}
+
+/** Whether the action named `name` is a turn: every action is, unless it says `turn: false`. @internal */
+export function _isTurn(name: string): boolean {
+  return (definitions.get(name) as { readonly turn?: false } | undefined)?.turn !== false;
 }
 
 /** The action call a logged one stands for, with its objects' handles. @internal */

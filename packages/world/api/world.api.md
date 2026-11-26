@@ -1057,6 +1057,9 @@ export function lockConversation(lock: {
 export type LockLevel = "soft" | "hard";
 
 // @public
+export const MAP_NOTE_LENGTH = 500;
+
+// @public
 export type MapMarking = boolean | string | {
     readonly label?: string;
     readonly icon?: string;
@@ -1139,6 +1142,12 @@ export function moves(n: number): Delay;
 
 // @public
 export const no: Action<Record<never, never>>;
+
+// @public
+export const noteRoom: Action<    {
+readonly room: ObjectRef;
+readonly text: string;
+}>;
 
 // @internal
 export type _NpcAgendaItem = {

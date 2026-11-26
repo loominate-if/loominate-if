@@ -43,6 +43,7 @@ export type ActionDefinition<A> = {
     readonly check?: (context: ActionContext<A>) => string | undefined;
     readonly run?: (context: ActionContext<A>) => void;
     readonly report?: string | ((context: ActionContext<A>) => string);
+    readonly turn?: false;
     readonly minutes?: number | ((context: ActionContext<A>) => number);
     readonly on?: ObjectRef | readonly ObjectRef[];
     readonly for?: (thing: ObjectRef) => boolean;
@@ -572,6 +573,9 @@ export function _isAtmosphere(e: {
 
 // @public
 export function isText(value: unknown): value is Text;
+
+// @internal
+export function _isTurn(name: string): boolean;
 
 // @internal
 export function _leadingNotices<E extends {

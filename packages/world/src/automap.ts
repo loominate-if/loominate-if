@@ -20,6 +20,7 @@ import {
 } from "@loominate-if/presentation";
 import { currentPlayerBody, currentPlayerMind, isBody } from "./actors.js";
 import { _gridStep } from "./map-grid.js";
+import { _mapNote, _noteCall } from "./map-notes.js";
 import { exitsOf } from "./exits.js";
 import { _worldMap, type WorldMap } from "./map-layout.js";
 import { visitsTo } from "./rooms.js";
@@ -149,15 +150,20 @@ function stubsOf(room: Place, visited: ReadonlySet<string>): AutomapStub[] {
     });
 }
 
-/** What a room shows besides its name: its markers and stubs, if it has any. */
+/** What a room shows besides its name: its markers, stubs, and the player's note, if it has any. */
 function extras(
   room: Place,
   visited: ReadonlySet<string>,
   markers: ReadonlyMap<string, readonly AutomapMarker[]>,
-): Pick<AutomapRoom, "markers" | "stubs"> {
+): Pick<AutomapRoom, "markers" | "stubs" | "note"> {
   const here = markers.get(room.id) ?? [];
   const stubs = stubsOf(room, visited);
-  return { ...(here.length > 0 && { markers: here }), ...(stubs.length > 0 && { stubs }) };
+  const note = _mapNote(room);
+  return {
+    ...(here.length > 0 && { markers: here }),
+    ...(stubs.length > 0 && { stubs }),
+    ...(note !== undefined && { note }),
+  };
 }
 
 /** The visited rooms around the player, in a window of `columns` by `rows` cells. @internal */
@@ -254,6 +260,11 @@ export function automap(settings: AutomapSettings = {}): WidgetDefinition<Automa
     ...(settings.rows !== undefined && { rows: settings.rows }),
     rooms: (_game, size) => _automapView(size),
     full: () => _automapFull(),
+    // The player's notes (#397): a move outside the story, so it's saved and undone, but isn't a turn.
+    note: (host, room, text) => {
+      const call = _noteCall(room, text);
+      host.act(call, message("noteRoom.label", { room: call.args.room }));
+    },
   });
 }
 
