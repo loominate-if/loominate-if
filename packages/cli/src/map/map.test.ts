@@ -246,6 +246,22 @@ describe("the Rooms view, from the begun game (#426)", () => {
     ]);
   }, 60_000);
 
+  it("says when the game couldn't begin, and still draws its rooms and passages", async () => {
+    const root = worldGame();
+    // A start that throws as the game begins.
+    writeFileSync(
+      path.join(root, "start.weft"),
+      ':: Hall [room: hall]\n{on enter: throw new Error("The lamp is out.")}\nA great hall.\n\n:: Library [room: library]\nBooks.\n\n:: Cellar [room: cellar]\nDamp.\n',
+    );
+    const result = await storyMap({ root, conditions: ["source"] });
+    const drawing = inlined(readFileSync(result.file, "utf8")) as unknown as Drawn;
+    const [passages, rooms] = drawing.views;
+    expect(passages?.nodes.map((n) => n.id)).toEqual(["Hall", "Library", "Cellar"]);
+    expect(rooms?.error).toContain("The game couldn't begin");
+    expect(rooms?.error).toContain("The lamp is out.");
+    expect(rooms?.nodes.map((n) => n.id)).toEqual(["hall", "library", "cellar"]);
+  }, 60_000);
+
   it("is served live by the dev server", async () => {
     const root = worldGame();
     const server = await dev({
