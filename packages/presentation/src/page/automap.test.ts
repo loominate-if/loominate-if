@@ -326,7 +326,14 @@ describe("markers and stubs (#396)", () => {
     expect(marks?.querySelector(".loominate-automap-person")).not.toBeNull();
     expect(marks?.querySelector("image")?.getAttribute("href")).toBe("icons/key.svg");
     expect(marks?.querySelector(".loominate-automap-thing")).not.toBeNull();
-    expect(marks?.querySelector(".loominate-automap-more")?.textContent).toBe("+1");
+    expect(marks?.querySelector(".loominate-automap-more")?.textContent).toBe("lamp+1");
+    // Each mark has its own tooltip; "+1" names the ones it stands for.
+    expect([...(marks?.querySelectorAll("title") ?? [])].map((t) => t.textContent)).toEqual([
+      "Tobias",
+      "key",
+      "chest",
+      "lamp",
+    ]);
   });
 
   it("draws a stub toward each way not yet taken, named on the full map", () => {

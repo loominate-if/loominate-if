@@ -211,6 +211,9 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
 .loominate-automap-person { fill: ${v("color-accent")}; stroke: ${v("color-background")}; stroke-width: 1; }
 .loominate-automap-thing { fill: ${v("color-text")}; stroke: ${v("color-background")}; stroke-width: 1; }
 .loominate-automap-more { fill: ${v("color-muted")}; font-size: 9px; }
+/* A mark's tooltip shows wherever the pointer is on its square, not only on the dot itself. */
+.loominate-automap-hit { fill: transparent; stroke: none; }
+.loominate-automap-mark, .loominate-automap-more { cursor: help; }
 .loominate-automap-seen { margin: 0.2em 0 0; color: ${v("color-muted")}; }
 .loominate-things-title { color: ${v("color-muted")}; }
 /* A thing's menu, under its name. */

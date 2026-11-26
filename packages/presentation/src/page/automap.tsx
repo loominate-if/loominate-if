@@ -224,26 +224,32 @@ function Marks(props: {
     <g className="loominate-automap-marks" aria-hidden="true">
       {shown.map((m, i) => {
         const x = right - (i + 1) * (size + 2);
-        return m.icon !== undefined ? (
-          <image key={i} href={m.icon} x={x} y={top} width={size} height={size} />
-        ) : m.person ? (
-          <circle
-            key={i}
-            className="loominate-automap-person"
-            cx={x + size / 2}
-            cy={top + size / 2}
-            r={size / 2 - 1}
-          />
-        ) : (
-          <rect
-            key={i}
-            className="loominate-automap-thing"
-            x={x + size * 0.2}
-            y={top + size * 0.2}
-            width={size * 0.6}
-            height={size * 0.6}
-            transform={`rotate(45 ${String(x + size / 2)} ${String(top + size / 2)})`}
-          />
+        // Each mark has its own tooltip, on hover; screen readers hear the room's reading instead.
+        return (
+          <g key={i} className="loominate-automap-mark" data-marker={m.label}>
+            <title>{m.label}</title>
+            {/* Room to point at, around a small mark. */}
+            <rect className="loominate-automap-hit" x={x} y={top} width={size} height={size} />
+            {m.icon !== undefined ? (
+              <image href={m.icon} x={x} y={top} width={size} height={size} />
+            ) : m.person ? (
+              <circle
+                className="loominate-automap-person"
+                cx={x + size / 2}
+                cy={top + size / 2}
+                r={size / 2 - 1}
+              />
+            ) : (
+              <rect
+                className="loominate-automap-thing"
+                x={x + size * 0.2}
+                y={top + size * 0.2}
+                width={size * 0.6}
+                height={size * 0.6}
+                transform={`rotate(45 ${String(x + size / 2)} ${String(top + size / 2)})`}
+              />
+            )}
+          </g>
         );
       })}
       {more > 0 && (
@@ -254,6 +260,12 @@ function Marks(props: {
           text-anchor="end"
           dominant-baseline="central"
         >
+          <title>
+            {markers
+              .slice(MARKS_SHOWN)
+              .map((m) => m.label)
+              .join(", ")}
+          </title>
           {`+${String(more)}`}
         </text>
       )}
