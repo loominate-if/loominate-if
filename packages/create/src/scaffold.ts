@@ -40,6 +40,29 @@ function ownVersion(): string {
   return pkg.version;
 }
 
+/** Files a game imports as URLs, as Vite does: images, sound and video, and fonts. */
+const ASSET_EXTENSIONS = [
+  ["Images", ["apng", "avif", "bmp", "gif", "ico", "jpeg", "jpg", "png", "svg", "webp"]],
+  ["Sound and video", ["aac", "flac", "m4a", "mp3", "mp4", "ogg", "opus", "wav", "webm"]],
+  ["Fonts", ["otf", "ttf", "woff", "woff2"]],
+] as const;
+
+/** The game's assets.d.ts: each asset file, imported, is its URL (#434). */
+function assetDeclarations(): string {
+  const groups = ASSET_EXTENSIONS.map(
+    ([title, extensions]) =>
+      `// ${title}\n` +
+      extensions
+        .map((e) => `declare module "*.${e}" {\n  const url: string;\n  export default url;\n}\n`)
+        .join(""),
+  );
+  return (
+    '// Files story.ts can import, as `import keyIcon from "./icons/key.svg"`: each is\n' +
+    "// its URL, or the file itself, inlined, in a single-file build.\n" +
+    groups.join("")
+  );
+}
+
 /** The files of a new game, by path, for {@link scaffold}. */
 export function templateFiles(id: string, title: string, version: string): Record<string, string> {
   const range = `^${version}`;
@@ -126,6 +149,7 @@ test("lighting the lamp", () => {
   </body>
 </html>
 `,
+    "assets.d.ts": assetDeclarations(),
     "tsconfig.json": `${JSON.stringify(
       {
         compilerOptions: {

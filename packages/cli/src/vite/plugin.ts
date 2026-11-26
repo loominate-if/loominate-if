@@ -67,8 +67,9 @@ const SOURCE = /\.(weft|m?tsx?)$/;
 const CONFIG = /\.config\.[cm]?[jt]sx?$/;
 
 /**
- * Every passage file and TypeScript module under `root`, outside dependencies
- * and output, and not tool configuration such as `vite.config.ts`.
+ * Every passage file and TypeScript module under `root`, declaration files
+ * included, outside dependencies and output, and not tool configuration such
+ * as `vite.config.ts`.
  */
 export function gameFiles(root: string): ProjectFile[] {
   const out: ProjectFile[] = [];
@@ -77,11 +78,8 @@ export function gameFiles(root: string): ProjectFile[] {
       if (entry.name.startsWith(".") || SKIP.has(entry.name)) continue;
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(full);
-      else if (
-        SOURCE.test(entry.name) &&
-        !entry.name.endsWith(".d.ts") &&
-        !CONFIG.test(entry.name)
-      ) {
+      // A game's own declarations, as its assets.d.ts, are part of it (#434).
+      else if (SOURCE.test(entry.name) && !CONFIG.test(entry.name)) {
         out.push({ path: full, text: readFileSync(full, "utf8") });
       }
     }
