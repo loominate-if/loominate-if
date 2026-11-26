@@ -100,7 +100,7 @@ describe("scaffolding a game", () => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const server = await dev({
       ...options,
-      vite: { ...options.vite, server: { middlewareMode: true } },
+      vite: { ...options.vite, server: { middlewareMode: true, ws: false } },
     });
     try {
       page().body.innerHTML = '<div id="app"></div>';

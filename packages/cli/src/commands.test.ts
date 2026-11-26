@@ -401,7 +401,7 @@ describe("loominate dev", () => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const server = await dev({
       ...options(root),
-      vite: { ...options(root).vite, server: { middlewareMode: true } },
+      vite: { ...options(root).vite, server: { middlewareMode: true, ws: false } },
     });
     const text = () => page().querySelector(".loominate-passage")?.textContent ?? "";
     const everything = () => page().querySelector(".loominate-page")?.textContent ?? "";
@@ -465,7 +465,7 @@ describe("loominate dev", () => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const server = await dev({
       ...options(root),
-      vite: { ...options(root).vite, server: { middlewareMode: true } },
+      vite: { ...options(root).vite, server: { middlewareMode: true, ws: false } },
     });
     const text = () => page().querySelector(".loominate-passage")?.textContent ?? "";
     const button = (label: string) => {
@@ -538,7 +538,7 @@ describe("loominate dev", () => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const server = await dev({
       ...options(root),
-      vite: { ...options(root).vite, server: { middlewareMode: true } },
+      vite: { ...options(root).vite, server: { middlewareMode: true, ws: false } },
     });
     try {
       page().body.innerHTML = '<div id="app"></div>';
@@ -565,7 +565,7 @@ storylet("Letter", { deck: "mornings", once: true });
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const server = await dev({
       ...options(root),
-      vite: { ...options(root).vite, server: { middlewareMode: true } },
+      vite: { ...options(root).vite, server: { middlewareMode: true, ws: false } },
     });
     const text = () => page().querySelector(".loominate-passage")?.textContent ?? "";
     const labels = () =>
@@ -605,7 +605,7 @@ storylet("Letter", { deck: "mornings", once: true });
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const server = await dev({
       ...options(root),
-      vite: { ...options(root).vite, server: { middlewareMode: true } },
+      vite: { ...options(root).vite, server: { middlewareMode: true, ws: false } },
     });
     try {
       page().body.innerHTML = '<div id="app"></div>';
