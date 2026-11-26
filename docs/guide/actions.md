@@ -29,6 +29,19 @@ export const open = action<{ thing: typeof door }>("open", {
 - `verify` and `check` return why not, or `undefined`.
 - `report` is text, or a function of the things, recorded as an `action-result` event. A `t` template works, naming things by name, as `{the thing}`.
 - `minutes` is how long it takes. Core has no clock; the game clock (#84) will count it, through the `actionTime` hook.
+- `turn: false` makes it an action outside the story, as a player's note on the map: it's saved, undone, and replayed like any action, but it isn't a turn. The move count doesn't go up, `turnEnd`'s rules don't run, so no one else acts, and the page leaves focus where it was:
+
+<!-- example: packages/core/src/passages/moves.test.ts#outside -->
+```ts
+// A note the player keeps: outside the story, so writing it isn't a turn.
+const notebook = object("moves-notebook", { text: "" });
+const jot = action<{ text: string }>("moves-jot", {
+  turn: false,
+  run: ({ text }) => {
+    notebook.text = text;
+  },
+});
+```
 - `seen` is what onlookers see when someone other than the player takes it, as "The butler rings the bell.": text, or a function of its things and who's acting. With the world model, `actAs` tells whoever can see them.
 
 ## Offering one from a passage

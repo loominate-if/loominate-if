@@ -234,6 +234,7 @@ export {
   perform,
   _statusAs,
   _actionsOnThings,
+  _isTurn,
   statusOf,
   useActor,
   useCandidates,

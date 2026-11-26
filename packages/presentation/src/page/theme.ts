@@ -215,6 +215,14 @@ ${themeTokens.map((t) => `  ${t.name}: ${t.value};`).join("\n")}
 .loominate-automap-hit { fill: transparent; stroke: none; }
 .loominate-automap-mark, .loominate-automap-more { cursor: help; }
 .loominate-automap-seen { margin: 0.2em 0 0; color: ${v("color-muted")}; }
+/* The player's notes (#397): a page mark on the room, and the note and its buttons in the list. */
+.loominate-automap-note { fill: ${v("color-surface")}; stroke: ${v("color-text")}; stroke-width: 1.2; }
+.loominate-automap-note-text { margin: 0.2em 0 0; font-style: italic; white-space: pre-wrap; }
+.loominate-automap-note-buttons { margin: 0.3em 0 0; }
+.loominate-automap-note-buttons button, .loominate-automap-note-form button { font: inherit; font-size: 0.85em; }
+.loominate-automap-note-form { margin-block: 0.3em; }
+.loominate-automap-note-form label { display: block; font-size: 0.85em; color: ${v("color-muted")}; }
+.loominate-automap-note-form textarea { box-sizing: border-box; width: 100%; font: inherit; }
 .loominate-things-title { color: ${v("color-muted")}; }
 /* A thing's menu, under its name. */
 .loominate-has-menu { position: relative; display: inline-block; }

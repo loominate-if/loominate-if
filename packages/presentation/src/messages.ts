@@ -72,7 +72,22 @@ declare module "@loominate-if/core" {
       readonly current: boolean;
       readonly ways: readonly string[];
       readonly markers: readonly string[];
+      readonly note?: string;
     };
+    /** The player's note on a room (#397): "Your note: Tobias hides the key." */
+    "automap.note": { readonly text: string };
+    /** The button to write a note on a room: "Add note", or for screen readers "Add note: kitchen". */
+    "automap.addNote": { readonly room?: string };
+    /** The button to change a room's note: "Edit note", or "Edit note: kitchen". */
+    "automap.editNote": { readonly room?: string };
+    /** The button to remove a room's note: "Remove note", or "Remove note: kitchen". */
+    "automap.removeNote": { readonly room?: string };
+    /** The label of the field a note is written in: "Your note on kitchen". */
+    "automap.noteField": { readonly room: string };
+    /** The button that keeps a note. */
+    "automap.saveNote": None;
+    /** The button that gives up writing a note. */
+    "automap.cancelNote": None;
     /** What the player last saw in a room, in the full map's list (#396): "Last seen here: Tobias, chest." */
     "automap.seenHere": { readonly markers: readonly string[] };
     /** Beside the player's room in the full map's list: "you're here". */
@@ -277,13 +292,25 @@ register("automap.nowhere", "Nowhere on the map.");
 register("automap.title", "Map");
 register("automap.keys", "Arrow keys move between rooms on the map, and Home goes back to yours.");
 register("automap.rooms", "Rooms");
-register("automap.room", ({ room, current, ways, markers }) =>
+register("automap.room", ({ room, current, ways, markers, note }) =>
   [
     `${room}${current ? ", where you are" : ""}.`,
     ...ways.map((w) => `${w}.`),
     ...(markers.length > 0 ? [`Last seen here: ${markers.join(", ")}.`] : []),
+    ...(note !== undefined ? [`Your note: ${note}`] : []),
   ].join(" "),
 );
+register("automap.note", ({ text }) => `Your note: ${text}`);
+register("automap.addNote", ({ room }) => (room === undefined ? "Add note" : `Add note: ${room}`));
+register("automap.editNote", ({ room }) =>
+  room === undefined ? "Edit note" : `Edit note: ${room}`,
+);
+register("automap.removeNote", ({ room }) =>
+  room === undefined ? "Remove note" : `Remove note: ${room}`,
+);
+register("automap.noteField", ({ room }) => `Your note on ${room}`);
+register("automap.saveNote", "Save note");
+register("automap.cancelNote", "Cancel");
 register("automap.seenHere", ({ markers }) => `Last seen here: ${markers.join(", ")}.`);
 register("automap.here", "you're here");
 register("automap.close", "Close");

@@ -203,6 +203,7 @@ export { scene, type Endings, type Scene, type SceneOptions } from "./scenes.js"
 export { journey, type JourneyOptions } from "./journeys.js";
 export { compass, type CompassSettings } from "./compass.js";
 export { automap, type AutomapSettings } from "./automap.js";
+export { MAP_NOTE_LENGTH, noteRoom } from "./map-notes.js";
 export {
   disguise,
   disguisedAs,

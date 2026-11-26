@@ -32,6 +32,7 @@ import { checkInlineLinks, checkStyles } from "./prose.js";
 import { hook } from "../rules/hooks.js";
 import { visitMemory } from "./memory.js";
 import {
+  _isTurn,
   callOf,
   logCall,
   perform,
@@ -563,10 +564,14 @@ export function redirect(passage: PassageId): void {
  */
 export type MoveKind = "follow" | "continue" | "act" | "goTo";
 
-/** What kind of move a logged action is, or `undefined` for moving past a beat, which isn't one. */
+/**
+ * What kind of move a logged action is, or `undefined` for one that isn't:
+ * moving past a beat, or an action outside the story (`turn: false`).
+ */
 function moveKind(action: StoryAction): MoveKind | undefined {
   if (action.type === "follow") return action.choice.type === "continue" ? "continue" : "follow";
   if (action.type === "advance") return undefined;
+  if (action.type === "act" && !_isTurn(action.action)) return undefined;
   return action.type;
 }
 
@@ -1061,8 +1066,11 @@ export function createStory(
         emitIn(id)("action", { action: logged.action, ...(label !== undefined && { label }) });
         perform(call);
         followRedirects();
-        hook("turnEnd").run({ ...contextFor(current() ?? id), move: "act" });
-        followRedirects();
+        // An action outside the story isn't a turn: no one else acts, and no move is counted.
+        if (_isTurn(logged.action)) {
+          hook("turnEnd").run({ ...contextFor(current() ?? id), move: "act" });
+          followRedirects();
+        }
       });
     });
     store.set(ATTEMPTS_ID, String(n), attempt + 1);
