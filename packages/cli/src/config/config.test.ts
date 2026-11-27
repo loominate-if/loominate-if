@@ -89,6 +89,10 @@ describe("loominate.config.ts", () => {
     expect(
       await problem('{ game: { id: "g", version: "1" }, start: "S", author: 3 } as never'),
     ).toBe('loominate.config.ts: `author` must be a string, like `author: "A. Writer"`.');
+    // A bad IFID, with a new one to use (#151).
+    expect(
+      await problem('{ game: { id: "g", version: "1", ifid: "my-game" }, start: "S" }'),
+    ).toMatch(/^loominate\.config\.ts: `game\.ifid` must be a UUID, like `ifid: "[0-9A-F-]{36}"`/);
     expect(
       await problem('{ game: { id: "g", version: "1" }, start: "S", seeds: 3 } as never'),
     ).toBe(

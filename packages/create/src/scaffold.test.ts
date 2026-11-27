@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -72,7 +73,10 @@ describe("scaffolding a game", () => {
       },
     });
     const config = readFileSync(path.join(root, "loominate.config.ts"), "utf8");
-    expect(config).toContain('game: { id: "lantern-road", version: "0.1.0" }');
+    // A new IFID for each game (#151).
+    expect(config).toMatch(
+      /game: \{ id: "lantern-road", version: "0\.1\.0", ifid: "[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12}" \}/,
+    );
     expect(config).toContain('title: "Lantern Road"');
   });
 
@@ -105,6 +109,9 @@ describe("scaffolding a game", () => {
     expect(readFileSync(path.join(root, "dist/index.html"), "utf8")).toContain(
       "<title>First Game</title>",
     );
+    // Its config has an IFID, so it builds as an archive too (#151).
+    await build({ ...options, target: "archive" });
+    expect(existsSync(path.join(root, "dist/first-game.loom"))).toBe(true);
 
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const server = await dev({

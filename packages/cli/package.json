@@ -29,6 +29,7 @@
     "loominate": "./dist/bin.js"
   },
   "dependencies": {
+    "@loominate-if/archive": "workspace:^",
     "@loominate-if/compiler": "workspace:^",
     "@loominate-if/inspector": "workspace:^",
     "elkjs": "0.13.0",

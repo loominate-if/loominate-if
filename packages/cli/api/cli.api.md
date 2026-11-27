@@ -27,7 +27,7 @@ export type BuildOptions = CommandOptions & {
 };
 
 // @public
-export type BuildTarget = "static" | "single";
+export type BuildTarget = "static" | "single" | "archive";
 
 // @public
 export type CommandOptions = {
@@ -92,6 +92,7 @@ export type LoominateConfig = {
     readonly game: {
         readonly id: string;
         readonly version: string;
+        readonly ifid?: string;
     };
     readonly title?: string;
     readonly author?: string;
@@ -179,6 +180,9 @@ export type UnreachableEntry = {
     readonly file?: string;
     readonly line?: number;
 };
+
+// @public
+export function validate(file: string): Promise<string[]>;
 
 // @public
 export const WALKTHROUGH_SETUP = "/@loominate/walkthrough";

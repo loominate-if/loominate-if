@@ -145,6 +145,22 @@ export function loominateApp(config: ResolvedConfig, options: AppOptions = {}): 
         "",
       ].join("\n");
     },
+    // The game's IFID, as the Treaty of Babel says an HTML game gives it (#151).
+    transformIndexHtml() {
+      const ifid = config.game.ifid;
+      if (ifid === undefined) return [];
+      return [
+        {
+          tag: "meta",
+          attrs: {
+            prefix: "ifiction: http://babel.ifarchive.org/protocol/iFiction/",
+            property: "ifiction:ifid",
+            content: ifid.toUpperCase(),
+          },
+          injectTo: "head",
+        },
+      ];
+    },
     configureServer(server) {
       // Errors in the page, printed where the author is looking.
       server.ws.on(ERROR_EVENT, (data: { message?: string; stack?: string }) => {
