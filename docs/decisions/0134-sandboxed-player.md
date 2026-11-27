@@ -24,7 +24,7 @@ A sandboxed iframe can't both be safe and work on the player's origin. Without `
   2. The host tells the player it's ready.
   3. The player sends the archive, or asks it to play its kept copy when offline.
 
-  Each side checks the other's origin and window, and the host acts on one message only. The host keeps the archive only if its IFID is the one its origin is for, then replaces itself with the game.
+  Each side checks the other's origin and window, and the host acts on one message only. The host keeps the archive only if its IFID is the one its origin is for, then replaces itself with the game. Its script is a file of its origin's, not inline, so the page works offline under the game's policy.
 - **The game's policy.** Every response from a game's archive carries `sandboxPolicy(player)`:
   - only the game's own origin for scripts, styles, connections, and the like;
   - inline styles, which presentation writes;
@@ -32,7 +32,7 @@ A sandboxed iframe can't both be safe and work on the player's origin. Without `
   - no workers, frames, plugins, form targets, or `<base>`;
   - framing by the player alone.
 
-  Files are also served with `X-Content-Type-Options: nosniff`.
+  Files are also served with `X-Content-Type-Options: nosniff`. What the worker kept for offline, the host page among it, gets the same policy, since the game can write its origin's caches.
 - **The player's policy.** The player page allows only its own inline script (by hash) and frames only from game origins, and can't be framed itself. Its frame can't be navigated to any other site, which also covers the game navigating itself away, something its own policy can't express.
 - **The same IFID, another game.** The player remembers, in its own storage, each IFID's game ID and title. An archive claiming a known IFID with a different game ID is opened only if the player agrees, since it would take over that game's origin and saves.
 - **`loominate play`** serves this player:
@@ -60,7 +60,8 @@ The attacker writes an archive the player opens. They want to read or change the
 | Navigating its own frame or posting a form elsewhere | The player's `frame-src` | Chrome; by hand in Firefox |
 | Handing the host a different game's archive | Host checks the player's origin and the IFID | Unit tests |
 | Spoofing the host's messages to the player | Player checks the frame's origin and window | Unit tests |
-| Claiming a game's IFID to take over its saves | The player asks first | Unit tests |
+| A different game claiming a known IFID, to take over its saves | The player asks first | Unit tests |
+| Planting a page with no policy in its own cache, for offline | The worker gives what it kept the policy too | Unit tests |
 | Markup in titles or problems | Shown as text only | Unit tests |
 | Another site reaching `loominate play` by DNS | Host names other than ours refused | Unit tests |
 
@@ -69,6 +70,7 @@ The attacker writes an archive the player opens. They want to read or change the
 **What's left:**
 
 - **WebRTC.** No shipped policy stops `RTCPeerConnection`, so a game could send data to a server through it. It can only send what it already has: its own saves and what the player types into it.
+- **Copies of a game.** Archives aren't signed, so one with another game's IFID and game ID is that game's next version as far as the player can tell, and gets its origin and saves. Asking at every new version would teach players to agree without reading; signed archives would close it.
 - **Same site, locally.** `<ifid>.localhost` and `localhost` are the same site, so browsers may put a game and the player in one process: a busy game can slow the player, and Spectre-class attacks aren't ruled out. Cookies set for `localhost` would be shared, though neither side sets any. A hosted player should put games on a separate registrable domain, as code hosts do for user content.
 - **Resources.** A game can fill its own storage quota, use the CPU, or start downloads, which browsers show.
 - **Hostile zips.** The player and host inflate entries fully before checking sizes, so a compression bomb can exhaust the player tab's memory ([#441](https://github.com/loominate-if/loominate-if/issues/441)).

@@ -86,9 +86,16 @@ async function bundle(id: string, conditions: readonly string[]): Promise<string
   return chunk.code;
 }
 
-/** A page with its script inline, so it's one file to keep for playing offline. */
-function page(title: string, script: string): { html: string; hash: string } {
+/**
+ * A page with its script inline, so it's one file to keep for playing
+ * offline, or, given `src`, from that file.
+ */
+function page(title: string, script: string, src?: string): { html: string; hash: string } {
   const code = script.replace(/<\/(script)/gi, "<\\/$1");
+  const tag =
+    src === undefined
+      ? `<script type="module">${code}</script>`
+      : `<script type="module" src="${src}"></script>`;
   return {
     html: `<!doctype html>
 <html lang="en">
@@ -99,7 +106,7 @@ function page(title: string, script: string): { html: string; hash: string } {
 <style>body { font: 1.1rem/1.5 system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; } [role="alert"] { color: #b00020; } @media (prefers-color-scheme: dark) { body { background: #121212; color: #eee; } [role="alert"] { color: #ff8a80; } }</style>
 </head>
 <body>
-<script type="module">${code}</script>
+${tag}
 </body>
 </html>
 `,
@@ -125,7 +132,9 @@ export async function play(file: string, options: PlayOptions = {}): Promise<Pla
     [PLAYER, PLAYER_WORKER, HOST, GAME_WORKER].map((id) => bundle(id, conditions)),
   );
   const playerPage = page("Loominate IF player", player as string);
-  const hostPage = page("Opening the game", host as string);
+  // The host's script is a file: offline, its worker keeps the page under the
+  // game's policy, which allows the origin's own scripts and no inline ones.
+  const hostPage = page("Opening the game", host as string, "/host.js");
   const name = path.basename(file);
   let port = options.port ?? 4180;
 
@@ -178,9 +187,10 @@ export async function play(file: string, options: PlayOptions = {}): Promise<Pla
         send(
           "text/html; charset=utf-8",
           hostPage.html,
-          `default-src 'self'; script-src ${hostPage.hash}; style-src 'unsafe-inline'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors ${playerOrigin}`,
+          `default-src 'self'; script-src 'self'; style-src 'unsafe-inline'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors ${playerOrigin}`,
         );
-      } else if (at === "/sw.js") send("text/javascript; charset=utf-8", gameWorker as string);
+      } else if (at === "/host.js") send("text/javascript; charset=utf-8", host as string);
+      else if (at === "/sw.js") send("text/javascript; charset=utf-8", gameWorker as string);
       // A game's own files come from its archive, through its worker, never from here.
       else missing();
       return;

@@ -6,7 +6,7 @@
  * the game's origin, which keeps it for that origin's service worker.
  */
 import { ArchiveError, isIfid, readArchive, type ArchiveManifest } from "./archive.js";
-import { keepArchive, keepPage, mountOpener } from "./loader.js";
+import { keepArchive, keepPage, mountOpener, pageScripts } from "./loader.js";
 import { archiveKey, ARCHIVES_CACHE, gameUrl } from "./worker.js";
 
 /**
@@ -182,6 +182,7 @@ export async function mountPlayer(root: HTMLElement, options: PlayerOptions): Pr
  * the game.
  */
 export async function mountGameHost(root: HTMLElement, options: GameHostOptions): Promise<void> {
+  const scripts = pageScripts();
   root.innerHTML = `<main><p role="status">Opening the game…</p></main>`;
   const status = root.querySelector('[role="status"]') as HTMLElement;
   const ifid = (location.hostname.split(".")[0] ?? "").toUpperCase();
@@ -214,11 +215,18 @@ export async function mountGameHost(root: HTMLElement, options: GameHostOptions)
     ]);
     return;
   }
-  await workers.register(options.worker ?? "sw.js");
+  // Offline, this page is kept under the game's policy, which allows no
+  // workers: the one already here is enough.
+  await workers.register(options.worker ?? "sw.js").catch((e: unknown) => {
+    if (!workers.controller) throw e;
+  });
   const registration = await workers.ready;
-  keepPage();
+  // Kept before going to the game, which would stop it halfway.
+  const keeping = keepPage(scripts);
   const go = (): void => {
-    location.replace(gameUrl(registration.scope, ifid));
+    void keeping.then(() => {
+      location.replace(gameUrl(registration.scope, ifid));
+    });
   };
   let done = false;
   addEventListener("message", (event: MessageEvent) => {

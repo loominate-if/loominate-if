@@ -8,6 +8,7 @@ import {
   keepOffline,
   mountArchiveLoader,
   mountPlayer,
+  PLAYER_CACHE,
   PLAYER_SANDBOX,
   sandboxPolicy,
   readArchive,
@@ -224,6 +225,20 @@ describe("the service worker", () => {
     });
     expect(part?.status).toBe(206);
     expect(part?.headers.get("Content-Range")).toBe("bytes 0-9/100");
+  });
+
+  it("gives what it kept for offline the policy too, since the game can write it", async () => {
+    const policy = sandboxPolicy("http://localhost:4180");
+    const w = worker(offline, (scope) => {
+      serveArchives(scope, { policy });
+    });
+    // A game puts a page of its own, with no policy, where the host page is kept.
+    await (
+      await w.caches.open(PLAYER_CACHE)
+    ).put(`${SCOPE}free.html`, new Response("<script>fetch('https://example.com/')</script>"));
+    const planted = await w.request(`${SCOPE}free.html`, { mode: "navigate" });
+    expect(planted?.headers.get("Content-Security-Policy")).toBe(policy);
+    expect(planted?.headers.get("X-Content-Type-Options")).toBe("nosniff");
   });
 
   it("keeps the player's own page for offline, playing no games itself", async () => {

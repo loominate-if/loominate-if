@@ -58,7 +58,9 @@ const page = (status: number, title: string, body: string): Response =>
 export type ServeOptions = {
   /**
    * A `Content-Security-Policy` for every response from a game's archive,
-   * as {@link sandboxPolicy} makes for the generic player.
+   * as {@link sandboxPolicy} makes for the generic player, and for what's
+   * kept for offline, which the game could have written. Pages served from
+   * the network, such as the game host page, keep their own.
    */
   readonly policy?: string;
 };
@@ -99,8 +101,15 @@ function takeOver(worker: ArchiveWorkerScope): void {
   });
 }
 
-/** Network-first, keeping what's fetched, for when the network's gone. */
-function fromNetwork(worker: ArchiveWorkerScope): (request: Request) => Promise<Response> {
+/**
+ * Network-first, keeping what's fetched, for when the network's gone. What's
+ * kept passes through `offline` on its way out, since pages on the origin can
+ * write that cache too.
+ */
+function fromNetwork(
+  worker: ArchiveWorkerScope,
+  offline: (response: Response) => Response = (r) => r,
+): (request: Request) => Promise<Response> {
   return async (request) => {
     const cache = await worker.caches.open(PLAYER_CACHE);
     try {
@@ -113,7 +122,7 @@ function fromNetwork(worker: ArchiveWorkerScope): (request: Request) => Promise<
     } catch (e) {
       // Offline: what was fetched last, and a page whatever its URL's query.
       const kept = await cache.match(request, { ignoreSearch: request.mode === "navigate" });
-      if (kept) return kept;
+      if (kept) return offline(kept);
       throw e;
     }
   };
@@ -145,7 +154,6 @@ export function keepOffline(worker: ArchiveWorkerScope): void {
 export function serveArchives(worker: ArchiveWorkerScope, options: ServeOptions = {}): void {
   const scope = worker.registration.scope;
   const games = new URL(GAMES_PATH, scope);
-  const network = fromNetwork(worker);
   // An archive read once, kept while its stored copy is the same.
   const opened = new Map<string, { tag: string; archive: Promise<Archive> }>();
 
@@ -172,6 +180,11 @@ export function serveArchives(worker: ArchiveWorkerScope, options: ServeOptions 
       headers,
     });
   };
+
+  // A game can put what it likes in its origin's caches, so what's kept
+  // there gets the policy too, or a page it planted would play offline
+  // without one.
+  const network = fromNetwork(worker, options.policy === undefined ? undefined : guarded);
 
   async function serveGame(request: Request, ifid: string, path: string): Promise<Response> {
     let found: Archive | undefined;

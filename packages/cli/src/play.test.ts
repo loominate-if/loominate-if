@@ -84,9 +84,15 @@ describe("loominate play", () => {
       // The game's origin: its host page, framed only by the player, and its worker.
       const host = await get(server.url.replace(/\?.*$/, ""), game);
       expect(host.body.toString()).toContain("<title>Opening the game</title>");
-      expect(String(host.headers["content-security-policy"])).toContain(
-        `frame-ancestors http://localhost:${port}`,
-      );
+      const hostPolicy = String(host.headers["content-security-policy"]);
+      expect(hostPolicy).toContain(`frame-ancestors http://localhost:${port}`);
+      // Its script is a file, which the game's policy, kept for offline, allows.
+      expect(hostPolicy).toContain("script-src 'self'");
+      expect(host.body.toString()).toContain('<script type="module" src="/host.js"></script>');
+      const hostScript = await get(server.url.replace(/\/\?.*$/, "/host.js"), game);
+      expect(hostScript.headers["content-type"]).toBe("text/javascript; charset=utf-8");
+      expect(hostScript.body.toString()).toContain("loominate-ready");
+      expect((await get(server.url.replace(/\/\?.*$/, "/host.js"), player)).status).toBe(404);
       const gameWorker = await get(server.url.replace(/\/\?.*$/, "/sw.js"), game);
       expect(gameWorker.body.toString()).toContain("frame-ancestors");
       // Its files come from its archive, through its worker; the server has none, nor the archive.

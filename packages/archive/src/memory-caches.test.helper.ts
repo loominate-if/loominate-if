@@ -23,6 +23,9 @@ export function memoryCaches(): CacheStorage {
         add: async (r: RequestInfo | URL) => {
           store.set(url(r), new Response("kept"));
         },
+        addAll: async (rs: (RequestInfo | URL)[]) => {
+          for (const r of rs) store.set(url(r), new Response("kept"));
+        },
       } as unknown as Cache;
     },
   } as unknown as CacheStorage;

@@ -29,12 +29,17 @@ afterEach(() => {
 });
 
 /** The host, in a frame of the player's, with what it tells the player. */
-async function hosted() {
+async function hosted(workers: Partial<ServiceWorkerContainer> = {}) {
   const caches = memoryCaches();
   vi.stubGlobal("caches", caches);
   Object.defineProperty(navigator, "serviceWorker", {
     configurable: true,
-    value: { register: async () => undefined, ready: Promise.resolve({ scope: SCOPE }) },
+    value: {
+      register: async () => undefined,
+      ready: Promise.resolve({ scope: SCOPE }),
+      controller: null,
+      ...workers,
+    },
   });
   const told: [unknown, string][] = [];
   const parent = {
@@ -59,6 +64,28 @@ describe("the game host page", () => {
   it("tells the player it's ready, and no one else", async () => {
     const { told } = await hosted();
     expect(told).toEqual([[{ type: "loominate-ready" }, PLAYER]]);
+  });
+
+  it("keeps itself and its script for offline, which loaded before its worker", async () => {
+    const script = document.createElement("script");
+    script.src = "/host.js";
+    // In the body the host draws over, as `loominate play` has it.
+    document.body.append(script);
+    const elsewhere = document.createElement("script");
+    elsewhere.src = "https://example.com/x.js";
+    document.body.append(elsewhere);
+    try {
+      const { caches } = await hosted();
+      const kept = await caches.open("loominate-player");
+      await vi.waitFor(async () => {
+        expect(await kept.match(`${SCOPE}host.js`)).toBeDefined();
+      });
+      expect(await kept.match(SCOPE)).toBeDefined();
+      expect(await kept.match("https://example.com/x.js")).toBeUndefined();
+    } finally {
+      script.remove();
+      elsewhere.remove();
+    }
   });
 
   it("keeps the archive the player hands it", async () => {
@@ -109,6 +136,17 @@ describe("the game host page", () => {
         PLAYER,
       ]);
     });
+  });
+
+  it("plays offline under the game's policy, which refuses to register its worker again", async () => {
+    const refused = () => Promise.reject(new DOMException("worker-src 'none'", "SecurityError"));
+    const { told } = await hosted({
+      register: refused,
+      controller: {} as ServiceWorker,
+    });
+    expect(told).toEqual([[{ type: "loominate-ready" }, PLAYER]]);
+    // With no worker yet, that's a failure.
+    await expect(hosted({ register: refused })).rejects.toThrow("worker-src 'none'");
   });
 
   it("only points to the player when it isn't in a frame", async () => {

@@ -137,7 +137,7 @@ export async function mountOpener(
   }
   await workers.register(worker);
   const registration = await workers.ready;
-  keepPage();
+  void keepPage();
   const plays = opening(registration.scope, { main, status, fail });
 
   // Which game an archive's URL opened, so it opens offline from the copy kept.
@@ -204,17 +204,29 @@ export async function mountOpener(
 }
 
 /**
- * Keeps this page for playing offline: it loaded before its service worker
- * was running, so the worker didn't see it.
+ * This page's own script files, from its origin: read before the page
+ * redraws itself, which may remove their elements.
  * @internal
  */
-export function keepPage(): void {
+export function pageScripts(): string[] {
+  return [...document.querySelectorAll<HTMLScriptElement>("script[src]")]
+    .map((s) => s.src)
+    .filter((src) => new URL(src).origin === location.origin);
+}
+
+/**
+ * Keeps this page, and `scripts`, its own script files, for playing
+ * offline: they loaded before its service worker was running, so the worker
+ * didn't see them.
+ * @internal
+ */
+export function keepPage(scripts: readonly string[] = []): Promise<void> {
   const here = new URL(location.href);
   here.search = "";
   here.hash = "";
-  caches
+  return caches
     .open(PLAYER_CACHE)
-    .then((c) => c.add(here.href))
+    .then((c) => c.addAll([here.href, ...scripts]))
     .catch(() => undefined);
 }
 
