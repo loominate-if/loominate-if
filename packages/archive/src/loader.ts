@@ -59,20 +59,33 @@ export async function mountArchiveLoader(
 <p>Open a game's <code>.loom</code> archive to play it in this browser. Once it's open, it plays offline too.</p>
 <p><label for="${FILE_ID}">Open an archive</label> <input type="file" id="${FILE_ID}" accept=".loom"></p>
 <p role="status"></p>
-<div role="alert"></div>
 </main>`;
   const input = root.querySelector("input") as HTMLInputElement;
   const status = root.querySelector('[role="status"]') as HTMLElement;
-  const alert = root.querySelector('[role="alert"]') as HTMLElement;
+  const main = root.querySelector("main") as HTMLElement;
+  let alert: HTMLElement | undefined;
+  const clear = (): void => {
+    alert?.remove();
+    alert = undefined;
+  };
   const fail = (title: string, problems: readonly string[]): void => {
     status.textContent = "";
-    alert.replaceChildren();
+    clear();
+    // A new alert each time, since screen readers announce one as it's added
+    // more reliably than a change inside one already there; and focus on its
+    // heading, so it's read even if the announcement is lost, as when the
+    // file picker closes and focus comes back to its button.
+    alert = doc.createElement("div");
+    alert.setAttribute("role", "alert");
     const heading = doc.createElement("h2");
     heading.textContent = title;
+    heading.tabIndex = -1;
     const list = doc.createElement("ul");
     for (const p of problems)
       list.append(Object.assign(doc.createElement("li"), { textContent: p }));
     alert.append(heading, list);
+    main.append(alert);
+    heading.focus();
   };
 
   const workers = (navigator as Partial<Navigator>).serviceWorker;
@@ -108,7 +121,7 @@ export async function mountArchiveLoader(
     bytes: () => Promise<Uint8Array | undefined>,
     from?: URL,
   ): Promise<void> => {
-    alert.replaceChildren();
+    clear();
     status.textContent = `Opening ${name}…`;
     try {
       const data = await bytes();

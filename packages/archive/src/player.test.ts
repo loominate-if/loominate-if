@@ -293,6 +293,30 @@ describe("the loader page", () => {
       "The archive is damaged: it isn't a zip file: there's no end of central directory.",
     ]);
     expect(document.querySelector('[role="status"]')?.textContent).toBe("");
+    // Focus goes to the problem, so a screen reader reads it.
+    expect(document.activeElement).toBe(document.querySelector('[role="alert"] h2'));
+  });
+
+  it("puts each new problem in an alert of its own", async () => {
+    browser(async () => new Response("not a zip"));
+    await mountArchiveLoader(document.body);
+    const input = document.querySelector("input") as HTMLInputElement;
+    const pick = async (name: string): Promise<Element | null> => {
+      Object.defineProperty(input, "files", {
+        configurable: true,
+        value: [new File(["not a zip"], name)],
+      });
+      input.dispatchEvent(new Event("change"));
+      await vi.waitFor(() => {
+        expect(alertText()[0]).toBe(`${name} can't be played`);
+      });
+      return document.querySelector('[role="alert"]');
+    };
+    const first = await pick("story.ts");
+    const second = await pick("inn.weft");
+    expect(second).not.toBe(first);
+    expect(document.querySelectorAll('[role="alert"]')).toHaveLength(1);
+    expect(document.activeElement?.textContent).toBe("inn.weft can't be played");
   });
 
   it("says when an archive can't be fetched", async () => {
