@@ -17,7 +17,7 @@ Commands:
   coverage Report what can't be reached, and what the walkthroughs never reach
   map      Write the story map, the game's passages and links, as one HTML file
   validate Check a .loom archive: loominate validate dist/my-game.loom
-  play     Play a .loom archive in a browser, as players will: loominate play dist/my-game.loom
+  play     Play a .loom archive in the generic player, sandboxed as players will have it: loominate play dist/my-game.loom
 
 Options:
   --root <dir>   The game's folder (default: the current folder)

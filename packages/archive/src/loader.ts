@@ -26,6 +26,21 @@ export async function storeArchive(
   const problems = await validateArchive(bytes);
   if (problems.length > 0) throw new ArchiveError(problems);
   const { manifest } = await readArchive(bytes);
+  await keepArchive(bytes, manifest, scope, storage);
+  return manifest;
+}
+
+/**
+ * Keeps an archive already checked, with its manifest, for the worker whose
+ * scope is `scope`, its SHA-256 as its ETag so the worker sees a new version.
+ * @internal
+ */
+export async function keepArchive(
+  bytes: Uint8Array,
+  manifest: ArchiveManifest,
+  scope: string,
+  storage: CacheStorage,
+): Promise<void> {
   const cache = await storage.open(ARCHIVES_CACHE);
   await cache.put(
     archiveKey(scope, manifest.ifid),
@@ -33,7 +48,6 @@ export async function storeArchive(
       headers: { "Content-Type": "application/zip", ETag: `"${await sha256(bytes)}"` },
     }),
   );
-  return manifest;
 }
 
 /** Options for {@link mountArchiveLoader}. */
@@ -44,14 +58,32 @@ export type LoaderOptions = {
 
 const FILE_ID = "loominate-archive-file";
 
+/** How an opener plays what it opens: the loader here, or the generic player. */
+export type Opening = {
+  /** Plays a checked archive; `fromUrl` if its page's `?archive=` named it. */
+  play(bytes: Uint8Array, manifest: ArchiveManifest, fromUrl: boolean): Promise<void>;
+  /** Plays the game with this IFID, kept from before, when its archive's URL can't be reached. */
+  resume(ifid: string): Promise<void> | void;
+};
+
+/** What an opener's page shows, for its plays to use. */
+export type OpenerView = {
+  readonly main: HTMLElement;
+  readonly status: HTMLElement;
+  /** Shows what went wrong, in a new alert, with focus on its heading. */
+  fail(title: string, problems: readonly string[]): void;
+};
+
 /**
- * Draws the loader page in `root`, registers the service worker, and opens
- * the archive the page's `?archive=` names, if any, or the one the player
- * picks. The worker's script must call {@link serveArchives}.
+ * Draws the page that opens archives, registers its service worker, and
+ * opens the archive its `?archive=` names, or the one the player picks,
+ * checked, for `opening` to play.
+ * @internal
  */
-export async function mountArchiveLoader(
+export async function mountOpener(
   root: HTMLElement,
-  options: LoaderOptions = {},
+  worker: string,
+  opening: (scope: string, view: OpenerView) => Opening,
 ): Promise<void> {
   const doc = root.ownerDocument;
   root.innerHTML = `<main>
@@ -103,22 +135,11 @@ export async function mountArchiveLoader(
     ]);
     return;
   }
-  await workers.register(options.worker ?? "sw.js");
+  await workers.register(worker);
   const registration = await workers.ready;
-  // Kept for playing offline: the worker only sees what's fetched once it's running.
-  const here = new URL(location.href);
-  here.search = "";
-  here.hash = "";
-  caches
-    .open(PLAYER_CACHE)
-    .then((c) => c.add(here.href))
-    .catch(() => undefined);
+  keepPage();
+  const plays = opening(registration.scope, { main, status, fail });
 
-  const go = (ifid: string, replace: boolean): void => {
-    const url = gameUrl(registration.scope, ifid);
-    if (replace) location.replace(url);
-    else location.assign(url);
-  };
   // Which game an archive's URL opened, so it opens offline from the copy kept.
   const opened = (from: URL): string =>
     new URL(`opened?archive=${encodeURIComponent(from.href)}`, registration.scope).href;
@@ -133,14 +154,14 @@ export async function mountArchiveLoader(
     try {
       const data = await bytes();
       if (!data) return;
-      const manifest = await storeArchive(data, registration.scope, caches);
+      const problems = await validateArchive(data);
+      if (problems.length > 0) throw new ArchiveError(problems);
+      const { manifest } = await readArchive(data);
       if (from) {
         const player = await caches.open(PLAYER_CACHE);
         await player.put(opened(from), new Response(manifest.ifid));
       }
-      status.textContent = `Starting ${manifest.title}…`;
-      // From a URL, Back from the game leaves the loader rather than opening the game again.
-      go(manifest.ifid, from !== undefined);
+      await plays.play(data, manifest, from !== undefined);
     } catch (e) {
       fail(`${name} can't be played`, e instanceof ArchiveError ? e.problems : [String(e)]);
     }
@@ -163,7 +184,7 @@ export async function mountArchiveLoader(
         } catch {
           const kept = await (await caches.open(PLAYER_CACHE)).match(opened(url));
           if (kept) {
-            go(await kept.text(), true);
+            await plays.resume(await kept.text());
             return undefined;
           }
           throw new ArchiveError(
@@ -180,4 +201,50 @@ export async function mountArchiveLoader(
       url,
     );
   }
+}
+
+/**
+ * Keeps this page for playing offline: it loaded before its service worker
+ * was running, so the worker didn't see it.
+ * @internal
+ */
+export function keepPage(): void {
+  const here = new URL(location.href);
+  here.search = "";
+  here.hash = "";
+  caches
+    .open(PLAYER_CACHE)
+    .then((c) => c.add(here.href))
+    .catch(() => undefined);
+}
+
+/**
+ * Draws the loader page in `root`, registers the service worker, and opens
+ * the archive the page's `?archive=` names, if any, or the one the player
+ * picks, playing it on this page's own origin. The worker's script must call
+ * {@link serveArchives}. To play games someone else made, use the generic
+ * player, {@link mountPlayer}, which keeps each apart.
+ */
+export async function mountArchiveLoader(
+  root: HTMLElement,
+  options: LoaderOptions = {},
+): Promise<void> {
+  await mountOpener(root, options.worker ?? "sw.js", (scope, view) => {
+    const go = (ifid: string, replace: boolean): void => {
+      const url = gameUrl(scope, ifid);
+      if (replace) location.replace(url);
+      else location.assign(url);
+    };
+    return {
+      async play(bytes, manifest, fromUrl) {
+        await keepArchive(bytes, manifest, scope, caches);
+        view.status.textContent = `Starting ${manifest.title}…`;
+        // From a URL, Back from the game leaves the loader rather than opening the game again.
+        go(manifest.ifid, fromUrl);
+      },
+      resume: (ifid) => {
+        go(ifid, true);
+      },
+    };
+  });
 }

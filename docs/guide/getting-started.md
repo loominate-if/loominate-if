@@ -107,7 +107,7 @@ To play the archive as players will, in a browser:
 npx loominate play dist/my-game.loom
 ```
 
-This serves a player page on `http://localhost:4180` (`--port` picks another) that opens the archive and plays the game from it, through a service worker, with no files unpacked. Once it's open, the game plays offline in that browser, from the same address, even with `play` stopped. The page also has an **Open an archive** button for any `.loom` file on your computer.
+This serves the generic player on `http://localhost:4180` (`--port` picks another), which opens the archive and plays the game from it with no files unpacked. It's the player that runs games anyone made, so it keeps each apart: the game plays in a sandboxed frame on an address of its own, `http://<its IFID>.localhost:4180`, with its own saves, and can't reach the player, other games, or any other site. Your game should play there as it does from `npm run dev`; if it reaches for another site, such as a font or image hosted elsewhere, the browser's console says what was blocked, and the fix is to import the file in `story.ts` instead. Once it's open, the game plays offline in that browser, from the same address, even with `play` stopped. The page also has an **Open an archive** button for any `.loom` file on your computer.
 
 Every build fails if the game has errors.
 
