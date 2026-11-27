@@ -80,10 +80,17 @@ export async function mountArchiveLoader(
     const heading = doc.createElement("h2");
     heading.textContent = title;
     heading.tabIndex = -1;
-    const list = doc.createElement("ul");
-    for (const p of problems)
-      list.append(Object.assign(doc.createElement("li"), { textContent: p }));
-    alert.append(heading, list);
+    // One problem, the usual case, is a paragraph: a list of one is an extra
+    // stop for a screen reader.
+    let details: HTMLElement;
+    if (problems.length === 1) {
+      details = Object.assign(doc.createElement("p"), { textContent: problems[0] });
+    } else {
+      details = doc.createElement("ul");
+      for (const p of problems)
+        details.append(Object.assign(doc.createElement("li"), { textContent: p }));
+    }
+    alert.append(heading, details);
     main.append(alert);
     heading.focus();
   };

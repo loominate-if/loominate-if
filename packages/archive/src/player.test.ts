@@ -14,6 +14,7 @@ import {
   type ArchiveWorkerScope,
   type WorkerFetchEvent,
 } from "./index.js";
+import { readZip } from "./zip.js";
 
 const text = (s: string): Uint8Array => new TextEncoder().encode(s);
 const IFID = "0B3A7F64-8E2C-4D1A-9F6B-2C5E8A1D3F70";
@@ -270,7 +271,7 @@ describe("the loader page", () => {
   });
 
   const alertText = (): string[] =>
-    [...document.querySelectorAll('[role="alert"] h2, [role="alert"] li')].map(
+    [...document.querySelectorAll('[role="alert"] h2, [role="alert"] p, [role="alert"] li')].map(
       (e) => e.textContent ?? "",
     );
 
@@ -293,8 +294,26 @@ describe("the loader page", () => {
       "The archive is damaged: it isn't a zip file: there's no end of central directory.",
     ]);
     expect(document.querySelector('[role="status"]')?.textContent).toBe("");
+    // One problem is a paragraph, not a list of one.
+    expect(document.querySelector('[role="alert"] ul')).toBeNull();
     // Focus goes to the problem, so a screen reader reads it.
     expect(document.activeElement).toBe(document.querySelector('[role="alert"] h2'));
+  });
+
+  it("lists several problems", async () => {
+    const bytes = await writeArchive(details, files);
+    const zip = readZip(bytes);
+    const script = zip.find((e) => e.path === "assets/game.js");
+    const music = zip.find((e) => e.path === "assets/rain drops.mp3");
+    const damaged = new Uint8Array(bytes);
+    for (const e of [script, music]) {
+      const at = (e?.dataOffset ?? 0) + 2;
+      damaged[at] = (damaged[at] ?? 0) ^ 0xff;
+    }
+    browser(async () => new Response(damaged));
+    history.replaceState(null, "", "/?archive=road.loom");
+    await mountArchiveLoader(document.body);
+    expect(document.querySelectorAll('[role="alert"] li')).toHaveLength(2);
   });
 
   it("puts each new problem in an alert of its own", async () => {
