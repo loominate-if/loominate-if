@@ -101,7 +101,8 @@ function badPath(path: string): string | undefined {
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-async function sha256(data: Uint8Array): Promise<string> {
+/** A file's SHA-256, in lowercase hex. */
+export async function sha256(data: Uint8Array): Promise<string> {
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(data)));
   return [...digest].map((b) => b.toString(16).padStart(2, "0")).join("");
 }

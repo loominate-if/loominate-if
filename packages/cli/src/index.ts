@@ -30,6 +30,7 @@ export {
   type UnreachableEntry,
 } from "./coverage.js";
 export { validate } from "./archive.js";
+export { play, type PlayOptions, type PlayServer } from "./play.js";
 export { MAIN, loominateApp, type AppOptions } from "./vite/app.js";
 export { storyMap, type MapOptions, type MapResult } from "./map/command.js";
 export { loominateWalkthrough, WALKTHROUGH_SETUP } from "./vite/walkthrough.js";

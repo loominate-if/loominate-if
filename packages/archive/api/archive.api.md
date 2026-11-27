@@ -50,11 +50,52 @@ export type ArchiveFileInfo = {
 };
 
 // @public
+export function archiveKey(scope: string, ifid: string): string;
+
+// @public
 export type ArchiveManifest = ArchiveDetails & {
     readonly format: typeof ARCHIVE_FORMAT;
     readonly formatVersion: number;
     readonly files: readonly ArchiveFileInfo[];
 };
+
+// @public
+export type ArchiveRequest = {
+    readonly method: string;
+    readonly headers: {
+        get(name: string): string | null;
+    };
+};
+
+// @public
+export function archiveResponse(archive: Archive, path: string, request?: ArchiveRequest): Promise<Response>;
+
+// @public
+export const ARCHIVES_CACHE = "loominate-archives";
+
+// @public
+export type ArchiveWorkerScope = {
+    readonly registration: {
+        readonly scope: string;
+    };
+    readonly caches: CacheStorage;
+    readonly clients: {
+        claim(): Promise<void>;
+    };
+    fetch(request: Request): Promise<Response>;
+    skipWaiting(): Promise<void>;
+    addEventListener(type: "install" | "activate", listener: (event: WorkerEvent) => void): void;
+    addEventListener(type: "fetch", listener: (event: WorkerFetchEvent) => void): void;
+};
+
+// @public
+export function contentType(path: string): string;
+
+// @public
+export const GAMES_PATH = "games/";
+
+// @public
+export function gameUrl(scope: string, ifid: string): string;
 
 // @public
 export const IFICTION_PATH = "ifiction.xml";
@@ -66,13 +107,41 @@ export function ifictionRecord(details: ArchiveDetails): string;
 export function isIfid(text: string): boolean;
 
 // @public
+export type LoaderOptions = {
+    readonly worker?: string;
+};
+
+// @public
 export const MANIFEST_PATH = "manifest.json";
+
+// @public
+export function mountArchiveLoader(root: HTMLElement, options?: LoaderOptions): Promise<void>;
+
+// @public
+export const PLAYER_CACHE = "loominate-player";
 
 // @public
 export function readArchive(bytes: Uint8Array): Promise<Archive>;
 
 // @public
+export function serveArchives(worker: ArchiveWorkerScope): void;
+
+// @public
+export function storeArchive(bytes: Uint8Array, scope: string, storage: CacheStorage): Promise<ArchiveManifest>;
+
+// @public
 export function validateArchive(bytes: Uint8Array): Promise<string[]>;
+
+// @public
+export type WorkerEvent = {
+    waitUntil(work: Promise<unknown>): void;
+};
+
+// @public
+export type WorkerFetchEvent = {
+    readonly request: Request;
+    respondWith(response: Promise<Response>): void;
+};
 
 // @public
 export function writeArchive(details: ArchiveDetails, files: readonly ArchiveFile[]): Promise<Uint8Array>;
