@@ -6,6 +6,7 @@ import { build, dev, test } from "./commands.js";
 import { coverage, formatCoverage } from "./coverage.js";
 import { storyMap } from "./map/command.js";
 import { MAP_PATH } from "./map/page.js";
+import { play } from "./play.js";
 
 const HELP = `Usage: loominate <command> [options]
 
@@ -16,10 +17,11 @@ Commands:
   coverage Report what can't be reached, and what the walkthroughs never reach
   map      Write the story map, the game's passages and links, as one HTML file
   validate Check a .loom archive: loominate validate dist/my-game.loom
+  play     Play a .loom archive in a browser, as players will: loominate play dist/my-game.loom
 
 Options:
   --root <dir>   The game's folder (default: the current folder)
-  --port <n>     The dev server's port
+  --port <n>     The port to serve on (dev, play)
   --open         Open the game in a browser (dev)
   --target <t>   What to build: static (default), single, or archive (build)
   --inspector    Include the inspector, as dev does, e.g. for testers (build)
@@ -126,6 +128,15 @@ async function main(argv: readonly string[]): Promise<void> {
         for (const p of problems) console.log(`  ${p}`);
       }
     }
+  } else if (command === "play") {
+    const [file, ...more] = positionals.slice(1);
+    if (file === undefined || more.length > 0) {
+      throw new Error("Name one archive to play: loominate play dist/my-game.loom");
+    }
+    const port = values.port === undefined ? undefined : Number(values.port);
+    if (port !== undefined && !Number.isInteger(port)) throw new Error("--port must be a number.");
+    const server = await play(file, { ...(port !== undefined && { port }) });
+    console.log(`Playing ${file} at ${server.url}\nPress Ctrl+C to stop.`);
   } else {
     throw new Error(`There's no command "${command}". Run \`loominate --help\` to see them.`);
   }

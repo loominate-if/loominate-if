@@ -101,6 +101,14 @@ npx loominate build --target archive
 
 This writes `dist/my-game.loom`: the static site in one zip, with a manifest, `manifest.json`, first, saying what the game is and listing each file with its SHA-256, then its Treaty of Babel record, `ifiction.xml`, with its IFID, title, and author. It needs `game.ifid`; for a game made before new games had one, the build says so and gives a new IFID to add. `npx loominate validate dist/my-game.loom` checks an archive: its layout, its manifest, and every file in it. Every build puts the IFID in the page too, as the Treaty of Babel says a web game does, so catalogs can find it.
 
+To play the archive as players will, in a browser:
+
+```sh
+npx loominate play dist/my-game.loom
+```
+
+This serves a player page on `http://localhost:4180` (`--port` picks another) that opens the archive and plays the game from it, through a service worker, with no files unpacked. Once it's open, the game plays offline in that browser, from the same address, even with `play` stopped. The page also has an **Open an archive** button for any `.loom` file on your computer.
+
 Every build fails if the game has errors.
 
 ## See it

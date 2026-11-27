@@ -25,6 +25,9 @@
     "dist",
     "!dist/**/*.test.*"
   ],
+  "devDependencies": {
+    "jsdom": "30.1.3"
+  },
   "publishConfig": {
     "access": "public"
   }

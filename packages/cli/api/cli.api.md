@@ -145,6 +145,21 @@ export type NotReachedEntry = {
 };
 
 // @public
+export function play(file: string, options?: PlayOptions): Promise<PlayServer>;
+
+// @public
+export type PlayOptions = {
+    readonly port?: number;
+    readonly conditions?: readonly string[];
+};
+
+// @public
+export type PlayServer = {
+    readonly url: string;
+    close(): Promise<void>;
+};
+
+// @public
 export type ResolvedConfig = LoominateConfig & {
     readonly root: string;
     readonly loaded: readonly CompilerExtension[];

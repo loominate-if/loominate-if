@@ -12,5 +12,7 @@
     "lib": ["ES2023"],
     "types": ["node"]
   },
-  "include": ["*.ts", "../*.config.ts", "../eslint.config.js"]
+  "include": ["*.ts", "../*.config.ts", "../eslint.config.js"],
+  // The archive package's browser code, read as its declarations, which need no DOM types here.
+  "references": [{ "path": "../packages/archive" }]
 }

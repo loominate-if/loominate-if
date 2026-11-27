@@ -257,7 +257,11 @@ importers:
         specifier: 5.1.0
         version: 5.1.0(@types/node@26.6.6)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.25.10))
 
-  packages/archive: {}
+  packages/archive:
+    devDependencies:
+      jsdom:
+        specifier: 30.1.3
+        version: 30.1.3
 
   packages/cli:
     dependencies:
