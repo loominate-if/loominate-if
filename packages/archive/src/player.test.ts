@@ -443,10 +443,12 @@ describe("the generic player", () => {
     expect(frame.src).toBe(`${GAME}/`);
     expect(frame.title).toBe("Lantern Road");
     expect(frame.referrerPolicy).toBe("no-referrer");
-    expect(document.querySelector("header")?.textContent).toBe(
+    expect(document.querySelector(".loominate-player-bar")?.textContent).toBe(
       "Playing Lantern RoadOpen another archive",
     );
-    expect(document.querySelector("header a")?.getAttribute("href")).toBe("/");
+    expect(document.querySelector(".loominate-player-bar a")?.getAttribute("href")).toBe("/");
+    // No landmark, which VoiceOver would name without reading.
+    expect(document.querySelector("header, [role]")).toBeNull();
   });
 
   it("hands the archive to the game's host, and only once", async () => {

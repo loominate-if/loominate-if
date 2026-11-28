@@ -77,8 +77,8 @@ function remember(manifest: ArchiveManifest): void {
 }
 
 const STYLE = `.loominate-player { position: fixed; inset: 0; display: flex; flex-direction: column; }
-.loominate-player > header { display: flex; gap: 1rem; align-items: baseline; justify-content: space-between; padding: 0.25rem 1rem; font-size: 0.9rem; border-bottom: 1px solid color-mix(in srgb, currentColor 25%, transparent); }
-.loominate-player > header p { margin: 0; }
+.loominate-player-bar { display: flex; gap: 1rem; align-items: baseline; justify-content: space-between; padding: 0.25rem 1rem; font-size: 0.9rem; border-bottom: 1px solid color-mix(in srgb, currentColor 25%, transparent); }
+.loominate-player-bar p { margin: 0; }
 .loominate-player > iframe { flex: 1; border: 0; width: 100%; }`;
 
 /**
@@ -136,7 +136,10 @@ export async function mountPlayer(root: HTMLElement, options: PlayerOptions): Pr
       style.textContent = STYLE;
       const shell = doc.createElement("div");
       shell.className = "loominate-player";
-      const bar = doc.createElement("header");
+      // Not a <header>: as a banner landmark, VoiceOver names it and reads
+      // nothing more until the player interacts with it.
+      const bar = doc.createElement("div");
+      bar.className = "loominate-player-bar";
       const playing = doc.createElement("p");
       playing.append(
         "Playing ",
