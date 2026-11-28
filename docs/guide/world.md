@@ -2,9 +2,33 @@
 
 The world model is an optional package for games with places and things in them: rooms to move between, boxes to open, and lamps to light. A plain branching story doesn't need it, and pays nothing for it.
 
-It's `@loominate-if/world`. It isn't published to npm yet, while the rest of the world model is built ([Phase 2](https://github.com/loominate-if/loominate-if/issues/58)); this guide grows with it. ADRs [0031](../decisions/0031-containment-and-scope.md), [0032](../decisions/0032-minds-and-bodies.md), [0033](../decisions/0033-rooms-and-regions.md), and [0034](../decisions/0034-exits-and-directions.md) record the decisions behind it.
+It keeps track of where things are and what can be sensed, which mind is in which body, which room the player is in and the ways out of it, what everyone knows, what NPCs do with their turns, conversations, companions, scenes, and the passing of time. It doesn't write your prose: your passages decide what to show, with checks such as `{if canSee(player, coin)}` and lists such as `listContents(table)`, and links call methods such as `box.open()` in an `on enter` effect, or run [actions](actions.md). Its widgets, such as the compass and the auto-map, show only where you place them.
 
-So far, the world model keeps track of where things are, what can be sensed, which mind is in which body, which room the player is in, and the ways between rooms. It doesn't show anything or add links by itself: a thing in a room doesn't appear in the passage, and there's no "open the box" until you write one. Your passages decide what to show, with checks such as `{if canSee(player, coin)}`, and links call methods such as `box.open()` in an `on enter` effect. Export from `story.ts` every thing a passage mentions. Listing what's in a room, the compass, and actions come in later tasks ([#69](https://github.com/loominate-if/loominate-if/issues/69), [#81](https://github.com/loominate-if/loominate-if/issues/81), [#76](https://github.com/loominate-if/loominate-if/issues/76)).
+ADRs [0031](../decisions/0031-containment-and-scope.md), [0032](../decisions/0032-minds-and-bodies.md), [0033](../decisions/0033-rooms-and-regions.md), and [0034](../decisions/0034-exits-and-directions.md) record the decisions behind its foundations; [DESIGN.md](../DESIGN.md) links the rest.
+
+## Setting it up
+
+Install it in your game:
+
+```sh
+npm install @loominate-if/world
+```
+
+List it in `loominate.config.ts`, which loads its passage syntax, such as the `room:` tag, and its [inspector](inspector.md) tabs:
+
+```ts
+export default defineConfig({
+  game: { id: "my-game", version: "0.1.0", ifid: "0B3A7F64-8E2C-4D1A-9F6B-2C5E8A1D3F70" },
+  start: "Start",
+  extensions: ["@loominate-if/world"],
+});
+```
+
+Then import what you use from it in `story.ts`, and export from `story.ts` every thing a passage mentions:
+
+```ts
+import { place, thing } from "@loominate-if/world";
+```
 
 ## Places and things
 
