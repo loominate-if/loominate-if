@@ -1,7 +1,6 @@
 {
   "name": "@loominate-if/world",
   "version": "0.1.0",
-  "private": true,
   "description": "The optional world model: things and places, containment, scope, light, minds and bodies, rooms, and regions.",
   "license": "MIT",
   "repository": {

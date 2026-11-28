@@ -2,7 +2,7 @@
 
 How the `@loominate-if` packages get to npm, for maintainers. [ADR 0029](decisions/0029-publishing-to-npm.md) has the reasons.
 
-All seven published packages share one version: `core`, `presentation`, `compiler`, `inspector`, `cli`, `testing`, and `create`. A new game depends on `^<create's version>` of each, so they must move together. `node scripts/release.ts check`, which `pnpm lint` runs, fails if they don't, or if a manifest is missing what npm needs.
+Every package under `packages/` that isn't `private` is published, and they all share one version; the editor extensions and the Tree-sitter grammar are `private`. A new game depends on `^<create's version>` of several, and they depend on each other, so they must move together. `node scripts/release.ts check`, which `pnpm lint` runs, fails if they don't, or if a manifest is missing what npm needs.
 
 ## A release
 
@@ -22,6 +22,21 @@ All seven published packages share one version: `core`, `presentation`, `compile
    ```
 
 The [Release workflow](../.github/workflows/release.yml) checks that the tag matches the version, runs every check, packs each package, and publishes it with provenance. A package already published at that version is skipped, so a failed run can be re-run.
+
+## A new package
+
+The Release workflow can't publish a package npm hasn't seen: trusted publishing is set up per package, and only for one that exists. So a release that publishes a package for the first time, such as one that was `private`, has the maintainer publish that package by hand first, as in [the first release](#the-first-release):
+
+1. Merge the version pull request, tag the merge commit, but don't push the tag yet.
+2. From a clean checkout of the tag, build and pack as in step 2 of the first release, then publish only the new packages' tarballs, approving each in the browser:
+
+   ```sh
+   for p in archive language-server world; do npm publish ./release/loominate-if-$p-0.2.0.tgz --access public; done
+   ```
+
+3. Make the workflow their trusted publisher, as in step 3, for those packages.
+4. Push the tag. The workflow skips the packages already published and publishes the rest.
+5. Require two-factor authentication and disallow tokens for the new packages, as in step 5.
 
 ## The first release
 
@@ -46,7 +61,7 @@ npm's trusted publishing can only be set up for a package that already exists, s
 3. Make the Release workflow a trusted publisher of each package. In a terminal (each command asks you to approve it in the browser where your npm passkey is):
 
    ```sh
-   for p in cli compiler core create inspector presentation testing; do
+   for p in archive cli compiler core create inspector language-server presentation testing world; do
      npm trust github @loominate-if/$p --repo loominate-if/loominate-if --file release.yml --allow-publish --yes
    done
    ```

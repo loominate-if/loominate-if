@@ -53,6 +53,8 @@ describe("the repository", () => {
       "@loominate-if/language-server",
       "@loominate-if/presentation",
       "@loominate-if/testing",
+      // The optional world model, once Phase 2 was done (#443).
+      "@loominate-if/world",
     ]);
   });
 
@@ -215,6 +217,21 @@ describe("staleOutput", () => {
           "package/dist/api-report/core.api.md",
         ],
         exists,
+      ),
+    ).toEqual([]);
+  });
+
+  it("takes TSX as source, as presentation's components are", () => {
+    const tsx = (path: string) => path === "src/page/view.tsx";
+    expect(
+      staleOutput(
+        "@loominate-if/presentation",
+        [
+          "package/dist/page/view.js",
+          "package/dist/page/view.d.ts",
+          "package/dist/page/view.js.map",
+        ],
+        tsx,
       ),
     ).toEqual([]);
   });

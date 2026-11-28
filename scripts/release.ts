@@ -135,7 +135,7 @@ export function checkPacked(json: Record<string, unknown>, files: readonly strin
   return problems;
 }
 
-/** Build output is in `dist/` beside `dist/api-report/`, made from the same path under `src/`. */
+/** Build output is in `dist/` beside `dist/api-report/`, made from the same path under `src/`, in `.ts` or `.tsx`. */
 const OUTPUT = /^dist\/(?!api-report\/)(.+)\.(?:d\.ts|js)(?:\.map)?$/;
 
 /**
@@ -152,7 +152,8 @@ export function staleOutput(
   for (const file of files) {
     const path = file.replace(/^package\//, "");
     const built = OUTPUT.exec(path);
-    if (built && !sourceExists(`src/${built[1] ?? ""}.ts`)) {
+    const stem = `src/${built?.[1] ?? ""}`;
+    if (built && !sourceExists(`${stem}.ts`) && !sourceExists(`${stem}.tsx`)) {
       problems.push(
         `${name}: ${path} has no source in src/, so it's left from an old build. Delete dist and build again.`,
       );
