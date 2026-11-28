@@ -68,6 +68,8 @@ describe("loominate play", () => {
       expect(page.headers["content-type"]).toBe("text/html; charset=utf-8");
       const html = page.body.toString();
       expect(html).toContain("<title>Loominate IF player</title>");
+      // Light or dark, and saying so, so a game that's only light gets its own light background.
+      expect(html).toContain("color-scheme: light dark");
       // The script is inline, so the page is one file to keep offline, and its hash is the only script allowed.
       expect(html).not.toMatch(/<script[^>]+src=/);
       const policy = String(page.headers["content-security-policy"]);

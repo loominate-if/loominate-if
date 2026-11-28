@@ -88,7 +88,10 @@ async function bundle(id: string, conditions: readonly string[]): Promise<string
 
 /**
  * A page with its script inline, so it's one file to keep for playing
- * offline, or, given `src`, from that file.
+ * offline, or, given `src`, from that file. It's light or dark, as the
+ * browser is, and says so: a game's frame that doesn't, which browsers treat
+ * as light, then gets an opaque light background rather than showing the
+ * player's dark one behind its dark text.
  */
 function page(title: string, script: string, src?: string): { html: string; hash: string } {
   const code = script.replace(/<\/(script)/gi, "<\\/$1");
@@ -103,7 +106,7 @@ function page(title: string, script: string, src?: string): { html: string; hash
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title>
-<style>body { font: 1.1rem/1.5 system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; } [role="alert"] { color: #b00020; } @media (prefers-color-scheme: dark) { body { background: #121212; color: #eee; } [role="alert"] { color: #ff8a80; } }</style>
+<style>:root { color-scheme: light dark; } body { font: 1.1rem/1.5 system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; } [role="alert"] { color: #b00020; } @media (prefers-color-scheme: dark) { [role="alert"] { color: #ff8a80; } }</style>
 </head>
 <body>
 ${tag}
