@@ -54,12 +54,104 @@ const page = (status: number, title: string, body: string): Response =>
     { status, headers: { "Content-Type": "text/html; charset=utf-8" } },
   );
 
+/** Options for {@link serveArchives}. */
+export type ServeOptions = {
+  /**
+   * A `Content-Security-Policy` for every response from a game's archive,
+   * as {@link sandboxPolicy} makes for the generic player, and for what's
+   * kept for offline, which the game could have written. Pages served from
+   * the network, such as the game host page, keep their own.
+   */
+  readonly policy?: string;
+};
+
+/**
+ * The content security policy the generic player gives a game on its own
+ * origin (ADR 0134): its own files, inline styles, and `data:` and `blob:`
+ * media, and nothing else: no other site, worker, frame, plugin, or form
+ * target, and framed only by the player at `player`, an origin.
+ */
+export function sandboxPolicy(player: string): string {
+  return [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "media-src 'self' data: blob:",
+    "font-src 'self' data:",
+    "connect-src 'self' data: blob:",
+    "manifest-src 'self'",
+    "worker-src 'none'",
+    "frame-src 'none'",
+    "child-src 'none'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+    `frame-ancestors ${player}`,
+  ].join("; ");
+}
+
+/** The worker takes over at once, so what the first visit opens is served by it. */
+function takeOver(worker: ArchiveWorkerScope): void {
+  worker.addEventListener("install", (event) => {
+    event.waitUntil(worker.skipWaiting());
+  });
+  worker.addEventListener("activate", (event) => {
+    event.waitUntil(worker.clients.claim());
+  });
+}
+
+/**
+ * Network-first, keeping what's fetched, for when the network's gone. What's
+ * kept passes through `offline` on its way out, since pages on the origin can
+ * write that cache too.
+ */
+function fromNetwork(
+  worker: ArchiveWorkerScope,
+  offline: (response: Response) => Response = (r) => r,
+): (request: Request) => Promise<Response> {
+  return async (request) => {
+    const cache = await worker.caches.open(PLAYER_CACHE);
+    try {
+      const response = await worker.fetch(request);
+      // Archives are kept under their IFIDs, not twice.
+      if (response.ok && !new URL(request.url).pathname.endsWith(".loom")) {
+        await cache.put(request, response.clone());
+      }
+      return response;
+    } catch (e) {
+      // Offline: what was fetched last, and a page whatever its URL's query.
+      const kept = await cache.match(request, { ignoreSearch: request.mode === "navigate" });
+      if (kept) return offline(kept);
+      throw e;
+    }
+  };
+}
+
+/**
+ * Makes `worker` keep its pages and what they fetch, network-first, so they
+ * work offline: the generic player's own worker, which plays no games itself.
+ */
+export function keepOffline(worker: ArchiveWorkerScope): void {
+  takeOver(worker);
+  const origin = new URL(worker.registration.scope).origin;
+  const network = fromNetwork(worker);
+  worker.addEventListener("fetch", (event) => {
+    const url = new URL(event.request.url);
+    if (url.origin === origin && event.request.method === "GET") {
+      event.respondWith(network(event.request));
+    }
+  });
+}
+
 /**
  * Makes `worker` serve games from archives the loader page opened: called
  * from the service worker's script with its `self`. The worker takes over at
- * once, so a game opened from the first visit plays from its archive.
+ * once, so a game opened from the first visit plays from its archive, and
+ * keeps everything else on its origin for playing offline, as
+ * {@link keepOffline} does.
  */
-export function serveArchives(worker: ArchiveWorkerScope): void {
+export function serveArchives(worker: ArchiveWorkerScope, options: ServeOptions = {}): void {
   const scope = worker.registration.scope;
   const games = new URL(GAMES_PATH, scope);
   // An archive read once, kept while its stored copy is the same.
@@ -76,6 +168,23 @@ export function serveArchives(worker: ArchiveWorkerScope): void {
     reading.catch(() => opened.delete(ifid));
     return reading;
   }
+
+  /** A game's response, with the policy, and never sniffed as another type. */
+  const guarded = (response: Response): Response => {
+    const headers = new Headers(response.headers);
+    headers.set("X-Content-Type-Options", "nosniff");
+    if (options.policy !== undefined) headers.set("Content-Security-Policy", options.policy);
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  };
+
+  // A game can put what it likes in its origin's caches, so what's kept
+  // there gets the policy too, or a page it planted would play offline
+  // without one.
+  const network = fromNetwork(worker, options.policy === undefined ? undefined : guarded);
 
   async function serveGame(request: Request, ifid: string, path: string): Promise<Response> {
     let found: Archive | undefined;
@@ -98,29 +207,7 @@ export function serveArchives(worker: ArchiveWorkerScope): void {
     return archiveResponse(found, path, request);
   }
 
-  async function fromNetwork(request: Request): Promise<Response> {
-    const cache = await worker.caches.open(PLAYER_CACHE);
-    try {
-      const response = await worker.fetch(request);
-      // Archives are kept by the loader, under their IFIDs, not twice.
-      if (response.ok && !new URL(request.url).pathname.endsWith(".loom")) {
-        await cache.put(request, response.clone());
-      }
-      return response;
-    } catch (e) {
-      // Offline: what was fetched last, and the loader page whatever its URL's query.
-      const kept = await cache.match(request, { ignoreSearch: request.mode === "navigate" });
-      if (kept) return kept;
-      throw e;
-    }
-  }
-
-  worker.addEventListener("install", (event) => {
-    event.waitUntil(worker.skipWaiting());
-  });
-  worker.addEventListener("activate", (event) => {
-    event.waitUntil(worker.clients.claim());
-  });
+  takeOver(worker);
   worker.addEventListener("fetch", (event) => {
     const url = new URL(event.request.url);
     if (url.origin !== games.origin || event.request.method === "POST") return;
@@ -131,10 +218,12 @@ export function serveArchives(worker: ArchiveWorkerScope): void {
       if (!isIfid(ifid)) {
         event.respondWith(
           Promise.resolve(
-            page(
-              404,
-              "There's no game here",
-              `<p><a href="${scope}">Open a game's archive</a> to play it.</p>`,
+            guarded(
+              page(
+                404,
+                "There's no game here",
+                `<p><a href="${scope}">Open a game's archive</a> to play it.</p>`,
+              ),
             ),
           ),
         );
@@ -145,9 +234,9 @@ export function serveArchives(worker: ArchiveWorkerScope): void {
         event.respondWith(Promise.resolve(Response.redirect(gameUrl(scope, ifid), 301)));
         return;
       }
-      event.respondWith(serveGame(event.request, ifid, rest.slice(slash + 1)));
+      event.respondWith(serveGame(event.request, ifid, rest.slice(slash + 1)).then(guarded));
       return;
     }
-    if (event.request.method === "GET") event.respondWith(fromNetwork(event.request));
+    if (event.request.method === "GET") event.respondWith(network(event.request));
   });
 }

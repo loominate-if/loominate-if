@@ -92,6 +92,12 @@ export type ArchiveWorkerScope = {
 export function contentType(path: string): string;
 
 // @public
+export type GameHostOptions = {
+    readonly player: string;
+    readonly worker?: string;
+};
+
+// @public
 export const GAMES_PATH = "games/";
 
 // @public
@@ -107,6 +113,9 @@ export function ifictionRecord(details: ArchiveDetails): string;
 export function isIfid(text: string): boolean;
 
 // @public
+export function keepOffline(worker: ArchiveWorkerScope): void;
+
+// @public
 export type LoaderOptions = {
     readonly worker?: string;
 };
@@ -118,13 +127,36 @@ export const MANIFEST_PATH = "manifest.json";
 export function mountArchiveLoader(root: HTMLElement, options?: LoaderOptions): Promise<void>;
 
 // @public
+export function mountGameHost(root: HTMLElement, options: GameHostOptions): Promise<void>;
+
+// @public
+export function mountPlayer(root: HTMLElement, options: PlayerOptions): Promise<void>;
+
+// @public
 export const PLAYER_CACHE = "loominate-player";
+
+// @public
+export const PLAYER_SANDBOX = "allow-scripts allow-same-origin allow-forms allow-downloads";
+
+// @public
+export type PlayerOptions = {
+    gameOrigin(ifid: string): string;
+    readonly worker?: string;
+};
 
 // @public
 export function readArchive(bytes: Uint8Array): Promise<Archive>;
 
 // @public
-export function serveArchives(worker: ArchiveWorkerScope): void;
+export function sandboxPolicy(player: string): string;
+
+// @public
+export function serveArchives(worker: ArchiveWorkerScope, options?: ServeOptions): void;
+
+// @public
+export type ServeOptions = {
+    readonly policy?: string;
+};
 
 // @public
 export function storeArchive(bytes: Uint8Array, scope: string, storage: CacheStorage): Promise<ArchiveManifest>;

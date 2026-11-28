@@ -6,7 +6,9 @@
  * one, and `loominate validate` checks one. In a browser, a service worker
  * plays a game from its archive (ADR 0133): {@link serveArchives} in the
  * worker, and {@link mountArchiveLoader} on the page that opens archives;
- * `loominate play` serves both.
+ * the generic player, {@link mountPlayer}, plays games anyone made, each in a
+ * sandboxed iframe on an origin of its own (ADR 0134), and `loominate play`
+ * serves it.
  */
 export {
   ARCHIVE_FORMAT,
@@ -26,6 +28,13 @@ export {
   type ArchiveManifest,
 } from "./archive.js";
 export { mountArchiveLoader, storeArchive, type LoaderOptions } from "./loader.js";
+export {
+  mountGameHost,
+  mountPlayer,
+  PLAYER_SANDBOX,
+  type GameHostOptions,
+  type PlayerOptions,
+} from "./sandbox.js";
 export { archiveResponse, contentType, type ArchiveRequest } from "./serve.js";
 export {
   ARCHIVES_CACHE,
@@ -33,7 +42,10 @@ export {
   GAMES_PATH,
   gameUrl,
   PLAYER_CACHE,
+  keepOffline,
+  sandboxPolicy,
   serveArchives,
+  type ServeOptions,
   type ArchiveWorkerScope,
   type WorkerEvent,
   type WorkerFetchEvent,
